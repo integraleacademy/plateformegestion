@@ -7,17 +7,15 @@ from email.mime.text import MIMEText
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
-# --- Filtre date FR ---
+# --- Filtres Jinja ---
 def format_date(value):
     try:
         dt = datetime.strptime(value, "%Y-%m-%d")
         return dt.strftime("%d-%m-%Y")
     except Exception:
         return value
-
 app.jinja_env.filters['datefr'] = format_date
 
-# --- Filtre datetime pour conversion dans Jinja ---
 def to_datetime(value):
     try:
         return datetime.strptime(value, "%Y-%m-%d")
@@ -33,8 +31,8 @@ DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 
-FROM_EMAIL = os.environ.get("FROM_EMAIL")           # ecole@integraleacademy.com
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")   # mot de passe application
+FROM_EMAIL = os.environ.get("FROM_EMAIL")
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 
@@ -67,54 +65,53 @@ def find_session(data, sid):
 # Modèles d'étapes
 # -----------------------
 APS_A3P_STEPS = [
-    {"name":"Création session ADEF", "relative_to":"start", "offset_type":"before", "days":15},
     {"name":"Création session CNAPS", "relative_to":"start", "offset_type":"before", "days":20},
+    {"name":"Création session ADEF", "relative_to":"start", "offset_type":"before", "days":15},
+    {"name":"Envoyer test de français", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Nomination jury examen", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Planification YPAREO", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Contrat envoyé au formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Contrat formateur imprimé", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Saisie des candidats ADEF", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Impression des fiches CNIL", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Validation session ADEF", "relative_to":"start", "offset_type":"before", "days":2},
     {"name":"Fabrication badge formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Vérification dossier formateur", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Envoyer test de français", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Validation session ADEF", "relative_to":"start", "offset_type":"before", "days":2},
 
     # AVANT EXAM
-    {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
-    {"name":"Impression évaluation de fin de formation", "relative_to":"exam","offset_type":"before","days":5},
+    {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
+    {"name":"Impression évaluation de fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
 
-    # JOUR DE L’EXAMEN
+    # JOUR EXAM
     {"name":"Session examen clôturée", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Frais ADEF réglés", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Documents examen envoyés à l’ADEF", "relative_to":"exam", "offset_type":"after", "days":0},
 
-    # APRÈS EXAMEN
-    {"name":"Envoyer mail stagiaires attestations de formation","relative_to":"exam","offset_type":"after","days":2},
-    {"name":"Message avis Google","relative_to":"exam","offset_type":"after","days":2},
+    # APRÈS EXAM
+    {"name":"Envoyer mail stagiaires attestations de formation", "relative_to":"exam", "offset_type":"after", "days":2},
+    {"name":"Message avis Google", "relative_to":"exam", "offset_type":"after", "days":2},
     {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":7},
     {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
 ]
 
-
 SSIAP_STEPS = [
-    {"name": "Nomination jury examen", "relative_to": "exam", "offset_type": "before", "days": 65},
-    {"name": "Prévenir centre d’examen", "relative_to": "exam", "offset_type": "before", "days": 65},
-    {"name": "Envoi convention au SDIS", "relative_to": "exam", "offset_type": "before", "days": 65},
-    {"name": "Planification YPAREO", "relative_to": "start", "offset_type": "before", "days": 10},
-    {"name": "Contrat envoyé au formateur", "relative_to": "start", "offset_type": "before", "days": 5},
-    {"name": "Contrat formateur imprimé", "relative_to": "start", "offset_type": "before", "days": 5},
-    {"name": "Impression des dossiers d’examen", "relative_to": "exam", "offset_type": "before", "days": 5},
-    {"name": "Impression évaluation de fin de formation", "relative_to": "exam", "offset_type": "before", "days": 5},
-    {"name": "Envoyer mail stagiaires attestations de formation", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Message avis Google", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplômes envoyés au SDIS", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplômes reçus", "relative_to": "exam", "offset_type": "after", "days": 30},
-    {"name": "Diplômes envoyés aux stagiaires", "relative_to": "exam", "offset_type": "after", "days": 30},
+    {"name":"Nomination jury examen", "relative_to":"exam", "offset_type":"before", "days":65},
+    {"name":"Prévenir centre d’examen", "relative_to":"exam", "offset_type":"before", "days":65},
+    {"name":"Envoi convention au SDIS", "relative_to":"exam", "offset_type":"before", "days":65},
+    {"name":"Planification YPAREO", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Contrat envoyé au formateur", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Contrat formateur imprimé", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
+    {"name":"Impression évaluation de fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
+    {"name":"Envoyer mail stagiaires attestations de formation", "relative_to":"exam", "offset_type":"after", "days":2},
+    {"name":"Message avis Google", "relative_to":"exam", "offset_type":"after", "days":2},
+    {"name":"Diplômes envoyés au SDIS", "relative_to":"exam", "offset_type":"after", "days":2},
+    {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":30},
+    {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":30},
 ]
 
 FORMATION_COLORS = {
@@ -153,16 +150,9 @@ def deadline_for(step_index, session):
     rule = _rule_for(session["formation"], step_index)
     if not rule:
         return None
-
-    base_date = None
-    if rule["relative_to"] == "exam":
-        base_date = parse_date(session.get("date_exam"))
-    elif rule["relative_to"] == "start":
-        base_date = parse_date(session.get("date_debut"))
-
+    base_date = parse_date(session.get("date_exam")) if rule["relative_to"] == "exam" else parse_date(session.get("date_debut"))
     if not base_date:
         return None
-
     return (base_date - timedelta(days=rule["days"])) if rule["offset_type"] == "before" else (base_date + timedelta(days=rule["days"]))
 
 def status_for_step(step_index, session, now=None):
@@ -189,11 +179,10 @@ def snapshot_overdue(session):
 # Archivage automatique
 # -----------------------
 def auto_archive_if_all_done(session):
-    """Archive automatiquement une session si toutes les étapes sont faites."""
     session["archived"] = all(step["done"] for step in session["steps"])
 
 # -----------------------
-# Mail quotidien global
+# Mails & résumé
 # -----------------------
 def _late_phrase(dl: datetime) -> str:
     if not dl:
@@ -230,9 +219,7 @@ def generate_daily_overdue_email(sessions):
         html += f"""
           <div style="border:1px solid #eee;border-radius:12px;padding:18px 20px;margin-bottom:18px;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;">
-              <div style="background:{color};color:#fff;font-weight:700;border-radius:30px;padding:6px 14px;font-size:14px;letter-spacing:.5px;">
-                {s["formation"]}
-              </div>
+              <div style="background:{color};color:#fff;font-weight:700;border-radius:30px;padding:6px 14px;font-size:14px;letter-spacing:.5px;">{s["formation"]}</div>
               <div style="font-size:14px;color:#444;">
                 <b>Début :</b> {format_date(s.get("date_debut","—"))} &nbsp;&nbsp;
                 <b>Fin :</b> {format_date(s.get("date_fin","—"))} &nbsp;&nbsp;
@@ -243,17 +230,12 @@ def generate_daily_overdue_email(sessions):
         """
         for name, dl in overdue:
             html += f"<li style='margin-bottom:4px;list-style:none;'>🔸 {name} — {_late_phrase(dl)}</li>"
-        html += """
-            </ul>
-          </div>
-        """
+        html += "</ul></div>"
     if not found_any:
         html += "<p style='text-align:center;font-size:15px;color:#444;margin:20px 0;'>✅ Aucun retard à signaler aujourd’hui.</p>"
     html += """
         </div>
-        <div style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">
-          Vous recevez ce mail automatiquement chaque matin à 8h.
-        </div>
+        <div style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">Vous recevez ce mail automatiquement chaque matin à 8h.</div>
       </div>
     </body>
     """
@@ -330,13 +312,12 @@ def session_detail(sid):
     statuses = []
     for i in range(len(session["steps"])):
         st, dl = status_for_step(i, session)
-        statuses.append({
-            "status": st,
-            "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
-        })
+        statuses.append({"status": st, "deadline": (dl.strftime("%Y-%m-%d") if dl else None)})
+    # Tri par échéance
+    order = sorted(range(len(session["steps"])), key=lambda i: deadline_for(i, session) or datetime.max)
     auto_archive_if_all_done(session)
     save_sessions(data)
-    return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses, now=datetime.now)
+    return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses, order=order, now=datetime.now)
 
 @app.route("/sessions/<sid>/edit", methods=["GET","POST"])
 def edit_session(sid):

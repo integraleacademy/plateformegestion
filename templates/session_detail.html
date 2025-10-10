@@ -10,7 +10,7 @@
 <header class="topbar">
   <div class="brand">
     <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo" alt="Logo">
     <div>
       <h1>{{ s.formation }} — Fiche session</h1>
       <div class="clock small">
@@ -51,7 +51,7 @@
             {% endif %}
           </div>
 
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}">
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}" class="step-form">
             <input type="hidden" name="index" value="{{ loop.index0 }}">
             <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
               <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
@@ -69,6 +69,30 @@
 </main>
 
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
-<script>document.getElementById('year').textContent=new Date().getFullYear();</script>
+<script>
+  // année footer
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // mémoriser l’étape cliquée avant POST
+  document.querySelectorAll('.step-form').forEach(function (f) {
+    f.addEventListener('submit', function () {
+      var idx = f.querySelector('input[name="index"]').value;
+      // stocke #stepX pour après le reload
+      sessionStorage.setItem('lastStepAnchor', '#step' + idx);
+    });
+  });
+
+  // après rechargement : re-scroll sur l’ancre (utile si le hash a été perdu/ignoré)
+  window.addEventListener('load', function () {
+    var target = location.hash || sessionStorage.getItem('lastStepAnchor');
+    if (target) {
+      var el = document.querySelector(target);
+      if (el) {
+        // scroll avec marge gérée en CSS (scroll-margin-top)
+        el.scrollIntoView({ block: 'start' });
+      }
+    }
+  });
+</script>
 </body>
 </html>

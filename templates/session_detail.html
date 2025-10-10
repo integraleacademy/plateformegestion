@@ -36,10 +36,24 @@
   {% if not s.steps %}
     <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
   {% else %}
+
+    {% set steps_with_deadlines = [] %}
+    {% for i in range(s.steps|length) %}
+      {% set st = statuses[i] %}
+      {% set step = s.steps[i] %}
+      {% set deadline = st.deadline | datetime if st.deadline else None %}
+      {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
+    {% endfor %}
+
+    {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
+
     <div class="steps">
-      {% for step in s.steps %}
-        {% set st = statuses[loop.index0] %}
-        <div class="step" id="step{{ loop.index0 }}">
+      {% for entry in sorted_steps %}
+        {% set i = entry.index %}
+        {% set step = entry.step %}
+        {% set st = entry.st %}
+        {% set date_obj = entry.deadline %}
+        <div class="step" id="step{{ i }}">
           <div class="step-head">
             {% if step.done %}
               <div class="status-chip ok">✅ Étape validée</div>
@@ -53,8 +67,8 @@
             {% endif %}
           </div>
 
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}">
-            <input type="hidden" name="index" value="{{ loop.index0 }}">
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
+            <input type="hidden" name="index" value="{{ i }}">
             <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
               <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
               <span class="label">{{ step.name }}</span>
@@ -64,8 +78,7 @@
           {% if step.done and step.done_at %}
             <div class="done-info">Étape validée le {{ step.done_at }}</div>
           {% else %}
-            {% if st.deadline %}
-              {% set date_obj = st.deadline | datetime %}
+            {% if date_obj %}
               {% set diff = (date_obj - now()).days %}
               <div class="status-text">
                 {% if diff < 0 %}
@@ -81,6 +94,7 @@
         </div>
       {% endfor %}
     </div>
+
   {% endif %}
 </main>
 
@@ -88,7 +102,6 @@
 
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
-  // Remet en haut au chargement
   window.scrollTo(0, 0);
 </script>
 

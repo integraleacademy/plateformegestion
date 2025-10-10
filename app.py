@@ -71,13 +71,41 @@ APS_A3P_STEPS = [
     {"name":"Envoyer test de français", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Signature des fiches CNIL", "relative_to":"start", "offset_type":"after", "days":1},
+
+    # AVANT EXAM
     {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Impression évaluation de fin de formation", "relative_to":"exam","offset_type":"before","days":5},
+
+    # JOUR DE L’EXAMEN (NOUVEAU)
+    {"name":"Session examen clôturée", "relative_to":"exam", "offset_type":"after", "days":0},
+    {"name":"Frais ADEF réglés", "relative_to":"exam", "offset_type":"after", "days":0},
+    {"name":"Documents examen envoyés à l’ADEF", "relative_to":"exam", "offset_type":"after", "days":0},
+
+    # APRES EXAM
     {"name":"Envoyer mail stagiaires attestations de formation","relative_to":"exam","offset_type":"after","days":2},
     {"name":"Message avis Google","relative_to":"exam","offset_type":"after","days":2},
+
+    # APRES EXAM (NOUVEAU)
+    {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":7},
+    {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
+]
+
+SSIAP_STEPS = [
+    {"name": "Nomination jury examen", "relative_to": "exam", "offset_type": "before", "days": 65},
+    {"name": "Prévenir centre d’examen", "relative_to": "exam", "offset_type": "before", "days": 65},
+    {"name": "Envoi convention au SDIS", "relative_to": "exam", "offset_type": "before", "days": 65},
+    {"name": "Planification YPAREO", "relative_to": "start", "offset_type": "before", "days": 10},
+    {"name": "Contrat envoyé au formateur", "relative_to": "start", "offset_type": "before", "days": 5},
+    {"name": "Contrat formateur imprimé", "relative_to": "start", "offset_type": "before", "days": 5},
+    {"name": "Impression des dossiers d’examen", "relative_to": "exam", "offset_type": "before", "days": 5},
+    {"name": "Impression évaluation de fin de formation", "relative_to": "exam", "offset_type": "before", "days": 5},
+    {"name": "Envoyer mail stagiaires attestations de formation", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Message avis Google", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplômes envoyés au SDIS", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplômes reçus", "relative_to": "exam", "offset_type": "after", "days": 30},
+    {"name": "Diplômes envoyés aux stagiaires", "relative_to": "exam", "offset_type": "after", "days": 30},
 ]
 
 FORMATION_COLORS = {
@@ -89,8 +117,12 @@ FORMATION_COLORS = {
 
 def default_steps_for(formation):
     if formation in ("APS", "A3P"):
-        return [{"name": s["name"], "done": False, "done_at": None} for s in APS_A3P_STEPS]
-    return []
+        steps = APS_A3P_STEPS
+    elif formation == "SSIAP":
+        steps = SSIAP_STEPS
+    else:
+        steps = []
+    return [{"name": s["name"], "done": False, "done_at": None} for s in steps]
 
 # -----------------------
 # Statuts
@@ -101,18 +133,32 @@ def parse_date(date_str):
     except Exception:
         return None
 
+def _rule_for(formation, step_index):
+    if formation in ("APS", "A3P"):
+        return APS_A3P_STEPS[step_index]
+    if formation == "SSIAP":
+        return SSIAP_STEPS[step_index]
+    return None
+
 def deadline_for(step_index, session):
-    if session["formation"] not in ("APS", "A3P"):
+    rule = _rule_for(session["formation"], step_index)
+    if not rule:
         return None
-    rule = APS_A3P_STEPS[step_index]
+
     base_date = None
     if rule["relative_to"] == "exam":
         base_date = parse_date(session.get("date_exam"))
     elif rule["relative_to"] == "start":
         base_date = parse_date(session.get("date_debut"))
+
     if not base_date:
         return None
-    return base_date - timedelta(days=rule["days"]) if rule["offset_type"] == "before" else base_date + timedelta(days=rule["days"])
+
+    return (
+        base_date - timedelta(days=rule["days"])
+        if rule["offset_type"] == "before"
+        else base_date + timedelta(days=rule["days"])
+    )
 
 def status_for_step(step_index, session, now=None):
     if now is None:
@@ -164,8 +210,7 @@ def generate_daily_overdue_email(sessions):
         
         <!-- En-tête -->
         <div style="background:#121212;color:#fff;padding:24px 20px;text-align:center;">
-          <img src="data:image/png;base64,{logo_base64}" alt="Intégrale Academy"
-               style="height:90px;margin-bottom:10px;border-radius:12px;">
+          {'<img src="data:image/png;base64,'+logo_base64+'" alt="Intégrale Academy" style="height:90px;margin-bottom:10px;border-radius:12px;">' if logo_base64 else ''}
           <h1 style="margin:10px 0;font-size:24px;">⚠️ Récapitulatif des retards — Intégrale Academy</h1>
           <div style="font-size:14px;opacity:.9;">{now}</div>
         </div>
@@ -286,7 +331,13 @@ def session_detail(sid):
     data = load_sessions()
     session = find_session(data, sid)
     if not session: abort(404)
-    statuses = [{"status": status_for_step(i, session)[0], "deadline": (status_for_step(i, session)[1].strftime("%Y-%m-%d") if status_for_step(i, session)[1] else None)} for i in range(len(session["steps"]))]
+    statuses = [
+        {
+            "status": status_for_step(i, session)[0],
+            "deadline": (status_for_step(i, session)[1].strftime("%Y-%m-%d") if status_for_step(i, session)[1] else None)
+        }
+        for i in range(len(session["steps"]))
+    ]
     auto_archive_if_all_done(session)
     save_sessions(data)
     return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses)

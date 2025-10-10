@@ -241,6 +241,23 @@ def session_detail(sid):
     save_sessions(data)
     return render_template("session_detail.html", title=f"{session['formation']} — Détail",
                            s=session, statuses=statuses)
+@app.route("/sessions/<sid>/edit", methods=["GET", "POST"])
+def edit_session(sid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+
+    if request.method == "POST":
+        session["date_debut"] = request.form.get("date_debut", "").strip()
+        session["date_fin"] = request.form.get("date_fin", "").strip()
+        session["date_exam"] = request.form.get("date_exam", "").strip()
+        save_sessions(data)
+        flash("Session mise à jour.", "ok")
+        return redirect(url_for("session_detail", sid=sid))
+
+    return render_template("session_edit.html", s=session)
+
 
 @app.route("/sessions/<sid>/toggle_step", methods=["POST"])
 def toggle_step(sid):

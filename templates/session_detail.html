@@ -1,107 +1,40 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>{{ title }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-<header class="topbar">
-  <div class="brand">
-    <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
-    <div>
-      <h1>{{ s.formation }} — Fiche session</h1>
-      <div class="clock small">
-        Du {{ s.date_debut|datefr if s.date_debut else '—' }}
-        au {{ s.date_fin|datefr if s.date_fin else '—' }} •
-        Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}
-      </div>
-    </div>
-  </div>
-</header>
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ s.formation }} — Détail</h2>
 
-<main class="container">
-  <!-- Boutons Modifier / Supprimer -->
-  <div class="actions-bar">
-    <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
-      <button type="submit" class="btn edit">✏️ Modifier la session</button>
-    </form>
-    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
-      <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
-    </form>
-  </div>
+{% if not s.steps %}
+  <p>Aucune étape définie pour {{ s.formation }}.</p>
+{% else %}
+  <div class="steps">
+    {% for i in order %}
+      {% set step = s.steps[i] %}
+      {% set st = statuses[i] %}
+      <div class="step" id="step{{ i }}">
+        <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
+          <input type="hidden" name="index" value="{{ i }}">
+          <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
+            <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
+            <span class="label">{{ step.name }}</span>
+          </button>
+        </form>
 
-  {% if not s.steps %}
-    <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
-  {% else %}
-    <div class="steps">
-      {% for step in s.steps %}
-        {% set st = statuses[loop.index0] %}
-        <div class="step" id="step{{ loop.index0 }}">
-          <div class="step-head">
+        {% if st.deadline %}
+          {% set date_obj = st.deadline | datetime %}
+          {% set diff = (date_obj - now()).days %}
+          <div class="status">
             {% if step.done %}
-              <div class="status-chip ok">✅ Étape validée</div>
+              <span class="ok">✅ Terminé le {{ step.done_at }}</span>
+            {% elif diff < 0 %}
+              ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
+            {% elif diff == 0 %}
+              📅 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
             {% else %}
-              <div class="status-chip {{ 'ok' if st.status=='on_time' else ('late' if st.status=='late' else 'na') }}">
-                {% if st.status=='on_time' %}À temps{% elif st.status=='late' %}⚠️ Étape en retard{% else %}—{% endif %}
-              </div>
-            {% endif %}
-            {% if st.deadline %}
-              <div class="deadline">Échéance : {{ st.deadline|datefr }}</div>
+              ⏳ À venir dans {{ diff }} jour{% if diff > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
             {% endif %}
           </div>
-
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}">
-            <input type="hidden" name="index" value="{{ loop.index0 }}">
-            <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
-              <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
-              <span class="label">{{ step.name }}</span>
-            </button>
-          </form>
-
-          {% if step.done and step.done_at %}
-            <div class="done-info">Étape validée le {{ step.done_at }}</div>
-          {% else %}
-            {% if st.deadline %}
-              {% set date_obj = st.deadline | datetime %}
-              {% set diff = (date_obj - now()).days %}
-              <div class="status-text">
-                {% if diff < 0 %}
-                  ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
-                {% elif diff == 0 %}
-                  📅 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
-                {% else %}
-                  ⏳ À venir dans {{ diff }} jour{% if diff > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
-                {% endif %}
-              </div>
-            {% endif %}
-          {% endif %}
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-</main>
-
-<footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
-
-<script>
-  document.getElementById('year').textContent = new Date().getFullYear();
-  // Remet en haut au chargement
-  window.scrollTo(0, 0);
-</script>
-
-<style>
-  .status-text {
-    font-size: 13px;
-    color: #555;
-    margin-top: 4px;
-    margin-left: 4px;
-  }
-  .step.late .status-text { color: #c0392b; }
-  .step.on_time .status-text { color: #2980b9; }
-</style>
-
-</body>
-</html>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

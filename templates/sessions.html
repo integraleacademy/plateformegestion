@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <style>
     body {
       background:#f8f8f8;
@@ -13,7 +12,6 @@
       padding:0;
     }
 
-    /* --- Topbar noire --- */
     header.topbar {
       background:#111;
       color:#fff;
@@ -25,137 +23,100 @@
     }
     .brand {display:flex;align-items:center;gap:15px;}
     .brand img.logo {height:60px;border-radius:10px;}
-    .brand a.back {
-      color:#f4c45a;
-      font-weight:600;
-      text-decoration:none;
-      margin-right:15px;
-    }
-    .topbar h1 {
-      margin:0;
-      font-size:22px;
-      letter-spacing:0.5px;
-    }
+    .brand a.back {color:#f4c45a;font-weight:600;text-decoration:none;margin-right:15px;}
+    .topbar h1 {margin:0;font-size:22px;letter-spacing:0.5px;}
 
-    /* --- Contenu principal --- */
-    main.container {
-      padding:40px;
-      max-width:1200px;
-      margin:auto;
-    }
-
-    .actions-bar {
-      text-align:right;
-      margin-bottom:25px;
-    }
+    main.container {padding:40px;max-width:1200px;margin:auto;}
     .btn.gold {
-      background:#f4c45a;
-      color:#000;
-      border:none;
-      padding:10px 18px;
-      border-radius:8px;
-      cursor:pointer;
-      font-weight:600;
-      transition:0.2s;
+      background:#f4c45a;color:#000;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;
+      font-weight:600;transition:0.2s;
     }
     .btn.gold:hover {background:#e8b940;}
-
+    .actions-bar {text-align:right;margin-bottom:25px;}
     h2.section-title {
-      font-size:20px;
-      margin:25px 0 15px;
-      color:#222;
-      border-left:4px solid #2a9134;
-      padding-left:10px;
-      display:flex;
-      align-items:center;
-      gap:8px;
+      font-size:20px;margin:25px 0 15px;color:#222;border-left:4px solid #2a9134;padding-left:10px;
+      display:flex;align-items:center;gap:8px;
     }
 
-    /* --- Grille sessions --- */
+    /* Bloc récapitulatif */
+    .recap {
+      background:#fff;
+      border-radius:14px;
+      box-shadow:0 4px 10px rgba(0,0,0,.1);
+      padding:20px 30px;
+      margin-bottom:35px;
+    }
+    .recap h3 {
+      margin-top:0;
+      font-size:19px;
+      color:#222;
+      border-bottom:2px solid #eee;
+      padding-bottom:10px;
+    }
+    .recap table {
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+    }
+    .recap th, .recap td {
+      padding:10px;
+      text-align:left;
+      border-bottom:1px solid #eee;
+      vertical-align:top;
+    }
+    .recap th {background:#f4f4f4;color:#222;text-align:center;}
+    .ok {color:#2ecc71;font-weight:600;}
+    .warn {color:#f4c45a;font-weight:600;}
+    .late {color:#e74c3c;font-weight:600;}
+    .list {font-size:14px;line-height:1.5;margin-top:5px;}
+    .global-alert {
+      background:#fff3f3;
+      border-left:5px solid #e74c3c;
+      color:#c0392b;
+      padding:10px 15px;
+      font-weight:600;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+    .global-ok {
+      background:#f1fff2;
+      border-left:5px solid #2ecc71;
+      color:#2d8640;
+      padding:10px 15px;
+      font-weight:600;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+
+    /* Cartes sessions */
     .sessions-grid {
       display:grid;
       grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
       gap:25px;
     }
-
     .session-card {
-      display:block;
-      background:#fff;
-      border-radius:14px;
-      padding:18px 20px 18px 24px;
-      text-decoration:none;
-      color:#222;
-      box-shadow:0 4px 10px rgba(0,0,0,.08);
+      display:block;background:#fff;border-radius:14px;padding:18px 20px 18px 24px;
+      text-decoration:none;color:#222;box-shadow:0 4px 10px rgba(0,0,0,.08);
       transition:transform 0.2s, box-shadow 0.2s;
-      position:relative;
-      border-left:10px solid var(--accent,#2a9134);
+      position:relative;border-left:10px solid var(--accent,#2a9134);
     }
-    .session-card:hover {
-      transform:translateY(-3px);
-      box-shadow:0 6px 14px rgba(0,0,0,.15);
-    }
-
-    .session-title {
-      font-size:22px;
-      font-weight:700;
-      color:var(--accent,#2a9134);
-      text-align:center;
-      margin-bottom:8px;
-    }
-    .session-sub {
-      text-align:center;
-      font-size:14px;
-      color:#555;
-    }
-    .session-badge {
-      display:inline-block;
-      background:#2a9134;
-      color:#fff;
-      font-size:12px;
-      padding:4px 10px;
-      border-radius:20px;
-      margin-top:10px;
-    }
+    .session-card:hover {transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.15);}
+    .session-title {font-size:22px;font-weight:700;color:var(--accent,#2a9134);text-align:center;margin-bottom:8px;}
+    .session-sub {text-align:center;font-size:14px;color:#555;}
+    .session-badge {display:inline-block;background:#2a9134;color:#fff;font-size:12px;
+      padding:4px 10px;border-radius:20px;margin-top:10px;}
     .archived .session-badge {background:#999;}
-
-    /* --- Badge Prochaine session --- */
     .next-badge {
-      position:absolute;
-      top:-10px;
-      left:-10px;
-      background:#f4c45a;
-      color:#000;
-      font-weight:600;
-      padding:4px 12px;
-      border-radius:0 8px 8px 0;
-      font-size:13px;
-      box-shadow:0 2px 5px rgba(0,0,0,.15);
+      position:absolute;top:-10px;left:-10px;background:#f4c45a;color:#000;font-weight:600;
+      padding:4px 12px;border-radius:0 8px 8px 0;font-size:13px;box-shadow:0 2px 5px rgba(0,0,0,.15);
       animation:fadeIn 0.8s ease-in;
     }
-
-    @keyframes fadeIn {
-      from {opacity:0; transform:translateY(-5px);}
-      to {opacity:1; transform:translateY(0);}
-    }
-
-    .countdown {
-      text-align:center;
-      font-size:13px;
-      color:#333;
-      margin-top:6px;
-      font-weight:500;
-    }
-
-    footer.footer {
-      text-align:center;
-      color:#777;
-      padding:25px 0;
-      font-size:14px;
-    }
+    @keyframes fadeIn {from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
+    .countdown {text-align:center;font-size:13px;color:#333;margin-top:6px;font-weight:500;}
+    footer.footer {text-align:center;color:#777;padding:25px 0;font-size:14px;}
   </style>
 </head>
 <body>
-
 <header class="topbar">
   <div class="brand">
     <a href="{{ url_for('index') }}" class="back">← Accueil</a>
@@ -165,13 +126,75 @@
 </header>
 
 <main class="container">
+
+  <!-- === Bloc récapitulatif === -->
+  {% set today = now().date() %}
+  {% set total_late = 0 %}
+  {% set formations = active_sessions|map(attribute='formation')|unique %}
+  {% set recap_data = [] %}
+
+  {% for formation in formations %}
+    {% set late_steps = [] %}
+    {% set today_steps = [] %}
+    {% for s in active_sessions if s.formation == formation %}
+      {% for i in range(s.steps|length) %}
+        {% set st, dl = status_for_step(i, s) %}
+        {% if dl %}
+          {% if dl.date() < today and st != "done" %}
+            {% set total_late = total_late + 1 %}
+            {% set late_steps = late_steps + [("[%s] %s" % (s.date_debut|datefr, s.steps[i].name), (today - dl.date()).days)] %}
+          {% elif dl.date() == today and st != "done" %}
+            {% set today_steps = today_steps + ["[%s] %s" % (s.date_debut|datefr, s.steps[i].name)] %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% set recap_data = recap_data + [(formation, late_steps, today_steps)] %}
+  {% endfor %}
+
+  <div class="recap">
+    {% if total_late > 0 %}
+      <div class="global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>
+    {% else %}
+      <div class="global-ok">✅ Aucune étape en retard — tout est à jour 🎉</div>
+    {% endif %}
+
+    <h3>🧾 Récapitulatif des retards et échéances du jour</h3>
+    <table>
+      <tr><th>Formation</th><th>🔴 Étapes en retard</th><th>🟡 À faire aujourd’hui</th></tr>
+      {% for f, late_steps, today_steps in recap_data %}
+      <tr>
+        <td><b>{{ f }}</b></td>
+        <td>
+          {% if late_steps %}
+            {% for text, days in late_steps %}
+              <div class="list late">🔴 {{ text }} ({{ days }} j)</div>
+            {% endfor %}
+          {% else %}
+            <div class="list ok">✅ Aucun retard</div>
+          {% endif %}
+        </td>
+        <td>
+          {% if today_steps %}
+            {% for text in today_steps %}
+              <div class="list warn">🟡 {{ text }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="list" style="color:#999;">—</div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <!-- === Bouton ajouter === -->
   <div class="actions-bar">
     <button class="btn gold" id="openModal">➕ Ajouter une session</button>
   </div>
 
   {% set sorted_active = active_sessions|sort(attribute='date_debut') %}
   {% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
-  {% set today = now() %}
   {% set next_session_found = false %}
 
   {% if sorted_active %}
@@ -180,8 +203,7 @@
     {% for s in sorted_active %}
       {% set color = s.color %}
       {% set date_debut = s.date_debut|datetime %}
-      {% set diff = (date_debut - today).days %}
-      
+      {% set diff = (date_debut - now()).days %}
       {% if not next_session_found and diff > 0 %}
         {% set is_next = true %}
         {% set next_session_found = true %}
@@ -204,22 +226,7 @@
         {% else %}
           <div class="countdown" style="color:#999;">✔️ Déjà commencée</div>
         {% endif %}
-
         <div class="session-badge">Active</div>
-      </a>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if sorted_archived %}
-  <h2 class="section-title">📦 Archives</h2>
-  <div class="sessions-grid">
-    {% for s in sorted_archived %}
-      <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
-        <div class="session-title">{{ s.formation }}</div>
-        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
-        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
-        <div class="session-badge">Archivée</div>
       </a>
     {% endfor %}
   </div>

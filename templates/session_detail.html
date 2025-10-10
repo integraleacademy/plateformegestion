@@ -10,7 +10,7 @@
 <header class="topbar">
   <div class="brand">
     <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo" alt="Logo">
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
     <div>
       <h1>{{ s.formation }} — Fiche session</h1>
       <div class="clock small">
@@ -41,9 +41,11 @@
         {% set st = statuses[loop.index0] %}
         <div class="step" id="step{{ loop.index0 }}">
           <div class="step-head">
-            {% if not step.done %}
+            {% if step.done %}
+              <div class="status-chip ok">✅ Étape validée</div>
+            {% else %}
               <div class="status-chip {{ 'ok' if st.status=='on_time' else ('late' if st.status=='late' else 'na') }}">
-                {% if st.status=='on_time' %}A temps{% elif st.status=='late' %}⚠️ Étape en retard{% else %}—{% endif %}
+                {% if st.status=='on_time' %}À temps{% elif st.status=='late' %}⚠️ Étape en retard{% else %}—{% endif %}
               </div>
             {% endif %}
             {% if st.deadline %}
@@ -51,7 +53,7 @@
             {% endif %}
           </div>
 
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}" class="step-form">
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}">
             <input type="hidden" name="index" value="{{ loop.index0 }}">
             <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
               <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
@@ -70,29 +72,9 @@
 
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
 <script>
-  // année footer
-  document.getElementById('year').textContent = new Date().getFullYear();
-
-  // mémoriser l’étape cliquée avant POST
-  document.querySelectorAll('.step-form').forEach(function (f) {
-    f.addEventListener('submit', function () {
-      var idx = f.querySelector('input[name="index"]').value;
-      // stocke #stepX pour après le reload
-      sessionStorage.setItem('lastStepAnchor', '#step' + idx);
-    });
-  });
-
-  // après rechargement : re-scroll sur l’ancre (utile si le hash a été perdu/ignoré)
-  window.addEventListener('load', function () {
-    var target = location.hash || sessionStorage.getItem('lastStepAnchor');
-    if (target) {
-      var el = document.querySelector(target);
-      if (el) {
-        // scroll avec marge gérée en CSS (scroll-margin-top)
-        el.scrollIntoView({ block: 'start' });
-      }
-    }
-  });
+  document.getElementById('year').textContent=new Date().getFullYear();
+  // Force la page à se mettre en haut au chargement
+  window.scrollTo(0,0);
 </script>
 </body>
 </html>

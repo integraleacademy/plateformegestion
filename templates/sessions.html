@@ -30,8 +30,10 @@
     {% for s in active_sessions %}
       <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
         <div class="session-title">{{ s.formation }}</div>
-        <div class="session-sub">Du {{ s.date_debut or '—' }} au {{ s.date_fin or '—' }}</div>
-        <div class="session-sub">Examen : {{ s.date_exam or '—' }}</div>
+        <div class="session-sub">
+          Du {{ s.date_debut|datefr if s.date_debut else '—' }} au {{ s.date_fin|datefr if s.date_fin else '—' }}
+        </div>
+        <div class="session-sub">Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}</div>
       </a>
     {% endfor %}
   </div>
@@ -43,8 +45,10 @@
     {% for s in archived_sessions %}
       <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
         <div class="session-title">{{ s.formation }}</div>
-        <div class="session-sub">Du {{ s.date_debut or '—' }} au {{ s.date_fin or '—' }}</div>
-        <div class="session-sub">Examen : {{ s.date_exam or '—' }}</div>
+        <div class="session-sub">
+          Du {{ s.date_debut|datefr if s.date_debut else '—' }} au {{ s.date_fin|datefr if s.date_fin else '—' }}
+        </div>
+        <div class="session-sub">Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}</div>
         <div class="session-badge">Archivée</div>
       </a>
     {% endfor %}

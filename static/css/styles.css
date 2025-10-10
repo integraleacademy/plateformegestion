@@ -1,0 +1,60 @@
+
+:root{
+  --gold:#F4C45A;
+  --gold-strong:#e5b348;
+  --black:#121212;
+  --ink:#222;
+  --bg:#fdfaf5;
+  --white:#fff;
+  --radius:18px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;background:var(--bg);color:var(--ink)}
+a{color:inherit;text-decoration:none}
+
+.topbar{
+  background:var(--black);
+  color:var(--white);
+  padding:16px 20px;
+  box-shadow:0 6px 24px rgba(0,0,0,.25);
+  position:sticky; top:0; z-index:10;
+}
+.brand{display:flex;align-items:center;gap:16px}
+.logo{height:72px;width:auto;border-radius:12px;background:#000}
+.brand h1{margin:0;font-size:clamp(20px,2.4vw,28px);font-weight:700;letter-spacing:.2px}
+.brand h1 span{color:var(--gold)}
+.clock{font-size:14px;opacity:.9;margin-top:6px}
+.back{color:var(--gold);font-weight:600;margin-right:6px}
+
+.container{max-width:1100px;margin:28px auto;padding:0 16px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+  gap:18px;
+}
+.card{
+  background:var(--white);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+  border:1px solid rgba(0,0,0,.06);
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  display:flex;flex-direction:column;gap:8px;
+  min-height:150px;
+}
+.card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 14px 40px rgba(0,0,0,.12);
+  border-color:rgba(0,0,0,.12);
+}
+.emoji{font-size:34px;line-height:1}
+.title{font-weight:700;font-size:18px}
+.desc{font-size:14px;opacity:.75}
+
+.footer{
+  text-align:center;
+  padding:26px 16px;
+  color:#666;
+  font-size:14px;
+}
+.muted{color:#666}

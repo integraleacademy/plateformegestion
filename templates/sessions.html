@@ -1,0 +1,37 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <a href="{{ url_for('index') }}" class="back">← Retour</a>
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
+      <div>
+        <h1>Gestion des sessions</h1>
+        <div id="clock" class="clock">—</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <p class="muted">Page à paramétrer ensemble (ajout de sessions, filtres, export, etc.).</p>
+  </main>
+
+  <footer class="footer">
+    © <span id="year"></span> Intégrale Academy — Tous droits réservés
+  </footer>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

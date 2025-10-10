@@ -302,3 +302,18 @@ def delete_session(sid):
 @app.route("/healthz")
 def healthz():
     return "ok"
+
+# --- Route appelée par cron-job.org ---
+@app.route("/cron-check")
+def cron_check():
+    data = load_sessions()
+    for session in data["sessions"]:
+        overdue = snapshot_overdue(session)
+        maybe_send_overdue_email(session, overdue)
+        auto_archive_if_all_done(session)
+    save_sessions(data)
+    return "Cron check terminé", 200
+
+@app.route("/healthz")
+def healthz():
+    return "ok"

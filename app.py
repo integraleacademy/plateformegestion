@@ -183,10 +183,7 @@ def snapshot_overdue(session):
 # -----------------------
 def auto_archive_if_all_done(session):
     """Archive automatiquement une session si toutes les étapes sont faites."""
-    if all(step["done"] for step in session["steps"]):
-        session["archived"] = True
-    else:
-        session["archived"] = False
+    session["archived"] = all(step["done"] for step in session["steps"])
 
 # -----------------------
 # Mail quotidien global
@@ -200,7 +197,6 @@ def _late_phrase(dl: datetime) -> str:
 
 def generate_daily_overdue_email(sessions):
     now_txt = datetime.now().strftime("%d-%m-%Y %H:%M")
-
     logo_path = os.path.join("static", "img", "logo-integrale.png")
     logo_base64 = ""
     if os.path.exists(logo_path):
@@ -217,7 +213,6 @@ def generate_daily_overdue_email(sessions):
         </div>
         <div style="padding:24px;">
     """
-
     found_any = False
     for s in sessions:
         overdue = snapshot_overdue(s)
@@ -245,14 +240,8 @@ def generate_daily_overdue_email(sessions):
             </ul>
           </div>
         """
-
     if not found_any:
-        html += """
-          <p style="text-align:center;font-size:15px;color:#444;margin:20px 0;">
-            ✅ Aucun retard à signaler aujourd’hui.
-          </p>
-        """
-
+        html += "<p style='text-align:center;font-size:15px;color:#444;margin:20px 0;'>✅ Aucun retard à signaler aujourd’hui.</p>"
     html += """
         </div>
         <div style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">
@@ -274,7 +263,6 @@ def send_daily_overdue_summary():
     msg["Subject"] = "⚠️ Récapitulatif des retards — Intégrale Academy"
     msg["From"] = FROM_EMAIL
     msg["To"] = "clement@integraleacademy.com"
-
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
@@ -298,8 +286,7 @@ def sessions_home():
     archived = [s for s in data["sessions"] if s.get("archived")]
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
-    return render_template("sessions.html", title="Gestion des sessions",
-                           active_sessions=active, archived_sessions=archived)
+    return render_template("sessions.html", title="Gestion des sessions", active_sessions=active, archived_sessions=archived)
 
 @app.route("/sessions/create", methods=["POST"])
 def create_session():
@@ -333,7 +320,6 @@ def session_detail(sid):
     session = find_session(data, sid)
     if not session:
         abort(404)
-
     statuses = []
     for i in range(len(session["steps"])):
         st, dl = status_for_step(i, session)
@@ -341,12 +327,9 @@ def session_detail(sid):
             "status": st,
             "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
         })
-
     auto_archive_if_all_done(session)
     save_sessions(data)
-    return render_template("session_detail.html",
-                           title=f"{session['formation']} — Détail",
-                           s=session, statuses=statuses)
+    return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses, now=datetime.now)
 
 @app.route("/sessions/<sid>/edit", methods=["GET","POST"])
 def edit_session(sid):
@@ -390,7 +373,6 @@ def delete_session(sid):
 def healthz():
     return "ok"
 
-# --- Cron léger (archivage auto) ---
 @app.route("/cron-check")
 def cron_check():
     data = load_sessions()
@@ -399,7 +381,6 @@ def cron_check():
     save_sessions(data)
     return "Cron check terminé", 200
 
-# --- Cron quotidien 8h (mail global) ---
 @app.route("/cron-daily-summary")
 def cron_daily_summary():
     send_daily_overdue_summary()

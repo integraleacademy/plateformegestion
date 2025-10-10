@@ -81,18 +81,25 @@ APS_A3P_STEPS = [
     {"name":"Envoyer test de français", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
+
+    # AVANT EXAM
     {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Impression évaluation de fin de formation", "relative_to":"exam","offset_type":"before","days":5},
+
+    # JOUR DE L’EXAMEN
     {"name":"Session examen clôturée", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Frais ADEF réglés", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Documents examen envoyés à l’ADEF", "relative_to":"exam", "offset_type":"after", "days":0},
+
+    # APRÈS EXAMEN
     {"name":"Envoyer mail stagiaires attestations de formation","relative_to":"exam","offset_type":"after","days":2},
     {"name":"Message avis Google","relative_to":"exam","offset_type":"after","days":2},
     {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":7},
     {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
 ]
+
 
 SSIAP_STEPS = [
     {"name": "Nomination jury examen", "relative_to": "exam", "offset_type": "before", "days": 65},

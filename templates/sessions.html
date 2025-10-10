@@ -7,24 +7,43 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <style>
     body {
-      background-color:#f9fafb;
+      background:#f8f8f8;
       font-family:'Segoe UI',Arial,sans-serif;
       margin:0;
       padding:0;
     }
-    .topbar {
-      background:#fff;
-      box-shadow:0 2px 6px rgba(0,0,0,.05);
-      padding:20px 30px;
-      display:flex;align-items:center;justify-content:space-between;
+
+    /* --- Topbar noire --- */
+    header.topbar {
+      background:#111;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:15px 30px;
+      box-shadow:0 2px 6px rgba(0,0,0,.3);
     }
-    .brand {display:flex;align-items:center;gap:20px;}
-    .logo {height:70px;}
-    .container {
-      padding:30px;
+    .brand {display:flex;align-items:center;gap:15px;}
+    .brand img.logo {height:60px;border-radius:10px;}
+    .brand a.back {
+      color:#f4c45a;
+      font-weight:600;
+      text-decoration:none;
+      margin-right:15px;
+    }
+    .topbar h1 {
+      margin:0;
+      font-size:22px;
+      letter-spacing:0.5px;
+    }
+
+    /* --- Contenu principal --- */
+    main.container {
+      padding:40px;
       max-width:1200px;
       margin:auto;
     }
+
     .actions-bar {
       text-align:right;
       margin-bottom:25px;
@@ -39,7 +58,8 @@
       font-weight:600;
       transition:0.2s;
     }
-    .btn.gold:hover {background:#f0b847;}
+    .btn.gold:hover {background:#e8b940;}
+
     h2.section-title {
       font-size:20px;
       margin:25px 0 15px;
@@ -47,11 +67,14 @@
       border-left:4px solid #2a9134;
       padding-left:10px;
     }
+
+    /* --- Grille sessions --- */
     .sessions-grid {
       display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-      gap:20px;
+      grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+      gap:25px;
     }
+
     .session-card {
       display:block;
       background:#fff;
@@ -66,14 +89,15 @@
     }
     .session-card:hover {
       transform:translateY(-3px);
-      box-shadow:0 6px 14px rgba(0,0,0,.12);
+      box-shadow:0 6px 14px rgba(0,0,0,.15);
     }
+
     .session-title {
       font-size:22px;
       font-weight:700;
       color:var(--accent,#2a9134);
       text-align:center;
-      margin-bottom:10px;
+      margin-bottom:8px;
     }
     .session-sub {
       text-align:center;
@@ -90,6 +114,7 @@
       margin-top:10px;
     }
     .archived .session-badge {background:#999;}
+
     .next-badge {
       position:absolute;
       top:10px;
@@ -101,6 +126,7 @@
       border-radius:10px;
       font-size:12px;
     }
+
     .countdown {
       text-align:center;
       font-size:13px;
@@ -108,23 +134,23 @@
       margin-top:6px;
       font-weight:500;
     }
+
     footer.footer {
       text-align:center;
-      color:#888;
-      padding:20px 0;
+      color:#777;
+      padding:25px 0;
       font-size:14px;
     }
   </style>
 </head>
 <body>
+
 <header class="topbar">
   <div class="brand">
-    <a href="{{ url_for('index') }}" class="back" style="text-decoration:none;color:#2a9134;font-weight:600;">← Accueil</a>
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
+    <a href="{{ url_for('index') }}" class="back">← Accueil</a>
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo" alt="Logo">
   </div>
-  <div>
-    <h1 style="font-size:24px;margin:0;color:#222;">Gestion des sessions</h1>
-  </div>
+  <h1>Gestion des sessions</h1>
 </header>
 
 <main class="container">

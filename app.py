@@ -130,11 +130,8 @@ def status_for_step(step_index, session, now=None):
         return ("n/a", None)
     step = session["steps"][step_index]
     if step["done"]:
-        try:
-            dt_done = datetime.strptime(step["done_at"], "%Y-%m-%d %H:%M:%S")
-            return ("on_time" if dt_done <= dl else "late", dl)
-        except Exception:
-            return ("on_time", dl)
+        # Si validée, on ne met pas "à temps" ni "en retard"
+        return ("done", dl)
     return ("late" if now > dl else "on_time", dl)
 
 def snapshot_overdue(session):
@@ -313,7 +310,3 @@ def cron_check():
         auto_archive_if_all_done(session)
     save_sessions(data)
     return "Cron check terminé", 200
-
-@app.route("/healthz")
-def healthz():
-    return "ok"

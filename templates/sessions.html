@@ -5,50 +5,172 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
+  <style>
+    body {
+      background-color:#f9fafb;
+      font-family:'Segoe UI',Arial,sans-serif;
+      margin:0;
+      padding:0;
+    }
+    .topbar {
+      background:#fff;
+      box-shadow:0 2px 6px rgba(0,0,0,.05);
+      padding:20px 30px;
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .brand {display:flex;align-items:center;gap:20px;}
+    .logo {height:70px;}
+    .clock {font-size:14px;color:#555;}
+    .container {
+      padding:30px;
+      max-width:1200px;
+      margin:auto;
+    }
+    .actions-bar {
+      text-align:right;
+      margin-bottom:25px;
+    }
+    .btn.gold {
+      background:#f4c45a;
+      color:#000;
+      border:none;
+      padding:10px 18px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      transition:0.2s;
+    }
+    .btn.gold:hover {background:#f0b847;}
+    h2.section-title {
+      font-size:20px;
+      margin:25px 0 15px;
+      color:#222;
+      border-left:4px solid #2a9134;
+      padding-left:10px;
+    }
+    .sessions-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      gap:20px;
+    }
+    .session-card {
+      display:block;
+      background:#fff;
+      border-radius:14px;
+      padding:18px 20px;
+      text-decoration:none;
+      color:#222;
+      box-shadow:0 4px 10px rgba(0,0,0,.08);
+      transition:transform 0.2s, box-shadow 0.2s;
+      position:relative;
+    }
+    .session-card:hover {
+      transform:translateY(-3px);
+      box-shadow:0 6px 14px rgba(0,0,0,.12);
+    }
+    .session-title {
+      font-size:22px;
+      font-weight:700;
+      color:var(--accent,#2a9134);
+      text-align:center;
+      margin-bottom:10px;
+    }
+    .session-sub {
+      text-align:center;
+      font-size:14px;
+      color:#555;
+    }
+    .session-badge {
+      display:inline-block;
+      background:#2a9134;
+      color:#fff;
+      font-size:12px;
+      padding:4px 10px;
+      border-radius:20px;
+      margin-top:10px;
+    }
+    .archived .session-badge {background:#999;}
+    .next-badge {
+      position:absolute;
+      top:10px;
+      right:10px;
+      background:#f4c45a;
+      color:#000;
+      font-weight:600;
+      padding:4px 10px;
+      border-radius:10px;
+      font-size:12px;
+    }
+    .countdown {
+      text-align:center;
+      font-size:13px;
+      color:#333;
+      margin-top:6px;
+      font-weight:500;
+    }
+    footer.footer {
+      text-align:center;
+      color:#888;
+      padding:20px 0;
+      font-size:14px;
+    }
+    .modal {display:none;}
+  </style>
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <a href="{{ url_for('index') }}" class="back">← Retour</a>
+    <a href="{{ url_for('index') }}" class="back" style="text-decoration:none;color:#2a9134;font-weight:600;">← Accueil</a>
     <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
-    <div>
-      <h1>Gestion des sessions</h1>
-      <div id="clock" class="clock">—</div>
-    </div>
+  </div>
+  <div>
+    <h1 style="font-size:24px;margin:0;color:#222;">Gestion des sessions</h1>
   </div>
 </header>
 
 <main class="container">
   <div class="actions-bar">
-    <button class="btn gold" id="openModal">➕ AJOUTER UNE SESSION</button>
+    <button class="btn gold" id="openModal">➕ Ajouter une session</button>
   </div>
 
-  {% if active_sessions %}
-  <h2 class="section-title">Sessions actives</h2>
+  {% set sorted_active = active_sessions|sort(attribute='date_debut') %}
+  {% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
+
+  {% if sorted_active %}
+  <h2 class="section-title">📅 Sessions actives</h2>
   <div class="sessions-grid">
-    {% for s in active_sessions %}
-      <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
+    {% for s in sorted_active %}
+      {% set color = s.color %}
+      {% set date_debut = s.date_debut|datetime %}
+      {% set today = now() %}
+      {% set diff = (date_debut - today).days %}
+      {% if loop.first %}{% set is_next = true %}{% else %}{% set is_next = false %}{% endif %}
+      <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
+        {% if is_next %}<div class="next-badge">🌟 Prochaine session</div>{% endif %}
         <div class="session-title">{{ s.formation }}</div>
-        <div class="session-sub">
-          Du {{ s.date_debut|datefr if s.date_debut else '—' }} au {{ s.date_fin|datefr if s.date_fin else '—' }}
-        </div>
-        <div class="session-sub">Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}</div>
+        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
+        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
+        {% if diff > 0 %}
+          <div class="countdown">🕓 Dans {{ diff }} jour{% if diff>1 %}s{% endif %}</div>
+        {% elif diff == 0 %}
+          <div class="countdown">📅 Commence aujourd’hui</div>
+        {% else %}
+          <div class="countdown" style="color:#999;">✔️ Déjà commencée</div>
+        {% endif %}
+        <div class="session-badge">Active</div>
       </a>
     {% endfor %}
   </div>
   {% endif %}
 
-  {% if archived_sessions %}
-  <h2 class="section-title">Archives</h2>
+  {% if sorted_archived %}
+  <h2 class="section-title">📦 Archives</h2>
   <div class="sessions-grid">
-    {% for s in archived_sessions %}
+    {% for s in sorted_archived %}
       <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
         <div class="session-title">{{ s.formation }}</div>
-        <div class="session-sub">
-          Du {{ s.date_debut|datefr if s.date_debut else '—' }} au {{ s.date_fin|datefr if s.date_fin else '—' }}
-        </div>
-        <div class="session-sub">Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}</div>
+        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
+        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
         <div class="session-badge">Archivée</div>
       </a>
     {% endfor %}
@@ -64,8 +186,7 @@
       <button class="btn icon" id="closeModal">✖</button>
     </div>
     <form method="post" action="{{ url_for('create_session') }}" class="form-grid">
-      <label>
-        Formation
+      <label>Formation
         <select name="formation" required>
           <option value="" selected disabled>— Choisir —</option>
           <option value="APS">APS</option>
@@ -74,16 +195,13 @@
           <option value="DIRIGEANT">DIRIGEANT</option>
         </select>
       </label>
-      <label>
-        Date de début
+      <label>Date de début
         <input type="date" name="date_debut" required>
       </label>
-      <label>
-        Date de fin
+      <label>Date de fin
         <input type="date" name="date_fin" required>
       </label>
-      <label>
-        Date d’examen
+      <label>Date d’examen
         <input type="date" name="date_exam" required>
       </label>
       <div class="form-actions">
@@ -93,9 +211,12 @@
   </div>
 </div>
 
-<footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
+<footer class="footer">
+  © <span id="year"></span> Intégrale Academy — Tous droits réservés
+</footer>
+
 <script>
-document.getElementById('year').textContent=new Date().getFullYear();
+document.getElementById('year').textContent = new Date().getFullYear();
 const modal=document.getElementById('sessionModal');
 document.getElementById('openModal').onclick=()=>{modal.classList.add('open');};
 document.getElementById('closeModal').onclick=()=>{modal.classList.remove('open');};

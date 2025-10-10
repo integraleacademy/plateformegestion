@@ -234,7 +234,7 @@ def create_session():
     overdue = snapshot_overdue(session)
     maybe_send_overdue_email(session, overdue)
     save_sessions(data)
-    return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")
+    return redirect(url_for("session_detail", sid=sid))
 
 @app.route("/sessions/<sid>", methods=["GET"])
 def session_detail(sid):
@@ -252,6 +252,7 @@ def session_detail(sid):
     save_sessions(data)
     return render_template("session_detail.html", title=f"{session['formation']} — Détail",
                            s=session, statuses=statuses)
+
 @app.route("/sessions/<sid>/edit", methods=["GET", "POST"])
 def edit_session(sid):
     data = load_sessions()
@@ -268,7 +269,6 @@ def edit_session(sid):
         return redirect(url_for("session_detail", sid=sid))
 
     return render_template("session_edit.html", s=session)
-
 
 @app.route("/sessions/<sid>/toggle_step", methods=["POST"])
 def toggle_step(sid):
@@ -289,7 +289,7 @@ def toggle_step(sid):
     maybe_send_overdue_email(session, overdue)
     auto_archive_if_all_done(session)
     save_sessions(data)
-    return redirect(url_for("session_detail", sid=sid))
+    return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")
 
 @app.route("/sessions/<sid>/delete", methods=["POST"])
 def delete_session(sid):

@@ -20,7 +20,6 @@
     }
     .brand {display:flex;align-items:center;gap:20px;}
     .logo {height:70px;}
-    .clock {font-size:14px;color:#555;}
     .container {
       padding:30px;
       max-width:1200px;
@@ -57,12 +56,13 @@
       display:block;
       background:#fff;
       border-radius:14px;
-      padding:18px 20px;
+      padding:18px 20px 18px 24px;
       text-decoration:none;
       color:#222;
       box-shadow:0 4px 10px rgba(0,0,0,.08);
       transition:transform 0.2s, box-shadow 0.2s;
       position:relative;
+      border-left:10px solid var(--accent,#2a9134);
     }
     .session-card:hover {
       transform:translateY(-3px);
@@ -114,7 +114,6 @@
       padding:20px 0;
       font-size:14px;
     }
-    .modal {display:none;}
   </style>
 </head>
 <body>
@@ -178,49 +177,12 @@
   {% endif %}
 </main>
 
-<!-- Modal création -->
-<div class="modal" id="sessionModal" aria-hidden="true">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Nouvelle session</h3>
-      <button class="btn icon" id="closeModal">✖</button>
-    </div>
-    <form method="post" action="{{ url_for('create_session') }}" class="form-grid">
-      <label>Formation
-        <select name="formation" required>
-          <option value="" selected disabled>— Choisir —</option>
-          <option value="APS">APS</option>
-          <option value="A3P">A3P</option>
-          <option value="SSIAP">SSIAP</option>
-          <option value="DIRIGEANT">DIRIGEANT</option>
-        </select>
-      </label>
-      <label>Date de début
-        <input type="date" name="date_debut" required>
-      </label>
-      <label>Date de fin
-        <input type="date" name="date_fin" required>
-      </label>
-      <label>Date d’examen
-        <input type="date" name="date_exam" required>
-      </label>
-      <div class="form-actions">
-        <button type="submit" class="btn gold">Créer</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <footer class="footer">
   © <span id="year"></span> Intégrale Academy — Tous droits réservés
 </footer>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
-const modal=document.getElementById('sessionModal');
-document.getElementById('openModal').onclick=()=>{modal.classList.add('open');};
-document.getElementById('closeModal').onclick=()=>{modal.classList.remove('open');};
-modal.onclick=(e)=>{if(e.target===modal)modal.classList.remove('open');};
 </script>
 </body>
 </html>

@@ -14,29 +14,39 @@
     <div>
       <h1>{{ s.formation }} — Fiche session</h1>
       <div class="clock small">
-        Du {{ s.date_debut or '—' }} au {{ s.date_fin or '—' }} • Examen : {{ s.date_exam or '—' }}
+        Du {{ s.date_debut|datefr if s.date_debut else '—' }}
+        au {{ s.date_fin|datefr if s.date_fin else '—' }} •
+        Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}
       </div>
     </div>
   </div>
 </header>
 
 <main class="container">
+  <!-- Boutons Modifier / Supprimer en haut -->
+  <div class="actions" style="display:flex; gap:10px; margin-bottom:20px;">
+    <a href="{{ url_for('edit_session', sid=s.id) }}" class="btn action-btn">✏️ Modifier la session</a>
+    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');" style="flex:1;">
+      <button type="submit" class="btn action-btn danger">🗑️ Supprimer la session</button>
+    </form>
+  </div>
+
   {% if not s.steps %}
     <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
   {% else %}
     <div class="steps">
       {% for step in s.steps %}
         {% set st = statuses[loop.index0] %}
-        <div class="step">
+        <div class="step" id="step{{ loop.index0 }}">
           <div class="step-head">
             <div class="status-chip {{ 'ok' if st.status=='on_time' else ('late' if st.status=='late' else 'na') }}">
               {% if st.status=='on_time' %}A temps{% elif st.status=='late' %}⚠️ Étape en retard{% else %}—{% endif %}
             </div>
             {% if st.deadline %}
-              <div class="deadline">Échéance : {{ st.deadline }}</div>
+              <div class="deadline">Échéance : {{ st.deadline|datefr }}</div>
             {% endif %}
           </div>
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}" class="step-card">
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}" class="step-card">
             <input type="hidden" name="index" value="{{ loop.index0 }}">
             <button type="submit" class="btn step-btn {{ 'done' if step.done else '' }}">
               <span class="emoji">{{ '✅' if step.done else '⬜' }}</span>
@@ -50,17 +60,6 @@
       {% endfor %}
     </div>
   {% endif %}
-
-  <!-- Bouton modifier -->
-  <div class="actions" style="margin-top:20px;">
-    <a href="{{ url_for('edit_session', sid=s.id) }}" class="btn gold">✏️ Modifier la session</a>
-  </div>
-
-  <div class="danger-zone">
-    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
-      <button class="btn danger">🗑️ Supprimer</button>
-    </form>
-  </div>
 </main>
 
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>

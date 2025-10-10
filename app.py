@@ -235,7 +235,7 @@ def generate_daily_overdue_email(sessions):
             <ul style="margin:12px 0 0 18px;padding:0;color:#333;font-size:15px;line-height:1.6;">
         """
         for name, dl in overdue:
-            html += f"<li style='margin-bottom:4px;'>• {name} — {_late_phrase(dl)}</li>"
+            html += f"<li style='margin-bottom:4px;list-style:none;'>🔸 {name} — {_late_phrase(dl)}</li>"
         html += """
             </ul>
           </div>

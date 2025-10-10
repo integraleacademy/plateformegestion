@@ -275,7 +275,13 @@ def sessions_home():
     archived = [s for s in data["sessions"] if s.get("archived")]
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
-    return render_template("sessions.html", title="Gestion des sessions", active_sessions=active, archived_sessions=archived)
+    return render_template(
+        "sessions.html",
+        title="Gestion des sessions",
+        active_sessions=active,
+        archived_sessions=archived,
+        now=datetime.now  # 👈 ajout important ici
+    )
 
 @app.route("/sessions/create", methods=["POST"])
 def create_session():

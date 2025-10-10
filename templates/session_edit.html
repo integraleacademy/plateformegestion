@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Modifier session</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <a href="{{ url_for('session_detail', sid=s.id) }}" class="back">← Retour</a>
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
+    <h1>Modifier la session {{ s.formation }}</h1>
+  </div>
+</header>
+
+<main class="container">
+  <form method="post" class="form-grid">
+    <label>
+      Date de début
+      <input type="date" name="date_debut" value="{{ s.date_debut }}">
+    </label>
+    <label>
+      Date de fin
+      <input type="date" name="date_fin" value="{{ s.date_fin }}">
+    </label>
+    <label>
+      Date d’examen
+      <input type="date" name="date_exam" value="{{ s.date_exam }}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn gold">💾 Enregistrer</button>
+      <a href="{{ url_for('session_detail', sid=s.id) }}" class="btn">Annuler</a>
+    </div>
+  </form>
+</main>
+
+<footer class="footer">
+  © <span id="year"></span> Intégrale Academy
+</footer>
+<script>document.getElementById('year').textContent=new Date().getFullYear();</script>
+</body>
+</html>

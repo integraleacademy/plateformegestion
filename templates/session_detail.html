@@ -23,7 +23,7 @@
 </header>
 
 <main class="container">
-  <!-- Boutons Modifier / Supprimer unifiés -->
+  <!-- Boutons Modifier / Supprimer -->
   <div class="actions-bar">
     <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
       <button type="submit" class="btn edit">✏️ Modifier la session</button>
@@ -63,6 +63,20 @@
 
           {% if step.done and step.done_at %}
             <div class="done-info">Étape validée le {{ step.done_at }}</div>
+          {% else %}
+            {% if st.deadline %}
+              {% set date_obj = st.deadline | datetime %}
+              {% set diff = (date_obj - now()).days %}
+              <div class="status-text">
+                {% if diff < 0 %}
+                  ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
+                {% elif diff == 0 %}
+                  📅 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
+                {% else %}
+                  ⏳ À venir dans {{ diff }} jour{% if diff > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
+                {% endif %}
+              </div>
+            {% endif %}
           {% endif %}
         </div>
       {% endfor %}
@@ -71,10 +85,23 @@
 </main>
 
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
+
 <script>
-  document.getElementById('year').textContent=new Date().getFullYear();
-  // Force la page à se mettre en haut au chargement
-  window.scrollTo(0,0);
+  document.getElementById('year').textContent = new Date().getFullYear();
+  // Remet en haut au chargement
+  window.scrollTo(0, 0);
 </script>
+
+<style>
+  .status-text {
+    font-size: 13px;
+    color: #555;
+    margin-top: 4px;
+    margin-left: 4px;
+  }
+  .step.late .status-text { color: #c0392b; }
+  .step.on_time .status-text { color: #2980b9; }
+</style>
+
 </body>
 </html>

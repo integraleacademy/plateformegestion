@@ -1,113 +1,101 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <a href="{{ url_for('index') }}" class="back">← Retour</a>
-      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
-      <div>
-        <h1>Gestion des sessions</h1>
-        <div id="clock" class="clock">—</div>
-      </div>
-    </div>
-  </header>
-
-  <main class="container">
-    <div class="actions-bar">
-      <button class="btn gold" id="openModal">➕ AJOUTER UNE SESSION</button>
-    </div>
-
-    {% if active_sessions %}
-      <h2 class="section-title">Sessions actives</h2>
-      <div class="sessions-grid">
-        {% for s in active_sessions %}
-          <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
-            <div class="session-title">{{ s.formation }}</div>
-            <div class="session-sub">{{ s.dates_formation or 'Dates à définir' }}</div>
-            <div class="session-sub">Examen : {{ s.date_exam or '—' }}</div>
-          </a>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    {% if archived_sessions %}
-      <h2 class="section-title">Archives</h2>
-      <div class="sessions-grid">
-        {% for s in archived_sessions %}
-          <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
-            <div class="session-title">{{ s.formation }}</div>
-            <div class="session-sub">{{ s.dates_formation or 'Dates à définir' }}</div>
-            <div class="session-sub">Examen : {{ s.date_exam or '—' }}</div>
-            <div class="session-badge">Archivée</div>
-          </a>
-        {% endfor %}
-      </div>
-    {% endif %}
-  </main>
-
-  <!-- Modal création -->
-  <div class="modal" id="sessionModal" aria-hidden="true">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Nouvelle session</h3>
-        <button class="btn icon" id="closeModal" aria-label="Fermer">✖</button>
-      </div>
-      <form method="post" action="{{ url_for('create_session') }}" class="form-grid">
-        <label>
-          Formation
-          <select name="formation" required>
-            <option value="" selected disabled>— Choisir —</option>
-            <option value="APS">APS</option>
-            <option value="A3P">A3P</option>
-            <option value="SSIAP">SSIAP</option>
-            <option value="DIRIGEANT">DIRIGEANT</option>
-          </select>
-        </label>
-
-        <label>
-          Dates de formation (texte)
-          <input type="text" name="dates_formation" placeholder="ex : 12→23/11/2025" />
-        </label>
-
-        <label>
-          Début de formation (YYYY-MM-DD)
-          <input type="date" name="date_debut" required />
-        </label>
-
-        <label>
-          Date d’examen (YYYY-MM-DD)
-          <input type="date" name="date_exam" required />
-        </label>
-
-        <div class="form-actions">
-          <button type="submit" class="btn gold">Créer</button>
-        </div>
-      </form>
+<header class="topbar">
+  <div class="brand">
+    <a href="{{ url_for('index') }}" class="back">← Retour</a>
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
+    <div>
+      <h1>Gestion des sessions</h1>
+      <div id="clock" class="clock">—</div>
     </div>
   </div>
+</header>
 
-  <footer class="footer">
-    © <span id="year"></span> Intégrale Academy — Tous droits réservés
-  </footer>
+<main class="container">
+  <div class="actions-bar">
+    <button class="btn gold" id="openModal">➕ AJOUTER UNE SESSION</button>
+  </div>
 
-  <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-    const modal = document.getElementById('sessionModal');
-    const openBtn = document.getElementById('openModal');
-    const closeBtn = document.getElementById('closeModal');
-    openBtn.addEventListener('click', () => { modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); });
-    closeBtn.addEventListener('click', () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
-    modal.addEventListener('click', (e) => { if(e.target === modal){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); } });
-  </script>
+  {% if active_sessions %}
+  <h2 class="section-title">Sessions actives</h2>
+  <div class="sessions-grid">
+    {% for s in active_sessions %}
+      <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
+        <div class="session-title">{{ s.formation }}</div>
+        <div class="session-sub">Du {{ s.date_debut or '—' }} au {{ s.date_fin or '—' }}</div>
+        <div class="session-sub">Examen : {{ s.date_exam or '—' }}</div>
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if archived_sessions %}
+  <h2 class="section-title">Archives</h2>
+  <div class="sessions-grid">
+    {% for s in archived_sessions %}
+      <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
+        <div class="session-title">{{ s.formation }}</div>
+        <div class="session-sub">Du {{ s.date_debut or '—' }} au {{ s.date_fin or '—' }}</div>
+        <div class="session-sub">Examen : {{ s.date_exam or '—' }}</div>
+        <div class="session-badge">Archivée</div>
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</main>
+
+<!-- Modal création -->
+<div class="modal" id="sessionModal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Nouvelle session</h3>
+      <button class="btn icon" id="closeModal">✖</button>
+    </div>
+    <form method="post" action="{{ url_for('create_session') }}" class="form-grid">
+      <label>
+        Formation
+        <select name="formation" required>
+          <option value="" selected disabled>— Choisir —</option>
+          <option value="APS">APS</option>
+          <option value="A3P">A3P</option>
+          <option value="SSIAP">SSIAP</option>
+          <option value="DIRIGEANT">DIRIGEANT</option>
+        </select>
+      </label>
+      <label>
+        Date de début
+        <input type="date" name="date_debut" required>
+      </label>
+      <label>
+        Date de fin
+        <input type="date" name="date_fin" required>
+      </label>
+      <label>
+        Date d’examen
+        <input type="date" name="date_exam" required>
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn gold">Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
+<script>
+document.getElementById('year').textContent=new Date().getFullYear();
+const modal=document.getElementById('sessionModal');
+document.getElementById('openModal').onclick=()=>{modal.classList.add('open');};
+document.getElementById('closeModal').onclick=()=>{modal.classList.remove('open');};
+modal.onclick=(e)=>{if(e.target===modal)modal.classList.remove('open');};
+</script>
 </body>
 </html>

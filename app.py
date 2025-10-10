@@ -1,27 +1,318 @@
+import os, json, uuid, hashlib
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect, url_for, abort, flash
 
-import os
-from flask import Flask, render_template, send_from_directory
+# --- Email (optionnel) ---
+import smtplib
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
-# Répertoire de données persistant (Render monte un disque sur /mnt/data)
+# Disque persistant Render
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
+SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 
+FROM_EMAIL = os.environ.get("FROM_EMAIL")           # ecole@integraleacademy.com
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")   # mot de passe d'application
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+
+# -----------------------
+# Utils persistance
+# -----------------------
+def load_sessions():
+    if os.path.exists(SESSIONS_FILE):
+        try:
+            with open(SESSIONS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    data.setdefault("sessions", [])
+                    return data
+        except Exception:
+            pass
+    return {"sessions": []}
+
+def save_sessions(data):
+    with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def find_session(data, sid):
+    for s in data["sessions"]:
+        if s["id"] == sid:
+            return s
+    return None
+
+# -----------------------
+# Modèle d'étapes (APS/A3P)
+# -----------------------
+# Chaque étape : name, relative_to ('exam'|'start'), offset_type ('before'|'after'), days
+APS_A3P_STEPS = [
+    {"name":"Création session ADEF",                 "relative_to":"exam",  "offset_type":"before", "days":15},
+    {"name":"Création session CNAPS",                "relative_to":"exam",  "offset_type":"before", "days":20},
+    {"name":"Nomination jury examen",                "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Planification YPAREO",                  "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Contrat envoyé au formateur",           "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Contrat formateur imprimé",             "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Saisie des candidats ADEF",             "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Impression des fiches CNIL",            "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Validation session ADEF",               "relative_to":"start", "offset_type":"before", "days":2},
+    {"name":"Fabrication badge formateur",           "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Vérification dossier formateur",        "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Envoyer test de français",              "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Envoyer lien à compléter stagiaires",   "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Signature des fiches CNIL",             "relative_to":"start", "offset_type":"after",  "days":1},
+    {"name":"Impression des dossiers d’examen",      "relative_to":"exam",  "offset_type":"before", "days":5},
+    {"name":"Saisie des SST",                        "relative_to":"exam",  "offset_type":"before", "days":7},
+    {"name":"Impression des SST",                    "relative_to":"exam",  "offset_type":"before", "days":5},
+    {"name":"Impression évaluation de fin de formation","relative_to":"exam","offset_type":"before","days":5},
+    {"name":"Envoyer mail stagiaires attestations de formation","relative_to":"exam","offset_type":"after","days":2},
+    {"name":"Message avis Google",                   "relative_to":"exam",  "offset_type":"after",  "days":2},
+]
+
+FORMATION_COLORS = {
+    "APS": "#1b9aaa",
+    "A3P": "#2a9134",
+    "SSIAP": "#c0392b",
+    "DIRIGEANT": "#8e44ad",
+}
+
+def default_steps_for(formation):
+    if formation in ("APS", "A3P"):
+        return [
+            {"name": s["name"], "done": False, "done_at": None}
+            for s in APS_A3P_STEPS
+        ]
+    # Pour SSIAP / DIRIGEANT : étapes à définir plus tard
+    return []
+
+# -----------------------
+# Timings & statut
+# -----------------------
+def parse_date(date_str):
+    # attend 'YYYY-MM-DD'
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except Exception:
+        return None
+
+def deadline_for(step_index, session):
+    """Calcule la date/heure limite pour une étape (si applicable)."""
+    if session["formation"] not in ("APS", "A3P"):
+        return None
+
+    rule = APS_A3P_STEPS[step_index]
+    base_date = None
+    if rule["relative_to"] == "exam":
+        base_date = parse_date(session.get("date_exam"))
+    elif rule["relative_to"] == "start":
+        base_date = parse_date(session.get("date_debut"))
+    if not base_date:
+        return None
+
+    days = rule["days"]
+    if rule["offset_type"] == "before":
+        return base_date - timedelta(days=days)
+    else:
+        return base_date + timedelta(days=days)
+
+def status_for_step(step_index, session, now=None):
+    """Retourne ('on_time'|'late'|'n/a', deadline_dt or None)."""
+    if now is None:
+        now = datetime.now()
+    dl = deadline_for(step_index, session)
+    if dl is None:
+        return ("n/a", None)
+    # Si déjà validé, on dit "A temps" si validé avant la deadline (ou même après ?)
+    step = session["steps"][step_index]
+    if step["done"]:
+        try:
+            dt_done = datetime.strptime(step["done_at"], "%Y-%m-%d %H:%M:%S")
+            return ("on_time" if dt_done <= dl else "late", dl)
+        except Exception:
+            return ("on_time", dl)
+    # Pas validé -> regarder si maintenant > deadline
+    return ("late" if now > dl else "on_time", dl)
+
+def snapshot_overdue(session):
+    """Liste des étapes en retard (non faites OU faites hors délai)."""
+    overdue = []
+    for i, step in enumerate(session["steps"]):
+        st, _ = status_for_step(i, session)
+        # en retard si non fait et deadline dépassée, ou validé après deadline
+        if st == "late":
+            overdue.append(step["name"])
+    return overdue
+
+def hash_list(items):
+    return hashlib.sha256(("|".join(items)).encode("utf-8")).hexdigest() if items else ""
+
+def maybe_send_overdue_email(session, overdue_names):
+    """Envoie un mail si configuration SMTP OK et si le snapshot a changé."""
+    if not FROM_EMAIL or not EMAIL_PASSWORD:
+        return  # SMTP non configuré : on ignore proprement
+
+    new_hash = hash_list(overdue_names)
+    if session.get("last_overdue_hash") == new_hash:
+        return  # rien de nouveau
+
+    # Construire le contenu du mail
+    subject = f"[Sessions] Étapes en retard — {session['formation']} ({session.get('dates_formation','')})"
+    if overdue_names:
+        lines = "\n".join([f"• {n}" for n in overdue_names])
+        body = (
+            f"Bonjour,\n\n"
+            f"Les étapes suivantes sont en retard pour la session {session['formation']} :\n"
+            f"{lines}\n\n"
+            f"Début : {session.get('date_debut','N/A')}\n"
+            f"Examen : {session.get('date_exam','N/A')}\n\n"
+            f"--\nIntégrale Academy"
+        )
+    else:
+        body = (
+            f"Bonjour,\n\n"
+            f"Aucune étape en retard actuellement pour la session {session['formation']}.\n\n"
+            f"--\nIntégrale Academy"
+        )
+
+    msg = MIMEText(body, _charset="utf-8")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = "clement@integraleacademy.com"
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(FROM_EMAIL, EMAIL_PASSWORD)
+            server.sendmail(FROM_EMAIL, ["clement@integraleacademy.com"], msg.as_string())
+        session["last_overdue_hash"] = new_hash
+    except Exception as e:
+        # On n'échoue pas l'appli si mail impossible
+        session["last_overdue_hash"] = new_hash  # évite spam en boucle
+        print("Erreur envoi mail:", e)
+
+def auto_archive_if_all_done(session):
+    if session.get("archived"):
+        return
+    if session["steps"] and all(s["done"] for s in session["steps"]):
+        session["archived"] = True
+        session["archived_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# -----------------------
+# Routes
+# -----------------------
 @app.route("/")
 def index():
     return render_template("index.html", title="Plateforme de gestion Intégrale Academy")
 
-@app.route("/sessions")
-def sessions():
-    # Page à paramétrer ensemble par la suite
-    return render_template("sessions.html", title="Gestion des sessions")
+@app.route("/sessions", methods=["GET"])
+def sessions_home():
+    data = load_sessions()
+    # tri : non archivées d'abord
+    active = [s for s in data["sessions"] if not s.get("archived")]
+    archived = [s for s in data["sessions"] if s.get("archived")]
+    # couleur
+    for s in data["sessions"]:
+        s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
+    return render_template("sessions.html", title="Gestion des sessions",
+                           active_sessions=active, archived_sessions=archived,
+                           colors=FORMATION_COLORS)
 
-# Santé simple
+@app.route("/sessions/create", methods=["POST"])
+def create_session():
+    formation = request.form.get("formation", "").strip().upper()
+    dates_formation = request.form.get("dates_formation", "").strip()   # texte libre
+    date_debut = request.form.get("date_debut", "").strip()             # YYYY-MM-DD (pour timings)
+    date_exam = request.form.get("date_exam", "").strip()               # YYYY-MM-DD
+
+    if formation not in ("APS", "A3P", "SSIAP", "DIRIGEANT"):
+        flash("Formation invalide.", "error")
+        return redirect(url_for("sessions_home"))
+
+    sid = str(uuid.uuid4())[:8]
+    session = {
+        "id": sid,
+        "formation": formation,
+        "dates_formation": dates_formation,
+        "date_debut": date_debut,
+        "date_exam": date_exam,
+        "color": FORMATION_COLORS.get(formation, "#555"),
+        "steps": default_steps_for(formation),
+        "archived": False,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_overdue_hash": ""
+    }
+
+    data = load_sessions()
+    data["sessions"].append(session)
+    save_sessions(data)
+
+    # 1er contrôle overdue + éventuel mail
+    overdue = snapshot_overdue(session)
+    maybe_send_overdue_email(session, overdue)
+    save_sessions(data)
+
+    return redirect(url_for("session_detail", sid=sid))
+
+@app.route("/sessions/<sid>", methods=["GET"])
+def session_detail(sid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+
+    statuses = []
+    for i, step in enumerate(session["steps"]):
+        st, dl = status_for_step(i, session)
+        statuses.append({"status": st, "deadline": (dl.strftime("%Y-%m-%d") if dl else None)})
+
+    # mail si retard (snapshot différent)
+    overdue = [session["steps"][i]["name"] for i, st in enumerate(statuses) if st["status"] == "late"]
+    maybe_send_overdue_email(session, overdue)
+    auto_archive_if_all_done(session)
+    save_sessions(data)
+
+    return render_template("session_detail.html", title=f"{session['formation']} — Détail",
+                           s=session, statuses=statuses)
+
+@app.route("/sessions/<sid>/toggle_step", methods=["POST"])
+def toggle_step(sid):
+    idx = int(request.form.get("index", "-1"))
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session or idx < 0 or idx >= len(session["steps"]):
+        abort(400)
+
+    step = session["steps"][idx]
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if step["done"]:
+        # annuler
+        step["done"] = False
+        step["done_at"] = None
+    else:
+        step["done"] = True
+        step["done_at"] = now
+
+    # Recalcul archiver + mail retard
+    overdue = snapshot_overdue(session)
+    maybe_send_overdue_email(session, overdue)
+    auto_archive_if_all_done(session)
+
+    save_sessions(data)
+    return redirect(url_for("session_detail", sid=sid))
+
+@app.route("/sessions/<sid>/delete", methods=["POST"])
+def delete_session(sid):
+    data = load_sessions()
+    before = len(data["sessions"])
+    data["sessions"] = [s for s in data["sessions"] if s["id"] != sid]
+    save_sessions(data)
+    if len(data["sessions"]) < before:
+        flash("Session supprimée.", "ok")
+    return redirect(url_for("sessions_home"))
+
 @app.route("/healthz")
 def healthz():
     return "ok"
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)

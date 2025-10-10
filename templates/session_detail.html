@@ -49,10 +49,10 @@
             {% endif %}
           </div>
 
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}">
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}">
             <input type="hidden" name="index" value="{{ loop.index0 }}">
             <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
-              <span class="icon">{% if step.done %}✅{% else %}⬜{% endif %}</span>
+              <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
               <span class="label">{{ step.name }}</span>
             </button>
           </form>

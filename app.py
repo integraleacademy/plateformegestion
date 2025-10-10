@@ -280,7 +280,8 @@ def sessions_home():
         title="Gestion des sessions",
         active_sessions=active,
         archived_sessions=archived,
-        now=datetime.now  # 👈 ajout important ici
+        status_for_step=status_for_step,  # 👈 on ajoute cette fonction
+        now=datetime.now  # 👈 pour que Jinja puisse faire les comparaisons de dates
     )
 
 @app.route("/sessions/create", methods=["POST"])

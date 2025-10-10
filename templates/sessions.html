@@ -127,8 +127,7 @@
 
 <main class="container">
 
-  <!-- === Bloc récapitulatif === -->
-  {% set today = now().date() %}
+  <!-- === Bloc récapitulatif corrigé === -->
   {% set total_late = 0 %}
   {% set formations = active_sessions|map(attribute='formation')|unique %}
   {% set recap_data = [] %}
@@ -139,13 +138,11 @@
     {% for s in active_sessions if s.formation == formation %}
       {% for i in range(s.steps|length) %}
         {% set st, dl = status_for_step(i, s) %}
-        {% if dl %}
-          {% if dl.date() < today and st != "done" %}
-            {% set total_late = total_late + 1 %}
-            {% set late_steps = late_steps + [("[%s] %s" % (s.date_debut|datefr, s.steps[i].name), (today - dl.date()).days)] %}
-          {% elif dl.date() == today and st != "done" %}
-            {% set today_steps = today_steps + ["[%s] %s" % (s.date_debut|datefr, s.steps[i].name)] %}
-          {% endif %}
+        {% if st == "late" %}
+          {% set total_late = total_late + 1 %}
+          {% set late_steps = late_steps + [("[%s] %s" % (s.date_debut|datefr, s.steps[i].name), (now().date() - dl.date()).days)] %}
+        {% elif st == "on_time" and dl and dl.date() == now().date() %}
+          {% set today_steps = today_steps + ["[%s] %s" % (s.date_debut|datefr, s.steps[i].name)] %}
         {% endif %}
       {% endfor %}
     {% endfor %}

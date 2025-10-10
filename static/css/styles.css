@@ -1,4 +1,3 @@
-
 :root{
   --gold:#F4C45A;
   --gold-strong:#e5b348;
@@ -39,15 +38,24 @@ a{color:inherit;text-decoration:none}
   box-shadow:0 10px 30px rgba(0,0,0,.08);
   border:1px solid rgba(0,0,0,.06);
   transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  display:flex;flex-direction:column;gap:8px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;      /* ✅ centre horizontalement */
+  justify-content:center;  /* ✅ centre verticalement */
+  gap:8px;
   min-height:150px;
+  text-align:center;       /* ✅ centre le texte */
 }
 .card:hover{
   transform:translateY(-3px);
   box-shadow:0 14px 40px rgba(0,0,0,.12);
   border-color:rgba(0,0,0,.12);
 }
-.emoji{font-size:34px;line-height:1}
+.emoji{
+  font-size:40px;          /* un peu plus grand */
+  line-height:1;
+  text-align:center;
+}
 .title{font-weight:700;font-size:18px}
 .desc{font-size:14px;opacity:.75}
 

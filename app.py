@@ -1,10 +1,11 @@
-import os, json, uuid, hashlib
+import os, json, uuid
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, abort, flash
 
 # --- Email ---
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
@@ -124,7 +125,15 @@ def status_for_step(step_index, session, now=None):
     return ("late" if now > dl else "on_time", dl)
 
 def snapshot_overdue(session):
-    return [step["name"] for i, step in enumerate(session["steps"]) if status_for_step(i, session)[0] == "late"]
+    """Retourne les étapes en retard avec leur deadline"""
+    overdue = []
+    for i, step in enumerate(session["steps"]):
+        st, dl = status_for_step(i, session)
+        if st == "late":
+            overdue.append((step["name"], dl))
+    # Tri par deadline (plus urgent en premier)
+    overdue.sort(key=lambda x: (x[1] or datetime.max))
+    return overdue
 
 def auto_archive_if_all_done(session):
     if not session.get("archived") and session["steps"] and all(s["done"] for s in session["steps"]):
@@ -139,36 +148,77 @@ def send_global_overdue_report(data):
         return
 
     sessions = data["sessions"]
-    report_lines = []
 
+    sections = []
     for session in sessions:
         overdue = snapshot_overdue(session)
-        if overdue:
-            report_lines.append(
-                f"📚 {session['formation']} "
-                f"(Début : {session.get('date_debut','N/A')} | "
-                f"Fin : {session.get('date_fin','N/A')} | "
-                f"Examen : {session.get('date_exam','N/A')})\n"
-                + "\n".join([f"   • {step}" for step in overdue])
-                + "\n"
-            )
+        if not overdue:
+            continue
+        sections.append(f"""
+          <div class="card">
+            <div class="card-head">
+              <div class="badge">{session['formation']}</div>
+              <div class="dates">
+                <span><strong>Début :</strong> {session.get('date_debut','N/A')}</span>
+                <span><strong>Fin :</strong> {session.get('date_fin','N/A')}</span>
+                <span><strong>Examen :</strong> {session.get('date_exam','N/A')}</span>
+              </div>
+            </div>
+            <ul class="list">
+              {''.join(f'<li>• {name} (échéance {dl.strftime("%d-%m-%Y") if dl else "N/A"})</li>' for name, dl in overdue)}
+            </ul>
+          </div>
+        """)
 
-    if not report_lines:
-        body = "✅ Aucun retard détecté aujourd’hui pour les sessions."
+    if sections:
+        html_body = f"""
+        <html>
+        <head><meta charset="utf-8"/>
+        <style>
+            body {{ font-family:Inter,Arial,sans-serif; background:#f7f7f9; color:#222; padding:24px; }}
+            .wrap {{ max-width:800px; margin:0 auto; }}
+            .header {{ background:#121212; color:#fff; padding:16px 20px; border-radius:12px; margin-bottom:16px; }}
+            h1 {{ margin:0; font-size:20px; }}
+            p.sub {{ margin:6px 0 0; opacity:.9; font-size:14px; }}
+            .card {{ background:#fff; border:1px solid #ddd; border-radius:12px; padding:16px; margin-bottom:14px; }}
+            .card-head {{ display:flex; justify-content:space-between; flex-wrap:wrap; }}
+            .badge {{ background:#F4C45A; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; }}
+            .dates span {{ margin-right:10px; font-size:13px; }}
+            .list {{ margin:10px 0 0 0; padding-left:18px; }}
+            .list li {{ margin:4px 0; }}
+            .footer {{ margin-top:16px; font-size:12px; color:#555; text-align:center; }}
+        </style>
+        </head>
+        <body>
+        <div class="wrap">
+          <div class="header">
+            <h1>📌 Récapitulatif des retards — Intégrale Academy</h1>
+            <p class="sub">{datetime.now().strftime('%d-%m-%Y %H:%M')}</p>
+          </div>
+          {''.join(sections)}
+          <div class="footer">Vous recevez ce mail automatiquement chaque matin.</div>
+        </div>
+        </body>
+        </html>
+        """
+        text_body = "⚠️ Étapes en retard. Ouvrez le mail en HTML."
     else:
-        body = "⚠️ Voici la liste des étapes en retard :\n\n" + "\n".join(report_lines)
+        html_body = f"<html><body><p>✅ Aucun retard détecté aujourd’hui.</p></body></html>"
+        text_body = "✅ Aucun retard détecté aujourd’hui."
 
-    msg = MIMEText(body, _charset="utf-8")
-    msg["Subject"] = "📌 Récapitulatif des retards — Intégrale Academy"
-    msg["From"] = FROM_EMAIL
-    msg["To"] = "clement@integraleacademy.com"
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "📌 Récapitulatif des retards — Intégrale Academy"
+    msg['From'] = FROM_EMAIL
+    msg['To'] = "clement@integraleacademy.com"
+    msg.attach(MIMEText(text_body, 'plain', _charset="utf-8"))
+    msg.attach(MIMEText(html_body, 'html', _charset="utf-8"))
 
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(FROM_EMAIL, EMAIL_PASSWORD)
             server.sendmail(FROM_EMAIL, ["clement@integraleacademy.com"], msg.as_string())
-        print("✅ Mail global envoyé")
+        print("✅ Mail global HTML envoyé")
     except Exception as e:
         print("Erreur envoi mail global:", e)
 
@@ -274,6 +324,5 @@ def cron_check():
     for session in data["sessions"]:
         auto_archive_if_all_done(session)
     save_sessions(data)
-
     send_global_overdue_report(data)
     return "Cron check terminé (rapport global envoyé)", 200

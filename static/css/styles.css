@@ -40,11 +40,11 @@ a{color:inherit;text-decoration:none}
   transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   display:flex;
   flex-direction:column;
-  align-items:center;      /* ✅ centre horizontalement */
-  justify-content:center;  /* ✅ centre verticalement */
+  align-items:center;      /* centre horizontalement */
+  justify-content:center;  /* centre verticalement */
   gap:8px;
   min-height:150px;
-  text-align:center;       /* ✅ centre le texte */
+  text-align:center;       /* centre le texte */
 }
 .card:hover{
   transform:translateY(-3px);
@@ -52,12 +52,20 @@ a{color:inherit;text-decoration:none}
   border-color:rgba(0,0,0,.12);
 }
 .emoji{
-  font-size:40px;          /* un peu plus grand */
+  font-size:40px;
   line-height:1;
   text-align:center;
 }
 .title{font-weight:700;font-size:18px}
 .desc{font-size:14px;opacity:.75}
+
+.section-title {
+  margin: 40px 0 20px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-strong);
+  text-align: left;
+}
 
 .footer{
   text-align:center;

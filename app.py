@@ -2,14 +2,14 @@ import os, json, uuid, hashlib
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, abort, flash
 
-# --- Email (optionnel) ---
+# --- Email ---
 import smtplib
 from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
-# --- Filtre pour format français des dates ---
+# --- Filtre date FR ---
 def format_date(value):
     try:
         dt = datetime.strptime(value, "%Y-%m-%d")
@@ -19,19 +19,16 @@ def format_date(value):
 
 app.jinja_env.filters['datefr'] = format_date
 
-# Disque persistant Render
+# --- Persistance ---
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 
 FROM_EMAIL = os.environ.get("FROM_EMAIL")           # ecole@integraleacademy.com
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")   # mot de passe d'application
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")   # mot de passe application
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 
-# -----------------------
-# Utils persistance
-# -----------------------
 def load_sessions():
     if os.path.exists(SESSIONS_FILE):
         try:
@@ -55,7 +52,7 @@ def find_session(data, sid):
     return None
 
 # -----------------------
-# Modèle d'étapes (APS/A3P)
+# Modèle étapes
 # -----------------------
 APS_A3P_STEPS = [
     {"name":"Création session ADEF", "relative_to":"start", "offset_type":"before", "days":15},
@@ -94,7 +91,7 @@ def default_steps_for(formation):
     return []
 
 # -----------------------
-# Timings & statut
+# Statuts
 # -----------------------
 def parse_date(date_str):
     try:
@@ -129,47 +126,51 @@ def status_for_step(step_index, session, now=None):
 def snapshot_overdue(session):
     return [step["name"] for i, step in enumerate(session["steps"]) if status_for_step(i, session)[0] == "late"]
 
-def hash_list(items):
-    return hashlib.sha256(("|".join(items)).encode("utf-8")).hexdigest() if items else ""
+def auto_archive_if_all_done(session):
+    if not session.get("archived") and session["steps"] and all(s["done"] for s in session["steps"]):
+        session["archived"] = True
+        session["archived_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def maybe_send_overdue_email(session, overdue_names):
+# -----------------------
+# Envoi mail global
+# -----------------------
+def send_global_overdue_report(data):
     if not FROM_EMAIL or not EMAIL_PASSWORD:
         return
-    new_hash = hash_list(overdue_names)
-    if session.get("last_overdue_hash") == new_hash:
-        return
-    subject = f"[Sessions] Étapes en retard — {session['formation']}"
-    if overdue_names:
-        lines = "\n".join([f"• {n}" for n in overdue_names])
-        body = (
-            f"Bonjour,\n\n"
-            f"Les étapes suivantes sont en retard pour la session {session['formation']} :\n"
-            f"{lines}\n\n"
-            f"Début : {session.get('date_debut','N/A')}\n"
-            f"Fin : {session.get('date_fin','N/A')}\n"
-            f"Examen : {session.get('date_exam','N/A')}\n\n"
-            f"--\nIntégrale Academy"
-        )
+
+    sessions = data["sessions"]
+    report_lines = []
+
+    for session in sessions:
+        overdue = snapshot_overdue(session)
+        if overdue:
+            report_lines.append(
+                f"📚 {session['formation']} "
+                f"(Début : {session.get('date_debut','N/A')} | "
+                f"Fin : {session.get('date_fin','N/A')} | "
+                f"Examen : {session.get('date_exam','N/A')})\n"
+                + "\n".join([f"   • {step}" for step in overdue])
+                + "\n"
+            )
+
+    if not report_lines:
+        body = "✅ Aucun retard détecté aujourd’hui pour les sessions."
     else:
-        body = f"Aucune étape en retard actuellement pour {session['formation']}."
+        body = "⚠️ Voici la liste des étapes en retard :\n\n" + "\n".join(report_lines)
+
     msg = MIMEText(body, _charset="utf-8")
-    msg["Subject"] = subject
+    msg["Subject"] = "📌 Récapitulatif des retards — Intégrale Academy"
     msg["From"] = FROM_EMAIL
     msg["To"] = "clement@integraleacademy.com"
+
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(FROM_EMAIL, EMAIL_PASSWORD)
             server.sendmail(FROM_EMAIL, ["clement@integraleacademy.com"], msg.as_string())
-        session["last_overdue_hash"] = new_hash
+        print("✅ Mail global envoyé")
     except Exception as e:
-        session["last_overdue_hash"] = new_hash
-        print("Erreur envoi mail:", e)
-
-def auto_archive_if_all_done(session):
-    if not session.get("archived") and session["steps"] and all(s["done"] for s in session["steps"]):
-        session["archived"] = True
-        session["archived_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("Erreur envoi mail global:", e)
 
 # -----------------------
 # Routes
@@ -207,7 +208,6 @@ def create_session():
         "steps": default_steps_for(formation),
         "archived": False,
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "last_overdue_hash": ""
     }
     data = load_sessions()
     data["sessions"].append(session)
@@ -249,12 +249,8 @@ def toggle_step(sid):
         abort(400)
     step = session["steps"][idx]
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if step["done"]:
-        step["done"] = False
-        step["done_at"] = None
-    else:
-        step["done"] = True
-        step["done_at"] = now
+    step["done"] = not step["done"]
+    step["done_at"] = now if step["done"] else None
     auto_archive_if_all_done(session)
     save_sessions(data)
     return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")
@@ -271,13 +267,13 @@ def delete_session(sid):
 def healthz():
     return "ok"
 
-# --- Route appelée par cron-job.org ---
+# --- Cron ---
 @app.route("/cron-check")
 def cron_check():
     data = load_sessions()
     for session in data["sessions"]:
-        overdue = snapshot_overdue(session)
-        maybe_send_overdue_email(session, overdue)
         auto_archive_if_all_done(session)
     save_sessions(data)
-    return "Cron check terminé", 200
+
+    send_global_overdue_report(data)
+    return "Cron check terminé (rapport global envoyé)", 200

@@ -234,7 +234,7 @@ def create_session():
     overdue = snapshot_overdue(session)
     maybe_send_overdue_email(session, overdue)
     save_sessions(data)
-    return redirect(url_for("session_detail", sid=sid))
+    return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")
 
 @app.route("/sessions/<sid>", methods=["GET"])
 def session_detail(sid):

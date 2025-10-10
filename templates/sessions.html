@@ -66,6 +66,9 @@
       color:#222;
       border-left:4px solid #2a9134;
       padding-left:10px;
+      display:flex;
+      align-items:center;
+      gap:8px;
     }
 
     /* --- Grille sessions --- */
@@ -115,16 +118,24 @@
     }
     .archived .session-badge {background:#999;}
 
+    /* --- Badge Prochaine session --- */
     .next-badge {
       position:absolute;
-      top:10px;
-      right:10px;
+      top:-10px;
+      left:-10px;
       background:#f4c45a;
       color:#000;
       font-weight:600;
-      padding:4px 10px;
-      border-radius:10px;
-      font-size:12px;
+      padding:4px 12px;
+      border-radius:0 8px 8px 0;
+      font-size:13px;
+      box-shadow:0 2px 5px rgba(0,0,0,.15);
+      animation:fadeIn 0.8s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {opacity:0; transform:translateY(-5px);}
+      to {opacity:1; transform:translateY(0);}
     }
 
     .countdown {
@@ -160,6 +171,8 @@
 
   {% set sorted_active = active_sessions|sort(attribute='date_debut') %}
   {% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
+  {% set today = now() %}
+  {% set next_session_found = false %}
 
   {% if sorted_active %}
   <h2 class="section-title">📅 Sessions actives</h2>
@@ -167,14 +180,23 @@
     {% for s in sorted_active %}
       {% set color = s.color %}
       {% set date_debut = s.date_debut|datetime %}
-      {% set today = now() %}
       {% set diff = (date_debut - today).days %}
-      {% if loop.first %}{% set is_next = true %}{% else %}{% set is_next = false %}{% endif %}
+      
+      {% if not next_session_found and diff > 0 %}
+        {% set is_next = true %}
+        {% set next_session_found = true %}
+      {% else %}
+        {% set is_next = false %}
+      {% endif %}
+
       <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
-        {% if is_next %}<div class="next-badge">🌟 Prochaine session</div>{% endif %}
+        {% if is_next %}
+          <div class="next-badge">🌟 Prochaine session</div>
+        {% endif %}
         <div class="session-title">{{ s.formation }}</div>
         <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
         <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
+
         {% if diff > 0 %}
           <div class="countdown">🕓 Dans {{ diff }} jour{% if diff>1 %}s{% endif %}</div>
         {% elif diff == 0 %}
@@ -182,6 +204,7 @@
         {% else %}
           <div class="countdown" style="color:#999;">✔️ Déjà commencée</div>
         {% endif %}
+
         <div class="session-badge">Active</div>
       </a>
     {% endfor %}

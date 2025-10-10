@@ -326,3 +326,115 @@ def cron_check():
     save_sessions(data)
     send_global_overdue_report(data)
     return "Cron check terminé (rapport global envoyé)", 200
+
+import base64
+
+# --- Nouveau : génération du mail global + envoi automatique ---
+def generate_daily_overdue_email(sessions):
+    now = datetime.now().strftime("%d-%m-%Y %H:%M")
+    FORMATION_COLORS = {
+        "APS": "#1b9aaa",
+        "A3P": "#2a9134",
+        "SSIAP": "#c0392b",
+        "DIRIGEANT": "#8e44ad",
+    }
+
+    # Encode ton logo en base64 pour l’afficher directement dans le mail
+    logo_path = os.path.join("static", "img", "logo-integrale.png")
+    logo_base64 = ""
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as f:
+            logo_base64 = base64.b64encode(f.read()).decode("utf-8")
+
+    html = f"""
+    <body style="font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;padding:30px;margin:0;">
+      <div style="max-width:720px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.1)">
+        
+        <!-- En-tête -->
+        <div style="background:#121212;color:#fff;padding:24px 20px;text-align:center;">
+          <img src="data:image/png;base64,{logo_base64}" alt="Intégrale Academy"
+               style="height:80px;margin-bottom:10px;border-radius:12px;">
+          <h1 style="margin:10px 0;font-size:24px;">⚠️ Récapitulatif des retards — Intégrale Academy</h1>
+          <div style="font-size:14px;opacity:.9;">{now}</div>
+        </div>
+
+        <!-- Contenu -->
+        <div style="padding:24px;">
+    """
+
+    found_any = False
+    for s in sessions:
+        overdue = snapshot_overdue(s)
+        if not overdue:
+            continue
+        found_any = True
+        color = FORMATION_COLORS.get(s["formation"], "#999")
+        html += f"""
+          <div style="border:1px solid #eee;border-radius:12px;padding:18px 20px;margin-bottom:18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+              <div style="background:{color};color:#fff;font-weight:700;border-radius:30px;padding:6px 14px;font-size:14px;letter-spacing:.5px;">
+                {s["formation"]}
+              </div>
+              <div style="font-size:14px;color:#444;">
+                <b>Début :</b> {s.get("date_debut","—")} &nbsp;&nbsp;
+                <b>Fin :</b> {s.get("date_fin","—")} &nbsp;&nbsp;
+                <b>Examen :</b> {s.get("date_exam","—")}
+              </div>
+            </div>
+            <ul style="margin:12px 0 0 18px;padding:0;color:#333;font-size:15px;line-height:1.6;">
+        """
+        for step in overdue:
+            html += f"<li style='margin-bottom:4px;'>– {step}</li>"
+        html += """
+            </ul>
+          </div>
+        """
+
+    if not found_any:
+        html += """
+          <p style="text-align:center;font-size:15px;color:#444;margin:20px 0;">
+            ✅ Aucun retard à signaler aujourd’hui.
+          </p>
+        """
+
+    html += """
+        </div>
+
+        <!-- Pied de page -->
+        <div style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">
+          Vous recevez ce mail automatiquement chaque matin à 8h.
+        </div>
+      </div>
+    </body>
+    """
+    return html
+
+
+def send_daily_overdue_summary():
+    """Envoie un seul mail par jour à 8h avec tous les retards"""
+    data = load_sessions()
+    sessions = data["sessions"]
+    html = generate_daily_overdue_email(sessions)
+    msg = MIMEText(html, "html", _charset="utf-8")
+    msg["Subject"] = "⚠️ Récapitulatif des retards — Intégrale Academy"
+    msg["From"] = FROM_EMAIL
+    msg["To"] = "clement@integraleacademy.com"
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(FROM_EMAIL, EMAIL_PASSWORD)
+            server.sendmail(FROM_EMAIL, ["clement@integraleacademy.com"], msg.as_string())
+        print("✅ Mail quotidien envoyé avec succès")
+    except Exception as e:
+        print("❌ Erreur envoi mail quotidien :", e)
+
+
+# --- Route pour CRON (appelée chaque matin à 8h) ---
+@app.route("/cron-daily-summary")
+def cron_daily_summary():
+    send_daily_overdue_summary()
+    return "Mail récapitulatif envoyé", 200
+
+
+

@@ -48,8 +48,8 @@ def find_session(data, sid):
 # Modèle d'étapes (APS/A3P)
 # -----------------------
 APS_A3P_STEPS = [
-    {"name":"Création session ADEF",                 "relative_to":"exam",  "offset_type":"before", "days":15},
-    {"name":"Création session CNAPS",                "relative_to":"exam",  "offset_type":"before", "days":20},
+    {"name":"Création session ADEF",                 "relative_to":"start",  "offset_type":"before", "days":15},
+    {"name":"Création session CNAPS",                "relative_to":"start",  "offset_type":"before", "days":20},
     {"name":"Nomination jury examen",                "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Planification YPAREO",                  "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Contrat envoyé au formateur",           "relative_to":"start", "offset_type":"before", "days":5},

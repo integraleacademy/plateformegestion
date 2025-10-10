@@ -29,7 +29,6 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")   # mot de passe d'application
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 
-
 # -----------------------
 # Utils persistance
 # -----------------------
@@ -59,27 +58,27 @@ def find_session(data, sid):
 # Modèle d'étapes (APS/A3P)
 # -----------------------
 APS_A3P_STEPS = [
-    {"name":"Création session ADEF",                 "relative_to":"start",  "offset_type":"before", "days":15},
-    {"name":"Création session CNAPS",                "relative_to":"start",  "offset_type":"before", "days":20},
-    {"name":"Nomination jury examen",                "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Planification YPAREO",                  "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Contrat envoyé au formateur",           "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Contrat formateur imprimé",             "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Saisie des candidats ADEF",             "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Impression des fiches CNIL",            "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Validation session ADEF",               "relative_to":"start", "offset_type":"before", "days":2},
-    {"name":"Fabrication badge formateur",           "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Vérification dossier formateur",        "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Envoyer test de français",              "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Création session ADEF", "relative_to":"start", "offset_type":"before", "days":15},
+    {"name":"Création session CNAPS", "relative_to":"start", "offset_type":"before", "days":20},
+    {"name":"Nomination jury examen", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Planification YPAREO", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Contrat envoyé au formateur", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Contrat formateur imprimé", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Saisie des candidats ADEF", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Impression des fiches CNIL", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Validation session ADEF", "relative_to":"start", "offset_type":"before", "days":2},
+    {"name":"Fabrication badge formateur", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Vérification dossier formateur", "relative_to":"start", "offset_type":"before", "days":5},
+    {"name":"Envoyer test de français", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Envoyer lien à compléter stagiaires",   "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Signature des fiches CNIL",             "relative_to":"start", "offset_type":"after",  "days":1},
-    {"name":"Impression des dossiers d’examen",      "relative_to":"exam",  "offset_type":"before", "days":5},
-    {"name":"Saisie des SST",                        "relative_to":"exam",  "offset_type":"before", "days":7},
-    {"name":"Impression des SST",                    "relative_to":"exam",  "offset_type":"before", "days":5},
-    {"name":"Impression évaluation de fin de formation","relative_to":"exam","offset_type":"before","days":5},
+    {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Signature des fiches CNIL", "relative_to":"start", "offset_type":"after", "days":1},
+    {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
+    {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
+    {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
+    {"name":"Impression évaluation de fin de formation", "relative_to":"exam","offset_type":"before","days":5},
     {"name":"Envoyer mail stagiaires attestations de formation","relative_to":"exam","offset_type":"after","days":2},
-    {"name":"Message avis Google",                   "relative_to":"exam",  "offset_type":"after",  "days":2},
+    {"name":"Message avis Google","relative_to":"exam","offset_type":"after","days":2},
 ]
 
 FORMATION_COLORS = {
@@ -91,10 +90,7 @@ FORMATION_COLORS = {
 
 def default_steps_for(formation):
     if formation in ("APS", "A3P"):
-        return [
-            {"name": s["name"], "done": False, "done_at": None}
-            for s in APS_A3P_STEPS
-        ]
+        return [{"name": s["name"], "done": False, "done_at": None} for s in APS_A3P_STEPS]
     return []
 
 # -----------------------
@@ -117,10 +113,7 @@ def deadline_for(step_index, session):
         base_date = parse_date(session.get("date_debut"))
     if not base_date:
         return None
-    if rule["offset_type"] == "before":
-        return base_date - timedelta(days=rule["days"])
-    else:
-        return base_date + timedelta(days=rule["days"])
+    return base_date - timedelta(days=rule["days"]) if rule["offset_type"] == "before" else base_date + timedelta(days=rule["days"])
 
 def status_for_step(step_index, session, now=None):
     if now is None:
@@ -130,17 +123,11 @@ def status_for_step(step_index, session, now=None):
         return ("n/a", None)
     step = session["steps"][step_index]
     if step["done"]:
-        # Si validée, on ne met pas "à temps" ni "en retard"
         return ("done", dl)
     return ("late" if now > dl else "on_time", dl)
 
 def snapshot_overdue(session):
-    overdue = []
-    for i, step in enumerate(session["steps"]):
-        st, _ = status_for_step(i, session)
-        if st == "late":
-            overdue.append(step["name"])
-    return overdue
+    return [step["name"] for i, step in enumerate(session["steps"]) if status_for_step(i, session)[0] == "late"]
 
 def hash_list(items):
     return hashlib.sha256(("|".join(items)).encode("utf-8")).hexdigest() if items else ""
@@ -180,9 +167,7 @@ def maybe_send_overdue_email(session, overdue_names):
         print("Erreur envoi mail:", e)
 
 def auto_archive_if_all_done(session):
-    if session.get("archived"):
-        return
-    if session["steps"] and all(s["done"] for s in session["steps"]):
+    if not session.get("archived") and session["steps"] and all(s["done"] for s in session["steps"]):
         session["archived"] = True
         session["archived_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -200,8 +185,7 @@ def sessions_home():
     archived = [s for s in data["sessions"] if s.get("archived")]
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
-    return render_template("sessions.html", title="Gestion des sessions",
-                           active_sessions=active, archived_sessions=archived)
+    return render_template("sessions.html", title="Gestion des sessions", active_sessions=active, archived_sessions=archived)
 
 @app.route("/sessions/create", methods=["POST"])
 def create_session():
@@ -228,9 +212,6 @@ def create_session():
     data = load_sessions()
     data["sessions"].append(session)
     save_sessions(data)
-    overdue = snapshot_overdue(session)
-    maybe_send_overdue_email(session, overdue)
-    save_sessions(data)
     return redirect(url_for("session_detail", sid=sid))
 
 @app.route("/sessions/<sid>", methods=["GET"])
@@ -239,16 +220,10 @@ def session_detail(sid):
     session = find_session(data, sid)
     if not session:
         abort(404)
-    statuses = []
-    for i, step in enumerate(session["steps"]):
-        st, dl = status_for_step(i, session)
-        statuses.append({"status": st, "deadline": (dl.strftime("%Y-%m-%d") if dl else None)})
-    overdue = [session["steps"][i]["name"] for i, st in enumerate(statuses) if st["status"] == "late"]
-    maybe_send_overdue_email(session, overdue)
+    statuses = [{"status": status_for_step(i, session)[0], "deadline": (status_for_step(i, session)[1].strftime("%Y-%m-%d") if status_for_step(i, session)[1] else None)} for i in range(len(session["steps"]))]
     auto_archive_if_all_done(session)
     save_sessions(data)
-    return render_template("session_detail.html", title=f"{session['formation']} — Détail",
-                           s=session, statuses=statuses)
+    return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses)
 
 @app.route("/sessions/<sid>/edit", methods=["GET", "POST"])
 def edit_session(sid):
@@ -256,7 +231,6 @@ def edit_session(sid):
     session = find_session(data, sid)
     if not session:
         abort(404)
-
     if request.method == "POST":
         session["date_debut"] = request.form.get("date_debut", "").strip()
         session["date_fin"] = request.form.get("date_fin", "").strip()
@@ -264,7 +238,6 @@ def edit_session(sid):
         save_sessions(data)
         flash("Session mise à jour.", "ok")
         return redirect(url_for("session_detail", sid=sid))
-
     return render_template("session_edit.html", s=session)
 
 @app.route("/sessions/<sid>/toggle_step", methods=["POST"])
@@ -282,8 +255,6 @@ def toggle_step(sid):
     else:
         step["done"] = True
         step["done_at"] = now
-    overdue = snapshot_overdue(session)
-    maybe_send_overdue_email(session, overdue)
     auto_archive_if_all_done(session)
     save_sessions(data)
     return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")

@@ -40,22 +40,18 @@ a{color:inherit;text-decoration:none}
   transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   display:flex;
   flex-direction:column;
-  align-items:center;      /* centre horizontalement */
-  justify-content:center;  /* centre verticalement */
+  align-items:center;
+  justify-content:center;
   gap:8px;
   min-height:150px;
-  text-align:center;       /* centre le texte */
+  text-align:center;
 }
 .card:hover{
   transform:translateY(-3px);
   box-shadow:0 14px 40px rgba(0,0,0,.12);
   border-color:rgba(0,0,0,.12);
 }
-.emoji{
-  font-size:40px;
-  line-height:1;
-  text-align:center;
-}
+.emoji{font-size:40px;line-height:1;text-align:center}
 .title{font-weight:700;font-size:18px}
 .desc{font-size:14px;opacity:.75}
 
@@ -82,6 +78,20 @@ a{color:inherit;text-decoration:none}
 .btn.gold{background:var(--gold);border-color:var(--gold-strong)}
 .btn.icon{background:transparent;border:none;font-size:18px}
 .btn.danger{background:#fbe9e7;border-color:#f5c6c3;color:#b3392a}
+
+/* Boutons modifier/supprimer alignés en haut */
+.actions {
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+.btn.action-btn {
+  flex:1;
+  text-align:center;
+  padding:12px;
+  font-weight:600;
+  border-radius:12px;
+}
 
 /* Sessions list */
 .sessions-grid{
@@ -134,13 +144,29 @@ a{color:inherit;text-decoration:none}
 .deadline{font-size:12px; color:#555}
 
 .step-card{margin:0}
-.step-btn{width:100%; display:flex; align-items:center; gap:10px; justify-content:flex-start; padding:12px; border-radius:12px; border:1px dashed rgba(0,0,0,.15); background:#fafafa}
-.step-btn.done{background:#e8f5e9; border-color:#c8e6c9}
+.step-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  justify-content:flex-start;
+  padding:14px;
+  border-radius:14px;
+  border:1px solid #ddd;
+  background:#fff;
+  font-weight:600;
+  transition:all .2s ease;
+}
+.step-btn:hover{background:#f7f7f7}
+.step-btn.done{
+  background:#e6f7ea;
+  border-color:#b2e0bb;
+  color:#2e7d32;
+}
 .step-btn .emoji{font-size:20px}
 .step-btn .label{font-weight:700}
 .done-info{font-size:12px; color:#444; margin-top:6px}
 
-.danger-zone{display:flex; align-items:center; justify-content:space-between; margin-top:20px; gap:10px}
+.danger-zone{margin-top:20px; gap:10px}
 .archive-note{font-size:13px; color:#555}
 .clock.small{font-size:13px; opacity:.9}
-

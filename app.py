@@ -79,18 +79,15 @@ APS_A3P_STEPS = [
     {"name":"Vérification dossier formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Validation session ADEF", "relative_to":"start", "offset_type":"before", "days":2},
-
     # AVANT EXAM
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Impression évaluation de fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
-
     # JOUR EXAM
     {"name":"Session examen clôturée", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Frais ADEF réglés", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Documents examen envoyés à l’ADEF", "relative_to":"exam", "offset_type":"after", "days":0},
-
     # APRÈS EXAM
     {"name":"Envoyer mail stagiaires attestations de formation", "relative_to":"exam", "offset_type":"after", "days":2},
     {"name":"Message avis Google", "relative_to":"exam", "offset_type":"after", "days":2},
@@ -165,6 +162,10 @@ def status_for_step(step_index, session, now=None):
     if step["done"]:
         return ("done", dl)
     return ("late" if now.date() > dl.date() else "on_time", dl)
+
+# ✅ Fonction spéciale pour le template Jinja
+def status_for_step_jinja(i, s):
+    return status_for_step(i, s, now=datetime.now())
 
 def snapshot_overdue(session):
     overdue = []
@@ -280,8 +281,8 @@ def sessions_home():
         title="Gestion des sessions",
         active_sessions=active,
         archived_sessions=archived,
-        status_for_step=status_for_step,  # 👈 on ajoute cette fonction
-        now=datetime.now  # 👈 pour que Jinja puisse faire les comparaisons de dates
+        status_for_step=status_for_step_jinja,  # ✅ correction ici
+        now=datetime.now
     )
 
 @app.route("/sessions/create", methods=["POST"])
@@ -320,7 +321,6 @@ def session_detail(sid):
     for i in range(len(session["steps"])):
         st, dl = status_for_step(i, session)
         statuses.append({"status": st, "deadline": (dl.strftime("%Y-%m-%d") if dl else None)})
-    # Tri par échéance
     order = sorted(range(len(session["steps"])), key=lambda i: deadline_for(i, session) or datetime.max)
     auto_archive_if_all_done(session)
     save_sessions(data)

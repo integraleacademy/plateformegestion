@@ -9,6 +9,16 @@ from email.mime.text import MIMEText
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
+# --- Filtre pour format français des dates ---
+def format_date(value):
+    try:
+        dt = datetime.strptime(value, "%Y-%m-%d")
+        return dt.strftime("%d-%m-%Y")
+    except:
+        return value
+
+app.jinja_env.filters['datefr'] = format_date
+
 # Disque persistant Render
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -18,6 +28,7 @@ FROM_EMAIL = os.environ.get("FROM_EMAIL")           # ecole@integraleacademy.com
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")   # mot de passe d'application
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+
 
 # -----------------------
 # Utils persistance

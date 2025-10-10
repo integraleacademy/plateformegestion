@@ -17,6 +17,17 @@ def format_date(value):
 
 app.jinja_env.filters['datefr'] = format_date
 
+# --- Filtre datetime pour conversion dans Jinja ---
+def to_datetime(value):
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except Exception:
+        try:
+            return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return datetime.now()
+app.jinja_env.filters['datetime'] = to_datetime
+
 # --- Persistance ---
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -70,23 +81,15 @@ APS_A3P_STEPS = [
     {"name":"Envoyer test de français", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
-
-    # AVANT EXAM
     {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Impression évaluation de fin de formation", "relative_to":"exam","offset_type":"before","days":5},
-
-    # JOUR DE L’EXAMEN (NOUVEAU)
     {"name":"Session examen clôturée", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Frais ADEF réglés", "relative_to":"exam", "offset_type":"after", "days":0},
     {"name":"Documents examen envoyés à l’ADEF", "relative_to":"exam", "offset_type":"after", "days":0},
-
-    # APRES EXAM
     {"name":"Envoyer mail stagiaires attestations de formation","relative_to":"exam","offset_type":"after","days":2},
     {"name":"Message avis Google","relative_to":"exam","offset_type":"after","days":2},
-
-    # APRES EXAM (NOUVEAU)
     {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":7},
     {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
 ]
@@ -167,7 +170,6 @@ def status_for_step(step_index, session, now=None):
     return ("late" if now.date() > dl.date() else "on_time", dl)
 
 def snapshot_overdue(session):
-    """Retourne les étapes en retard avec leur deadline (triées par urgency)."""
     overdue = []
     for i, step in enumerate(session["steps"]):
         st, dl = status_for_step(i, session)
@@ -177,10 +179,19 @@ def snapshot_overdue(session):
     return overdue
 
 # -----------------------
+# Archivage automatique
+# -----------------------
+def auto_archive_if_all_done(session):
+    """Archive automatiquement une session si toutes les étapes sont faites."""
+    if all(step["done"] for step in session["steps"]):
+        session["archived"] = True
+    else:
+        session["archived"] = False
+
+# -----------------------
 # Mail quotidien global
 # -----------------------
 def _late_phrase(dl: datetime) -> str:
-    """Retourne 'Retard de N jours (JJ-MM-AAAA)' pour le mail."""
     if not dl:
         return "Retard (date N/A)"
     days = (datetime.now().date() - dl.date()).days
@@ -253,7 +264,6 @@ def generate_daily_overdue_email(sessions):
     return html
 
 def send_daily_overdue_summary():
-    """Envoie un seul mail par jour à 8h avec tous les retards."""
     if not FROM_EMAIL or not EMAIL_PASSWORD:
         print("⚠️ EMAIL non configuré")
         return

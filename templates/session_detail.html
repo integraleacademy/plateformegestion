@@ -1,74 +1,63 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
-      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
-      <div>
-        <h1>{{ s.formation }} — Fiche session</h1>
-        <div class="clock small">
-          Début : {{ s.date_debut or '—' }} • Examen : {{ s.date_exam or '—' }}
-        </div>
+<header class="topbar">
+  <div class="brand">
+    <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
+    <div>
+      <h1>{{ s.formation }} — Fiche session</h1>
+      <div class="clock small">
+        Du {{ s.date_debut or '—' }} au {{ s.date_fin or '—' }} • Examen : {{ s.date_exam or '—' }}
       </div>
     </div>
-  </header>
+  </div>
+</header>
 
-  <main class="container">
-    {% if not s.steps %}
-      <p class="muted">Les étapes pour {{ s.formation }} ne sont pas encore définies. On les ajoute ensemble quand tu veux.</p>
-    {% else %}
-      <div class="steps">
-        {% for step in s.steps %}
-          {% set st = statuses[loop.index0] %}
-          <div class="step">
-            <div class="step-head">
-              <div class="status-chip {{ 'ok' if st.status == 'on_time' else ('late' if st.status == 'late' else 'na') }}">
-                {% if st.status == 'on_time' %}A temps{% elif st.status == 'late' %}⚠️ Étape en retard{% else %}—{% endif %}
-              </div>
-              {% if st.deadline %}
-                <div class="deadline">Échéance : {{ st.deadline }}</div>
-              {% endif %}
+<main class="container">
+  {% if not s.steps %}
+    <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
+  {% else %}
+    <div class="steps">
+      {% for step in s.steps %}
+        {% set st = statuses[loop.index0] %}
+        <div class="step">
+          <div class="step-head">
+            <div class="status-chip {{ 'ok' if st.status=='on_time' else ('late' if st.status=='late' else 'na') }}">
+              {% if st.status=='on_time' %}A temps{% elif st.status=='late' %}⚠️ Étape en retard{% else %}—{% endif %}
             </div>
-
-            <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}" class="step-card">
-              <input type="hidden" name="index" value="{{ loop.index0 }}">
-              <button type="submit" class="btn step-btn {{ 'done' if step.done else '' }}">
-                <span class="emoji">{{ '✅' if step.done else '⬜' }}</span>
-                <span class="label">{{ step.name }}</span>
-              </button>
-            </form>
-
-            {% if step.done and step.done_at %}
-              <div class="done-info">Étape validée le {{ step.done_at }}</div>
+            {% if st.deadline %}
+              <div class="deadline">Échéance : {{ st.deadline }}</div>
             {% endif %}
           </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    <div class="danger-zone">
-      <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer définitivement cette session ?');">
-        <button class="btn danger">🗑️ Supprimer la session</button>
-      </form>
-      {% if s.archived %}
-        <div class="archive-note">Cette session est archivée depuis {{ s.archived_at }}.</div>
-      {% endif %}
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}" class="step-card">
+            <input type="hidden" name="index" value="{{ loop.index0 }}">
+            <button type="submit" class="btn step-btn {{ 'done' if step.done else '' }}">
+              <span class="emoji">{{ '✅' if step.done else '⬜' }}</span>
+              <span class="label">{{ step.name }}</span>
+            </button>
+          </form>
+          {% if step.done and step.done_at %}
+            <div class="done-info">Étape validée le {{ step.done_at }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
-  </main>
+  {% endif %}
+  <div class="danger-zone">
+    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
+      <button class="btn danger">🗑️ Supprimer</button>
+    </form>
+  </div>
+</main>
 
-  <footer class="footer">
-    © <span id="year"></span> Intégrale Academy — Tous droits réservés
-  </footer>
-  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
+<script>document.getElementById('year').textContent=new Date().getFullYear();</script>
 </body>
 </html>

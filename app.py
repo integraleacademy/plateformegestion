@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, abort, flash
 import smtplib
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
@@ -13,7 +12,7 @@ def format_date(value):
     try:
         dt = datetime.strptime(value, "%Y-%m-%d")
         return dt.strftime("%d-%m-%Y")
-    except:
+    except Exception:
         return value
 
 app.jinja_env.filters['datefr'] = format_date
@@ -54,7 +53,7 @@ def find_session(data, sid):
     return None
 
 # -----------------------
-# Modèle étapes
+# Modèles d'étapes
 # -----------------------
 APS_A3P_STEPS = [
     {"name":"Création session ADEF", "relative_to":"start", "offset_type":"before", "days":15},
@@ -125,20 +124,20 @@ def default_steps_for(formation):
     return [{"name": s["name"], "done": False, "done_at": None} for s in steps]
 
 # -----------------------
-# Statuts
+# Statuts / échéances
 # -----------------------
-def parse_date(date_str):
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except Exception:
-        return None
-
 def _rule_for(formation, step_index):
     if formation in ("APS", "A3P"):
         return APS_A3P_STEPS[step_index]
     if formation == "SSIAP":
         return SSIAP_STEPS[step_index]
     return None
+
+def parse_date(date_str):
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except Exception:
+        return None
 
 def deadline_for(step_index, session):
     rule = _rule_for(session["formation"], step_index)
@@ -154,11 +153,7 @@ def deadline_for(step_index, session):
     if not base_date:
         return None
 
-    return (
-        base_date - timedelta(days=rule["days"])
-        if rule["offset_type"] == "before"
-        else base_date + timedelta(days=rule["days"])
-    )
+    return (base_date - timedelta(days=rule["days"])) if rule["offset_type"] == "before" else (base_date + timedelta(days=rule["days"]))
 
 def status_for_step(step_index, session, now=None):
     if now is None:
@@ -169,10 +164,10 @@ def status_for_step(step_index, session, now=None):
     step = session["steps"][step_index]
     if step["done"]:
         return ("done", dl)
-    return ("late" if now > dl else "on_time", dl)
+    return ("late" if now.date() > dl.date() else "on_time", dl)
 
 def snapshot_overdue(session):
-    """Retourne les étapes en retard avec leur deadline"""
+    """Retourne les étapes en retard avec leur deadline (triées par urgency)."""
     overdue = []
     for i, step in enumerate(session["steps"]):
         st, dl = status_for_step(i, session)
@@ -181,22 +176,19 @@ def snapshot_overdue(session):
     overdue.sort(key=lambda x: (x[1] or datetime.max))
     return overdue
 
-def auto_archive_if_all_done(session):
-    if not session.get("archived") and session["steps"] and all(s["done"] for s in session["steps"]):
-        session["archived"] = True
-        session["archived_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 # -----------------------
 # Mail quotidien global
 # -----------------------
+def _late_phrase(dl: datetime) -> str:
+    """Retourne 'Retard de N jours (JJ-MM-AAAA)' pour le mail."""
+    if not dl:
+        return "Retard (date N/A)"
+    days = (datetime.now().date() - dl.date()).days
+    days = max(days, 0)
+    return f"Retard de {days} jour{'s' if days>1 else ''} ({dl.strftime('%d-%m-%Y')})"
+
 def generate_daily_overdue_email(sessions):
-    now = datetime.now().strftime("%d-%m-%Y %H:%M")
-    FORMATION_COLORS = {
-        "APS": "#1b9aaa",
-        "A3P": "#2a9134",
-        "SSIAP": "#c0392b",
-        "DIRIGEANT": "#8e44ad",
-    }
+    now_txt = datetime.now().strftime("%d-%m-%Y %H:%M")
 
     logo_path = os.path.join("static", "img", "logo-integrale.png")
     logo_base64 = ""
@@ -207,15 +199,11 @@ def generate_daily_overdue_email(sessions):
     html = f"""
     <body style="font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;padding:30px;margin:0;">
       <div style="max-width:720px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.1)">
-        
-        <!-- En-tête -->
         <div style="background:#121212;color:#fff;padding:24px 20px;text-align:center;">
-          {'<img src="data:image/png;base64,'+logo_base64+'" alt="Intégrale Academy" style="height:90px;margin-bottom:10px;border-radius:12px;">' if logo_base64 else ''}
+          {('<img src="data:image/png;base64,'+logo_base64+'" alt="Intégrale Academy" style="height:90px;margin-bottom:10px;border-radius:12px;">') if logo_base64 else ''}
           <h1 style="margin:10px 0;font-size:24px;">⚠️ Récapitulatif des retards — Intégrale Academy</h1>
-          <div style="font-size:14px;opacity:.9;">{now}</div>
+          <div style="font-size:14px;opacity:.9;">{now_txt}</div>
         </div>
-
-        <!-- Contenu -->
         <div style="padding:24px;">
     """
 
@@ -241,8 +229,7 @@ def generate_daily_overdue_email(sessions):
             <ul style="margin:12px 0 0 18px;padding:0;color:#333;font-size:15px;line-height:1.6;">
         """
         for name, dl in overdue:
-            dl_txt = dl.strftime("%d-%m-%Y") if dl else "N/A"
-            html += f"<li style='margin-bottom:4px;'>• {name} (échéance {dl_txt})</li>"
+            html += f"<li style='margin-bottom:4px;'>• {name} — {_late_phrase(dl)}</li>"
         html += """
             </ul>
           </div>
@@ -266,7 +253,10 @@ def generate_daily_overdue_email(sessions):
     return html
 
 def send_daily_overdue_summary():
-    """Envoie un seul mail par jour à 8h avec tous les retards"""
+    """Envoie un seul mail par jour à 8h avec tous les retards."""
+    if not FROM_EMAIL or not EMAIL_PASSWORD:
+        print("⚠️ EMAIL non configuré")
+        return
     data = load_sessions()
     sessions = data["sessions"]
     html = generate_daily_overdue_email(sessions)
@@ -298,7 +288,8 @@ def sessions_home():
     archived = [s for s in data["sessions"] if s.get("archived")]
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
-    return render_template("sessions.html", title="Gestion des sessions", active_sessions=active, archived_sessions=archived)
+    return render_template("sessions.html", title="Gestion des sessions",
+                           active_sessions=active, archived_sessions=archived)
 
 @app.route("/sessions/create", methods=["POST"])
 def create_session():
@@ -330,23 +321,29 @@ def create_session():
 def session_detail(sid):
     data = load_sessions()
     session = find_session(data, sid)
-    if not session: abort(404)
-    statuses = [
-        {
-            "status": status_for_step(i, session)[0],
-            "deadline": (status_for_step(i, session)[1].strftime("%Y-%m-%d") if status_for_step(i, session)[1] else None)
-        }
-        for i in range(len(session["steps"]))
-    ]
+    if not session:
+        abort(404)
+
+    statuses = []
+    for i in range(len(session["steps"])):
+        st, dl = status_for_step(i, session)
+        statuses.append({
+            "status": st,
+            "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
+        })
+
     auto_archive_if_all_done(session)
     save_sessions(data)
-    return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses)
+    return render_template("session_detail.html",
+                           title=f"{session['formation']} — Détail",
+                           s=session, statuses=statuses)
 
 @app.route("/sessions/<sid>/edit", methods=["GET","POST"])
 def edit_session(sid):
     data = load_sessions()
     session = find_session(data, sid)
-    if not session: abort(404)
+    if not session:
+        abort(404)
     if request.method == "POST":
         session["date_debut"] = request.form.get("date_debut","").strip()
         session["date_fin"] = request.form.get("date_fin","").strip()
@@ -361,7 +358,8 @@ def toggle_step(sid):
     idx = int(request.form.get("index","-1"))
     data = load_sessions()
     session = find_session(data, sid)
-    if not session or idx<0 or idx>=len(session["steps"]): abort(400)
+    if not session or idx<0 or idx>=len(session["steps"]):
+        abort(400)
     step = session["steps"][idx]
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     step["done"] = not step["done"]
@@ -382,6 +380,7 @@ def delete_session(sid):
 def healthz():
     return "ok"
 
+# --- Cron léger (archivage auto) ---
 @app.route("/cron-check")
 def cron_check():
     data = load_sessions()
@@ -390,6 +389,7 @@ def cron_check():
     save_sessions(data)
     return "Cron check terminé", 200
 
+# --- Cron quotidien 8h (mail global) ---
 @app.route("/cron-daily-summary")
 def cron_daily_summary():
     send_daily_overdue_summary()

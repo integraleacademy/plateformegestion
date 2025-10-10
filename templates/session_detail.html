@@ -23,11 +23,13 @@
 </header>
 
 <main class="container">
-  <!-- Boutons Modifier / Supprimer en haut -->
-  <div class="actions" style="display:flex; gap:10px; margin-bottom:20px;">
-    <a href="{{ url_for('edit_session', sid=s.id) }}" class="btn action-btn">✏️ Modifier la session</a>
-    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');" style="flex:1;">
-      <button type="submit" class="btn action-btn danger">🗑️ Supprimer la session</button>
+  <!-- Boutons Modifier / Supprimer unifiés -->
+  <div class="actions-bar">
+    <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
+      <button type="submit" class="btn edit">✏️ Modifier la session</button>
+    </form>
+    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
+      <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
     </form>
   </div>
 
@@ -46,13 +48,15 @@
               <div class="deadline">Échéance : {{ st.deadline|datefr }}</div>
             {% endif %}
           </div>
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ loop.index0 }}" class="step-card">
+
+          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}">
             <input type="hidden" name="index" value="{{ loop.index0 }}">
-            <button type="submit" class="btn step-btn {{ 'done' if step.done else '' }}">
-              <span class="emoji">{{ '✅' if step.done else '⬜' }}</span>
+            <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
+              <span class="icon">{% if step.done %}✅{% else %}⬜{% endif %}</span>
               <span class="label">{{ step.name }}</span>
             </button>
           </form>
+
           {% if step.done and step.done_at %}
             <div class="done-info">Étape validée le {{ step.done_at }}</div>
           {% endif %}

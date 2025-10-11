@@ -26,6 +26,15 @@ def to_datetime(value):
             return datetime.now()
 app.jinja_env.filters['datetime'] = to_datetime
 
+# --- Helper utilisable dans Jinja ---
+def get_status_label(step_index, session):
+    """Renvoie un dict {status, deadline} lisible dans Jinja"""
+    status, dl = status_for_step(step_index, session)
+    return {"status": status, "deadline": dl}
+
+app.jinja_env.globals['get_status_label'] = get_status_label
+
+
 # --- Persistance ---
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)

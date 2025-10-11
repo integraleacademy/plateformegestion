@@ -210,15 +210,23 @@ def generate_daily_overdue_email(sessions):
             logo_base64 = base64.b64encode(f.read()).decode("utf-8")
 
     html = f"""
-    <body style="font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;padding:30px;margin:0;">
-      <div style="max-width:720px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.1)">
-        <div style="background:#121212;color:#fff;padding:24px 20px;text-align:center;">
-          {('<img src="data:image/png;base64,'+logo_base64+'" alt="Intégrale Academy" style="height:90px;margin-bottom:10px;border-radius:12px;">') if logo_base64 else ''}
-          <h1 style="margin:10px 0;font-size:24px;">⚠️ Récapitulatif des retards — Intégrale Academy</h1>
-          <div style="font-size:14px;opacity:.9;">{now_txt}</div>
-        </div>
-        <div style="padding:24px;">
+    <body style="font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;margin:0;padding:0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f7f7f7;">
+        <tr>
+          <td align="center" style="padding:20px 10px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.1);">
+              <tr>
+                <td style="background:#121212;color:#fff;padding:20px;text-align:center;">
+                  {('<img src="data:image/png;base64,'+logo_base64+'" alt="Intégrale Academy" style="width:100%;max-width:250px;height:auto;margin-bottom:10px;border-radius:12px;">') if logo_base64 else ''}
+                  <h1 style="margin:10px 0;font-size:20px;">⚠️ Récapitulatif des retards — Intégrale Academy</h1>
+                  <div style="font-size:13px;opacity:.9;">{now_txt}</div>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:20px 18px;">
     """
+
     found_any = False
     for s in sessions:
         overdue = snapshot_overdue(s)
@@ -230,7 +238,7 @@ def generate_daily_overdue_email(sessions):
           <div style="border:1px solid #eee;border-radius:12px;padding:18px 20px;margin-bottom:18px;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;">
               <div style="background:{color};color:#fff;font-weight:700;border-radius:30px;padding:6px 14px;font-size:14px;letter-spacing:.5px;">{s["formation"]}</div>
-              <div style="font-size:14px;color:#444;">
+              <div style="font-size:14px;color:#444;margin-top:8px;">
                 <b>Début :</b> {format_date(s.get("date_debut","—"))} &nbsp;&nbsp;
                 <b>Fin :</b> {format_date(s.get("date_fin","—"))} &nbsp;&nbsp;
                 <b>Examen :</b> {format_date(s.get("date_exam","—"))}
@@ -241,12 +249,22 @@ def generate_daily_overdue_email(sessions):
         for name, dl in overdue:
             html += f"<li style='margin-bottom:4px;list-style:none;'>🔸 {name} — {_late_phrase(dl)}</li>"
         html += "</ul></div>"
+
     if not found_any:
         html += "<p style='text-align:center;font-size:15px;color:#444;margin:20px 0;'>✅ Aucun retard à signaler aujourd’hui.</p>"
+
     html += """
-        </div>
-        <div style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">Vous recevez ce mail automatiquement chaque matin à 8h.</div>
-      </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">
+                  Vous recevez ce mail automatiquement chaque matin à 8h.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     """
     return html

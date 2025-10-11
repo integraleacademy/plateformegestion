@@ -285,14 +285,27 @@ def sessions_home():
     archived = [s for s in data["sessions"] if s.get("archived")]
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
+
+    # --- Debug : afficher les deadlines et statuts ---
+    print("\n=== DEBUG SESSIONS ===")
+    for s in data["sessions"]:
+        print(f"\nSession: {s['formation']} ({s['date_debut']} → {s['date_exam']})")
+        for i, step in enumerate(s["steps"]):
+            st, dl = status_for_step(i, s)
+            if dl:
+                print(f" - {step['name']}: {st} / deadline={dl.strftime('%Y-%m-%d')}")
+            else:
+                print(f" - {step['name']}: {st} / deadline=N/A")
+
     return render_template(
         "sessions.html",
         title="Gestion des sessions",
         active_sessions=active,
         archived_sessions=archived,
-        status_for_step=status_for_step_jinja,  # ✅ correction ici
+        status_for_step=status_for_step_jinja,
         now=datetime.now
     )
+
 
 @app.route("/sessions/create", methods=["POST"])
 def create_session():

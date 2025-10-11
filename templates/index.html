@@ -27,6 +27,7 @@
     .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
     .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
     .notif.empty {background: rgba(149, 165, 166, 0.15); color: #7f8c8d;}
+    .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
   </style>
 </head>
 
@@ -88,6 +89,7 @@
         <div class="emoji">📅</div>
         <div class="title">Gestion des sessions</div>
         <div class="desc">Paramétrage interne</div>
+        <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
       </a>
     </div>
 
@@ -195,8 +197,26 @@
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Factures"; }
     }
 
+    // --- SESSIONS (étapes en retard) ---
+    async function updateSessions() {
+      const box = document.getElementById("notif-sessions");
+      try {
+        const r = await fetch("https://assistance-alw9.onrender.com/data.json"); // adapte si besoin
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const retard = d.retard || 0;
+        if (retard > 0) {
+          box.className = "notif alert";
+          box.innerHTML = `⚠️ ${retard} étape${retard>1?"s":""} en retard`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Dans les temps";
+        }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Sessions"; }
+    }
+
     function refreshAll() {
-      updateCnaps(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures();
+      updateCnaps(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
     }
     refreshAll();
     setInterval(refreshAll, 15000);

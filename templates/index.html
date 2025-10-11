@@ -26,17 +26,22 @@
       transition: all 0.3s ease;
     }
 
-    .app-logo {
-  width: 60px;
-  height: 60px;
+.app-logo {
+  width: 70px;                /* un peu plus large */
+  height: 70px;
   object-fit: contain;
-  margin: 0 auto 8px;
   display: block;
+  margin: 10px auto 12px;
   transition: transform 0.2s ease;
+  padding: 6px;               /* équilibre visuel */
+  background: #fff;           /* fond neutre */
+  border-radius: 12px;        /* coins doux */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 .card:hover .app-logo {
   transform: scale(1.08);
 }
+
 
 
     .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}

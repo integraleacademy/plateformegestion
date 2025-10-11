@@ -4,30 +4,149 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{{ title }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
 
   <style>
-    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);} }
-
-    .notif {
-      margin-top: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 6px 10px;
-      border-radius: 10px;
-      text-align: center;
-      transition: all 0.3s ease;
+    body {
+      font-family: "Inter", sans-serif;
+      background-color: #f9f9fb;
+      margin: 0;
+      color: #222;
     }
 
-    .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}
-    .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
-    .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
-    .notif.empty {background: rgba(149, 165, 166, 0.15); color: #7f8c8d;}
-    .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
+    /* HEADER */
+    header.topbar {
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    header .brand {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    header .logo {
+      height: 60px;
+      border-radius: 50%;
+    }
+    header h1 {
+      font-size: 22px;
+      margin: 0;
+      font-weight: 600;
+    }
+    header h1 span {
+      color: #f4c45a;
+    }
+    .clock {
+      font-size: 13px;
+      color: #777;
+      margin-top: 3px;
+    }
+
+    /* MAIN GRID */
+    .container {
+      max-width: 1300px;
+      margin: 40px auto;
+      padding: 0 30px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+      margin-top: 25px;
+    }
+
+    /* CARDS */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      padding: 25px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 170px;
+      border: 1px solid #eee;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+    }
+    .emoji {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111;
+    }
+    .desc {
+      color: #777;
+      font-size: 14px;
+      margin-top: 2px;
+    }
+
+    /* NOTIFICATIONS */
+    .notif {
+      margin-top: 12px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 20px;
+      text-align: center;
+      width: fit-content;
+      align-self: flex-start;
+    }
+    .notif.ok {
+      background: rgba(39, 174, 96, 0.1);
+      color: #1e8449;
+    }
+    .notif.wait {
+      background: rgba(241, 196, 15, 0.15);
+      color: #b9770e;
+    }
+    .notif.alert {
+      background: rgba(231, 76, 60, 0.15);
+      color: #c0392b;
+    }
+    .notif.error {
+      background: rgba(231, 76, 60, 0.1);
+      color: #c0392b;
+    }
+
+    /* SECTION TITLES */
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #d9b55b;
+      margin-top: 60px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    /* FOOTER */
+    footer.footer {
+      text-align: center;
+      font-size: 13px;
+      color: #999;
+      padding: 30px 0;
+      margin-top: 60px;
+      border-top: 1px solid #eee;
+    }
   </style>
 </head>
 
@@ -45,51 +164,65 @@
   <main class="container">
     <div class="grid">
       <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🛟</div>
-        <div class="title">Assistance</div>
-        <div class="desc">Accéder au centre d'aide</div>
+        <div>
+          <div class="emoji">🛟</div>
+          <div class="title">Assistance</div>
+          <div class="desc">Accéder au centre d'aide</div>
+        </div>
       </a>
 
       <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📤</div>
-        <div class="title">Dépôt dossiers CNAPS</div>
-        <div class="desc">Espace d'administration</div>
-        <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
+        <div>
+          <div class="emoji">📤</div>
+          <div class="title">Dépôt dossiers CNAPS</div>
+          <div class="desc">Espace d'administration</div>
+        </div>
+        <div id="notif-cnaps" class="notif wait">📩 Chargement...</div>
       </a>
 
       <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🎓</div>
-        <div class="title">Gestion des dossiers stagiaires</div>
-        <div class="desc">Inscriptions & pièces</div>
-        <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
+        <div>
+          <div class="emoji">🎓</div>
+          <div class="title">Gestion des dossiers stagiaires</div>
+          <div class="desc">Inscriptions & pièces</div>
+        </div>
+        <div id="notif-stagiaires" class="notif wait">🎓 Chargement...</div>
       </a>
 
       <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🚖</div>
-        <div class="title">Examens VTC</div>
-        <div class="desc">Administration examens</div>
-        <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
+        <div>
+          <div class="emoji">🚖</div>
+          <div class="title">Examens VTC</div>
+          <div class="desc">Administration examens</div>
+        </div>
+        <div id="notif-vtc" class="notif wait">🚖 Chargement...</div>
       </a>
 
       <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📝</div>
-        <div class="title">Gestion contrats d'apprentissage</div>
-        <div class="desc">Création & suivi</div>
-        <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
+        <div>
+          <div class="emoji">📝</div>
+          <div class="title">Gestion contrats d'apprentissage</div>
+          <div class="desc">Création & suivi</div>
+        </div>
+        <div id="notif-contrats" class="notif wait">📝 Chargement...</div>
       </a>
 
       <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
-        <div class="emoji">💶</div>
-        <div class="title">Gestion des factures</div>
-        <div class="desc">Portail de facturation</div>
-        <div id="notif-factures" class="notif empty">💶 Chargement...</div>
+        <div>
+          <div class="emoji">💶</div>
+          <div class="title">Gestion des factures</div>
+          <div class="desc">Portail de facturation</div>
+        </div>
+        <div id="notif-factures" class="notif wait">💶 Chargement...</div>
       </a>
 
       <a class="card" href="{{ url_for('sessions_home') }}">
-        <div class="emoji">📅</div>
-        <div class="title">Gestion des sessions</div>
-        <div class="desc">Paramétrage interne</div>
-        <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
+        <div>
+          <div class="emoji">📅</div>
+          <div class="title">Gestion des sessions</div>
+          <div class="desc">Paramétrage interne</div>
+        </div>
+        <div id="notif-sessions" class="notif wait">📅 Chargement...</div>
       </a>
     </div>
 
@@ -126,7 +259,7 @@
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // --- CNAPS ---
+    // 🔁 Fonctions de mise à jour simplifiées (inchangées)
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
@@ -135,21 +268,11 @@
         const d = await r.json();
         const demandes = Array.isArray(d) ? d : d.demandes || [];
         const total = demandes.length;
-
-        if (total > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `📩 <strong>${total}</strong> demande${total>1?"s":""} CNAPS en attente`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande CNAPS en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur CNAPS";
-      }
+        if (total > 0) { box.className = "notif wait"; box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`; }
+        else { box.className = "notif ok"; box.innerHTML = "✅ Aucune demande CNAPS en attente"; }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur CNAPS"; }
     }
 
-    // --- STAGIAIRES ---
     async function updateStagiaires() {
       const box = document.getElementById("notif-stagiaires");
       try {
@@ -162,7 +285,6 @@
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Inscriptions"; }
     }
 
-    // --- VTC ---
     async function updateVtc() {
       const box = document.getElementById("notif-vtc");
       try {
@@ -175,7 +297,6 @@
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur VTC"; }
     }
 
-    // --- CONTRATS ---
     async function updateContrats() {
       const box = document.getElementById("notif-contrats");
       try {
@@ -194,7 +315,6 @@
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Contrats"; }
     }
 
-    // --- FACTURES ---
     async function updateFactures() {
       const box = document.getElementById("notif-factures");
       try {
@@ -207,27 +327,16 @@
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Factures"; }
     }
 
-    // --- SESSIONS (étapes en retard) ---
     async function updateSessions() {
       const box = document.getElementById("notif-sessions");
       try {
-        const r = await fetch("https://plateformegestion.onrender.com/data.json"); // ✅ bon Render
+        const r = await fetch("https://plateformegestion.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const retards = d.retards || 0; // ✅ clé corrigée
-
-        if (retards > 0) {
-          box.className = "notif alert";
-          box.innerHTML = `⚠️ ${retards} étape${retards>1?"s":""} en retard`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Dans les temps";
-        }
-      } catch (e) {
-        console.error("Erreur récupération sessions:", e);
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Sessions";
-      }
+        const retard = d.retards || 0;
+        if (retard > 0) { box.className = "notif alert"; box.innerHTML = `⚠️ ${retard} étape${retard>1?"s":""} en retard`; }
+        else { box.className = "notif ok"; box.innerHTML = "✅ Dans les temps"; }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Sessions"; }
     }
 
     function refreshAll() {

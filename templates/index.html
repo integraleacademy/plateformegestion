@@ -21,7 +21,7 @@
       100% { transform:scale(1); }
     }
 
-    #cnaps-alert, #stagiaires-alert {
+    #cnaps-alert, #stagiaires-alert, #vtc-alert {
       margin:40px auto 0;
       max-width:600px;
       text-align:center;
@@ -165,6 +165,13 @@
         🎓 Chargement des dossiers stagiaires...
       </div>
     </div>
+
+    <!-- 🚖 Suivi des demandes examen VTC -->
+    <div id="vtc-alert">
+      <div id="vtc-count" class="alert-box empty">
+        🚖 Chargement des demandes examen VTC...
+      </div>
+    </div>
   </main>
 
   <footer class="footer">
@@ -174,79 +181,64 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
+    // --- CNAPS ---
     async function updateCnapsCount() {
-      const countBox = document.getElementById("cnaps-count");
-      const alertBox = document.getElementById("cnaps-alert");
-
+      const box = document.getElementById("cnaps-count"), alert = document.getElementById("cnaps-alert");
       try {
-        const response = await fetch("https://cnapsv5-1.onrender.com/data.json");
-        if (!response.ok) throw new Error("Erreur HTTP");
-        const data = await response.json();
-
-        let count = 0;
-        if (Array.isArray(data)) {
-          count = data.filter(d => !d.statut || d.statut.trim() === "").length;
-        } else if (data.demandes) {
-          count = data.demandes.filter(d => !d.statut || d.statut.trim() === "").length;
-        }
-
-        if (count > 0) {
-          alertBox.style.display = "block";
-          alertBox.classList.add("active");
-          countBox.className = "alert-box ok";
-          countBox.innerHTML = `📩 <strong>${count}</strong> nouvelle${count > 1 ? 's' : ''} demande${count > 1 ? 's' : ''} CNAPS en attente`;
-        } else {
-          alertBox.style.display = "block";
-          alertBox.classList.remove("active");
-          countBox.className = "alert-box empty";
-          countBox.innerHTML = `✅ Aucune demande CNAPS en attente`;
-        }
-      } catch (error) {
-        console.error("Erreur récupération CNAPS:", error);
-        countBox.className = "alert-box error";
-        countBox.innerHTML = "🔒 Impossible de contacter la plateforme CNAPS";
+        const res = await fetch("https://cnapsv5-1.onrender.com/data.json");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const count = (Array.isArray(data) ? data : data.demandes || []).filter(d => !d.statut || d.statut.trim() === "").length;
+        box.className = "alert-box " + (count ? "ok" : "empty");
+        alert.classList.toggle("active", count > 0);
+        box.innerHTML = count ? `📩 <strong>${count}</strong> demande${count>1?"s":""} CNAPS en attente` : "✅ Aucune demande CNAPS en attente";
+      } catch {
+        box.className = "alert-box error";
+        box.innerHTML = "🔒 Impossible de contacter la plateforme CNAPS";
       }
     }
 
+    // --- STAGIAIRES ---
     async function updateStagiairesCount() {
-      const countBox = document.getElementById("stagiaires-count");
-      const alertBox = document.getElementById("stagiaires-alert");
-
+      const box = document.getElementById("stagiaires-count"), alert = document.getElementById("stagiaires-alert");
       try {
-        const response = await fetch("https://inscriptions-akou.onrender.com/data.json");
-        if (!response.ok) throw new Error("Erreur HTTP");
-        const data = await response.json();
+        const res = await fetch("https://inscriptions-akou.onrender.com/data.json");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const count = (Array.isArray(data) ? data : data.dossiers || []).filter(d => !d.status || d.status.trim() === "" || d.status === "INCOMPLET").length;
+        box.className = "alert-box " + (count ? "ok" : "empty");
+        alert.classList.toggle("active", count > 0);
+        box.innerHTML = count ? `🎓 <strong>${count}</strong> dossier${count>1?"s":""} stagiaire${count>1?"s":""} en attente` : "✅ Aucun dossier stagiaire en attente";
+      } catch {
+        box.className = "alert-box error";
+        box.innerHTML = "🔒 Impossible de contacter la plateforme Inscriptions";
+      }
+    }
 
-        let count = 0;
-        if (Array.isArray(data)) {
-          count = data.filter(d => !d.statut || d.statut.trim() === "" || d.statut.trim().toUpperCase() === "EN ATTENTE").length;
-        } else if (data.dossiers) {
-          count = data.dossiers.filter(d => !d.statut || d.statut.trim() === "" || d.statut.trim().toUpperCase() === "EN ATTENTE").length;
-        }
-
-        if (count > 0) {
-          alertBox.style.display = "block";
-          alertBox.classList.add("active");
-          countBox.className = "alert-box ok";
-          countBox.innerHTML = `🎓 <strong>${count}</strong> dossier${count > 1 ? 's' : ''} stagiaire${count > 1 ? 's' : ''} en attente`;
-        } else {
-          alertBox.style.display = "block";
-          alertBox.classList.remove("active");
-          countBox.className = "alert-box empty";
-          countBox.innerHTML = `✅ Aucun dossier stagiaire en attente`;
-        }
-      } catch (error) {
-        console.error("Erreur récupération Stagiaires:", error);
-        countBox.className = "alert-box error";
-        countBox.innerHTML = "🔒 Impossible de contacter la plateforme Inscriptions";
+    // --- VTC ---
+    async function updateVtcCount() {
+      const box = document.getElementById("vtc-count"), alert = document.getElementById("vtc-alert");
+      try {
+        const res = await fetch("https://vtc-qh20.onrender.com/data.json");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const count = (Array.isArray(data) ? data : []).filter(d => !d.statut || d.statut.trim().toUpperCase() === "A INSCRIRE A L'EXAMEN").length;
+        box.className = "alert-box " + (count ? "ok" : "empty");
+        alert.classList.toggle("active", count > 0);
+        box.innerHTML = count ? `🚖 <strong>${count}</strong> nouvelle${count>1?"s":""} demande${count>1?"s":""} examen VTC` : "✅ Aucun dossier VTC en attente";
+      } catch {
+        box.className = "alert-box error";
+        box.innerHTML = "🔒 Impossible de contacter la plateforme VTC";
       }
     }
 
     // ⚡ Actualisation auto toutes les 15 secondes
     updateCnapsCount();
     updateStagiairesCount();
+    updateVtcCount();
     setInterval(updateCnapsCount, 15000);
     setInterval(updateStagiairesCount, 15000);
+    setInterval(updateVtcCount, 15000);
   </script>
 </body>
 </html>

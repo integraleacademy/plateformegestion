@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{{ title }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -12,6 +11,12 @@
 
   <style>
     @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);} }
+
+    body {
+      font-family: "Inter", sans-serif;
+      background-color: #fdfaf5;
+      margin: 0;
+    }
 
     .notif {
       margin-top: 8px;
@@ -22,7 +27,6 @@
       text-align: center;
       transition: all 0.3s ease;
     }
-
     .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}
     .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
     .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
@@ -55,6 +59,13 @@
         <div class="title">Dépôt dossiers CNAPS</div>
         <div class="desc">Espace d'administration</div>
         <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
+      </a>
+
+      <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
+        <div class="emoji">📊</div>
+        <div class="title">Suivi des demandes CNAPS</div>
+        <div class="desc">Surveillance des statuts</div>
+        <div id="notif-suivi" class="notif empty">📊 Chargement...</div>
       </a>
 
       <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
@@ -102,7 +113,7 @@
       </a>
 
       <a class="card" href="https://phone.onoffbusiness.com/calls" target="_blank" rel="noopener">
-        <div class="emoji">📱</div>
+        <div class="emoji">📞</div>
         <div class="title">Onoff</div>
         <div class="desc">Téléphonie business</div>
       </a>
@@ -126,7 +137,7 @@
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // --- CNAPS ---
+    // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
@@ -138,7 +149,7 @@
 
         if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📩 <strong>${total}</strong> demande${total>1?"s":""} CNAPS en attente`;
+          box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
         } else {
           box.className = "notif ok";
           box.innerHTML = "✅ Aucune demande CNAPS en attente";
@@ -146,6 +157,29 @@
       } catch {
         box.className = "notif error";
         box.innerHTML = "🔒 Erreur CNAPS";
+      }
+    }
+
+    // --- CNAPS Suivi ---
+    async function updateSuivi() {
+      const box = document.getElementById("notif-suivi");
+      try {
+        const r = await fetch("https://cnapsv3.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const suivi = Array.isArray(d) ? d : d.demandes || [];
+        const total = suivi.length;
+
+        if (total > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `📊 ${total} suivi${total>1?"s":""} en cours`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Suivi à jour";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Suivi CNAPS";
       }
     }
 
@@ -202,20 +236,19 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         const c = d.count || 0;
-        if (c > 0) { box.className = "notif wait"; box.innerHTML = `💶 ${c} facture${c>1?"s":""} à régler`; }
+        if (c > 0) { box.className = "notif wait"; box.innerHTML = `💼 ${c} facture${c>1?"s":""} à régler`; }
         else { box.className = "notif ok"; box.innerHTML = "✅ Aucune facture en attente"; }
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Factures"; }
     }
 
-    // --- SESSIONS (étapes en retard) ---
+    // --- SESSIONS ---
     async function updateSessions() {
       const box = document.getElementById("notif-sessions");
       try {
-        const r = await fetch("https://plateformegestion.onrender.com/data.json"); // ✅ bon Render
+        const r = await fetch("https://plateformegestion.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const retards = d.retards || 0; // ✅ clé corrigée
-
+        const retards = d.retards || 0;
         if (retards > 0) {
           box.className = "notif alert";
           box.innerHTML = `⚠️ ${retards} étape${retards>1?"s":""} en retard`;
@@ -223,15 +256,11 @@
           box.className = "notif ok";
           box.innerHTML = "✅ Dans les temps";
         }
-      } catch (e) {
-        console.error("Erreur récupération sessions:", e);
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Sessions";
-      }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Sessions"; }
     }
 
     function refreshAll() {
-      updateCnaps(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
+      updateCnaps(); updateSuivi(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
     }
     refreshAll();
     setInterval(refreshAll, 15000);

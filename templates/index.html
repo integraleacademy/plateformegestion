@@ -188,8 +188,8 @@
           box.innerHTML = "<em>Aucun dossier accepté ces 7 derniers jours.</em>";
         } else {
           box.innerHTML = "<ul>" + list.map(x =>
-            `<li><strong>${x.nom}</strong> ${x.prenom}</li>`
-          ).join("") + "</ul>";
+  `<li><strong>${x.nom}</strong> ${x.prenom}${x.session ? " — <em>" + x.session + "</em>" : ""}</li>`
+).join("") + "</ul>";
         }
       } catch {
         box.innerHTML = "<span style='color:#c0392b'>Erreur de chargement</span>";

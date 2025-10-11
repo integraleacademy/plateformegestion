@@ -11,56 +11,22 @@
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
 
   <style>
-    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.04);}100%{transform:scale(1);}}
+    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);}}
 
-    /* Bloc notifications */
-    .notifications {
-      margin: 60px auto 40px;
-      max-width: 750px;
-      background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-      padding: 35px 25px 30px;
-      text-align: center;
-      animation: fadeIn 0.5s ease-in;
-    }
-    .notifications h2 {
-      font-size: 20px;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 25px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .notif-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: stretch;
-    }
-
-    .alert-box {
-      background: linear-gradient(135deg, #95a5a6, #7f8c8d);
-      color: white;
+    .notif {
+      margin-top: 8px;
+      font-size: 14px;
       font-weight: 600;
-      padding: 10px 16px;
+      padding: 6px 10px;
       border-radius: 10px;
-      font-size: 15px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 0.3s ease;
-      min-height: 40px;
+      text-align: center;
+      transition: all 0.3s ease;
     }
-    .alert-box.ok {background: linear-gradient(135deg, #27ae60, #1e8449);}
-    .alert-box.empty {background: linear-gradient(135deg, #bdc3c7, #95a5a6);}
-    .alert-box.error {background: linear-gradient(135deg, #e74c3c, #c0392b);}
-    .active .alert-box {animation: pulse 1.8s infinite;}
 
-    @keyframes fadeIn {from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:translateY(0);}}
+    .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}
+    .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
+    .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
+    .notif.empty {background: rgba(149, 165, 166, 0.15); color: #7f8c8d;}
   </style>
 </head>
 
@@ -76,7 +42,6 @@
   </header>
 
   <main class="container">
-    <!-- Section interne -->
     <div class="grid">
       <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
         <div class="emoji">🛟</div>
@@ -84,40 +49,39 @@
         <div class="desc">Accéder au centre d'aide</div>
       </a>
 
-      <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
-        <div class="emoji">🛰️</div>
-        <div class="title">Suivi demandes CNAPS</div>
-        <div class="desc">Tableau de suivi</div>
-      </a>
-
       <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
         <div class="emoji">📤</div>
         <div class="title">Dépôt dossiers CNAPS</div>
         <div class="desc">Espace d'administration</div>
+        <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
       </a>
 
-      <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📝</div>
-        <div class="title">Gestion contrats d'apprentissage</div>
-        <div class="desc">Création & suivi</div>
+      <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
+        <div class="emoji">🎓</div>
+        <div class="title">Gestion des dossiers stagiaires</div>
+        <div class="desc">Inscriptions & pièces</div>
+        <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
       </a>
 
       <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
         <div class="emoji">🚖</div>
         <div class="title">Examens VTC</div>
         <div class="desc">Administration examens</div>
+        <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
       </a>
 
-      <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🎓</div>
-        <div class="title">Gestions des dossiers stagiaires</div>
-        <div class="desc">Inscriptions & pièces</div>
+      <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
+        <div class="emoji">📝</div>
+        <div class="title">Gestion contrats d'apprentissage</div>
+        <div class="desc">Création & suivi</div>
+        <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
       </a>
 
       <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
         <div class="emoji">💶</div>
         <div class="title">Gestion des factures</div>
         <div class="desc">Portail de facturation</div>
+        <div id="notif-factures" class="notif empty">💶 Chargement...</div>
       </a>
 
       <a class="card" href="{{ url_for('sessions_home') }}">
@@ -127,7 +91,6 @@
       </a>
     </div>
 
-    <!-- Section externe -->
     <h2 class="section-title">Applications externes</h2>
     <div class="grid">
       <a class="card" href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">
@@ -154,87 +117,89 @@
         <div class="desc">Standard téléphonique</div>
       </a>
     </div>
-
-    <!-- 🔔 Bloc Notifications -->
-    <section class="notifications">
-      <h2>🔔 Notifications automatiques</h2>
-      <div class="notif-list">
-        <div id="cnaps-alert"><div id="cnaps-count" class="alert-box empty">📩 Chargement des demandes CNAPS...</div></div>
-        <div id="stagiaires-alert"><div id="stagiaires-count" class="alert-box empty">🎓 Chargement des dossiers stagiaires...</div></div>
-        <div id="vtc-alert"><div id="vtc-count" class="alert-box empty">🚖 Chargement des demandes examen VTC...</div></div>
-        <div id="contrats-alert"><div id="contrats-count" class="alert-box empty">📝 Chargement des contrats d'apprentissage...</div></div>
-        <div id="factures-alert"><div id="factures-count" class="alert-box empty">💶 Chargement des factures...</div></div>
-      </div>
-    </section>
   </main>
 
   <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
 
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById("year").textContent = new Date().getFullYear();
 
-    async function updateCnapsCount() {
-      const box=document.getElementById("cnaps-count"), alert=document.getElementById("cnaps-alert");
-      try{
-        const r=await fetch("https://cnapsv5-1.onrender.com/data.json");
-        if(!r.ok)throw 0;const d=await r.json();
-        const c=(Array.isArray(d)?d:d.demandes||[]).filter(x=>!x.statut||x.statut.trim()==="").length;
-        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
-        box.innerHTML=c?`📩 <strong>${c}</strong> demande${c>1?"s":""} CNAPS en attente`:"✅ Aucune demande CNAPS en attente";
-      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme CNAPS";}
+    // --- CNAPS ---
+    async function updateCnaps() {
+      const box = document.getElementById("notif-cnaps");
+      try {
+        const r = await fetch("https://cnapsv5-1.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = (Array.isArray(d) ? d : d.demandes || []).filter(x => !x.statut || x.statut.trim() === "").length;
+        if (c > 0) { box.className = "notif wait"; box.innerHTML = `📩 ${c} demande${c>1?"s":""} CNAPS en attente`; }
+        else { box.className = "notif ok"; box.innerHTML = "✅ Aucune demande CNAPS"; }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur CNAPS"; }
     }
 
-    async function updateStagiairesCount() {
-      const box=document.getElementById("stagiaires-count"), alert=document.getElementById("stagiaires-alert");
-      try{
-        const r=await fetch("https://inscriptions-akou.onrender.com/data.json");
-        if(!r.ok)throw 0;const d=await r.json();
-        const c=(Array.isArray(d)?d:d.dossiers||[]).filter(x=>!x.status||x.status.trim()===""||x.status==="INCOMPLET").length;
-        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
-        box.innerHTML=c?`🎓 <strong>${c}</strong> dossier${c>1?"s":""} stagiaire${c>1?"s":""} en attente`:"✅ Aucun dossier stagiaire en attente";
-      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme Inscriptions";}
+    // --- STAGIAIRES ---
+    async function updateStagiaires() {
+      const box = document.getElementById("notif-stagiaires");
+      try {
+        const r = await fetch("https://inscriptions-akou.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = (Array.isArray(d)?d:d.dossiers||[]).filter(x=>!x.status||x.status.trim()===""||x.status==="INCOMPLET").length;
+        if (c > 0) { box.className = "notif wait"; box.innerHTML = `🎓 ${c} dossier${c>1?"s":""} stagiaire${c>1?"s":""} à traiter`; }
+        else { box.className = "notif ok"; box.innerHTML = "✅ Aucun dossier stagiaire en attente"; }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Inscriptions"; }
     }
 
-    async function updateVtcCount() {
-      const box=document.getElementById("vtc-count"), alert=document.getElementById("vtc-alert");
-      try{
-        const r=await fetch("https://vtc-qh20.onrender.com/data.json");
-        if(!r.ok)throw 0;const d=await r.json();
-        const c=(Array.isArray(d)?d:[]).filter(x=>!x.statut||x.statut.trim().toUpperCase()==="A INSCRIRE A L'EXAMEN").length;
-        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
-        box.innerHTML=c?`🚖 <strong>${c}</strong> nouvelle${c>1?"s":""} demande${c>1?"s":""} examen VTC`:"✅ Aucun dossier VTC en attente";
-      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme VTC";}
+    // --- VTC ---
+    async function updateVtc() {
+      const box = document.getElementById("notif-vtc");
+      try {
+        const r = await fetch("https://vtc-qh20.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = (Array.isArray(d)?d:[]).filter(x=>!x.statut||x.statut.trim().toUpperCase()==="A INSCRIRE A L'EXAMEN").length;
+        if (c > 0) { box.className = "notif wait"; box.innerHTML = `🚖 ${c} dossier${c>1?"s":""} VTC à inscrire`; }
+        else { box.className = "notif ok"; box.innerHTML = "✅ Aucun dossier VTC en attente"; }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur VTC"; }
     }
 
-    async function updateContratsCount() {
-      const box=document.getElementById("contrats-count"), alert=document.getElementById("contrats-alert");
-      try{
-        const r=await fetch("https://bts-wpfy.onrender.com/data.json");
-        if(!r.ok)throw 0;const d=await r.json();
-        const s=d.summary||{};
-        const total=s.a_traiter+s.signature_en_cours+s.saisi_entreprise;
-        box.className="alert-box "+(total?"ok":"empty");alert.classList.toggle("active",total>0);
-        box.innerHTML=total?`📝 <strong>${s.a_traiter}</strong> à traiter, <strong>${s.signature_en_cours}</strong> en signature, <strong>${s.saisi_entreprise}</strong> en saisie entreprise`:"✅ Aucun contrat en attente";
-      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme Contrats";}
+    // --- CONTRATS ---
+    async function updateContrats() {
+      const box = document.getElementById("notif-contrats");
+      try {
+        const r = await fetch("https://bts-wpfy.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const s = d.summary || {};
+        const total = (s.a_traiter||0)+(s.signature_en_cours||0)+(s.saisi_entreprise||0);
+        if (total > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `📝 ${s.a_traiter||0} à traiter, ${s.signature_en_cours||0} en signature, ${s.saisi_entreprise||0} en saisie`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucun contrat en attente";
+        }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Contrats"; }
     }
 
-    async function updateFacturesCount() {
-      const box=document.getElementById("factures-count"), alert=document.getElementById("factures-alert");
-      try{
-        const r=await fetch("https://factures-jx8r.onrender.com/data.json");
-        if(!r.ok)throw 0;const d=await r.json();
-        const c=d.count||0;
-        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
-        box.innerHTML=c?`💶 <strong>${c}</strong> facture${c>1?"s":""} à régler`:"✅ Aucune facture en attente";
-      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme Factures";}
+    // --- FACTURES ---
+    async function updateFactures() {
+      const box = document.getElementById("notif-factures");
+      try {
+        const r = await fetch("https://factures-jx8r.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = d.count || 0;
+        if (c > 0) { box.className = "notif wait"; box.innerHTML = `💶 ${c} facture${c>1?"s":""} à régler`; }
+        else { box.className = "notif ok"; box.innerHTML = "✅ Aucune facture en attente"; }
+      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Factures"; }
     }
 
-    updateCnapsCount();updateStagiairesCount();updateVtcCount();updateContratsCount();updateFacturesCount();
-    setInterval(updateCnapsCount,15000);
-    setInterval(updateStagiairesCount,15000);
-    setInterval(updateVtcCount,15000);
-    setInterval(updateContratsCount,15000);
-    setInterval(updateFacturesCount,15000);
+    function refreshAll() {
+      updateCnaps(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures();
+    }
+    refreshAll();
+    setInterval(refreshAll, 15000);
   </script>
 </body>
 </html>

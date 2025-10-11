@@ -27,20 +27,25 @@
     }
 
 .app-logo {
-  width: 70px;                /* un peu plus large */
+  width: 70px;
   height: 70px;
   object-fit: contain;
   display: block;
-  margin: 10px auto 12px;
-  transition: transform 0.2s ease;
-  padding: 6px;               /* équilibre visuel */
-  background: #fff;           /* fond neutre */
-  border-radius: 12px;        /* coins doux */
+  margin: 20px auto 16px;
+  background: #fff;
+  border-radius: 12px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  padding: 8px;
 }
-.card:hover .app-logo {
-  transform: scale(1.08);
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  min-height: 200px;
 }
+
 
 
 

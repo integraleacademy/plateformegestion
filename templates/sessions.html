@@ -127,7 +127,28 @@
 
 <main class="container">
 
-  <!-- === Bloc récapitulatif (calculé côté Python) === -->
+  <!-- === Bloc récapitulatif corrigé === -->
+  {% set total_late = 0 %}
+  {% set formations = active_sessions|map(attribute='formation')|unique %}
+  {% set recap_data = [] %}
+
+  {% for formation in formations %}
+    {% set late_steps = [] %}
+    {% set today_steps = [] %}
+    {% for s in active_sessions if s.formation == formation %}
+      {% for i in range(s.steps|length) %}
+        {% set st, dl = status_for_step(i, s) %}
+        {% if st == "late" %}
+          {% set total_late = total_late + 1 %}
+          {% set late_steps = late_steps + [("[%s] %s" % (s.date_debut|datefr, s.steps[i].name), (now().date() - dl.date()).days)] %}
+        {% elif st == "on_time" and dl and dl.date() == now().date() %}
+          {% set today_steps = today_steps + ["[%s] %s" % (s.date_debut|datefr, s.steps[i].name)] %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% set recap_data = recap_data + [(formation, late_steps, today_steps)] %}
+  {% endfor %}
+
   <div class="recap">
     {% if total_late > 0 %}
       <div class="global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>
@@ -180,8 +201,6 @@
       {% set color = s.color %}
       {% set date_debut = s.date_debut|datetime %}
       {% set diff = (date_debut - now()).days %}
-
-      {# ✅ Afficher le badge seulement sur la session future la plus proche #}
       {% if not next_session_found and diff > 0 %}
         {% set is_next = true %}
         {% set next_session_found = true %}
@@ -211,7 +230,35 @@
   {% endif %}
 </main>
 
-  <!-- === MODAL FORM === -->
+<!-- === MODAL NOUVELLE SESSION === -->
+<style>
+.modal {
+  display:none;
+  position:fixed;
+  z-index:9999;
+  top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.6);
+  justify-content:center;
+  align-items:center;
+}
+.modal-content {
+  background:#fff;
+  padding:25px 30px;
+  border-radius:12px;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);
+  width:90%;
+  max-width:450px;
+  animation:fadeIn 0.3s ease;
+}
+.modal-content h3 {margin-top:0;}
+.modal-content label {display:block;margin-top:12px;font-weight:600;}
+.modal-content input, .modal-content select {
+  width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:6px;
+}
+.modal-content .btns {margin-top:18px;text-align:right;}
+.btn.cancel {background:#ccc;color:#000;margin-left:10px;}
+</style>
+
 <div class="modal" id="sessionModal">
   <div class="modal-content">
     <h3>➕ Nouvelle session</h3>
@@ -242,44 +289,28 @@
   </div>
 </div>
 
-
 <footer class="footer">
   © <span id="year"></span> Intégrale Academy — Tous droits réservés
 </footer>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
-</script>
 
-  <script>
 document.addEventListener("DOMContentLoaded", () => {
   const openBtn = document.getElementById("openModal");
   const closeBtn = document.getElementById("closeModal");
   const modal = document.getElementById("sessionModal");
 
   if (openBtn && modal) {
-    openBtn.addEventListener("click", () => {
-      modal.style.display = "flex";
-    });
+    openBtn.addEventListener("click", () => modal.style.display = "flex");
   }
-
   if (closeBtn && modal) {
-    closeBtn.addEventListener("click", () => {
-      modal.style.display = "none";
-    });
+    closeBtn.addEventListener("click", () => modal.style.display = "none");
   }
-
-  // Fermeture si clic hors de la boîte
   window.addEventListener("click", (e) => {
     if (e.target === modal) modal.style.display = "none";
   });
-
-  // Fermeture avec Échap
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") modal.style.display = "none";
-  });
 });
 </script>
-
 </body>
 </html>

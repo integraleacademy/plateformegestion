@@ -30,6 +30,7 @@
     .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
     .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
     .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
+    .notif.empty {background: rgba(149,165,166,0.15); color:#7f8c8d;}
 
     /* ✅ Encadré dossiers acceptés */
     .recent-acceptes {
@@ -175,7 +176,7 @@
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // ✅ Bloc CNAPS Acceptés
+    // ✅ Bloc CNAPS Acceptés (7 jours)
     async function updateRecentAcceptes() {
       const box = document.getElementById("liste-acceptes");
       try {
@@ -194,13 +195,185 @@
         box.innerHTML = "<span style='color:#c0392b'>Erreur de chargement</span>";
       }
     }
-    updateRecentAcceptes();
-    setInterval(updateRecentAcceptes, 60000);
 
-    // --- Reste du script identique ---
+    // --- Assistance ---
+    async function updateAssistance() {
+      const box = document.getElementById("notif-assistance");
+      try {
+        const r = await fetch("https://assistance-alw9.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = d.a_traiter || 0;
+        if (c > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `🛟 ${c} demande${c>1?"s":""} assistance à traiter`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucune demande assistance en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Assistance";
+      }
+    }
+
+    // --- CNAPS Dépôt ---
+    async function updateCnaps() {
+      const box = document.getElementById("notif-cnaps");
+      try {
+        const r = await fetch("https://cnapsv5-1.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const demandes = Array.isArray(d) ? d : d.demandes || [];
+        const total = demandes.length;
+        if (total > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucune demande CNAPS en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur CNAPS";
+      }
+    }
+
+    // --- CNAPS Suivi ---
+    async function updateSuivi() {
+      const box = document.getElementById("notif-suivi");
+      try {
+        const r = await fetch("https://cnapsv3.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = d.instruction || 0;
+        if (c > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `📊 ${c} dossier${c>1?"s":""} instruction en cours`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucun dossier en instruction";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Suivi CNAPS";
+      }
+    }
+
+    // --- STAGIAIRES ---
+    async function updateStagiaires() {
+      const box = document.getElementById("notif-stagiaires");
+      try {
+        const r = await fetch("https://inscriptions-akou.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = (Array.isArray(d)?d:d.dossiers||[]).filter(x=>!x.status||x.status.trim()===""||x.status==="INCOMPLET").length;
+        if (c > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `🎓 ${c} dossier${c>1?"s":""} stagiaire${c>1?"s":""} à traiter`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucun dossier stagiaire en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Inscriptions";
+      }
+    }
+
+    // --- VTC ---
+    async function updateVtc() {
+      const box = document.getElementById("notif-vtc");
+      try {
+        const r = await fetch("https://vtc-qh20.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = (Array.isArray(d)?d:[]).filter(x=>!x.statut||x.statut.trim().toUpperCase()==="A INSCRIRE A L'EXAMEN").length;
+        if (c > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `🚖 ${c} dossier${c>1?"s":""} VTC à inscrire`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucun dossier VTC en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur VTC";
+      }
+    }
+
+    // --- CONTRATS ---
+    async function updateContrats() {
+      const box = document.getElementById("notif-contrats");
+      try {
+        const r = await fetch("https://bts-wpfy.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const s = d.summary || {};
+        const total = (s.a_traiter||0)+(s.signature_en_cours||0)+(s.saisi_entreprise||0);
+        if (total > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `📝 ${s.a_traiter||0} à traiter, ${s.signature_en_cours||0} en signature, ${s.saisi_entreprise||0} en saisie`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucun contrat en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Contrats";
+      }
+    }
+
+    // --- FACTURES ---
+    async function updateFactures() {
+      const box = document.getElementById("notif-factures");
+      try {
+        const r = await fetch("https://factures-jx8r.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = d.count || 0;
+        if (c > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `💼 ${c} facture${c>1?"s":""} à régler`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucune facture en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Factures";
+      }
+    }
+
+    // --- SESSIONS ---
+    async function updateSessions() {
+      const box = document.getElementById("notif-sessions");
+      try {
+        const r = await fetch("https://plateformegestion.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const retards = d.retards || 0;
+        if (retards > 0) {
+          box.className = "notif alert";
+          box.innerHTML = `⚠️ ${retards} étape${retards>1?"s":""} en retard`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Dans les temps";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Sessions";
+      }
+    }
+
+    // --- Rafraîchissements ---
     function refreshAll() {
       updateAssistance(); updateCnaps(); updateSuivi(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
     }
+
+    updateRecentAcceptes();
+    setInterval(updateRecentAcceptes, 60000);
+
     refreshAll();
     setInterval(refreshAll, 15000);
   </script>

@@ -46,10 +46,12 @@
 
   <main class="container">
     <div class="grid">
+      <!-- ✅ Assistance -->
       <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
         <div class="emoji">🛟</div>
         <div class="title">Assistance</div>
-        <div class="desc">Accéder au centre d'aide</div>
+        <div class="desc">Centre de support</div>
+        <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
       </a>
 
       <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
@@ -135,6 +137,27 @@
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
+    // --- Assistance ---
+    async function updateAssistance() {
+      const box = document.getElementById("notif-assistance");
+      try {
+        const r = await fetch("https://assistance-alw9.onrender.com/data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        const c = d.a_traiter || 0;
+        if (c > 0) { 
+          box.className = "notif wait"; 
+          box.innerHTML = `🛟 ${c} demande${c>1?"s":""} assistance à traiter`; 
+        } else { 
+          box.className = "notif ok"; 
+          box.innerHTML = "✅ Aucune demande assistance en attente"; 
+        }
+      } catch { 
+        box.className = "notif error"; 
+        box.innerHTML = "🔒 Erreur Assistance"; 
+      }
+    }
+
     // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
@@ -144,7 +167,6 @@
         const d = await r.json();
         const demandes = Array.isArray(d) ? d : d.demandes || [];
         const total = demandes.length;
-
         if (total > 0) {
           box.className = "notif wait";
           box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
@@ -166,7 +188,6 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         const c = d.instruction || 0;
-
         if (c > 0) {
           box.className = "notif wait";
           box.innerHTML = `📊 ${c} dossier${c>1?"s":""} instruction en cours`;
@@ -256,8 +277,9 @@
       } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur Sessions"; }
     }
 
+    // --- Rafraîchissement global ---
     function refreshAll() {
-      updateCnaps(); updateSuivi(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
+      updateAssistance(); updateCnaps(); updateSuivi(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
     }
     refreshAll();
     setInterval(refreshAll, 15000);

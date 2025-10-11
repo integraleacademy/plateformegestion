@@ -133,10 +133,20 @@
         const r = await fetch("https://cnapsv5-1.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const c = (Array.isArray(d) ? d : d.demandes || []).filter(x => !x.statut || x.statut.trim() === "").length;
-        if (c > 0) { box.className = "notif wait"; box.innerHTML = `📩 ${c} demande${c>1?"s":""} CNAPS en attente`; }
-        else { box.className = "notif ok"; box.innerHTML = "✅ Aucune demande CNAPS"; }
-      } catch { box.className = "notif error"; box.innerHTML = "🔒 Erreur CNAPS"; }
+        const demandes = Array.isArray(d) ? d : d.demandes || [];
+        const total = demandes.length;
+
+        if (total > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `📩 <strong>${total}</strong> demande${total>1?"s":""} CNAPS en attente`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucune demande CNAPS en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur CNAPS";
+      }
     }
 
     // --- STAGIAIRES ---

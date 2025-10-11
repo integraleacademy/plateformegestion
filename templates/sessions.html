@@ -137,7 +137,9 @@
     {% set today_steps = [] %}
     {% for s in active_sessions if s.formation == formation %}
       {% for i in range(s.steps|length) %}
-        {% set st, dl = status_for_step(i, s) %}
+        {% set result = status_for_step(i, s) %}
+        {% set st = result[0] %}
+        {% set dl = result[1] %}
         {% if st == "late" %}
           {% set total_late = total_late + 1 %}
           {% set late_steps = late_steps + [("[%s] %s" % (s.date_debut|datefr, s.steps[i].name), (now().date() - dl.date()).days)] %}

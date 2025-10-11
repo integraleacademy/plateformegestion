@@ -211,6 +211,38 @@
   {% endif %}
 </main>
 
+  <!-- === MODAL FORM === -->
+<div class="modal" id="sessionModal">
+  <div class="modal-content">
+    <h3>➕ Nouvelle session</h3>
+    <form method="post" action="{{ url_for('create_session') }}">
+      <label>Formation :</label>
+      <select name="formation" required>
+        <option value="">-- Choisir --</option>
+        <option value="APS">APS</option>
+        <option value="A3P">A3P</option>
+        <option value="SSIAP">SSIAP</option>
+        <option value="DIRIGEANT">DIRIGEANT</option>
+      </select>
+
+      <label>Date début :</label>
+      <input type="date" name="date_debut" required>
+
+      <label>Date fin :</label>
+      <input type="date" name="date_fin" required>
+
+      <label>Date examen :</label>
+      <input type="date" name="date_exam" required>
+
+      <div class="btns">
+        <button type="submit" class="btn gold">Créer</button>
+        <button type="button" class="btn cancel" id="closeModal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
 <footer class="footer">
   © <span id="year"></span> Intégrale Academy — Tous droits réservés
 </footer>
@@ -218,5 +250,36 @@
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 </script>
+
+  <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const openBtn = document.getElementById("openModal");
+  const closeBtn = document.getElementById("closeModal");
+  const modal = document.getElementById("sessionModal");
+
+  if (openBtn && modal) {
+    openBtn.addEventListener("click", () => {
+      modal.style.display = "flex";
+    });
+  }
+
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+  }
+
+  // Fermeture si clic hors de la boîte
+  window.addEventListener("click", (e) => {
+    if (e.target === modal) modal.style.display = "none";
+  });
+
+  // Fermeture avec Échap
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") modal.style.display = "none";
+  });
+});
+</script>
+
 </body>
 </html>

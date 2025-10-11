@@ -9,36 +9,58 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
-  <style>
-    @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
-    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.08);}100%{transform:scale(1);}}
 
-    #cnaps-alert, #stagiaires-alert, #vtc-alert, #contrats-alert, #factures-alert {
-      margin:40px auto 0;
-      max-width:600px;
-      text-align:center;
-      animation:fadeIn 0.6s ease-in;
+  <style>
+    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.04);}100%{transform:scale(1);}}
+
+    /* Bloc notifications */
+    .notifications {
+      margin: 60px auto 40px;
+      max-width: 750px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      padding: 35px 25px 30px;
+      text-align: center;
+      animation: fadeIn 0.5s ease-in;
+    }
+    .notifications h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .notif-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
     }
 
     .alert-box {
-      background:linear-gradient(135deg, #2ecc71, #27ae60);
-      color:white;
-      font-weight:600;
-      padding:18px 25px;
-      border-radius:14px;
-      font-size:18px;
-      box-shadow:0 4px 10px rgba(0,0,0,0.15);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      transition:background 0.3s ease;
+      background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+      color: white;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.3s ease;
+      min-height: 40px;
     }
+    .alert-box.ok {background: linear-gradient(135deg, #27ae60, #1e8449);}
+    .alert-box.empty {background: linear-gradient(135deg, #bdc3c7, #95a5a6);}
+    .alert-box.error {background: linear-gradient(135deg, #e74c3c, #c0392b);}
+    .active .alert-box {animation: pulse 1.8s infinite;}
 
-    .active .alert-box {animation:pulse 1.8s infinite;}
-    .alert-box.ok {background:linear-gradient(135deg, #27ae60, #1e8449);}
-    .alert-box.empty {background:linear-gradient(135deg, #95a5a6, #7f8c8d);}
-    .alert-box.error {background:linear-gradient(135deg, #e74c3c, #c0392b);}
+    @keyframes fadeIn {from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:translateY(0);}}
   </style>
 </head>
 
@@ -133,20 +155,17 @@
       </a>
     </div>
 
-    <!-- 🔔 Suivi CNAPS -->
-    <div id="cnaps-alert"><div id="cnaps-count" class="alert-box empty">📩 Chargement des demandes CNAPS...</div></div>
-
-    <!-- 🎓 Suivi stagiaires -->
-    <div id="stagiaires-alert"><div id="stagiaires-count" class="alert-box empty">🎓 Chargement des dossiers stagiaires...</div></div>
-
-    <!-- 🚖 Suivi VTC -->
-    <div id="vtc-alert"><div id="vtc-count" class="alert-box empty">🚖 Chargement des demandes examen VTC...</div></div>
-
-    <!-- 📝 Suivi contrats apprentissage -->
-    <div id="contrats-alert"><div id="contrats-count" class="alert-box empty">📝 Chargement des contrats d'apprentissage...</div></div>
-
-    <!-- 💶 Suivi factures -->
-    <div id="factures-alert"><div id="factures-count" class="alert-box empty">💶 Chargement des factures...</div></div>
+    <!-- 🔔 Bloc Notifications -->
+    <section class="notifications">
+      <h2>🔔 Notifications automatiques</h2>
+      <div class="notif-list">
+        <div id="cnaps-alert"><div id="cnaps-count" class="alert-box empty">📩 Chargement des demandes CNAPS...</div></div>
+        <div id="stagiaires-alert"><div id="stagiaires-count" class="alert-box empty">🎓 Chargement des dossiers stagiaires...</div></div>
+        <div id="vtc-alert"><div id="vtc-count" class="alert-box empty">🚖 Chargement des demandes examen VTC...</div></div>
+        <div id="contrats-alert"><div id="contrats-count" class="alert-box empty">📝 Chargement des contrats d'apprentissage...</div></div>
+        <div id="factures-alert"><div id="factures-count" class="alert-box empty">💶 Chargement des factures...</div></div>
+      </div>
+    </section>
   </main>
 
   <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>

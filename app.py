@@ -286,7 +286,7 @@ def sessions_home():
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
 
-    # --- Debug : afficher les deadlines et statuts ---
+    # --- DEBUG existant ---
     print("\n=== DEBUG SESSIONS ===")
     for s in data["sessions"]:
         print(f"\nSession: {s['formation']} ({s['date_debut']} → {s['date_exam']})")
@@ -297,14 +297,49 @@ def sessions_home():
             else:
                 print(f" - {step['name']}: {st} / deadline=N/A")
 
+    # --------- 🧠 On calcule le récap en PYTHON ---------
+    today = datetime.now().date()
+    recap_map = {}   # { formation: {"late_steps":[(text,days)], "today_steps":[text]} }
+    total_late = 0
+
+    # On ne prend que les sessions actives (comme avant)
+    for s in active:
+        formation = s.get("formation", "—")
+        rec = recap_map.setdefault(formation, {"late_steps": [], "today_steps": []})
+
+        for i, step in enumerate(s.get("steps", [])):
+            st, dl = status_for_step(i, s)
+            # late
+            if st == "late" and dl:
+                days = max((today - dl.date()).days, 0)
+                text = f"[{format_date(s.get('date_debut','—'))}] {step['name']}"
+                rec["late_steps"].append((text, days))
+                total_late += 1
+            # due today
+            elif st == "on_time" and dl and dl.date() == today:
+                text = f"[{format_date(s.get('date_debut','—'))}] {step['name']}"
+                rec["today_steps"].append(text)
+
+    # On transforme en liste triée par nom de formation pour le template
+    recap_data = []
+    for formation, payload in sorted(recap_map.items(), key=lambda x: x[0]):
+        # trier les retards par nb de jours décroissant (les pires d'abord)
+        payload["late_steps"].sort(key=lambda t: t[1], reverse=True)
+        recap_data.append((formation, payload["late_steps"], payload["today_steps"]))
+
     return render_template(
         "sessions.html",
         title="Gestion des sessions",
         active_sessions=active,
         archived_sessions=archived,
-        status_for_step=status_for_step_jinja,
-        now=datetime.now
+        status_for_step=status_for_step_jinja,  # garde pour le détail
+        now=datetime.now,
+        # 👇 nouveaux paramètres pour le récap déjà prêt
+        recap_data=recap_data,
+        total_late=total_late,
+        formations=[f for f, *_ in recap_data],
     )
+
 
 
 @app.route("/sessions/create", methods=["POST"])

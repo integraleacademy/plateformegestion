@@ -10,18 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
   <style>
-    @keyframes fadeIn {
-      from { opacity:0; transform:translateY(10px); }
-      to { opacity:1; transform:translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
+    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.08);}100%{transform:scale(1);}}
 
-    @keyframes pulse {
-      0% { transform:scale(1); }
-      50% { transform:scale(1.08); }
-      100% { transform:scale(1); }
-    }
-
-    #cnaps-alert, #stagiaires-alert, #vtc-alert {
+    #cnaps-alert, #stagiaires-alert, #vtc-alert, #contrats-alert {
       margin:40px auto 0;
       max-width:600px;
       text-align:center;
@@ -43,21 +35,10 @@
       transition:background 0.3s ease;
     }
 
-    .active .alert-box {
-      animation:pulse 1.8s infinite;
-    }
-
-    .alert-box.ok {
-      background:linear-gradient(135deg, #27ae60, #1e8449);
-    }
-
-    .alert-box.empty {
-      background:linear-gradient(135deg, #95a5a6, #7f8c8d);
-    }
-
-    .alert-box.error {
-      background:linear-gradient(135deg, #e74c3c, #c0392b);
-    }
+    .active .alert-box {animation:pulse 1.8s infinite;}
+    .alert-box.ok {background:linear-gradient(135deg, #27ae60, #1e8449);}
+    .alert-box.empty {background:linear-gradient(135deg, #95a5a6, #7f8c8d);}
+    .alert-box.error {background:linear-gradient(135deg, #e74c3c, #c0392b);}
   </style>
 </head>
 
@@ -152,93 +133,74 @@
       </a>
     </div>
 
-    <!-- 🔔 Suivi des dépôts CNAPS -->
-    <div id="cnaps-alert">
-      <div id="cnaps-count" class="alert-box empty">
-        📩 Chargement des demandes CNAPS...
-      </div>
-    </div>
+    <!-- 🔔 Suivi CNAPS -->
+    <div id="cnaps-alert"><div id="cnaps-count" class="alert-box empty">📩 Chargement des demandes CNAPS...</div></div>
 
-    <!-- 🎓 Suivi des dossiers stagiaires -->
-    <div id="stagiaires-alert">
-      <div id="stagiaires-count" class="alert-box empty">
-        🎓 Chargement des dossiers stagiaires...
-      </div>
-    </div>
+    <!-- 🎓 Suivi stagiaires -->
+    <div id="stagiaires-alert"><div id="stagiaires-count" class="alert-box empty">🎓 Chargement des dossiers stagiaires...</div></div>
 
-    <!-- 🚖 Suivi des demandes examen VTC -->
-    <div id="vtc-alert">
-      <div id="vtc-count" class="alert-box empty">
-        🚖 Chargement des demandes examen VTC...
-      </div>
-    </div>
+    <!-- 🚖 Suivi VTC -->
+    <div id="vtc-alert"><div id="vtc-count" class="alert-box empty">🚖 Chargement des demandes examen VTC...</div></div>
+
+    <!-- 📝 Suivi contrats apprentissage -->
+    <div id="contrats-alert"><div id="contrats-count" class="alert-box empty">📝 Chargement des contrats d'apprentissage...</div></div>
   </main>
 
-  <footer class="footer">
-    © <span id="year"></span> Intégrale Academy — Tous droits réservés
-  </footer>
+  <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // --- CNAPS ---
     async function updateCnapsCount() {
-      const box = document.getElementById("cnaps-count"), alert = document.getElementById("cnaps-alert");
-      try {
-        const res = await fetch("https://cnapsv5-1.onrender.com/data.json");
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const count = (Array.isArray(data) ? data : data.demandes || []).filter(d => !d.statut || d.statut.trim() === "").length;
-        box.className = "alert-box " + (count ? "ok" : "empty");
-        alert.classList.toggle("active", count > 0);
-        box.innerHTML = count ? `📩 <strong>${count}</strong> demande${count>1?"s":""} CNAPS en attente` : "✅ Aucune demande CNAPS en attente";
-      } catch {
-        box.className = "alert-box error";
-        box.innerHTML = "🔒 Impossible de contacter la plateforme CNAPS";
-      }
+      const box=document.getElementById("cnaps-count"), alert=document.getElementById("cnaps-alert");
+      try{
+        const r=await fetch("https://cnapsv5-1.onrender.com/data.json");
+        if(!r.ok)throw 0;const d=await r.json();
+        const c=(Array.isArray(d)?d:d.demandes||[]).filter(x=>!x.statut||x.statut.trim()==="").length;
+        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
+        box.innerHTML=c?`📩 <strong>${c}</strong> demande${c>1?"s":""} CNAPS en attente`:"✅ Aucune demande CNAPS en attente";
+      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme CNAPS";}
     }
 
-    // --- STAGIAIRES ---
     async function updateStagiairesCount() {
-      const box = document.getElementById("stagiaires-count"), alert = document.getElementById("stagiaires-alert");
-      try {
-        const res = await fetch("https://inscriptions-akou.onrender.com/data.json");
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const count = (Array.isArray(data) ? data : data.dossiers || []).filter(d => !d.status || d.status.trim() === "" || d.status === "INCOMPLET").length;
-        box.className = "alert-box " + (count ? "ok" : "empty");
-        alert.classList.toggle("active", count > 0);
-        box.innerHTML = count ? `🎓 <strong>${count}</strong> dossier${count>1?"s":""} stagiaire${count>1?"s":""} en attente` : "✅ Aucun dossier stagiaire en attente";
-      } catch {
-        box.className = "alert-box error";
-        box.innerHTML = "🔒 Impossible de contacter la plateforme Inscriptions";
-      }
+      const box=document.getElementById("stagiaires-count"), alert=document.getElementById("stagiaires-alert");
+      try{
+        const r=await fetch("https://inscriptions-akou.onrender.com/data.json");
+        if(!r.ok)throw 0;const d=await r.json();
+        const c=(Array.isArray(d)?d:d.dossiers||[]).filter(x=>!x.status||x.status.trim()===""||x.status==="INCOMPLET").length;
+        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
+        box.innerHTML=c?`🎓 <strong>${c}</strong> dossier${c>1?"s":""} stagiaire${c>1?"s":""} en attente`:"✅ Aucun dossier stagiaire en attente";
+      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme Inscriptions";}
     }
 
-    // --- VTC ---
     async function updateVtcCount() {
-      const box = document.getElementById("vtc-count"), alert = document.getElementById("vtc-alert");
-      try {
-        const res = await fetch("https://vtc-qh20.onrender.com/data.json");
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const count = (Array.isArray(data) ? data : []).filter(d => !d.statut || d.statut.trim().toUpperCase() === "A INSCRIRE A L'EXAMEN").length;
-        box.className = "alert-box " + (count ? "ok" : "empty");
-        alert.classList.toggle("active", count > 0);
-        box.innerHTML = count ? `🚖 <strong>${count}</strong> nouvelle${count>1?"s":""} demande${count>1?"s":""} examen VTC` : "✅ Aucun dossier VTC en attente";
-      } catch {
-        box.className = "alert-box error";
-        box.innerHTML = "🔒 Impossible de contacter la plateforme VTC";
-      }
+      const box=document.getElementById("vtc-count"), alert=document.getElementById("vtc-alert");
+      try{
+        const r=await fetch("https://vtc-qh20.onrender.com/data.json");
+        if(!r.ok)throw 0;const d=await r.json();
+        const c=(Array.isArray(d)?d:[]).filter(x=>!x.statut||x.statut.trim().toUpperCase()==="A INSCRIRE A L'EXAMEN").length;
+        box.className="alert-box "+(c?"ok":"empty");alert.classList.toggle("active",c>0);
+        box.innerHTML=c?`🚖 <strong>${c}</strong> nouvelle${c>1?"s":""} demande${c>1?"s":""} examen VTC`:"✅ Aucun dossier VTC en attente";
+      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme VTC";}
     }
 
-    // ⚡ Actualisation auto toutes les 15 secondes
-    updateCnapsCount();
-    updateStagiairesCount();
-    updateVtcCount();
-    setInterval(updateCnapsCount, 15000);
-    setInterval(updateStagiairesCount, 15000);
-    setInterval(updateVtcCount, 15000);
+    async function updateContratsCount() {
+      const box=document.getElementById("contrats-count"), alert=document.getElementById("contrats-alert");
+      try{
+        const r=await fetch("https://bts-wpfy.onrender.com/data.json");
+        if(!r.ok)throw 0;const d=await r.json();
+        const s=d.summary||{};
+        const total=s.a_traiter+s.signature_en_cours+s.saisi_entreprise;
+        box.className="alert-box "+(total?"ok":"empty");alert.classList.toggle("active",total>0);
+        box.innerHTML=total?`📝 <strong>${s.a_traiter}</strong> à traiter, <strong>${s.signature_en_cours}</strong> en signature, <strong>${s.saisi_entreprise}</strong> en saisie entreprise`:"✅ Aucun contrat en attente";
+      }catch{box.className="alert-box error";box.innerHTML="🔒 Impossible de contacter la plateforme Contrats";}
+    }
+
+    updateCnapsCount();updateStagiairesCount();updateVtcCount();updateContratsCount();
+    setInterval(updateCnapsCount,15000);
+    setInterval(updateStagiairesCount,15000);
+    setInterval(updateVtcCount,15000);
+    setInterval(updateContratsCount,15000);
   </script>
 </body>
 </html>

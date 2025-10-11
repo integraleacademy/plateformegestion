@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{{ title }}</title>
 
-  <!-- ✅ Feuille de style principale -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -32,33 +30,34 @@
     .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
     .notif.empty {background: rgba(149,165,166,0.15); color:#7f8c8d;}
 
-    /* ✅ Mise en page principale */
+    /* ✅ Disposition générale */
     .main-wrapper {
-      display: flex;
-      gap: 24px;
+      display: grid;
+      grid-template-columns: 3fr 1.1fr;
+      gap: 20px;
       align-items: flex-start;
     }
 
     .main-content {
-      flex: 3;
+      width: 100%;
     }
 
-    /* ✅ Encadré dossiers acceptés latéral */
+    /* ✅ Bloc des derniers dossiers CNAPS */
     .recent-acceptes {
-      flex: 1.3;
       background: #fff;
       border-radius: 12px;
-      padding: 18px 20px;
-      box-shadow: 0 6px 16px rgba(0,0,0,.08);
-      border: 1px solid rgba(0,0,0,.06);
-      position: sticky;
-      top: 20px;
+      padding: 14px 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,.08);
+      border: 1px solid rgba(0,0,0,.05);
+      font-size: 14px;
+      max-height: 380px;
+      overflow-y: auto;
     }
 
     .recent-acceptes h3 {
-      margin: 0 0 10px;
+      margin: 0 0 8px;
       color: #1e8449;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
     }
 
@@ -66,7 +65,7 @@
       list-style: none;
       margin: 0;
       padding: 0;
-      line-height: 1.6;
+      line-height: 1.5;
     }
 
     .recent-acceptes li::before {
@@ -75,14 +74,16 @@
       font-weight: bold;
     }
 
-    .recent-acceptes.none {
-      opacity: .8;
-      color: #555;
-    }
-
-    @media (max-width: 900px) {
-      .main-wrapper {flex-direction: column;}
-      .recent-acceptes {position: relative; width: 100%;}
+    /* ✅ Mobile */
+    @media (max-width: 1100px) {
+      .main-wrapper {
+        grid-template-columns: 1fr;
+      }
+      .recent-acceptes {
+        order: -1;
+        max-height: none;
+        margin-bottom: 15px;
+      }
     }
   </style>
 </head>
@@ -100,9 +101,9 @@
 
   <main class="container main-wrapper">
 
+    <!-- ✅ Contenu principal -->
     <div class="main-content">
       <div class="grid">
-        <!-- ✅ Assistance -->
         <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
           <div class="emoji">🛟</div>
           <div class="title">Assistance</div>
@@ -188,12 +189,11 @@
       </div>
     </div>
 
-    <!-- ✅ Bloc latéral : Derniers dossiers CNAPS acceptés -->
+    <!-- ✅ Bloc compact à droite -->
     <aside class="recent-acceptes" id="recent-acceptes">
       <h3>✅ Derniers dossiers CNAPS acceptés</h3>
       <div id="liste-acceptes">Chargement...</div>
     </aside>
-
   </main>
 
   <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
@@ -201,7 +201,6 @@
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // ✅ Bloc CNAPS Acceptés (7 jours)
     async function updateRecentAcceptes() {
       const box = document.getElementById("liste-acceptes");
       try {
@@ -221,7 +220,7 @@
       }
     }
 
-    // --- Assistance ---
+    // --- autres blocs inchangés ---
     async function updateAssistance() {
       const box = document.getElementById("notif-assistance");
       try {
@@ -229,42 +228,24 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         const c = d.a_traiter || 0;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `🛟 ${c} demande${c>1?"s":""} assistance à traiter`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande assistance en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Assistance";
-      }
+        if (c > 0) { box.className="notif wait"; box.innerHTML=`🛟 ${c} demande${c>1?"s":""} assistance à traiter`; }
+        else { box.className="notif ok"; box.innerHTML="✅ Aucune demande assistance en attente"; }
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur Assistance"; }
     }
 
-    // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
         const r = await fetch("https://cnapsv5-1.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const demandes = Array.isArray(d) ? d : d.demandes || [];
+        const demandes = Array.isArray(d)?d:d.demandes||[];
         const total = demandes.length;
-        if (total > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande CNAPS en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur CNAPS";
-      }
+        if (total>0){box.className="notif wait";box.innerHTML=`📩 ${total} demande${total>1?"s":""} CNAPS en attente`;}
+        else{box.className="notif ok";box.innerHTML="✅ Aucune demande CNAPS en attente";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur CNAPS"; }
     }
 
-    // --- CNAPS Suivi ---
     async function updateSuivi() {
       const box = document.getElementById("notif-suivi");
       try {
@@ -272,20 +253,11 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         const c = d.instruction || 0;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `📊 ${c} dossier${c>1?"s":""} instruction en cours`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier en instruction";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Suivi CNAPS";
-      }
+        if (c>0){box.className="notif wait";box.innerHTML=`📊 ${c} dossier${c>1?"s":""} instruction en cours`;}
+        else{box.className="notif ok";box.innerHTML="✅ Aucun dossier en instruction";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur Suivi CNAPS"; }
     }
 
-    // --- STAGIAIRES ---
     async function updateStagiaires() {
       const box = document.getElementById("notif-stagiaires");
       try {
@@ -293,20 +265,11 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         const c = (Array.isArray(d)?d:d.dossiers||[]).filter(x=>!x.status||x.status.trim()===""||x.status==="INCOMPLET").length;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `🎓 ${c} dossier${c>1?"s":""} stagiaire${c>1?"s":""} à traiter`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier stagiaire en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Inscriptions";
-      }
+        if (c>0){box.className="notif wait";box.innerHTML=`🎓 ${c} dossier${c>1?"s":""} stagiaire${c>1?"s":""} à traiter`;}
+        else{box.className="notif ok";box.innerHTML="✅ Aucun dossier stagiaire en attente";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur Inscriptions"; }
     }
 
-    // --- VTC ---
     async function updateVtc() {
       const box = document.getElementById("notif-vtc");
       try {
@@ -314,93 +277,57 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         const c = (Array.isArray(d)?d:[]).filter(x=>!x.statut||x.statut.trim().toUpperCase()==="A INSCRIRE A L'EXAMEN").length;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `🚖 ${c} dossier${c>1?"s":""} VTC à inscrire`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier VTC en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur VTC";
-      }
+        if (c>0){box.className="notif wait";box.innerHTML=`🚖 ${c} dossier${c>1?"s":""} VTC à inscrire`;}
+        else{box.className="notif ok";box.innerHTML="✅ Aucun dossier VTC en attente";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur VTC"; }
     }
 
-    // --- CONTRATS ---
     async function updateContrats() {
       const box = document.getElementById("notif-contrats");
       try {
         const r = await fetch("https://bts-wpfy.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const s = d.summary || {};
-        const total = (s.a_traiter||0)+(s.signature_en_cours||0)+(s.saisi_entreprise||0);
-        if (total > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `📝 ${s.a_traiter||0} à traiter, ${s.signature_en_cours||0} en signature, ${s.saisi_entreprise||0} en saisie`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucun contrat en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Contrats";
-      }
+        const s = d.summary||{};
+        const total=(s.a_traiter||0)+(s.signature_en_cours||0)+(s.saisi_entreprise||0);
+        if (total>0){box.className="notif wait";box.innerHTML=`📝 ${s.a_traiter||0} à traiter, ${s.signature_en_cours||0} en signature, ${s.saisi_entreprise||0} en saisie`;}
+        else{box.className="notif ok";box.innerHTML="✅ Aucun contrat en attente";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur Contrats"; }
     }
 
-    // --- FACTURES ---
     async function updateFactures() {
       const box = document.getElementById("notif-factures");
       try {
         const r = await fetch("https://factures-jx8r.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const c = d.count || 0;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `💼 ${c} facture${c>1?"s":""} à régler`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucune facture en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Factures";
-      }
+        const c = d.count||0;
+        if (c>0){box.className="notif wait";box.innerHTML=`💼 ${c} facture${c>1?"s":""} à régler`;}
+        else{box.className="notif ok";box.innerHTML="✅ Aucune facture en attente";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur Factures"; }
     }
 
-    // --- SESSIONS ---
     async function updateSessions() {
       const box = document.getElementById("notif-sessions");
       try {
         const r = await fetch("https://plateformegestion.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const retards = d.retards || 0;
-        if (retards > 0) {
-          box.className = "notif alert";
-          box.innerHTML = `⚠️ ${retards} étape${retards>1?"s":""} en retard`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Dans les temps";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Sessions";
-      }
+        const retards = d.retards||0;
+        if (retards>0){box.className="notif alert";box.innerHTML=`⚠️ ${retards} étape${retards>1?"s":""} en retard`;}
+        else{box.className="notif ok";box.innerHTML="✅ Dans les temps";}
+      } catch { box.className="notif error"; box.innerHTML="🔒 Erreur Sessions"; }
     }
 
-    // --- Rafraîchissements ---
     function refreshAll() {
-      updateAssistance(); updateCnaps(); updateSuivi(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
+      updateAssistance();updateCnaps();updateSuivi();updateStagiaires();updateVtc();updateContrats();updateFactures();updateSessions();
     }
 
     updateRecentAcceptes();
-    setInterval(updateRecentAcceptes, 15000);
+    setInterval(updateRecentAcceptes,15000);
 
     refreshAll();
-    setInterval(refreshAll, 15000);
+    setInterval(refreshAll,15000);
   </script>
 </body>
 </html>

@@ -9,12 +9,16 @@
 }
 
 html { scroll-behavior: smooth; }
-
-/* pour que l’ancre ne soit pas cachée par la topbar sticky */
-.step { scroll-margin-top: 110px; }  /* ajuste 110px si ta topbar est plus/moins haute */
+.step { scroll-margin-top: 110px; }
 
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;background:var(--bg);color:var(--ink)}
+html,body{
+  margin:0;
+  padding:0;
+  font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+}
 a{color:inherit;text-decoration:none}
 
 .topbar{
@@ -32,11 +36,14 @@ a{color:inherit;text-decoration:none}
 .back{color:var(--gold);font-weight:600;margin-right:6px}
 
 .container{max-width:1100px;margin:28px auto;padding:0 16px}
+
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
   gap:18px;
 }
+
+/* ✅ Harmonisation visuelle des cartes */
 .card{
   background:var(--white);
   border-radius:var(--radius);
@@ -47,9 +54,9 @@ a{color:inherit;text-decoration:none}
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
+  justify-content:space-between;
   gap:8px;
-  min-height:150px;
+  min-height:180px; /* <--- stabilise la hauteur */
   text-align:center;
 }
 .card:hover{
@@ -59,7 +66,29 @@ a{color:inherit;text-decoration:none}
 }
 .emoji{font-size:40px;line-height:1;text-align:center}
 .title{font-weight:700;font-size:18px}
-.desc{font-size:14px;opacity:.75}
+.desc{font-size:14px;opacity:.75;min-height:32px;} /* stabilise les descriptions */
+
+/* ✅ Notifications alignées en bas */
+.notif {
+  margin-top:auto;
+  font-size:14px;
+  font-weight:600;
+  padding:6px 10px;
+  border-radius:10px;
+  text-align:center;
+  transition:all 0.3s ease;
+  width:100%;
+}
+.notif.ok {background:rgba(39,174,96,0.1);color:#1e8449;}
+.notif.wait {background:rgba(241,196,15,0.15);color:#b9770e;animation:pulse 2s infinite;}
+.notif.error {background:rgba(231,76,60,0.15);color:#c0392b;}
+.notif.alert {background:rgba(231,76,60,0.1);color:#c0392b;font-weight:700;animation:pulse 1.5s infinite;}
+
+@keyframes pulse {
+  0%{transform:scale(1);}
+  50%{transform:scale(1.05);}
+  100%{transform:scale(1);}
+}
 
 .section-title {
   margin: 40px 0 20px;
@@ -159,13 +188,12 @@ a{color:inherit;text-decoration:none}
   font-weight:600;
   display:inline-block;
 }
-.status-chip.ok{background:#d4edda; color:#155724}   /* vert pastel */
-.status-chip.late{background:#f8d7da; color:#721c24} /* rouge pastel */
-.status-chip.na{background:#e2e3e5; color:#383d41}   /* gris doux */
+.status-chip.ok{background:#d4edda; color:#155724}
+.status-chip.late{background:#f8d7da; color:#721c24}
+.status-chip.na{background:#e2e3e5; color:#383d41}
 
 .deadline{font-size:12px; color:#555}
 
-/* Étapes boutons */
 .step-btn{
   width:100%;
   display:flex;
@@ -187,7 +215,3 @@ a{color:inherit;text-decoration:none}
 .danger-zone{display:flex; align-items:center; justify-content:space-between; margin-top:20px; gap:10px}
 .archive-note{font-size:13px; color:#555}
 .clock.small{font-size:13px; opacity:.9}
-
-/* Harmonisation des cartes (évite les sauts de hauteur) */
-.card { min-height: 180px; }
-

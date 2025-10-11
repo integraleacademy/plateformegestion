@@ -140,10 +140,10 @@
         {% set result = status_for_step(i, s) %}
         {% set st = result[0] %}
         {% set dl = result[1] %}
-        {% if st == "late" %}
+        {% if st|string == "late" %}
           {% set total_late = total_late + 1 %}
           {% set late_steps = late_steps + [("[%s] %s" % (s.date_debut|datefr, s.steps[i].name), (now().date() - dl.date()).days)] %}
-        {% elif st == "on_time" and dl and dl.date() == now().date() %}
+        {% elif st|string == "on_time" and dl and dl.date() == now().date() %}
           {% set today_steps = today_steps + ["[%s] %s" % (s.date_debut|datefr, s.steps[i].name)] %}
         {% endif %}
       {% endfor %}

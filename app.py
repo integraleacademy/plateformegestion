@@ -147,10 +147,15 @@ def _rule_for(formation, step_index):
     return None
 
 def parse_date(date_str):
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except Exception:
+    """Accepte les formats AAAA-MM-JJ ou JJ/MM/AAAA"""
+    if not date_str:
         return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    return None
 
 def deadline_for(step_index, session):
     rule = _rule_for(session["formation"], step_index)

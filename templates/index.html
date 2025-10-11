@@ -32,35 +32,57 @@
     .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
     .notif.empty {background: rgba(149,165,166,0.15); color:#7f8c8d;}
 
-    /* ✅ Encadré dossiers acceptés */
+    /* ✅ Mise en page principale */
+    .main-wrapper {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .main-content {
+      flex: 3;
+    }
+
+    /* ✅ Encadré dossiers acceptés latéral */
     .recent-acceptes {
+      flex: 1.3;
       background: #fff;
       border-radius: 12px;
-      padding: 14px 18px;
+      padding: 18px 20px;
       box-shadow: 0 6px 16px rgba(0,0,0,.08);
       border: 1px solid rgba(0,0,0,.06);
-      margin: 20px 0;
+      position: sticky;
+      top: 20px;
     }
+
     .recent-acceptes h3 {
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       color: #1e8449;
       font-size: 16px;
       font-weight: 700;
     }
+
     .recent-acceptes ul {
       list-style: none;
       margin: 0;
       padding: 0;
       line-height: 1.6;
     }
+
     .recent-acceptes li::before {
       content: "• ";
       color: #27ae60;
       font-weight: bold;
     }
+
     .recent-acceptes.none {
       opacity: .8;
       color: #555;
+    }
+
+    @media (max-width: 900px) {
+      .main-wrapper {flex-direction: column;}
+      .recent-acceptes {position: relative; width: 100%;}
     }
   </style>
 </head>
@@ -76,99 +98,102 @@
     </div>
   </header>
 
-  <main class="container">
+  <main class="container main-wrapper">
 
-    <!-- ✅ Bloc dossiers CNAPS acceptés -->
-    <div class="recent-acceptes" id="recent-acceptes">
-      <h3>✅ Dossiers CNAPS acceptés cette semaine</h3>
+    <div class="main-content">
+      <div class="grid">
+        <!-- ✅ Assistance -->
+        <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
+          <div class="emoji">🛟</div>
+          <div class="title">Assistance</div>
+          <div class="desc">Centre de support</div>
+          <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
+        </a>
+
+        <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
+          <div class="emoji">📤</div>
+          <div class="title">Dépôt dossiers CNAPS</div>
+          <div class="desc">Espace d'administration</div>
+          <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
+        </a>
+
+        <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
+          <div class="emoji">📊</div>
+          <div class="title">Suivi des demandes CNAPS</div>
+          <div class="desc">Surveillance des statuts</div>
+          <div id="notif-suivi" class="notif empty">📊 Chargement...</div>
+        </a>
+
+        <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
+          <div class="emoji">🎓</div>
+          <div class="title">Gestion des dossiers stagiaires</div>
+          <div class="desc">Inscriptions & pièces</div>
+          <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
+        </a>
+
+        <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
+          <div class="emoji">🚖</div>
+          <div class="title">Examens VTC</div>
+          <div class="desc">Administration examens</div>
+          <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
+        </a>
+
+        <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
+          <div class="emoji">📝</div>
+          <div class="title">Contrats d'apprentissage</div>
+          <div class="desc">Création & suivi</div>
+          <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
+        </a>
+
+        <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
+          <div class="emoji">💼</div>
+          <div class="title">Gestion des factures</div>
+          <div class="desc">Portail de facturation</div>
+          <div id="notif-factures" class="notif empty">💼 Chargement...</div>
+        </a>
+
+        <a class="card" href="{{ url_for('sessions_home') }}">
+          <div class="emoji">📅</div>
+          <div class="title">Gestion des sessions</div>
+          <div class="desc">Paramétrage interne</div>
+          <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
+        </a>
+      </div>
+
+      <h2 class="section-title">Applications externes</h2>
+      <div class="grid">
+        <a class="card" href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">
+          <div class="emoji">⚡</div>
+          <div class="title">Salesforce</div>
+          <div class="desc">CRM et gestion commerciale</div>
+        </a>
+
+        <a class="card" href="https://phone.onoffbusiness.com/calls" target="_blank" rel="noopener">
+          <div class="emoji">📞</div>
+          <div class="title">Onoff</div>
+          <div class="desc">Téléphonie business</div>
+        </a>
+
+        <a class="card" href="https://calendly.com/" target="_blank" rel="noopener">
+          <div class="emoji">📆</div>
+          <div class="title">Calendly</div>
+          <div class="desc">Planification de rendez-vous</div>
+        </a>
+
+        <a class="card" href="https://app.quicktalk.com/calls" target="_blank" rel="noopener">
+          <div class="emoji">☎️</div>
+          <div class="title">Quicktalk</div>
+          <div class="desc">Standard téléphonique</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- ✅ Bloc latéral : Derniers dossiers CNAPS acceptés -->
+    <aside class="recent-acceptes" id="recent-acceptes">
+      <h3>✅ Derniers dossiers CNAPS acceptés</h3>
       <div id="liste-acceptes">Chargement...</div>
-    </div>
+    </aside>
 
-    <div class="grid">
-      <!-- ✅ Assistance -->
-      <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🛟</div>
-        <div class="title">Assistance</div>
-        <div class="desc">Centre de support</div>
-        <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📤</div>
-        <div class="title">Dépôt dossiers CNAPS</div>
-        <div class="desc">Espace d'administration</div>
-        <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
-        <div class="emoji">📊</div>
-        <div class="title">Suivi des demandes CNAPS</div>
-        <div class="desc">Surveillance des statuts</div>
-        <div id="notif-suivi" class="notif empty">📊 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🎓</div>
-        <div class="title">Gestion des dossiers stagiaires</div>
-        <div class="desc">Inscriptions & pièces</div>
-        <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🚖</div>
-        <div class="title">Examens VTC</div>
-        <div class="desc">Administration examens</div>
-        <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📝</div>
-        <div class="title">Contrats d'apprentissage</div>
-        <div class="desc">Création & suivi</div>
-        <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
-        <div class="emoji">💼</div>
-        <div class="title">Gestion des factures</div>
-        <div class="desc">Portail de facturation</div>
-        <div id="notif-factures" class="notif empty">💼 Chargement...</div>
-      </a>
-
-      <a class="card" href="{{ url_for('sessions_home') }}">
-        <div class="emoji">📅</div>
-        <div class="title">Gestion des sessions</div>
-        <div class="desc">Paramétrage interne</div>
-        <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
-      </a>
-    </div>
-
-    <h2 class="section-title">Applications externes</h2>
-    <div class="grid">
-      <a class="card" href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">
-        <div class="emoji">⚡</div>
-        <div class="title">Salesforce</div>
-        <div class="desc">CRM et gestion commerciale</div>
-      </a>
-
-      <a class="card" href="https://phone.onoffbusiness.com/calls" target="_blank" rel="noopener">
-        <div class="emoji">📞</div>
-        <div class="title">Onoff</div>
-        <div class="desc">Téléphonie business</div>
-      </a>
-
-      <a class="card" href="https://calendly.com/" target="_blank" rel="noopener">
-        <div class="emoji">📆</div>
-        <div class="title">Calendly</div>
-        <div class="desc">Planification de rendez-vous</div>
-      </a>
-
-      <a class="card" href="https://app.quicktalk.com/calls" target="_blank" rel="noopener">
-        <div class="emoji">☎️</div>
-        <div class="title">Quicktalk</div>
-        <div class="desc">Standard téléphonique</div>
-      </a>
-    </div>
   </main>
 
   <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
@@ -185,11 +210,11 @@
         const d = await r.json();
         const list = d.recent_acceptes || [];
         if (list.length === 0) {
-          box.innerHTML = "<em>Aucun dossier accepté ces 7 derniers jours.</em>";
+          box.innerHTML = "<em>Aucun dossier accepté récemment.</em>";
         } else {
           box.innerHTML = "<ul>" + list.map(x =>
-  `<li><strong>${x.nom}</strong> ${x.prenom}${x.session ? " — <em>" + x.session + "</em>" : ""}</li>`
-).join("") + "</ul>";
+            `<li><strong>${x.nom}</strong> ${x.prenom}${x.session ? " — <em>" + x.session + "</em>" : ""}</li>`
+          ).join("") + "</ul>";
         }
       } catch {
         box.innerHTML = "<span style='color:#c0392b'>Erreur de chargement</span>";

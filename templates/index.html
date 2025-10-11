@@ -90,10 +90,10 @@
       </a>
 
       <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
-        <div class="emoji">💶</div>
+        <div class="emoji">💼</div>
         <div class="title">Gestion des factures</div>
         <div class="desc">Portail de facturation</div>
-        <div id="notif-factures" class="notif empty">💶 Chargement...</div>
+        <div id="notif-factures" class="notif empty">💼 Chargement...</div>
       </a>
 
       <a class="card" href="{{ url_for('sessions_home') }}">
@@ -167,15 +167,14 @@
         const r = await fetch("https://cnapsv3.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const suivi = Array.isArray(d) ? d : d.demandes || [];
-        const total = suivi.length;
+        const c = d.instruction || 0;
 
-        if (total > 0) {
+        if (c > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📊 ${total} suivi${total>1?"s":""} en cours`;
+          box.innerHTML = `📊 ${c} dossier${c>1?"s":""} instruction en cours`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Suivi à jour";
+          box.innerHTML = "✅ Aucun dossier en instruction";
         }
       } catch {
         box.className = "notif error";

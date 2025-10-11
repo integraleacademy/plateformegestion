@@ -9,7 +9,54 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(10px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+
+    @keyframes pulse {
+      0% { transform:scale(1); }
+      50% { transform:scale(1.08); }
+      100% { transform:scale(1); }
+    }
+
+    #cnaps-alert {
+      margin:50px auto 0;
+      max-width:600px;
+      text-align:center;
+      animation:fadeIn 0.6s ease-in;
+    }
+
+    #cnaps-count {
+      background:linear-gradient(135deg, #2ecc71, #27ae60);
+      color:white;
+      font-weight:600;
+      padding:18px 25px;
+      border-radius:14px;
+      font-size:18px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.15);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      transition:background 0.3s ease;
+    }
+
+    #cnaps-alert.active #cnaps-count {
+      animation:pulse 1.8s infinite;
+    }
+
+    #cnaps-count.ok {
+      background:linear-gradient(135deg, #27ae60, #1e8449);
+    }
+
+    #cnaps-count.empty {
+      background:linear-gradient(135deg, #95a5a6, #7f8c8d);
+    }
+  </style>
 </head>
+
 <body>
   <header class="topbar">
     <div class="brand">
@@ -100,13 +147,56 @@
         <div class="desc">Standard téléphonique</div>
       </a>
     </div>
+
+    <!-- 🔔 Suivi des dépôts CNAPS -->
+    <div id="cnaps-alert">
+      <div id="cnaps-count" class="empty">
+        📩 Chargement des demandes CNAPS...
+      </div>
+    </div>
   </main>
 
   <footer class="footer">
     © <span id="year"></span> Intégrale Academy — Tous droits réservés
   </footer>
+
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    async function updateCnapsCount() {
+      try {
+        const response = await fetch("https://cnapsv5-1.onrender.com/data.json");
+        const data = await response.json();
+
+        let count = 0;
+        if (Array.isArray(data)) {
+          count = data.filter(d => !d.statut || d.statut.trim() === "").length;
+        } else if (data.demandes) {
+          count = data.demandes.filter(d => !d.statut || d.statut.trim() === "").length;
+        }
+
+        const alertBox = document.getElementById("cnaps-alert");
+        const countBox = document.getElementById("cnaps-count");
+
+        if (count > 0) {
+          alertBox.style.display = "block";
+          alertBox.classList.add("active");
+          countBox.className = "ok";
+          countBox.innerHTML = `📩 <strong>${count}</strong> nouvelle${count > 1 ? 's' : ''} demande${count > 1 ? 's' : ''} CNAPS en attente`;
+        } else {
+          alertBox.style.display = "block";
+          alertBox.classList.remove("active");
+          countBox.className = "empty";
+          countBox.innerHTML = `✅ Aucune demande CNAPS en attente`;
+        }
+      } catch (error) {
+        console.error("Erreur récupération CNAPS:", error);
+      }
+    }
+
+    // ⚡ Actualisation auto toutes les 15 secondes
+    updateCnapsCount();
+    setInterval(updateCnapsCount, 15000);
   </script>
 </body>
 </html>

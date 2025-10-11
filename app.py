@@ -455,3 +455,58 @@ def cron_check():
 def cron_daily_summary():
     send_daily_overdue_summary()
     return "Mail récapitulatif envoyé", 200
+
+# ------------------------------------------------------------
+# ✅ Route publique pour le suivi auto sur la plateforme principale
+#    -> renvoie le nombre total d'étapes en retard (toutes sessions actives)
+# ------------------------------------------------------------
+@app.route("/data.json")
+def data_sessions_json():
+    try:
+        data = load_sessions()
+        sessions = data.get("sessions", [])
+
+        today = datetime.now().date()
+        total_retards = 0
+        details = []  # utile si tu veux diagnostiquer
+
+        for s in sessions:
+            if s.get("archived"):
+                continue  # on ignore les sessions archivées
+
+            late_steps = []
+            for i, step in enumerate(s.get("steps", [])):
+                st, dl = status_for_step(i, s)
+                if st == "late":
+                    total_retards += 1
+                    late_steps.append({
+                        "name": step.get("name"),
+                        "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
+                    })
+
+            details.append({
+                "id": s.get("id"),
+                "formation": s.get("formation"),
+                "date_debut": s.get("date_debut"),
+                "date_exam": s.get("date_exam"),
+                "retards": len(late_steps),
+                "late_steps": late_steps
+            })
+
+        payload = {
+            "retards": total_retards,   # 👉 c'est cette clé que l'index lit pour afficher "XX étapes en retard" / "Dans les temps"
+            "sessions": details
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+        }
+        return json.dumps(payload, ensure_ascii=False), 200, headers
+
+    except Exception as e:
+        print("Erreur /data.json (sessions):", e)
+        return json.dumps({"retards": -1, "error": str(e)}), 500, {
+            "Access-Control-Allow-Origin": "*"
+        }
+

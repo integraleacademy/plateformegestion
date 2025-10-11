@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{{ title }}</title>
+
+  <!-- ✅ Feuille de style principale -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -11,12 +15,6 @@
 
   <style>
     @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);} }
-
-    body {
-      font-family: "Inter", sans-serif;
-      background-color: #fdfaf5;
-      margin: 0;
-    }
 
     .notif {
       margin-top: 8px;
@@ -27,10 +25,10 @@
       text-align: center;
       transition: all 0.3s ease;
     }
+
     .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}
     .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
     .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
-    .notif.empty {background: rgba(149, 165, 166, 0.15); color: #7f8c8d;}
     .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
   </style>
 </head>
@@ -84,7 +82,7 @@
 
       <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
         <div class="emoji">📝</div>
-        <div class="title">Gestion contrats d'apprentissage</div>
+        <div class="title">Contrats d'apprentissage</div>
         <div class="desc">Création & suivi</div>
         <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
       </a>

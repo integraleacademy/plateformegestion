@@ -26,6 +26,19 @@
       transition: all 0.3s ease;
     }
 
+    .app-logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin: 0 auto 8px;
+  display: block;
+  transition: transform 0.2s ease;
+}
+.card:hover .app-logo {
+  transform: scale(1.08);
+}
+
+
     .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}
     .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
     .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
@@ -143,32 +156,33 @@
       </a>
     </div>
 
-    <h2 class="section-title">Applications externes</h2>
-    <div class="grid">
-      <a class="card" href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">
-        <div class="emoji">⚡</div>
-        <div class="title">Salesforce</div>
-        <div class="desc">CRM et gestion commerciale</div>
-      </a>
+<h2 class="section-title">Applications externes</h2>
+<div class="grid">
+  <a class="card" href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">
+    <img src="{{ url_for('static', filename='img/salesforce.png') }}" alt="Salesforce" class="app-logo">
+    <div class="title">Salesforce</div>
+    <div class="desc">CRM et gestion commerciale</div>
+  </a>
 
-      <a class="card" href="https://phone.onoffbusiness.com/calls" target="_blank" rel="noopener">
-        <div class="emoji">📞</div>
-        <div class="title">Onoff</div>
-        <div class="desc">Téléphonie business</div>
-      </a>
+  <a class="card" href="https://phone.onoffbusiness.com/calls" target="_blank" rel="noopener">
+    <img src="{{ url_for('static', filename='img/onoff.png') }}" alt="Onoff" class="app-logo">
+    <div class="title">Onoff</div>
+    <div class="desc">Téléphonie business</div>
+  </a>
 
-      <a class="card" href="https://calendly.com/" target="_blank" rel="noopener">
-        <div class="emoji">📆</div>
-        <div class="title">Calendly</div>
-        <div class="desc">Planification de rendez-vous</div>
-      </a>
+  <a class="card" href="https://calendly.com/" target="_blank" rel="noopener">
+    <img src="{{ url_for('static', filename='img/calendly.png') }}" alt="Calendly" class="app-logo">
+    <div class="title">Calendly</div>
+    <div class="desc">Planification de rendez-vous</div>
+  </a>
 
-      <a class="card" href="https://app.quicktalk.com/calls" target="_blank" rel="noopener">
-        <div class="emoji">☎️</div>
-        <div class="title">Quicktalk</div>
-        <div class="desc">Standard téléphonique</div>
-      </a>
-    </div>
+  <a class="card" href="https://app.quicktalk.com/calls" target="_blank" rel="noopener">
+    <img src="{{ url_for('static', filename='img/quicktalk.png') }}" alt="Quicktalk" class="app-logo">
+    <div class="title">Quicktalk</div>
+    <div class="desc">Standard téléphonique</div>
+  </a>
+</div>
+
   </main>
 
   <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>

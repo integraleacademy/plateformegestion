@@ -26,6 +26,16 @@
       transition: all 0.3s ease;
     }
 
+    /* ✅ Carte CNAPS élargie sur 3 colonnes */
+.recent-acceptes.card {
+  grid-column: span 3;
+  height: 100%; /* même hauteur que les autres */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+
 .app-logo {
   width: 70px;                /* un peu plus large */
   height: 70px;
@@ -81,13 +91,7 @@
       color: #555;
     }
 
-    .recent-acceptes.card {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  text-align: left;
-  min-width: 300px;
-}
+
 
   </style>
 </head>

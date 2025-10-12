@@ -181,7 +181,19 @@ def status_for_step(step_index, session, now=None):
     step = session["steps"][step_index]
     if step["done"]:
         return ("done", dl)
-    return ("late" if now.date() > dl.date() else "on_time", dl)
+
+    # --- 🔧 Correction : tolérance réelle sur les 24 h ---
+    diff_days = (dl.date() - now.date()).days
+    if diff_days < 0:
+        return ("late", dl)
+    elif diff_days == 0:
+        return ("on_time", dl)
+    elif diff_days == 1:
+        return ("upcoming", dl)  # échéance demain → "à venir"
+    else:
+        return ("on_time", dl)
+
+
 
 # ✅ Fonction spéciale pour le template Jinja
 def status_for_step_jinja(i, s):

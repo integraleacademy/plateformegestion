@@ -12,24 +12,6 @@
       color: #333;
     }
 
-    .spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #fff;
-  border-top: 2px solid transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  vertical-align: middle;
-  margin-right: 6px;
-}
-
-@keyframes spin {
-  0% {transform: rotate(0deg);}
-  100% {transform: rotate(360deg);}
-}
-
-
     header {
       display: flex;
       align-items: center;
@@ -225,62 +207,59 @@
 
   <!-- ✅ Script amélioré -->
  <script>
-function confirmSend(form) {
-  const btn = form.querySelector("button");
-  const row = form.closest("tr");
-  const id = row.dataset.id;
-  const action = btn.dataset.action; // "rupture" ou "badge"
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Envoi...';
-  btn.style.background = "#000";
-  btn.style.color = "#fff";
-
-  // Clé distincte selon le type de bouton
-  localStorage.setItem(`sent_${action}_` + id, "true");
-  return true; // laisse le POST partir
-}
-
-window.addEventListener("load", () => {
-  document.querySelectorAll("tr[data-id]").forEach(row => {
+  // --- Conserver le BON bouton noir après envoi du mail
+  function confirmSend(form) {
+    const btn = form.querySelector("button");
+    const row = form.closest("tr");
     const id = row.dataset.id;
+    const action = btn.dataset.action; // "rupture" ou "badge"
 
-    const ruptureBtn = row.querySelector("button.rupture");
-    const badgeBtn = row.querySelector("button.badge");
+    btn.disabled = true;
+    btn.textContent = "📨 Envoi...";
+    btn.style.background = "#000";
+    btn.style.color = "#fff";
 
-    // 🔸 Si le mail de rupture a déjà été envoyé
-    if (ruptureBtn && localStorage.getItem(`sent_rupture_${id}`) === "true") {
-      ruptureBtn.classList.remove("btn-green");
-      ruptureBtn.classList.add("btn-black");
-      ruptureBtn.disabled = true;
-      ruptureBtn.innerHTML = '<span class="spinner"></span>Envoyé';
-    }
+    // clé distincte par action
+    localStorage.setItem(`sent_${action}_` + id, "true");
+    return true; // laisse le POST partir
+  }
 
-    // 🔸 Si le mail de badge a déjà été envoyé
-    if (badgeBtn && localStorage.getItem(`sent_badge_${id}`) === "true") {
-      badgeBtn.classList.remove("btn-green");
-      badgeBtn.classList.add("btn-black");
-      badgeBtn.disabled = true;
-      badgeBtn.innerHTML = '<span class="spinner"></span>Envoyé';
-    }
+  window.addEventListener("load", () => {
+    // Recolorer le/les bons boutons selon le localStorage
+    document.querySelectorAll("tr[data-id]").forEach(row => {
+      const id = row.dataset.id;
+
+      const ruptureBtn = row.querySelector("button.rupture");
+      if (ruptureBtn && localStorage.getItem(`sent_rupture_${id}`) === "true") {
+        ruptureBtn.classList.remove("btn-green");
+        ruptureBtn.classList.add("btn-black");
+        ruptureBtn.disabled = true;
+        ruptureBtn.textContent = "📨 Envoyé";
+      }
+
+      const badgeBtn = row.querySelector("button.badge");
+      if (badgeBtn && localStorage.getItem(`sent_badge_${id}`) === "true") {
+        badgeBtn.classList.remove("btn-green");
+        badgeBtn.classList.add("btn-black");
+        badgeBtn.disabled = true;
+        badgeBtn.textContent = "📨 Envoyé";
+      }
+    });
+
+    // --- Coloriser les statuts selon la valeur
+    document.querySelectorAll("select[name='statut']").forEach(updateSelectColor);
   });
 
-  document.querySelectorAll("select[name='statut']").forEach(updateSelectColor);
-});
-
-function updateSelectColor(sel) {
-  const val = sel.value.toLowerCase();
-  if (val.includes("à distribuer")) { sel.style.background = "#95a5a6"; sel.style.color = "#fff"; }
-  else if (val.includes("non restituée")) { sel.style.background = "#e74c3c"; sel.style.color = "#fff"; }
-  else if (val.includes("distribuée")) { sel.style.background = "#2ecc71"; sel.style.color = "#fff"; }
-  else if (val.includes("restituée")) { sel.style.background = "#27ae60"; sel.style.color = "#fff"; }
-}
+  // --- Couleurs dynamiques pour les statuts
+  function updateSelectColor(sel) {
+    const val = sel.value.toLowerCase();
+    if (val.includes("à distribuer")) { sel.style.background = "#95a5a6"; sel.style.color = "#fff"; }
+    else if (val.includes("non restituée")) { sel.style.background = "#e74c3c"; sel.style.color = "#fff"; }
+    else if (val.includes("distribuée")) { sel.style.background = "#2ecc71"; sel.style.color = "#fff"; }
+    else if (val.includes("restituée")) { sel.style.background = "#27ae60"; sel.style.color = "#fff"; }
+  }
 </script>
-
-
 
 
 </body>
 </html>
-
-

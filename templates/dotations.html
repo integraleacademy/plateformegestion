@@ -20,7 +20,7 @@
     }
 
     .logo {
-      height: 70px;
+      height: 110px; /* ✅ plus grand */
     }
 
     h1 {
@@ -88,16 +88,15 @@
 
     tr:nth-child(even) { background-color: #fafafa; }
 
-
     th {
       background: #f4f6f7;
       color: #333;
       font-weight: 700;
     }
 
-    .status-gray {background:#95a5a6; color:#fff; padding:4px 10px; border-radius:20px;}
-    .status-green {background:#2ecc71; color:#fff; padding:4px 10px; border-radius:20px;}
-    .status-red {background:#e74c3c; color:#fff; padding:4px 10px; border-radius:20px;}
+    .status-gray {background:#95a5a6; color:#fff;}
+    .status-green {background:#2ecc71; color:#fff;}
+    .status-red {background:#e74c3c; color:#fff;}
 
     .actions form {display:inline;}
     .actions button {margin: 2px 3px;}
@@ -152,7 +151,7 @@
     </tr>
 
     {% for d in dotations %}
-    <tr>
+    <tr data-id="{{ d.id }}">
       <td>{{ d.nom }}</td>
       <td>{{ d.prenom }}</td>
       <td>{{ d.email }}</td>
@@ -164,23 +163,27 @@
           <button class="btn-blue" title="Mettre à jour la date">💾</button>
         </form>
       </td>
-  <td>
-  <form method="POST" action="{{ url_for('changer_statut', id=d.id) }}">
-    <select name="statut" onchange="this.form.submit()" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;">
-      <option value="Dotation à distribuer" {% if d.statut=='Dotation à distribuer' %}selected{% endif %}>À distribuer</option>
-      <option value="Dotation distribuée" {% if d.statut=='Dotation distribuée' %}selected{% endif %}>Distribuée</option>
-      <option value="Dotation non restituée" {% if d.statut=='Dotation non restituée' %}selected{% endif %}>Non restituée</option>
-      <option value="Dotation restituée" {% if d.statut=='Dotation restituée' %}selected{% endif %}>Restituée</option>
-    </select>
-  </form>
-</td>
 
+      <!-- ✅ Statut avec couleurs dynamiques -->
       <td>
-  <form method="POST" action="{{ url_for('edit_dotation', id=d.id) }}">
-    <input name="commentaire" value="{{ d.commentaire }}" placeholder="Commentaire" style="width:120px;padding:4px 6px;">
-    <button class="btn-blue" title="Sauvegarder">💾</button>
-  </form>
-</td>
+        <form method="POST" action="{{ url_for('changer_statut', id=d.id) }}">
+          <select name="statut" onchange="updateSelectColor(this); this.form.submit();"
+            style="padding:4px 8px;border-radius:6px;border:1px solid #ccc; font-weight:600;">
+            <option value="Dotation à distribuer" {% if d.statut=='Dotation à distribuer' %}selected{% endif %}>À distribuer</option>
+            <option value="Dotation distribuée" {% if d.statut=='Dotation distribuée' %}selected{% endif %}>Distribuée</option>
+            <option value="Dotation non restituée" {% if d.statut=='Dotation non restituée' %}selected{% endif %}>Non restituée</option>
+            <option value="Dotation restituée" {% if d.statut=='Dotation restituée' %}selected{% endif %}>Restituée</option>
+          </select>
+        </form>
+      </td>
+
+      <!-- ✅ Commentaire modifiable -->
+      <td>
+        <form method="POST" action="{{ url_for('edit_dotation', id=d.id) }}">
+          <input name="commentaire" value="{{ d.commentaire }}" placeholder="Commentaire" style="width:160px;padding:4px 6px;">
+          <button class="btn-blue" title="Sauvegarder">💾</button>
+        </form>
+      </td>
 
       <td class="actions">
         <form method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}" onsubmit="return confirmSend(this)">
@@ -189,7 +192,6 @@
         <form method="POST" action="{{ url_for('badge_fin', id=d.id) }}" onsubmit="return confirmSend(this)">
           <button class="btn-green badge" title="Fin d'études">🎓 Badge</button>
         </form>
-      
         <form method="POST" action="{{ url_for('delete_dotation', id=d.id) }}" onsubmit="return confirm('Supprimer cette dotation ?')">
           <button class="btn-red" title="Supprimer">🗑️</button>
         </form>
@@ -202,17 +204,45 @@
     <a href="{{ url_for('index') }}" class="back-btn">⬅ Retour à l'accueil</a>
   </div>
 
- <script>
-function confirmSend(form) {
-  const btn = form.querySelector("button");
-  btn.disabled = true;
-  btn.textContent = "📨 Envoi...";
-  btn.style.background = "#000";
-  btn.style.color = "#fff";
-  return true; // envoi du formulaire
-}
-</script>
+  <!-- ✅ Script amélioré -->
+  <script>
+    // --- Conserver le bouton noir après envoi du mail
+    function confirmSend(form) {
+      const btn = form.querySelector("button");
+      const id = form.closest("tr").dataset.id;
+      btn.disabled = true;
+      btn.textContent = "📨 Envoi...";
+      btn.style.background = "#000";
+      btn.style.color = "#fff";
+      localStorage.setItem("sent_" + id, "true");
+      return true;
+    }
+
+    window.addEventListener("load", () => {
+      document.querySelectorAll("tr[data-id]").forEach(row => {
+        const id = row.dataset.id;
+        if (localStorage.getItem("sent_" + id) === "true") {
+          row.querySelectorAll(".rupture, .badge").forEach(btn => {
+            btn.classList.remove("btn-green");
+            btn.classList.add("btn-black");
+            btn.disabled = true;
+          });
+        }
+      });
+
+      // --- Coloriser les statuts selon la valeur
+      document.querySelectorAll("select[name='statut']").forEach(updateSelectColor);
+    });
+
+    // --- Couleurs dynamiques pour les statuts
+    function updateSelectColor(sel) {
+      const val = sel.value;
+      if (val.includes("à distribuer")) sel.style.background = "#95a5a6", sel.style.color = "#fff";
+      else if (val.includes("distribuée")) sel.style.background = "#2ecc71", sel.style.color = "#fff";
+      else if (val.includes("non restituée")) sel.style.background = "#e74c3c", sel.style.color = "#fff";
+      else if (val.includes("restituée")) sel.style.background = "#27ae60", sel.style.color = "#fff";
+    }
+  </script>
 
 </body>
 </html>
-

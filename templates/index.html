@@ -153,11 +153,11 @@
         <div id="notif-factures" class="notif empty">💼 Chargement...</div>
       </a>
 
-      <a class="card" href="{{ url_for('dotations_home') }}">
+<a class="card" href="{{ url_for('dotations_home') }}">
   <div class="emoji">🎁</div>
   <div class="title">Gestion des dotations</div>
   <div class="desc">iPad & badge café</div>
-  <div id="notif-dotations" class="notif empty">🎁 Gestion interne</div>
+  <div id="notif-dotations" class="notif empty">🎁 Chargement...</div>
 </a>
 
 
@@ -243,6 +243,32 @@
         box.innerHTML = "🔒 Erreur Assistance";
       }
     }
+
+        // --- DOTATIONS ---
+    async function updateDotations() {
+      const box = document.getElementById("notif-dotations");
+      try {
+        const r = await fetch("https://plateformegestion.onrender.com/dotations_data.json");
+        if (!r.ok) throw 0;
+        const d = await r.json();
+
+        const a = d.a_distribuer || 0;
+        const nr = d.non_restituees || 0;
+        const rstu = d.restituees || 0;
+
+        if (a + nr + rstu > 0) {
+          box.className = "notif wait";
+          box.innerHTML = `🎁 ${a} à distribuer, ${nr} non restituée${nr>1?'s':''}, ${rstu} restituée${rstu>1?'s':''}`;
+        } else {
+          box.className = "notif ok";
+          box.innerHTML = "✅ Aucune dotation en attente";
+        }
+      } catch {
+        box.className = "notif error";
+        box.innerHTML = "🔒 Erreur Dotations";
+      }
+    }
+
 
     // --- CNAPS Dépôt ---
     async function updateCnaps() {
@@ -395,8 +421,17 @@
 
     // --- Rafraîchissements ---
     function refreshAll() {
-      updateAssistance(); updateCnaps(); updateSuivi(); updateStagiaires(); updateVtc(); updateContrats(); updateFactures(); updateSessions();
-    }
+  updateAssistance();
+  updateCnaps();
+  updateSuivi();
+  updateStagiaires();
+  updateVtc();
+  updateContrats();
+  updateFactures();
+  updateSessions();
+  updateDotations(); // ✅ AJOUT ICI
+}
+
 
     updateRecentAcceptes();
     setInterval(updateRecentAcceptes, 15000);

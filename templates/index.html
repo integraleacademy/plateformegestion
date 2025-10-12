@@ -335,7 +335,7 @@ async function updateDotations() {
         const c = d.instruction || 0;
         if (c > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📊 ${c} dossier${c>1?"s":""} instruction en cours`;
+          box.innerHTML = `👮‍♂️ ${c} dossier${c>1?"s":""} instruction en cours`;
         } else {
           box.className = "notif ok";
           box.innerHTML = "✅ Aucun dossier en instruction";

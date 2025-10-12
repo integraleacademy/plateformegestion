@@ -245,29 +245,37 @@
     }
 
         // --- DOTATIONS ---
-    async function updateDotations() {
-      const box = document.getElementById("notif-dotations");
-      try {
-        const r = await fetch("https://plateformegestion.onrender.com/dotations_data.json");
-        if (!r.ok) throw 0;
-        const d = await r.json();
+    // --- DOTATIONS ---
+async function updateDotations() {
+  const box = document.getElementById("notif-dotations");
+  try {
+    const r = await fetch("https://plateformegestion.onrender.com/dotations_data.json");
+    if (!r.ok) throw 0;
+    const d = await r.json();
 
-        const a = d.a_distribuer || 0;
-        const nr = d.non_restituees || 0;
-        const rstu = d.restituees || 0;
+    const a = d.a_distribuer || 0;
+    const nr = d.non_restituees || 0;
+    const rstu = d.restituees || 0;
 
-        if (a + nr + rstu > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `🎁 ${a} à distribuer, ${nr} non restituée${nr>1?'s':''}, ${rstu} restituée${rstu>1?'s':''}`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucune dotation en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Dotations";
-      }
+    let message = `🎁 ${a} à distribuer, ${nr} non restituée${nr>1?'s':''}, ${rstu} restituée${rstu>1?'s':''}`;
+
+    if (nr > 0) {
+      box.className = "notif alert"; // 🔴 rouge (urgences)
+    } else if (a > 0) {
+      box.className = "notif wait"; // 🟠 orange (à distribuer)
+    } else {
+      box.className = "notif ok"; // 🟢 vert (tout rendu)
+      message = "✅ Tout est OK";
     }
+
+    box.innerHTML = message;
+
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur Dotations";
+  }
+}
+
 
 
     // --- CNAPS Dépôt ---

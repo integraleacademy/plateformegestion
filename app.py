@@ -679,5 +679,31 @@ def changer_statut(id):
     save_dotations(data)
     return redirect(url_for("dotations_home"))
 
+# ------------------------------------------------------------
+# 📊 Route JSON pour les dotations (affichage sur index)
+# ------------------------------------------------------------
+@app.route("/dotations_data.json")
+def dotations_data():
+    try:
+        data = load_dotations()
+        a_distribuer = len([d for d in data if d.get("statut") == "Dotation à distribuer"])
+        distribuees = len([d for d in data if d.get("statut") == "Dotation distribuée"])
+        non_restituees = len([d for d in data if d.get("statut") == "Dotation non restituée"])
+        restituees = len([d for d in data if d.get("statut") == "Dotation restituée"])
+
+        payload = {
+            "a_distribuer": a_distribuer,
+            "distribuees": distribuees,
+            "non_restituees": non_restituees,
+            "restituees": restituees
+        }
+
+        headers = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+        return json.dumps(payload, ensure_ascii=False), 200, headers
+    except Exception as e:
+        print("Erreur /dotations_data.json :", e)
+        return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
+
+
 
 

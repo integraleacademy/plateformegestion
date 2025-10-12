@@ -4,29 +4,123 @@
   <meta charset="UTF-8">
   <title>{{ title }}</title>
   <style>
-    body {font-family: Arial, sans-serif; background:#fdfaf5; padding:20px;}
-    h1 {text-align:center; color:#1e8449;}
-    table {width:100%; border-collapse:collapse; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.1); border-radius:10px; overflow:hidden;}
-    th, td {padding:10px; border-bottom:1px solid #ddd; text-align:center;}
-    th {background:#f4f6f7; font-weight:700;}
-    .btn {padding:5px 10px; border:none; border-radius:5px; cursor:pointer; font-size:13px;}
-    .btn-edit {background:#3498db; color:#fff;}
-    .btn-del {background:#e74c3c; color:#fff;}
-    .btn-mail {background:#f39c12; color:#fff;}
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #fdfaf5;
+      margin: 0;
+      padding: 40px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1e8449;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 26px;
+    }
+
+    h1::before {
+      content: "📦";
+    }
+
+    .form-add {
+      background: #fff;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+      max-width: 1000px;
+      margin: 0 auto 30px;
+      text-align: center;
+    }
+
+    .form-add h3 {
+      color: #333;
+      margin-bottom: 15px;
+      font-weight: 700;
+    }
+
+    input, select, textarea {
+      padding: 8px 10px;
+      margin: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    input[type="date"] {
+      width: 140px;
+    }
+
+    button, .btn {
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
     .btn-green {background:#27ae60; color:#fff;}
-    .status-gray {background:#ccc; color:#fff; padding:5px 10px; border-radius:20px;}
-    .status-green {background:#2ecc71; color:#fff; padding:5px 10px; border-radius:20px;}
-    .status-red {background:#e74c3c; color:#fff; padding:5px 10px; border-radius:20px;}
-    form.inline {display:inline;}
-    .form-add {margin:20px auto; background:#fff; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); max-width:900px;}
-    input, textarea {padding:6px; margin:4px; border:1px solid #ccc; border-radius:6px;}
-    textarea {width:100%; height:40px;}
-    .center {text-align:center; margin-top:20px;}
+    .btn-green:hover {background:#219150;}
+    .btn-blue {background:#3498db; color:#fff;}
+    .btn-blue:hover {background:#2c80b7;}
+    .btn-orange {background:#f39c12; color:#fff;}
+    .btn-orange:hover {background:#d68a0f;}
+    .btn-red {background:#e74c3c; color:#fff;}
+    .btn-red:hover {background:#c0392b;}
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    }
+
+    th, td {
+      padding: 10px 8px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #f4f6f7;
+      color: #333;
+      font-weight: 700;
+    }
+
+    .status-gray {background:#95a5a6; color:#fff; padding:4px 10px; border-radius:20px;}
+    .status-green {background:#2ecc71; color:#fff; padding:4px 10px; border-radius:20px;}
+    .status-red {background:#e74c3c; color:#fff; padding:4px 10px; border-radius:20px;}
+
+    .actions form {display:inline;}
+    .actions button {margin: 2px 3px;}
+
+    .back-btn {
+      display: inline-block;
+      background: #1e8449;
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .back-btn:hover {background:#166f3d;}
+
+    .center {text-align: center; margin-top: 25px;}
   </style>
 </head>
 <body>
-  <h1>📦 Gestion des dotations</h1>
+  <h1>Gestion des dotations</h1>
 
+  <!-- ✅ Formulaire ajout -->
   <form class="form-add" method="POST" action="{{ url_for('add_dotation') }}">
     <h3>Ajouter une dotation</h3>
     <input name="nom" placeholder="Nom" required>
@@ -34,11 +128,12 @@
     <input type="email" name="email" placeholder="Email" required>
     <input name="ipad" placeholder="N° série iPad">
     <input name="badge" placeholder="N° badge café">
-    <input type="date" name="date_remise" placeholder="Date remise">
+    <input type="date" name="date_remise">
     <input name="commentaire" placeholder="Commentaire">
-    <button type="submit" class="btn btn-green">Ajouter</button>
+    <button type="submit" class="btn-green">+ Ajouter</button>
   </form>
 
+  <!-- ✅ Tableau principal -->
   <table>
     <tr>
       <th>Nom</th>
@@ -51,6 +146,7 @@
       <th>Commentaire</th>
       <th>Actions</th>
     </tr>
+
     {% for d in dotations %}
     <tr>
       <td>{{ d.nom }}</td>
@@ -60,26 +156,25 @@
       <td>{{ d.badge }}</td>
       <td>{{ d.date_remise }}</td>
       <td>
-        {% if d.statut == "Dotation à distribuer" %}
-          <span class="status-gray">{{ d.statut }}</span>
-        {% elif d.statut == "Dotation distribuée" or d.statut == "Dotation restituée" %}
-          <span class="status-green">{{ d.statut }}</span>
-        {% elif d.statut == "Dotation non restituée" %}
-          <span class="status-red">{{ d.statut }}</span>
-        {% else %}
-          {{ d.statut }}
-        {% endif %}
+        <form method="POST" action="{{ url_for('changer_statut', id=d.id) }}">
+          <select name="statut" onchange="this.form.submit()">
+            <option value="Dotation à distribuer" {% if d.statut=='Dotation à distribuer' %}selected{% endif %}>À distribuer</option>
+            <option value="Dotation distribuée" {% if d.statut=='Dotation distribuée' %}selected{% endif %}>Distribuée</option>
+            <option value="Dotation non restituée" {% if d.statut=='Dotation non restituée' %}selected{% endif %}>Non restituée</option>
+            <option value="Dotation restituée" {% if d.statut=='Dotation restituée' %}selected{% endif %}>Restituée</option>
+          </select>
+        </form>
       </td>
       <td>{{ d.commentaire }}</td>
-      <td>
-        <form class="inline" method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}">
-          <button class="btn btn-mail" title="Rupture de contrat"⚠️ Rupture</button>
+      <td class="actions">
+        <form method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}">
+          <button class="btn-orange" title="Rupture contrat">⚠️ Rupture</button>
         </form>
-        <form class="inline" method="POST" action="{{ url_for('badge_fin', id=d.id) }}">
-          <button class="btn btn-mail" title="Fin d'étude">🎓 Badge</button>
+        <form method="POST" action="{{ url_for('badge_fin', id=d.id) }}">
+          <button class="btn-orange" title="Fin d'études">🎓 Badge</button>
         </form>
-        <form class="inline" method="POST" action="{{ url_for('delete_dotation', id=d.id) }}">
-          <button class="btn btn-del">🗑️</button>
+        <form method="POST" action="{{ url_for('delete_dotation', id=d.id) }}">
+          <button class="btn-red" title="Supprimer">🗑️</button>
         </form>
       </td>
     </tr>
@@ -87,7 +182,7 @@
   </table>
 
   <div class="center">
-    <a href="{{ url_for('index') }}" class="btn btn-edit">⬅️ Retour à l'accueil</a>
+    <a href="{{ url_for('index') }}" class="back-btn">⬅ Retour à l'accueil</a>
   </div>
 </body>
 </html>

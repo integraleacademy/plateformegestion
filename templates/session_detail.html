@@ -5,6 +5,38 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 25px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.1);
+      align-items: center;
+    }
+    .filter-bar select, .filter-bar input {
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .filter-bar input {
+      flex: 1;
+    }
+    .status-text {
+      font-size: 13px;
+      color: #555;
+      margin-top: 4px;
+      margin-left: 4px;
+    }
+    .step.late .status-text { color: #c0392b; }
+    .step.on_time .status-text { color: #2980b9; }
+    .step { transition: all 0.3s ease; }
+    .hidden { display: none !important; }
+  </style>
 </head>
 <body>
 <header class="topbar">
@@ -47,13 +79,24 @@
 
     {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
 
-    <div class="steps">
+    <!-- ✅ Barre de recherche et de filtrage -->
+    <div class="filter-bar">
+      <label for="filterSelect"><strong>Afficher :</strong></label>
+      <select id="filterSelect">
+        <option value="all">Toutes les échéances</option>
+        <option value="done">✅ Validées uniquement</option>
+        <option value="notdone">⏳ Non validées uniquement</option>
+      </select>
+      <input type="text" id="searchInput" placeholder="🔍 Rechercher une échéance...">
+    </div>
+
+    <div class="steps" id="stepsContainer">
       {% for entry in sorted_steps %}
         {% set i = entry.index %}
         {% set step = entry.step %}
         {% set st = entry.st %}
         {% set date_obj = entry.deadline %}
-        <div class="step" id="step{{ i }}">
+        <div class="step" id="step{{ i }}" data-done="{{ 'true' if step.done else 'false' }}" data-name="{{ step.name|lower }}">
           <div class="step-head">
             {% if step.done %}
               <div class="status-chip ok">✅ Étape validée</div>
@@ -94,7 +137,6 @@
         </div>
       {% endfor %}
     </div>
-
   {% endif %}
 </main>
 
@@ -103,18 +145,34 @@
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
   window.scrollTo(0, 0);
-</script>
 
-<style>
-  .status-text {
-    font-size: 13px;
-    color: #555;
-    margin-top: 4px;
-    margin-left: 4px;
+  // === Filtrage par statut ===
+  const filterSelect = document.getElementById('filterSelect');
+  const searchInput = document.getElementById('searchInput');
+  const steps = document.querySelectorAll('.step');
+
+  function applyFilters() {
+    const filter = filterSelect.value;
+    const query = searchInput.value.toLowerCase().trim();
+
+    steps.forEach(step => {
+      const isDone = step.dataset.done === 'true';
+      const name = step.dataset.name;
+      let visible = true;
+
+      // Filtre statut
+      if (filter === 'done' && !isDone) visible = false;
+      if (filter === 'notdone' && isDone) visible = false;
+
+      // Filtre texte
+      if (query && !name.includes(query)) visible = false;
+
+      step.classList.toggle('hidden', !visible);
+    });
   }
-  .step.late .status-text { color: #c0392b; }
-  .step.on_time .status-text { color: #2980b9; }
-</style>
 
+  filterSelect.addEventListener('change', applyFilters);
+  searchInput.addEventListener('input', applyFilters);
+</script>
 </body>
 </html>

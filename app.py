@@ -630,6 +630,16 @@ def edit_dotation(id):
     flash("Dotation modifiée.", "ok")
     return redirect(url_for("dotations_home"))
 
+@app.route("/dotations/<id>/update_date", methods=["POST"])
+def update_date_remise(id):
+    data = load_dotations()
+    for d in data:
+        if d["id"] == id:
+            d["date_remise"] = request.form.get("date_remise", d["date_remise"])
+            break
+    save_dotations(data)
+    flash("Date de remise mise à jour.", "ok")
+    return redirect(url_for("dotations_home"))
 
 @app.route("/dotations/<id>/rupture", methods=["POST"])
 def rupture_contrat(id):
@@ -639,14 +649,25 @@ def rupture_contrat(id):
             d["statut"] = "Dotation non restituée"
             save_dotations(data)
             body = f"""
-            <p>Bonjour {d['prenom']},</p>
-            <p>Suite à la rupture de votre contrat, nous vous rappelons que vous devez restituer votre iPad et votre badge machine à café dans les plus brefs délais.</p>
-            <p>Merci de déposer le matériel au centre Intégrale Academy.</p>
-            <p>Cordialement,<br><b>Intégrale Academy</b></p>
+            Bonjour {d['prenom']},<br><br>
+
+            Suite à la rupture de votre contrat d’apprentissage, nous vous rappelons que vous devez restituer l’ensemble du matériel mis à disposition (iPad, chargeur et badge distributeur) dans un délai de 5 jours, conformément à la convention signée.<br><br>
+
+            Le matériel peut être déposé directement au centre Intégrale Academy (54 chemin du Carreou, 83480 Puget-sur-Argens) ou envoyé par courrier suivi à la même adresse.<br><br>
+
+            L’iPad doit être restitué en parfait état de fonctionnement et sans dégradation.<br>
+            En cas de non-restitution ou de matériel dégradé, des pénalités financières pourront être appliquées :<br>
+            – 400 € pour l’iPad<br>
+            – 20 € pour le chargeur<br>
+            – 20 € pour le badge distributeur<br><br>
+
+            Bien cordialement,<br>
+            <b>Clément VAILLANT</b><br>
+            Directeur général – Intégrale Academy
             """
-            send_email(d["email"], "Restitution du matériel - Intégrale Academy", body)
+            send_email(d["email"], "Restitution du matériel – Intégrale Academy", body)
             break
-    flash("Mail de rupture envoyé et statut mis à jour.", "ok")
+    flash("📩 Mail de rupture envoyé et statut mis à jour.", "ok")
     return redirect(url_for("dotations_home"))
 
 
@@ -655,17 +676,26 @@ def badge_fin(id):
     data = load_dotations()
     for d in data:
         if d["id"] == id:
-            d["statut"] = "Dotation non restituée"
+            d["statut"] = "Dotation restituée"
             save_dotations(data)
             body = f"""
-            <p>Bonjour {d['prenom']},</p>
-            <p>Votre formation arrive à son terme. Merci de restituer votre badge machine à café avant la fin de votre cursus.</p>
-            <p>Cordialement,<br><b>Intégrale Academy</b></p>
+            Bonjour {d['prenom']},<br><br>
+
+            Votre BTS touche à sa fin, nous vous rappelons que vous devez nous restituer le badge distributeur de boissons et snack avant de quitter l'école, conformément à la convention signée.<br><br>
+
+            Vous pouvez le déposer directement au centre Intégrale Academy (54 chemin du Carreou, 83480 Puget-sur-Argens) ou l’envoyer par courrier suivi à la même adresse.<br><br>
+
+            Nous vous remercions par avance pour votre réactivité.<br><br>
+
+            Bien cordialement,<br>
+            <b>L’équipe Intégrale Academy</b>
             """
-            send_email(d["email"], "Restitution du badge - Intégrale Academy", body)
+            send_email(d["email"], "Restitution du badge distributeur – Intégrale Academy", body)
             break
-    flash("Mail de fin d'études envoyé et statut mis à jour.", "ok")
+    flash("📩 Mail de fin d’études envoyé et statut mis à jour.", "ok")
     return redirect(url_for("dotations_home"))
+
+
 
 
 @app.route("/dotations/<id>/changer_statut", methods=["POST"])

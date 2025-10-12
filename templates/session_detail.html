@@ -36,6 +36,17 @@
     .step.on_time .status-text { color: #2980b9; }
     .step { transition: all 0.3s ease; }
     .hidden { display: none !important; }
+
+    .status-chip.upcoming {
+  background: #fff3e0;
+  color: #e67e22;
+  border: 1px solid #f0b37e;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
   </style>
 </head>
 <body>
@@ -99,15 +110,25 @@
         <div class="step" id="step{{ i }}" data-done="{{ 'true' if step.done else 'false' }}" data-name="{{ step.name|lower }}">
           <div class="step-head">
             {% if step.done %}
-              <div class="status-chip ok">✅ Étape validée</div>
-            {% else %}
-              <div class="status-chip {{ 'ok' if st.status=='on_time' else ('late' if st.status=='late' else 'na') }}">
-                {% if st.status=='on_time' %}À temps{% elif st.status=='late' %}⚠️ Étape en retard{% else %}—{% endif %}
-              </div>
-            {% endif %}
-            {% if st.deadline %}
-              <div class="deadline">Échéance : {{ st.deadline|datefr }}</div>
-            {% endif %}
+  <div class="status-chip ok">✅ Étape validée</div>
+{% else %}
+  <div class="status-chip 
+      {% if st.status == 'on_time' %}ok
+      {% elif st.status == 'upcoming' %}upcoming
+      {% elif st.status == 'late' %}late
+      {% else %}na{% endif %}">
+    {% if st.status == 'on_time' %}
+      🟢 À temps
+    {% elif st.status == 'upcoming' %}
+      🟠 À venir
+    {% elif st.status == 'late' %}
+      🔴 En retard
+    {% else %}
+      —
+    {% endif %}
+  </div>
+{% endif %}
+
           </div>
 
           <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
@@ -122,15 +143,19 @@
             <div class="done-info">Étape validée le {{ step.done_at }}</div>
           {% else %}
             {% if date_obj %}
-              {% set diff = (date_obj - now()).days %}
+              {% set diff = (date_obj.date() - now().date()).days %}
+
               <div class="status-text">
                 {% if diff < 0 %}
-                  ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
-                {% elif diff == 0 %}
-                  📅 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
-                {% else %}
-                  ⏳ À venir dans {{ diff }} jour{% if diff > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
-                {% endif %}
+  ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
+{% elif diff == 0 %}
+  🟢 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
+{% elif diff == 1 %}
+  🕓 À venir demain ({{ date_obj.strftime("%d/%m/%Y") }})
+{% else %}
+  ⏳ À venir dans {{ diff }} jours ({{ date_obj.strftime("%d/%m/%Y") }})
+{% endif %}
+
               </div>
             {% endif %}
           {% endif %}
@@ -194,3 +219,4 @@
 </script>
 </body>
 </html>
+

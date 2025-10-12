@@ -206,7 +206,7 @@
     {% for s in sorted_active %}
       {% set color = s.color %}
       {% set date_debut = s.date_debut|datetime %}
-      {% set diff = (date_debut - now()).days %}
+      {% set diff = (date_debut.date() - now().date()).days %}
       {% if not next_session_found and diff > 0 %}
         {% set is_next = true %}
         {% set next_session_found = true %}

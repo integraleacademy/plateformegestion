@@ -146,11 +146,12 @@
   document.getElementById('year').textContent = new Date().getFullYear();
   window.scrollTo(0, 0);
 
-  // === Filtrage par statut ===
   const filterSelect = document.getElementById('filterSelect');
   const searchInput = document.getElementById('searchInput');
   const steps = document.querySelectorAll('.step');
+  const STORAGE_KEY = "sessionFilter_{{ s.id }}";
 
+  // === Applique les filtres ===
   function applyFilters() {
     const filter = filterSelect.value;
     const query = searchInput.value.toLowerCase().trim();
@@ -169,10 +170,27 @@
 
       step.classList.toggle('hidden', !visible);
     });
+
+    // Sauvegarde les filtres actuels
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
+  }
+
+  // === Restaure les filtres précédents ===
+  function restoreFilters() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const { filter, query } = JSON.parse(saved);
+      if (filter) filterSelect.value = filter;
+      if (query) searchInput.value = query;
+      applyFilters();
+    } catch(e) {}
   }
 
   filterSelect.addEventListener('change', applyFilters);
   searchInput.addEventListener('input', applyFilters);
+
+  restoreFilters();
 </script>
 </body>
 </html>

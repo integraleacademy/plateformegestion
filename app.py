@@ -4,8 +4,14 @@ from flask import Flask, render_template, request, redirect, url_for, abort, fla
 import smtplib
 from email.mime.text import MIMEText
 
+# --- 🔧 Forcer le fuseau horaire français ---
+os.environ['TZ'] = 'Europe/Paris'
+import time
+time.tzset()
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
+
 
 # --- Filtres Jinja ---
 def format_date(value):
@@ -514,4 +520,11 @@ def data_sessions_json():
         return json.dumps({"retards": -1, "error": str(e)}), 500, {
             "Access-Control-Allow-Origin": "*"
         }
+
+@app.route("/tz-test")
+def tz_test():
+    from datetime import datetime
+    import time
+    return f"Serveur : {datetime.now()}<br>Heure système : {time.tzname}"
+
 

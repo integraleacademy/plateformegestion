@@ -169,71 +169,89 @@
 
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
 
+
 <script>
-
   document.getElementById('year').textContent = new Date().getFullYear();
-window.scrollTo(0, 0);
-
+  window.scrollTo(0, 0);
 
   // === Stockage temporaire pour les filtres ===
-// (disparaît dès qu'on quitte la page)
-const STORAGE_KEY = "sessionFilter_{{ s.id }}";
-const storage = sessionStorage;
+  const STORAGE_KEY = "sessionFilter_{{ s.id }}";
+  const storage = sessionStorage;
 
-const filterSelect = document.getElementById('filterSelect');
-const searchInput = document.getElementById('searchInput');
-const steps = document.querySelectorAll('.step');
+  const filterSelect = document.getElementById('filterSelect');
+  const searchInput  = document.getElementById('searchInput');
+  const steps        = document.querySelectorAll('.step');
 
-// === Applique les filtres ===
-function applyFilters() {
-  const filter = filterSelect.value;
-  const query = searchInput.value.toLowerCase().trim();
+  // === Applique les filtres ===
+  function applyFilters() {
+    const filter = filterSelect.value;
+    const query  = searchInput.value.toLowerCase().trim();
 
-  steps.forEach(step => {
-    const isDone = step.dataset.done === 'true';
-    const name = step.dataset.name;
-    let visible = true;
+    steps.forEach(step => {
+      const isDone = step.dataset.done === 'true';
+      const name   = step.dataset.name;
+      let visible  = true;
 
-    // Filtre statut
-    if (filter === 'done' && !isDone) visible = false;
-    if (filter === 'notdone' && isDone) visible = false;
+      if (filter === 'done' && !isDone)  visible = false;
+      if (filter === 'notdone' && isDone) visible = false;
+      if (query && !name.includes(query)) visible = false;
 
-    // Filtre texte
-    if (query && !name.includes(query)) visible = false;
+      step.classList.toggle('hidden', !visible);
+    });
 
-    step.classList.toggle('hidden', !visible);
+    storage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
+  }
+
+  // === Restaure les filtres (pendant la session de navigation uniquement) ===
+  function restoreFilters() {
+    const saved = storage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const { filter, query } = JSON.parse(saved);
+      if (filter) filterSelect.value = filter;
+      if (query)  searchInput.value  = query;
+      applyFilters();
+    } catch(e) {}
+  }
+
+  // Événements UI
+  filterSelect.addEventListener('change', applyFilters);
+  searchInput.addEventListener('input', applyFilters);
+
+  // Restauration (une seule fois)
+  restoreFilters();
+
+  // Nettoyage si clic sur "← Retour"
+  document.querySelector('.back')?.addEventListener('click', () => {
+    storage.removeItem(STORAGE_KEY);
   });
 
-  // Sauvegarde les filtres tant qu'on reste sur la page
-  storage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
-}
+  // Nettoyage quand on quitte la page (évite bfcache qui garde l'état)
+  window.addEventListener('pagehide', () => {
+    storage.removeItem(STORAGE_KEY);
+  });
 
-// === Restaure les filtres uniquement pendant la session de navigation ===
-function restoreFilters() {
-  const saved = storage.getItem(STORAGE_KEY);
-  if (!saved) return;
-  try {
-    const { filter, query } = JSON.parse(saved);
-    if (filter) filterSelect.value = filter;
-    if (query) searchInput.value = query;
+  // Si on revient via le bouton retour (bfcache), on remet à zéro
+  window.addEventListener('pageshow', (e) => {
+    const nav = performance.getEntriesByType('navigation')[0];
+    const backForward = nav?.type === 'back_forward';
+    if (e.persisted || backForward) {
+      storage.removeItem(STORAGE_KEY);
+      filterSelect.value = "all";
+      searchInput.value  = "";
+      applyFilters();
+    }
+  });
+
+  // Bouton réinitialiser
+  document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+    filterSelect.value = "all";
+    searchInput.value  = "";
     applyFilters();
-  } catch(e) {}
-}
-
-// === Écouteurs ===
-filterSelect.addEventListener('change', applyFilters);
-searchInput.addEventListener('input', applyFilters);
-
-// === Restauration ===
-restoreFilters();
-
-// === Bouton réinitialiser ===
-document.getElementById('resetFiltersBtn').addEventListener('click', () => {
-  filterSelect.value = "all";
-  searchInput.value = "";
-  applyFilters();
-  storage.removeItem(STORAGE_KEY);
-});
+    storage.removeItem(STORAGE_KEY);
+  });
 </script>
+
 </body>
 </html>
+

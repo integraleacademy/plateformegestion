@@ -86,6 +86,9 @@
       border-bottom: 1px solid #eee;
     }
 
+    tr:nth-child(even) { background-color: #fafafa; }
+
+
     th {
       background: #f4f6f7;
       color: #333;
@@ -161,20 +164,24 @@
           <button class="btn-blue" title="Mettre à jour la date">💾</button>
         </form>
       </td>
+  <td>
+  <form method="POST" action="{{ url_for('changer_statut', id=d.id) }}">
+    <select name="statut" onchange="this.form.submit()" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;">
+      <option value="Dotation à distribuer" {% if d.statut=='Dotation à distribuer' %}selected{% endif %}>À distribuer</option>
+      <option value="Dotation distribuée" {% if d.statut=='Dotation distribuée' %}selected{% endif %}>Distribuée</option>
+      <option value="Dotation non restituée" {% if d.statut=='Dotation non restituée' %}selected{% endif %}>Non restituée</option>
+      <option value="Dotation restituée" {% if d.statut=='Dotation restituée' %}selected{% endif %}>Restituée</option>
+    </select>
+  </form>
+</td>
+
       <td>
-        {% if d.statut == 'Dotation à distribuer' %}
-          <span class="status-gray">À distribuer</span>
-        {% elif d.statut == 'Dotation distribuée' %}
-          <span class="status-green">Distribuée</span>
-        {% elif d.statut == 'Dotation non restituée' %}
-          <span class="status-red">Non restituée</span>
-        {% elif d.statut == 'Dotation restituée' %}
-          <span class="status-green">Restituée</span>
-        {% else %}
-          <span>{{ d.statut }}</span>
-        {% endif %}
-      </td>
-      <td>{{ d.commentaire }}</td>
+  <form method="POST" action="{{ url_for('edit_dotation', id=d.id) }}">
+    <input name="commentaire" value="{{ d.commentaire }}" placeholder="Commentaire" style="width:120px;padding:4px 6px;">
+    <button class="btn-blue" title="Sauvegarder">💾</button>
+  </form>
+</td>
+
       <td class="actions">
         <form method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}" onsubmit="return confirmSend(this)">
           <button class="btn-green rupture" title="Rupture contrat">⚠️ Rupture</button>
@@ -182,9 +189,7 @@
         <form method="POST" action="{{ url_for('badge_fin', id=d.id) }}" onsubmit="return confirmSend(this)">
           <button class="btn-green badge" title="Fin d'études">🎓 Badge</button>
         </form>
-        <form method="POST" action="{{ url_for('edit_dotation', id=d.id) }}">
-          <button class="btn-blue" title="Modifier">✏️</button>
-        </form>
+      
         <form method="POST" action="{{ url_for('delete_dotation', id=d.id) }}" onsubmit="return confirm('Supprimer cette dotation ?')">
           <button class="btn-red" title="Supprimer">🗑️</button>
         </form>
@@ -197,13 +202,17 @@
     <a href="{{ url_for('index') }}" class="back-btn">⬅ Retour à l'accueil</a>
   </div>
 
-  <script>
-    function confirmSend(form) {
-      const btn = form.querySelector("button");
-      btn.classList.remove("btn-green");
-      btn.classList.add("btn-black");
-      return true; // laisse le POST se faire
-    }
-  </script>
+ <script>
+function confirmSend(form) {
+  const btn = form.querySelector("button");
+  btn.disabled = true;
+  btn.textContent = "📨 Envoi...";
+  btn.style.background = "#000";
+  btn.style.color = "#fff";
+  return true; // envoi du formulaire
+}
+</script>
+
 </body>
 </html>
+

@@ -539,4 +539,145 @@ def tz_test():
     import time
     return f"Serveur : {datetime.now()}<br>Heure système : {time.tzname}"
 
+# ------------------------------------------------------------
+# 📦 GESTION DES DOTATIONS
+# ------------------------------------------------------------
+
+DOTATIONS_FILE = os.path.join(DATA_DIR, "dotations.json")
+
+def load_dotations():
+    if os.path.exists(DOTATIONS_FILE):
+        try:
+            with open(DOTATIONS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+def save_dotations(data):
+    with open(DOTATIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+# ✉️ Fonction d’envoi d’email (réutilise la conf SMTP)
+def send_email(to, subject, body):
+    if not FROM_EMAIL or not EMAIL_PASSWORD:
+        print("⚠️ Email non configuré")
+        return
+    msg = MIMEText(body, "html", "utf-8")
+    msg["From"] = FROM_EMAIL
+    msg["To"] = to
+    msg["Subject"] = subject
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
+            s.starttls()
+            s.login(FROM_EMAIL, EMAIL_PASSWORD)
+            s.sendmail(FROM_EMAIL, [to], msg.as_string())
+        print(f"✅ Mail envoyé à {to}")
+    except Exception as e:
+        print("❌ Erreur envoi mail dotation :", e)
+
+
+@app.route("/dotations")
+def dotations_home():
+    data = load_dotations()
+    return render_template("dotations.html", title="Gestion des dotations", dotations=data)
+
+
+@app.route("/dotations/add", methods=["POST"])
+def add_dotation():
+    data = load_dotations()
+    item = {
+        "id": str(uuid.uuid4())[:8],
+        "nom": request.form.get("nom", "").strip(),
+        "prenom": request.form.get("prenom", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "ipad": request.form.get("ipad", "").strip(),
+        "badge": request.form.get("badge", "").strip(),
+        "date_remise": request.form.get("date_remise", "").strip(),
+        "statut": "Dotation à distribuer",
+        "commentaire": request.form.get("commentaire", "").strip(),
+    }
+    data.append(item)
+    save_dotations(data)
+    flash("Dotation ajoutée avec succès.", "ok")
+    return redirect(url_for("dotations_home"))
+
+
+@app.route("/dotations/<id>/delete", methods=["POST"])
+def delete_dotation(id):
+    data = load_dotations()
+    data = [d for d in data if d["id"] != id]
+    save_dotations(data)
+    flash("Dotation supprimée.", "ok")
+    return redirect(url_for("dotations_home"))
+
+
+@app.route("/dotations/<id>/edit", methods=["POST"])
+def edit_dotation(id):
+    data = load_dotations()
+    for d in data:
+        if d["id"] == id:
+            d["nom"] = request.form.get("nom", d["nom"])
+            d["prenom"] = request.form.get("prenom", d["prenom"])
+            d["email"] = request.form.get("email", d["email"])
+            d["ipad"] = request.form.get("ipad", d["ipad"])
+            d["badge"] = request.form.get("badge", d["badge"])
+            d["date_remise"] = request.form.get("date_remise", d["date_remise"])
+            d["commentaire"] = request.form.get("commentaire", d["commentaire"])
+            break
+    save_dotations(data)
+    flash("Dotation modifiée.", "ok")
+    return redirect(url_for("dotations_home"))
+
+
+@app.route("/dotations/<id>/rupture", methods=["POST"])
+def rupture_contrat(id):
+    data = load_dotations()
+    for d in data:
+        if d["id"] == id:
+            d["statut"] = "Dotation non restituée"
+            save_dotations(data)
+            body = f"""
+            <p>Bonjour {d['prenom']},</p>
+            <p>Suite à la rupture de votre contrat, nous vous rappelons que vous devez restituer votre iPad et votre badge machine à café dans les plus brefs délais.</p>
+            <p>Merci de déposer le matériel au centre Intégrale Academy.</p>
+            <p>Cordialement,<br><b>Intégrale Academy</b></p>
+            """
+            send_email(d["email"], "Restitution du matériel - Intégrale Academy", body)
+            break
+    flash("Mail de rupture envoyé et statut mis à jour.", "ok")
+    return redirect(url_for("dotations_home"))
+
+
+@app.route("/dotations/<id>/badge_fin", methods=["POST"])
+def badge_fin(id):
+    data = load_dotations()
+    for d in data:
+        if d["id"] == id:
+            d["statut"] = "Dotation non restituée"
+            save_dotations(data)
+            body = f"""
+            <p>Bonjour {d['prenom']},</p>
+            <p>Votre formation arrive à son terme. Merci de restituer votre badge machine à café avant la fin de votre cursus.</p>
+            <p>Cordialement,<br><b>Intégrale Academy</b></p>
+            """
+            send_email(d["email"], "Restitution du badge - Intégrale Academy", body)
+            break
+    flash("Mail de fin d'études envoyé et statut mis à jour.", "ok")
+    return redirect(url_for("dotations_home"))
+
+
+@app.route("/dotations/<id>/changer_statut", methods=["POST"])
+def changer_statut(id):
+    nouveau_statut = request.form.get("statut")
+    data = load_dotations()
+    for d in data:
+        if d["id"] == id:
+            d["statut"] = nouveau_statut
+            break
+    save_dotations(data)
+    return redirect(url_for("dotations_home"))
+
+
 

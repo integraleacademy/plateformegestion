@@ -80,6 +80,15 @@
       opacity: .8;
       color: #555;
     }
+
+    .recent-acceptes.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: left;
+  min-width: 300px;
+}
+
   </style>
 </head>
 
@@ -96,78 +105,80 @@
 
   <main class="container">
 
-    <!-- ✅ Bloc dossiers CNAPS acceptés -->
-    <div class="recent-acceptes" id="recent-acceptes">
-      <h3>✅ Dossiers CNAPS acceptés cette semaine</h3>
-      <div id="liste-acceptes">Chargement...</div>
-    </div>
-
-    <div class="grid">
-      <!-- ✅ Assistance -->
-      <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🛟</div>
-        <div class="title">Assistance</div>
-        <div class="desc">Centre de support</div>
-        <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📤</div>
-        <div class="title">Dépôt dossiers CNAPS</div>
-        <div class="desc">Espace d'administration</div>
-        <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
-        <div class="emoji">📊</div>
-        <div class="title">Suivi des demandes CNAPS</div>
-        <div class="desc">Surveillance des statuts</div>
-        <div id="notif-suivi" class="notif empty">📊 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🎓</div>
-        <div class="title">Gestion des dossiers stagiaires</div>
-        <div class="desc">Inscriptions & pièces</div>
-        <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">🚖</div>
-        <div class="title">Examens VTC</div>
-        <div class="desc">Administration examens</div>
-        <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
-        <div class="emoji">📝</div>
-        <div class="title">Contrats d'apprentissage</div>
-        <div class="desc">Création & suivi</div>
-        <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
-      </a>
-
-      <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
-        <div class="emoji">💼</div>
-        <div class="title">Gestion des factures</div>
-        <div class="desc">Portail de facturation</div>
-        <div id="notif-factures" class="notif empty">💼 Chargement...</div>
-      </a>
-
-<a class="card" href="{{ url_for('dotations_home') }}">
-  <div class="emoji">🎁</div>
-  <div class="title">Gestion des dotations</div>
-  <div class="desc">iPad & badge café</div>
-  <div id="notif-dotations" class="notif empty">🎁 Chargement...</div>
-</a>
 
 
-      <a class="card" href="{{ url_for('sessions_home') }}">
-        <div class="emoji">📅</div>
-        <div class="title">Gestion des sessions</div>
-        <div class="desc">Paramétrage interne</div>
-        <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
-      </a>
-    </div>
+<div class="grid">
+  <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
+    <div class="emoji">🛟</div>
+    <div class="title">Assistance</div>
+    <div class="desc">Centre de support</div>
+    <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
+  </a>
+
+  <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
+    <div class="emoji">📤</div>
+    <div class="title">Dépôt dossiers CNAPS</div>
+    <div class="desc">Espace d'administration</div>
+    <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
+  </a>
+
+  <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
+    <div class="emoji">📊</div>
+    <div class="title">Suivi des demandes CNAPS</div>
+    <div class="desc">Surveillance des statuts</div>
+    <div id="notif-suivi" class="notif empty">📊 Chargement...</div>
+  </a>
+
+  <a class="card" href="https://inscriptions-akou.onrender.com/admin" target="_blank" rel="noopener">
+    <div class="emoji">🎓</div>
+    <div class="title">Gestion des dossiers stagiaires</div>
+    <div class="desc">Inscriptions & pièces</div>
+    <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
+  </a>
+
+  <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
+    <div class="emoji">🚖</div>
+    <div class="title">Examens VTC</div>
+    <div class="desc">Administration examens</div>
+    <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
+  </a>
+
+  <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
+    <div class="emoji">📝</div>
+    <div class="title">Contrats d'apprentissage</div>
+    <div class="desc">Création & suivi</div>
+    <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
+  </a>
+
+  <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
+    <div class="emoji">💼</div>
+    <div class="title">Gestion des factures</div>
+    <div class="desc">Portail de facturation</div>
+    <div id="notif-factures" class="notif empty">💼 Chargement...</div>
+  </a>
+
+  <a class="card" href="{{ url_for('dotations_home') }}">
+    <div class="emoji">🎁</div>
+    <div class="title">Gestion des dotations</div>
+    <div class="desc">iPad & badge café</div>
+    <div id="notif-dotations" class="notif empty">🎁 Chargement...</div>
+  </a>
+
+   <a class="card" href="{{ url_for('sessions_home') }}">
+    <div class="emoji">📅</div>
+    <div class="title">Gestion des sessions</div>
+    <div class="desc">Paramétrage interne</div>
+    <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
+  </a>
+
+  <!-- ✅ Bloc CNAPS acceptés intégré à côté -->
+  <div class="card recent-acceptes" id="recent-acceptes" style="padding:15px; text-align:left;">
+    <h3>✅ Dossiers CNAPS acceptés cette semaine</h3>
+    <div id="liste-acceptes">Chargement...</div>
+  </div>
+</div> <!-- ← fermeture de la grille -->
+
+
 
 <h2 class="section-title">Applications externes</h2>
 <div class="grid">

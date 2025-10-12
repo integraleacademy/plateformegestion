@@ -185,17 +185,18 @@
         </form>
       </td>
 
-      <td class="actions">
-        <form method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}" onsubmit="return confirmSend(this)">
-          <button class="btn-green rupture" title="Rupture contrat">⚠️ Rupture</button>
-        </form>
-        <form method="POST" action="{{ url_for('badge_fin', id=d.id) }}" onsubmit="return confirmSend(this)">
-          <button class="btn-green badge" title="Fin d'études">🎓 Badge</button>
-        </form>
-        <form method="POST" action="{{ url_for('delete_dotation', id=d.id) }}" onsubmit="return confirm('Supprimer cette dotation ?')">
-          <button class="btn-red" title="Supprimer">🗑️</button>
-        </form>
-      </td>
+  <td class="actions">
+  <form method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}" onsubmit="return confirmSend(this)">
+    <button class="btn-green rupture" data-action="rupture" title="Rupture contrat">⚠️ Rupture</button>
+  </form>
+  <form method="POST" action="{{ url_for('badge_fin', id=d.id) }}" onsubmit="return confirmSend(this)">
+    <button class="btn-green badge" data-action="badge" title="Fin d'études">🎓 Badge</button>
+  </form>
+  <form method="POST" action="{{ url_for('delete_dotation', id=d.id) }}" onsubmit="return confirm('Supprimer cette dotation ?')">
+    <button class="btn-red" title="Supprimer">🗑️</button>
+  </form>
+</td>
+
     </tr>
     {% endfor %}
   </table>
@@ -205,44 +206,61 @@
   </div>
 
   <!-- ✅ Script amélioré -->
-  <script>
-    // --- Conserver le bouton noir après envoi du mail
-    function confirmSend(form) {
-      const btn = form.querySelector("button");
-      const id = form.closest("tr").dataset.id;
-      btn.disabled = true;
-      btn.textContent = "📨 Envoi...";
-      btn.style.background = "#000";
-      btn.style.color = "#fff";
-      localStorage.setItem("sent_" + id, "true");
-      return true;
-    }
+ <script>
+  // --- Conserver le BON bouton noir après envoi du mail
+  function confirmSend(form) {
+    const btn = form.querySelector("button");
+    const row = form.closest("tr");
+    const id = row.dataset.id;
+    const action = btn.dataset.action; // "rupture" ou "badge"
 
-    window.addEventListener("load", () => {
-      document.querySelectorAll("tr[data-id]").forEach(row => {
-        const id = row.dataset.id;
-        if (localStorage.getItem("sent_" + id) === "true") {
-          row.querySelectorAll(".rupture, .badge").forEach(btn => {
-            btn.classList.remove("btn-green");
-            btn.classList.add("btn-black");
-            btn.disabled = true;
-          });
-        }
-      });
+    btn.disabled = true;
+    btn.textContent = "📨 Envoi...";
+    btn.style.background = "#000";
+    btn.style.color = "#fff";
 
-      // --- Coloriser les statuts selon la valeur
-      document.querySelectorAll("select[name='statut']").forEach(updateSelectColor);
+    // clé distincte par action
+    localStorage.setItem(`sent_${action}_` + id, "true");
+    return true; // laisse le POST partir
+  }
+
+  window.addEventListener("load", () => {
+    // Recolorer le/les bons boutons selon le localStorage
+    document.querySelectorAll("tr[data-id]").forEach(row => {
+      const id = row.dataset.id;
+
+      const ruptureBtn = row.querySelector("button.rupture");
+      if (ruptureBtn && localStorage.getItem(`sent_rupture_${id}`) === "true") {
+        ruptureBtn.classList.remove("btn-green");
+        ruptureBtn.classList.add("btn-black");
+        ruptureBtn.disabled = true;
+        ruptureBtn.textContent = "📨 Envoyé";
+      }
+
+      const badgeBtn = row.querySelector("button.badge");
+      if (badgeBtn && localStorage.getItem(`sent_badge_${id}`) === "true") {
+        badgeBtn.classList.remove("btn-green");
+        badgeBtn.classList.add("btn-black");
+        badgeBtn.disabled = true;
+        badgeBtn.textContent = "📨 Envoyé";
+      }
     });
 
-    // --- Couleurs dynamiques pour les statuts
-    function updateSelectColor(sel) {
-      const val = sel.value;
-      if (val.includes("à distribuer")) sel.style.background = "#95a5a6", sel.style.color = "#fff";
-      else if (val.includes("distribuée")) sel.style.background = "#2ecc71", sel.style.color = "#fff";
-      else if (val.includes("non restituée")) sel.style.background = "#e74c3c", sel.style.color = "#fff";
-      else if (val.includes("restituée")) sel.style.background = "#27ae60", sel.style.color = "#fff";
-    }
-  </script>
+    // --- Coloriser les statuts selon la valeur
+    document.querySelectorAll("select[name='statut']").forEach(updateSelectColor);
+  });
+
+  // --- Couleurs dynamiques pour les statuts
+  function updateSelectColor(sel) {
+    const val = sel.value.toLowerCase();
+    if (val.includes("à distribuer")) { sel.style.background = "#95a5a6"; sel.style.color = "#fff"; }
+    else if (val.includes("non restituée")) { sel.style.background = "#e74c3c"; sel.style.color = "#fff"; }
+    else if (val.includes("distribuée")) { sel.style.background = "#2ecc71"; sel.style.color = "#fff"; }
+    else if (val.includes("restituée")) { sel.style.background = "#27ae60"; sel.style.color = "#fff"; }
+  }
+</script>
+
 
 </body>
 </html>
+

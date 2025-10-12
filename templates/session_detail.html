@@ -99,6 +99,8 @@
         <option value="notdone">⏳ Non validées uniquement</option>
       </select>
       <input type="text" id="searchInput" placeholder="🔍 Rechercher une échéance...">
+      <button type="button" id="resetFiltersBtn">🧹 Réinitialiser</button>
+
     </div>
 
     <div class="steps" id="stepsContainer">
@@ -168,55 +170,70 @@
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
 
 <script>
+
   document.getElementById('year').textContent = new Date().getFullYear();
-  window.scrollTo(0, 0);
+window.scrollTo(0, 0);
 
-  const filterSelect = document.getElementById('filterSelect');
-  const searchInput = document.getElementById('searchInput');
-  const steps = document.querySelectorAll('.step');
-  const STORAGE_KEY = "sessionFilter_{{ s.id }}";
 
-  // === Applique les filtres ===
-  function applyFilters() {
-    const filter = filterSelect.value;
-    const query = searchInput.value.toLowerCase().trim();
+  // === Stockage temporaire pour les filtres ===
+// (disparaît dès qu'on quitte la page)
+const STORAGE_KEY = "sessionFilter_{{ s.id }}";
+const storage = sessionStorage;
 
-    steps.forEach(step => {
-      const isDone = step.dataset.done === 'true';
-      const name = step.dataset.name;
-      let visible = true;
+const filterSelect = document.getElementById('filterSelect');
+const searchInput = document.getElementById('searchInput');
+const steps = document.querySelectorAll('.step');
 
-      // Filtre statut
-      if (filter === 'done' && !isDone) visible = false;
-      if (filter === 'notdone' && isDone) visible = false;
+// === Applique les filtres ===
+function applyFilters() {
+  const filter = filterSelect.value;
+  const query = searchInput.value.toLowerCase().trim();
 
-      // Filtre texte
-      if (query && !name.includes(query)) visible = false;
+  steps.forEach(step => {
+    const isDone = step.dataset.done === 'true';
+    const name = step.dataset.name;
+    let visible = true;
 
-      step.classList.toggle('hidden', !visible);
-    });
+    // Filtre statut
+    if (filter === 'done' && !isDone) visible = false;
+    if (filter === 'notdone' && isDone) visible = false;
 
-    // Sauvegarde les filtres actuels
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
-  }
+    // Filtre texte
+    if (query && !name.includes(query)) visible = false;
 
-  // === Restaure les filtres précédents ===
-  function restoreFilters() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-    try {
-      const { filter, query } = JSON.parse(saved);
-      if (filter) filterSelect.value = filter;
-      if (query) searchInput.value = query;
-      applyFilters();
-    } catch(e) {}
-  }
+    step.classList.toggle('hidden', !visible);
+  });
 
-  filterSelect.addEventListener('change', applyFilters);
-  searchInput.addEventListener('input', applyFilters);
+  // Sauvegarde les filtres tant qu'on reste sur la page
+  storage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
+}
 
-  restoreFilters();
+// === Restaure les filtres uniquement pendant la session de navigation ===
+function restoreFilters() {
+  const saved = storage.getItem(STORAGE_KEY);
+  if (!saved) return;
+  try {
+    const { filter, query } = JSON.parse(saved);
+    if (filter) filterSelect.value = filter;
+    if (query) searchInput.value = query;
+    applyFilters();
+  } catch(e) {}
+}
+
+// === Écouteurs ===
+filterSelect.addEventListener('change', applyFilters);
+searchInput.addEventListener('input', applyFilters);
+
+// === Restauration ===
+restoreFilters();
+
+// === Bouton réinitialiser ===
+document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+  filterSelect.value = "all";
+  searchInput.value = "";
+  applyFilters();
+  storage.removeItem(STORAGE_KEY);
+});
 </script>
 </body>
 </html>
-

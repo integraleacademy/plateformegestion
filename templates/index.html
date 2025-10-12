@@ -27,13 +27,17 @@
     }
 
     /* ✅ Carte CNAPS élargie sur 3 colonnes */
-.recent-acceptes.card {
-  grid-column: span 3;
-  height: 100%; /* même hauteur que les autres */
+.recent-acceptes.card{
+  grid-column: 2 / span 3;  /* démarre en colonne 2, occupe 3 colonnes */
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
 }
+
+    .grid { align-items: stretch; }   /* force les lignes à s'aligner */
+.card { height: 100%; }           /* chaque carte remplit sa cellule */
+
 
 
 .app-logo {
@@ -67,7 +71,7 @@
       padding: 14px 18px;
       box-shadow: 0 6px 16px rgba(0,0,0,.08);
       border: 1px solid rgba(0,0,0,.06);
-      margin: 20px 0;
+      
     }
     .recent-acceptes h3 {
       margin: 0 0 8px;
@@ -90,6 +94,11 @@
       opacity: .8;
       color: #555;
     }
+
+    @media (max-width: 1200px){
+  .recent-acceptes.card{ grid-column: 1 / -1; }
+}
+
 
 
 
@@ -176,8 +185,9 @@
   </a>
 
   <!-- ✅ Bloc CNAPS acceptés intégré à côté -->
-  <div class="card recent-acceptes" id="recent-acceptes" style="padding:15px; text-align:left;">
-    <h3>✅ Dossiers CNAPS acceptés cette semaine</h3>
+  <div class="card recent-acceptes" id="recent-acceptes">
+
+    <h3>✅ Derniers dossiers CNAPS acceptés </h3>
     <div id="liste-acceptes">Chargement...</div>
   </div>
 </div> <!-- ← fermeture de la grille -->

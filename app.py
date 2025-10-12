@@ -676,17 +676,13 @@ def badge_fin(id):
     data = load_dotations()
     for d in data:
         if d["id"] == id:
-            d["statut"] = "Dotation restituée"
+            d["statut"] = "Dotation non restituée"  # ✅ au lieu de "Dotation restituée"
             save_dotations(data)
             body = f"""
             Bonjour {d['prenom']},<br><br>
-
             Votre BTS touche à sa fin, nous vous rappelons que vous devez nous restituer le badge distributeur de boissons et snack avant de quitter l'école, conformément à la convention signée.<br><br>
-
             Vous pouvez le déposer directement au centre Intégrale Academy (54 chemin du Carreou, 83480 Puget-sur-Argens) ou l’envoyer par courrier suivi à la même adresse.<br><br>
-
             Nous vous remercions par avance pour votre réactivité.<br><br>
-
             Bien cordialement,<br>
             <b>L’équipe Intégrale Academy</b>
             """
@@ -694,6 +690,7 @@ def badge_fin(id):
             break
     flash("📩 Mail de fin d’études envoyé et statut mis à jour.", "ok")
     return redirect(url_for("dotations_home"))
+
 
 
 

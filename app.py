@@ -90,9 +90,6 @@ APS_A3P_STEPS = [
     {"name":"Contrat formateur imprimé", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Saisie des candidats ADEF", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Impression des fiches CNIL", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name": "Imprimer feuilles de présence et planning", "relative_to": "start", "offset_type": "before", "days": 2},
-    {"name": "Faire signer les fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Documents examens ADEF imprimés", "relative_to": "exam", "offset_type": "before", "days": 1},
     {"name":"Fabrication badge formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Vérification dossier formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
@@ -733,7 +730,3 @@ def dotations_data():
     except Exception as e:
         print("Erreur /dotations_data.json :", e)
         return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
-
-
-
-

@@ -76,6 +76,26 @@ def find_session(data, sid):
             return s
     return None
 
+def sync_steps(session):
+    """Ajoute automatiquement les nouvelles étapes manquantes selon la formation."""
+    formation = session.get("formation")
+    if formation not in ("APS", "A3P", "SSIAP"):
+        return
+
+    # Récupère la liste actuelle des règles depuis le code
+    rules = APS_A3P_STEPS if formation in ("APS", "A3P") else SSIAP_STEPS
+    existing_names = [s["name"] for s in session.get("steps", [])]
+
+    # Pour chaque étape officielle, si elle n’existe pas encore dans la session → on l’ajoute
+    for rule in rules:
+        if rule["name"] not in existing_names:
+            session["steps"].append({
+                "name": rule["name"],
+                "done": False,
+                "done_at": None
+            })
+
+
 # -----------------------
 # Modèles d'étapes
 # -----------------------
@@ -323,6 +343,11 @@ def index():
 @app.route("/sessions")
 def sessions_home():
     data = load_sessions()
+    # 🔄 Synchronise automatiquement les étapes manquantes pour chaque session
+    for s in data["sessions"]:
+        sync_steps(s)
+    save_sessions(data)
+
     active = [s for s in data["sessions"] if not s.get("archived")]
     archived = [s for s in data["sessions"] if s.get("archived")]
     for s in data["sessions"]:
@@ -416,6 +441,12 @@ def session_detail(sid):
     session = find_session(data, sid)
     if not session:
         abort(404)
+
+    # 🔄 Synchronise cette session avant de l’afficher
+    sync_steps(session)
+    save_sessions(data)
+
+
     statuses = []
     for i in range(len(session["steps"])):
         st, dl = status_for_step(i, session)

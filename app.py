@@ -145,13 +145,23 @@ SSIAP_STEPS = [
     {"name":"Diplômes envoyés au SDIS", "relative_to":"exam", "offset_type":"after", "days":2},
     {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":30},
     {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":30},
+    
 ]
+
+GENERAL_STEPS = [
+    {"name": "Vérification des extincteurs", "fixed_date": "2026-10-15"},
+    {"name": "Contrôle des installations électriques", "fixed_date": "2026-09-10"},
+    {"name": "Vérification SSI / désenfumage", "fixed_date": "2026-08-15"},
+    {"name": "Contrôle climatisation", "fixed_date": "2026-09-10"},
+]
+
 
 FORMATION_COLORS = {
     "APS": "#1b9aaa",
     "A3P": "#2a9134",
     "SSIAP": "#c0392b",
     "DIRIGEANT": "#8e44ad",
+    "GENERAL": "#d4ac0d",
 }
 
 def default_steps_for(formation):
@@ -171,7 +181,10 @@ def _rule_for(formation, step_index):
         return APS_A3P_STEPS[step_index]
     if formation == "SSIAP":
         return SSIAP_STEPS[step_index]
+    if formation == "GENERAL":
+        return GENERAL_STEPS[step_index]
     return None
+
 
 def parse_date(date_str):
     """Accepte les formats AAAA-MM-JJ ou JJ/MM/AAAA"""
@@ -188,10 +201,17 @@ def deadline_for(step_index, session):
     rule = _rule_for(session["formation"], step_index)
     if not rule:
         return None
+
+    # ✅ Si l’étape a une date fixe → on la renvoie directement
+    if "fixed_date" in rule and rule["fixed_date"]:
+        return parse_date(rule["fixed_date"])
+
+    # Sinon on garde le comportement classique (start/exam + offset)
     base_date = parse_date(session.get("date_exam")) if rule["relative_to"] == "exam" else parse_date(session.get("date_debut"))
     if not base_date:
         return None
     return (base_date - timedelta(days=rule["days"])) if rule["offset_type"] == "before" else (base_date + timedelta(days=rule["days"]))
+
 
 def status_for_step(step_index, session, now=None):
     if now is None:

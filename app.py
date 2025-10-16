@@ -94,7 +94,6 @@ APS_A3P_STEPS = [
     {"name":"Vérification dossier formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Corriger et imprimer test de français", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Validation session ADEF", "relative_to":"start", "offset_type":"before", "days":2},
-    {"name": "Saisie entrée en formation EDOF", "relative_to": "start", "offset_type": "after", "days": 0},
     # AVANT EXAM
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
@@ -109,6 +108,7 @@ APS_A3P_STEPS = [
     {"name":"Message avis Google", "relative_to":"exam", "offset_type":"after", "days":2},
     {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":7},
     {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
+    {"name": "Saisie entrée en formation EDOF", "relative_to": "start", "offset_type": "after", "days": 0},
 ]
 
 SSIAP_STEPS = [

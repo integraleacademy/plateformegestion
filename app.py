@@ -202,6 +202,12 @@ def parse_date(date_str):
 
 def deadline_for(step_index, session):
     rule = _rule_for(session["formation"], step_index)
+
+    # ✅ Si cette étape a une date personnalisée enregistrée dans la session → priorité
+    custom_date = session["steps"][step_index].get("custom_date")
+    if custom_date:
+        return parse_date(custom_date)
+
     if not rule:
         return None
 
@@ -214,6 +220,7 @@ def deadline_for(step_index, session):
     if not base_date:
         return None
     return (base_date - timedelta(days=rule["days"])) if rule["offset_type"] == "before" else (base_date + timedelta(days=rule["days"]))
+
 
 
 def status_for_step(step_index, session, now=None):
@@ -511,7 +518,7 @@ def toggle_step(sid):
 
 @app.route("/sessions/<sid>/update_date", methods=["POST"])
 def update_step_date(sid):
-    """Permet de modifier la date fixe d'une étape dans la session GENERAL."""
+    """Permet de modifier la date fixe d'une étape dans la session GENERAL et la sauvegarder."""
     idx = int(request.form.get("index", "-1"))
     new_date = request.form.get("new_date", "").strip()
     data = load_sessions()
@@ -523,9 +530,9 @@ def update_step_date(sid):
         flash("❌ Modification de date réservée à la session GENERAL.", "error")
         return redirect(url_for("session_detail", sid=sid))
 
-    # ✅ On modifie la date fixe dans le modèle GENERAL_STEPS
     try:
-        GENERAL_STEPS[idx]["fixed_date"] = new_date
+        # ✅ On crée un champ 'custom_date' pour cette étape
+        session["steps"][idx]["custom_date"] = new_date
         save_sessions(data)
         flash(f"✅ Date mise à jour pour « {session['steps'][idx]['name']} »", "ok")
     except Exception as e:

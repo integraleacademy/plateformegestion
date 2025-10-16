@@ -509,6 +509,31 @@ def toggle_step(sid):
     save_sessions(data)
     return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")
 
+@app.route("/sessions/<sid>/update_date", methods=["POST"])
+def update_step_date(sid):
+    """Permet de modifier la date fixe d'une étape dans la session GENERAL."""
+    idx = int(request.form.get("index", "-1"))
+    new_date = request.form.get("new_date", "").strip()
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session or idx < 0 or idx >= len(session["steps"]):
+        abort(400)
+
+    if session.get("formation") != "GENERAL":
+        flash("❌ Modification de date réservée à la session GENERAL.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+
+    # ✅ On modifie la date fixe dans le modèle GENERAL_STEPS
+    try:
+        GENERAL_STEPS[idx]["fixed_date"] = new_date
+        save_sessions(data)
+        flash(f"✅ Date mise à jour pour « {session['steps'][idx]['name']} »", "ok")
+    except Exception as e:
+        flash(f"❌ Erreur modification date : {e}", "error")
+
+    return redirect(url_for("session_detail", sid=sid))
+
+
 @app.route("/sessions/<sid>/delete", methods=["POST"])
 def delete_session(sid):
     data = load_sessions()

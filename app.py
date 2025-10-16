@@ -169,9 +169,12 @@ def default_steps_for(formation):
         steps = APS_A3P_STEPS
     elif formation == "SSIAP":
         steps = SSIAP_STEPS
+    elif formation == "GENERAL":        # ✅ ajoute ceci
+        steps = GENERAL_STEPS
     else:
         steps = []
     return [{"name": s["name"], "done": False, "done_at": None} for s in steps]
+
 
 # -----------------------
 # Statuts / échéances

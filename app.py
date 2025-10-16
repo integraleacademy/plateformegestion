@@ -129,6 +129,9 @@ APS_A3P_STEPS = [
     {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":7},
     {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
     {"name": "Saisie entrée en formation EDOF", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name":"Imprimer feuilles de présence et planning", "relative_to":"start", "offset_type":"before", "days":2},
+    {"name":"Documents examens imprimés", "relative_to":"exam", "offset_type":"before", "days":1},
+    {"name": "Signature fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
 ]
 
 SSIAP_STEPS = [

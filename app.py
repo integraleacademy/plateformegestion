@@ -153,6 +153,8 @@ GENERAL_STEPS = [
     {"name": "Contrôle des installations électriques", "fixed_date": "2026-09-10"},
     {"name": "Vérification SSI", "fixed_date": "2026-08-15"},
     {"name": "Contrôle climatisation", "fixed_date": "2026-09-10"},
+    {"name": "Inscriptions examen BTS", "fixed_date": "2026-09-10"},
+    {"name": "Renouvellement agrément CNAPS", "fixed_date": "2026-09-01"},
 ]
 
 

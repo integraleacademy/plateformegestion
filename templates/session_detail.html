@@ -145,6 +145,15 @@
             <div class="done-info">Étape validée le {{ step.done_at }}</div>
           {% else %}
             {% if date_obj %}
+          {% if s.formation == 'GENERAL' %}
+  <form method="post" action="{{ url_for('update_step_date', sid=s.id) }}" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+    <input type="hidden" name="index" value="{{ i }}">
+    <input type="date" name="new_date" value="{{ date_obj.strftime('%Y-%m-%d') if date_obj else '' }}" 
+           style="padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;">
+    <button type="submit" style="background: #f4c45a; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer;">📝</button>
+  </form>
+{% endif %}
+
               {% set diff = (date_obj.date() - now().date()).days %}
 
               <div class="status-text">
@@ -237,3 +246,4 @@ document.getElementById('resetFiltersBtn').addEventListener('click', () => {
 </script>
 </body>
 </html>
+

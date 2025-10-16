@@ -151,7 +151,7 @@ SSIAP_STEPS = [
 GENERAL_STEPS = [
     {"name": "Vérification des extincteurs", "fixed_date": "2026-10-15"},
     {"name": "Contrôle des installations électriques", "fixed_date": "2026-09-10"},
-    {"name": "Vérification SSI / désenfumage", "fixed_date": "2026-08-15"},
+    {"name": "Vérification SSI", "fixed_date": "2026-08-15"},
     {"name": "Contrôle climatisation", "fixed_date": "2026-09-10"},
 ]
 

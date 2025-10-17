@@ -149,6 +149,13 @@
     <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
   </a>
 
+  <a class="card" href="https://inscriptionsbts.onrender.com/admin" target="_blank" rel="noopener">
+  <div class="emoji">🏫</div>
+  <div class="title">Gestion des inscriptions BTS</div>
+  <div class="desc">Pré-inscriptions à traiter</div>
+  <div id="notif-bts" class="notif empty">🏫 Chargement...</div>
+</a>
+
   <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
     <div class="emoji">🚖</div>
     <div class="title">Examens VTC</div>
@@ -367,6 +374,31 @@ async function updateDotations() {
       }
     }
 
+    // --- INSCRIPTIONS BTS ---
+async function updateBTS() {
+  const box = document.getElementById("notif-bts");
+  try {
+    const r = await fetch("https://inscriptionsbts.onrender.com/data.json");
+    if (!r.ok) throw 0;
+    const d = await r.json();
+
+    // 👉 selon le format de ton data.json côté site BTS
+    const a_traiter = d.a_traiter || d.en_attente || 0;
+
+    if (a_traiter > 0) {
+      box.className = "notif wait";
+      box.innerHTML = `🏫 ${a_traiter} pré-inscription${a_traiter>1?"s":""} à traiter`;
+    } else {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Aucune pré-inscription en attente";
+    }
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur Inscriptions BTS";
+  }
+}
+
+
     // --- VTC ---
     async function updateVtc() {
       const box = document.getElementById("notif-vtc");
@@ -462,7 +494,8 @@ async function updateDotations() {
   updateContrats();
   updateFactures();
   updateSessions();
-  updateDotations(); // ✅ AJOUT ICI
+  updateDotations();
+  updateBTS(); 
 }
 
 

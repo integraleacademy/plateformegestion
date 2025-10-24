@@ -132,6 +132,7 @@ APS_A3P_STEPS = [
     {"name":"Imprimer feuilles de présence et planning", "relative_to":"start", "offset_type":"before", "days":2},
     {"name":"Documents examens imprimés", "relative_to":"exam", "offset_type":"before", "days":1},
     {"name": "Signature fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name":"Fin de formation EDOF", "relative_to":"exam", "offset_type":"after", "days":1},
 ]
 
 SSIAP_STEPS = [

@@ -495,26 +495,41 @@ async function updateBTS() {
     // --- HÉBERGEMENT ---
 async function updateHebergement() {
   const box = document.getElementById("notif-hebergement");
+
   try {
     const r = await fetch("https://assistance-alw9.onrender.com/hebergement_data.json");
     if (!r.ok) throw 0;
 
     const d = await r.json();
-    const total = d.total || 0;
 
-    if (total > 0) {
-      box.className = "notif wait";
-      box.innerHTML = `🛏️ ${total} réservation${total>1?"s":""}`;
-    } else {
+    const total = d.total || 0;
+    const payes = d.payes || 0;
+    const non_payes = d.non_payes || 0;
+
+    // 🟢 Aucun hébergement
+    if (total === 0) {
       box.className = "notif ok";
       box.innerHTML = "✅ Aucune réservation";
+      return;
     }
+
+    // 🔴 Il y a des non payés
+    if (non_payes > 0) {
+      box.className = "notif alert";
+      box.innerHTML = `🛏️ ${non_payes} réservation${non_payes>1?"s":""} non payée${non_payes>1?"s":""}`;
+      return;
+    }
+
+    // 🟢 Tout est payé
+    box.className = "notif ok";
+    box.innerHTML = `🛏️ ${payes} réservation${payes>1?"s":""} payée${payes>1?"s":""}`;
 
   } catch {
     box.className = "notif error";
     box.innerHTML = "🔒 Erreur hébergement";
   }
 }
+
 
 
     // --- Rafraîchissements ---

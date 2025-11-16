@@ -492,7 +492,7 @@ async function updateBTS() {
       }
     }
 
-    // --- HÉBERGEMENT ---
+// --- HÉBERGEMENT ---
 async function updateHebergement() {
   const box = document.getElementById("notif-hebergement");
 
@@ -513,22 +513,25 @@ async function updateHebergement() {
       return;
     }
 
-    // 🔴 Il y a des non payés
+    // 🔴 Si il y a au moins 1 non payé
     if (non_payes > 0) {
       box.className = "notif alert";
-      box.innerHTML = `🛏️ ${non_payes} réservation${non_payes>1?"s":""} non payée${non_payes>1?"s":""}`;
+      box.innerHTML =
+        `🛏️ ${non_payes} non payée${non_payes>1?"s":""} — ${payes} payée${payes>1?"s":""}`;
       return;
     }
 
     // 🟢 Tout est payé
     box.className = "notif ok";
-    box.innerHTML = `🛏️ ${payes} réservation${payes>1?"s":""} payée${payes>1?"s":""}`;
+    box.innerHTML =
+      `🛏️ ${payes} payée${payes>1?"s":""} — 0 non payée`;
 
   } catch {
     box.className = "notif error";
     box.innerHTML = "🔒 Erreur hébergement";
   }
 }
+
 
 
 

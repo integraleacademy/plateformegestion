@@ -492,6 +492,31 @@ async function updateBTS() {
       }
     }
 
+    // --- HÉBERGEMENT ---
+async function updateHebergement() {
+  const box = document.getElementById("notif-hebergement");
+  try {
+    const r = await fetch("https://assistance-alw9.onrender.com/hebergement_data.json");
+    if (!r.ok) throw 0;
+
+    const d = await r.json();
+    const total = d.total || 0;
+
+    if (total > 0) {
+      box.className = "notif wait";
+      box.innerHTML = `🛏️ ${total} réservation${total>1?"s":""}`;
+    } else {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Aucune réservation";
+    }
+
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur hébergement";
+  }
+}
+
+
     // --- Rafraîchissements ---
     function refreshAll() {
   updateAssistance();
@@ -504,6 +529,7 @@ async function updateBTS() {
   updateSessions();
   updateDotations();
   updateBTS(); 
+  updateHebergement();
 }
 
 

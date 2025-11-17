@@ -137,21 +137,90 @@ APS_A3P_STEPS = [
 ]
 
 SSIAP_STEPS = [
-    {"name":"Nomination jury examen", "relative_to":"exam", "offset_type":"before", "days":65},
-    {"name":"Prévenir centre d’examen", "relative_to":"exam", "offset_type":"before", "days":65},
-    {"name":"Envoi convention au SDIS", "relative_to":"exam", "offset_type":"before", "days":65},
-    {"name":"Planification YPAREO", "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Contrat envoyé au formateur", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Contrat formateur imprimé", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
-    {"name":"Impression évaluation de fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
-    {"name":"Envoyer mail stagiaires attestations de formation", "relative_to":"exam", "offset_type":"after", "days":2},
-    {"name":"Message avis Google", "relative_to":"exam", "offset_type":"after", "days":2},
-    {"name":"Diplômes envoyés au SDIS", "relative_to":"exam", "offset_type":"after", "days":2},
-    {"name":"Diplômes reçus", "relative_to":"exam", "offset_type":"after", "days":30},
-    {"name":"Diplômes envoyés aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":30},
-    
+    # ============================
+    # 📌 SESSION (Article 4)
+    # ============================
+    {"name": "Formateur nommé", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Contrat formateur envoyé", "relative_to": "start", "offset_type": "before", "days": 7},
+    {"name": "Contrat formateur signé et imprimé", "relative_to": "start", "offset_type": "before", "days": 5},
+    {"name": "Nombre de candidats ≤ 12 vérifié", "relative_to": "start", "offset_type": "before", "days": 2},
+    {"name": "Préfecture avisée ouverture session", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Préfecture avisée date examen", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Convocations formation envoyées aux candidats", "relative_to": "start", "offset_type": "before", "days": 15},
+    {"name": "Test de français envoyé aux candidats", "relative_to": "start", "offset_type": "before", "days": 7},
+
+    # =======================================
+    # 📌 DOSSIER CANDIDAT (Formation)
+    # =======================================
+    {"name": "Pièce d'identité présente (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Attestation secourisme présente (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "2 photos d'identité présentes (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Certificat médical conforme présent (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Test de français présent dans dossier (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Contrat formation signé présent", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Dossiers candidats vérifiés (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+
+    # =======================================
+    # 📌 DEMANDE PRÉSIDENCE JURY SDIS (Art 8)
+    # =======================================
+    {"name": "SDIS avisé date des épreuves", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Demande : nom, fonction, qualification jury chef fournis", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Attestation engagement jury chef fournie", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Engagement établissement pour mise à disposition locaux fourni", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Planning session fourni", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Planning : nom/qualité/formateurs indiqués", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Convention de demande de présidence fournie en double", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Demande présidence envoyée en LRAR", "relative_to": "start", "offset_type": "before", "days": 65},
+
+    # =======================================
+    # 📌 DOSSIER CANDIDAT (Examen)
+    # =======================================
+    {"name": "Dossiers examen imprimés pour jury", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : pièce d'identité", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : attestation secourisme", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : certificat médical conforme", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : test de français", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : certificat de réalisation", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : PV individuel pré-rempli", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : attestation non même entreprise jury", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Dossier examen : attestation capable main courante", "relative_to": "exam", "offset_type": "before", "days": 2},
+
+    # =======================================
+    # 📌 ORGANISATION DE L'EXAMEN
+    # =======================================
+    {"name": "Jury chef de service nommé", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Lieu d'examen réservé", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Convocations examen envoyées", "relative_to": "exam", "offset_type": "before", "days": 15},
+    {"name": "Télécommandes Quizzbox vérifiées", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Logiciel Quizzbox paramétré", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "PV collectif imprimé", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Salle examen théorique préparée", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Vérification pièces d'identité (jour J)", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "PV résultats QCM imprimé ×2", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "PV individuels photocopiés ×3", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "PV collectif photocopié ×2", "relative_to": "exam", "offset_type": "after", "days": 0},
+
+    # =======================================
+    # 📌 DIPLOMES (Annexe VIII / Article 11)
+    # =======================================
+    {"name": "Diplôme : photo couleur présente", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplôme : numéros vérifiés", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplôme : signature directeur apposée", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplôme : imprimé sur papier rigide", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplômes envoyés SDIS en LRAR", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Diplômes validés par SDIS", "relative_to": "exam", "offset_type": "after", "days": 30},
+    {"name": "Diplômes distribués aux candidats", "relative_to": "exam", "offset_type": "after", "days": 35},
+    {"name": "Récépissés diplômes signés", "relative_to": "exam", "offset_type": "after", "days": 35},
+    {"name": "Diplômes référencés dans tableau Excel", "relative_to": "exam", "offset_type": "after", "days": 2},
+
+    # =======================================
+    # 📌 CLÔTURE SESSION
+    # =======================================
+    {"name": "Rapport traçabilité généré", "relative_to": "exam", "offset_type": "after", "days": 40},
+    {"name": "Rapport traçabilité envoyé préfecture", "relative_to": "exam", "offset_type": "after", "days": 40},
+    {"name": "Rapport traçabilité archivé", "relative_to": "exam", "offset_type": "after", "days": 40},
 ]
+
 
 GENERAL_STEPS = [
     {"name": "Vérification des extincteurs", "fixed_date": "2026-10-15"},

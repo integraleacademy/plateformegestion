@@ -304,6 +304,7 @@
          LISTE DES ÉTAPES
          ============================ -->
     <div class="steps" id="stepsContainer">
+      {% if s.formation == "SSIAP" %}{% set ns = namespace(session=false, dossier_formation=false, sdis=false, dossier_examen=false, organisation=false, diplomes=false, cloture=false) %}{% endif %}
       {% for entry in sorted_steps %}
         {% set i = entry.index %}
         {% set step = entry.step %}
@@ -472,6 +473,7 @@
 
 </body>
 </html>
+
 
 
 

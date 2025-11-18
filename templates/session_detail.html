@@ -168,7 +168,15 @@
         "Le rapport de traçabilité et conformité a été imprimé et archivé"
       ] %}
 
-      {% set sorted_steps = steps_with_deadlines %}
+      {% set sorted_steps = [] %}
+{% for name in SSIAP_ORDER %}
+    {% for entry in steps_with_deadlines %}
+        {% if entry.step.name == name %}
+            {% set _ = sorted_steps.append(entry) %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
 
     {% else %}
       {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
@@ -464,5 +472,6 @@
 
 </body>
 </html>
+
 
 

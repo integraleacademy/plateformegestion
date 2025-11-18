@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
   <style>
     .filter-bar {
       display: flex;
@@ -23,33 +24,20 @@
       border-radius: 6px;
       font-size: 14px;
     }
-    .filter-bar input {
-      flex: 1;
-    }
-    .status-text {
-      font-size: 13px;
-      color: #555;
-      margin-top: 4px;
-      margin-left: 4px;
-    }
+    .filter-bar input { flex: 1; }
+    .status-text { font-size: 13px; color: #555; margin-top: 4px; margin-left: 4px; }
     .step.late .status-text { color: #c0392b; }
     .step.on_time .status-text { color: #2980b9; }
-    .step { transition: all 0.3s ease; }
+    .step { transition: all .3s ease; }
     .hidden { display: none !important; }
-
     .status-chip.upcoming {
-  background: #fff3e0;
-  color: #e67e22;
-  border: 1px solid #f0b37e;
-  border-radius: 8px;
-  padding: 3px 8px;
-  font-weight: 600;
-  font-size: 13px;
-}
-
+      background:#fff3e0; color:#e67e22; border:1px solid #f0b37e;
+      border-radius:8px; padding:3px 8px; font-weight:600; font-size:13px;
+    }
   </style>
 </head>
 <body>
+
 <header class="topbar">
   <div class="brand">
     <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
@@ -66,7 +54,7 @@
 </header>
 
 <main class="container">
-  <!-- Boutons Modifier / Supprimer -->
+
   <div class="actions-bar">
     <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
       <button type="submit" class="btn edit">✏️ Modifier la session</button>
@@ -87,162 +75,272 @@
       {% set deadline = st.deadline | datetime if st.deadline else None %}
       {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
     {% endfor %}
-
     {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
 
-    <!-- ✅ Barre de recherche et de filtrage -->
     <div class="filter-bar">
-      <label for="filterSelect"><strong>Afficher :</strong></label>
+      <label><strong>Afficher :</strong></label>
       <select id="filterSelect">
-        <option value="all">Toutes les échéances</option>
-        <option value="done">✅ Validées uniquement</option>
-        <option value="notdone">⏳ Non validées uniquement</option>
+        <option value="all">Toutes</option>
+        <option value="done">Validées</option>
+        <option value="notdone">Non validées</option>
       </select>
       <input type="text" id="searchInput" placeholder="🔍 Rechercher une échéance...">
       <button type="button" id="resetFiltersBtn">🧹 Réinitialiser</button>
-
     </div>
 
-    <div class="steps" id="stepsContainer">
-      {% for entry in sorted_steps %}
-        {% set i = entry.index %}
-        {% set step = entry.step %}
-        {% set st = entry.st %}
-        {% set date_obj = entry.deadline %}
-        <div class="step" id="step{{ i }}" data-done="{{ 'true' if step.done else 'false' }}" data-name="{{ step.name|lower }}">
-          <div class="step-head">
-            {% if step.done %}
-  <div class="status-chip ok">✅ Étape validée</div>
-{% else %}
-  <div class="status-chip 
-      {% if st.status == 'on_time' %}ok
-      {% elif st.status == 'upcoming' %}upcoming
-      {% elif st.status == 'late' %}late
-      {% else %}na{% endif %}">
-    {% if st.status == 'on_time' %}
-      🟢 À temps
-    {% elif st.status == 'upcoming' %}
-      🟠 À venir
-    {% elif st.status == 'late' %}
-      🔴 En retard
-    {% else %}
-      —
-    {% endif %}
-  </div>
-{% endif %}
+    {% if s.formation == 'SSIAP' %}
 
-          </div>
+      {% set sections = {
+        "Session" : [
+          "Le formateur a été nommé (65 jours avant début de session)",
+          "Le contrat d'intervention a été envoyé au formateur (7 jours avant début de session)",
+          "Le contrat d'intervention formateur a été signé et imprimé (5 jours avant début de session)",
+          "Le nombre de candidats est de 12 maximum (2 jours avant début de session)",
+          "La préfecture a été avisée de l'ouverture de la session 2 mois avant le démarrage (65 jours)",
+          "La préfecture a été avisée de la date d'examen (65 jours)",
+          "Les convocations en formation ont été envoyées (15 jours)",
+          "Le test de français a été envoyé (7 jours)"
+        ],
 
-          <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
-            <input type="hidden" name="index" value="{{ i }}">
-            <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
-              <span class="icon">{% if step.done %}✅{% else %}✏️{% endif %}</span>
-              <span class="label">{{ step.name }}</span>
-            </button>
-          </form>
+        "Dossier candidat (formation)" : [
+          "Le dossier comporte la pièce d'identité de chaque candidat (1er jour de formation)",
+          "Le dossier comporte l'attestation de formation au secourisme de chaque candidat (1er jour de formation)",
+          "Le dossier comporte 2 photos d'identité...",
+          "Le dossier comporte le certificat médical conforme...",
+          "Le dossier comporte le test de français...",
+          "Le dossier comporte le contrat de formation signé...",
+          "Les dossiers ont été vérifiés (1er jour)"
+        ],
 
-          {% if step.done and step.done_at %}
-            <div class="done-info">Étape validée le {{ step.done_at }}</div>
-          {% else %}
-            {% if date_obj %}
-          {% if s.formation == 'GENERAL' %}
-  <form method="post" action="{{ url_for('update_step_date', sid=s.id) }}" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-    <input type="hidden" name="index" value="{{ i }}">
-    <input type="date" name="new_date" value="{{ date_obj.strftime('%Y-%m-%d') if date_obj else '' }}" 
-           style="padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;">
-    <button type="submit" style="background: #f4c45a; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer;">📝</button>
-  </form>
-{% endif %}
+        "Demande présidence de jury SDIS" : [
+          "Le SDIS a été avisé...",
+          "La demande comporte le nom et qualification...",
+          "La demande comporte l'attestation d'engagement...",
+          "L'engagement écrit du propriétaire...",
+          "Le planning est fourni...",
+          "Convention SDIS en double...",
+          "Demande SDIS envoyée en LRAR"
+        ],
 
-              {% set diff = (date_obj.date() - now().date()).days %}
+        "Dossier candidat (examen)" : [
+          "Les dossiers examen sont imprimés...",
+          "Chaque dossier examen comporte la pièce d'identité...",
+          "Attestation de secourisme...",
+          "Certificat médical...",
+          "Test de français...",
+          "Certificat de réalisation...",
+          "PV individuel pré-rempli...",
+          "Attestation entreprise...",
+          "Attestation main courante..."
+        ],
 
-              <div class="status-text">
-                {% if diff < 0 %}
-  ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
-{% elif diff == 0 %}
-  🟢 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
-{% elif diff == 1 %}
-  🕓 À venir demain ({{ date_obj.strftime("%d/%m/%Y") }})
-{% else %}
-  ⏳ À venir dans {{ diff }} jours ({{ date_obj.strftime("%d/%m/%Y") }})
-{% endif %}
+        "Organisation de l'examen" : [
+          "Jury chef nommé",
+          "Lieu d'examen réservé",
+          "Convocations envoyées",
+          "Télécommandes vérifiées",
+          "QUIZZBOX paramétré",
+          "PV collectif pré-rempli",
+          "Salle théorique préparée",
+          "Vérification des identités",
+          "PV théorique imprimé",
+          "PV individuels copiés",
+          "PV collectif copié"
+        ],
+
+        "Diplômes" : [
+          "Photo couleur ajoutée",
+          "Numéros vérifiés",
+          "Signature du directeur",
+          "Diplômes imprimés",
+          "Diplômes envoyés au SDIS",
+          "Diplômes validés par SDIS",
+          "Diplômes remis aux candidats",
+          "Récépissé signé",
+          "Traçabilité Excel faite"
+        ],
+
+        "Clôture de session" : [
+          "Rapport généré",
+          "Rapport envoyé préfecture",
+          "Rapport archivé"
+        ]
+      } %}
+
+      <div class="steps" id="stepsContainer">
+        {% for section_title, names in sections.items() %}
+
+          <h2 style="margin-top:35px;margin-bottom:10px;font-size:20px;color:#c0392b;font-weight:700;">
+            {{ section_title }}
+          </h2>
+
+          {% for name in names %}
+            {% for entry in sorted_steps if entry.step.name == name %}
+              
+              {% set i = entry.index %}
+              {% set step = entry.step %}
+              {% set st = entry.st %}
+              {% set date_obj = entry.deadline %}
+
+              <div class="step"
+                   id="step{{ i }}"
+                   data-done="{{ 'true' if step.done else 'false' }}"
+                   data-name="{{ step.name|lower }}">
+                
+                <div class="step-head">
+                  {% if step.done %}
+                    <div class="status-chip ok">✅ Étape validée</div>
+                  {% else %}
+                    <div class="status-chip 
+                        {% if st.status == 'on_time' %}ok
+                        {% elif st.status == 'upcoming' %}upcoming
+                        {% elif st.status == 'late' %}late
+                        {% else %}na{% endif %}">
+                      {% if st.status == 'on_time' %}🟢 À temps
+                      {% elif st.status == 'upcoming' %}🟠 À venir
+                      {% elif st.status == 'late' %}🔴 En retard
+                      {% else %}—{% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+
+                <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
+                  <input type="hidden" name="index" value="{{ i }}">
+                  <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
+                    {% if step.done %}✅{% else %}✏️{% endif %} {{ step.name }}
+                  </button>
+                </form>
+
+                {% if not step.done and date_obj %}
+                  {% set diff = (date_obj.date() - now().date()).days %}
+                  <div class="status-text">
+                    {% if diff < 0 %}
+                      ⚠️ Retard de {{ diff|abs }} jours ({{ date_obj.strftime('%d/%m/%Y') }})
+                    {% elif diff == 0 %}
+                      🟢 Aujourd’hui ({{ date_obj.strftime('%d/%m/%Y') }})
+                    {% elif diff == 1 %}
+                      🕓 Demain ({{ date_obj.strftime('%d/%m/%Y') }})
+                    {% else %}
+                      ⏳ Dans {{ diff }} jours ({{ date_obj.strftime('%d/%m/%Y') }})
+                    {% endif %}
+                  </div>
+                {% endif %}
 
               </div>
+
+            {% endfor %}
+          {% endfor %}
+        {% endfor %}
+      </div>
+
+    {% else %}
+
+      <div class="steps" id="stepsContainer">
+        {% for entry in sorted_steps %}
+          {% set i = entry.index %}
+          {% set step = entry.step %}
+          {% set st = entry.st %}
+          {% set date_obj = entry.deadline %}
+
+          <div class="step" id="step{{ i }}"
+               data-done="{{ 'true' if step.done else 'false' }}"
+               data-name="{{ step.name|lower }}">
+
+            <div class="step-head">
+              {% if step.done %}
+                <div class="status-chip ok">✅ Étape validée</div>
+              {% else %}
+                <div class="status-chip 
+                    {% if st.status == 'on_time' %}ok
+                    {% elif st.status == 'upcoming' %}upcoming
+                    {% elif st.status == 'late' %}late
+                    {% endif %}">
+                  {% if st.status == 'on_time' %}🟢 À temps
+                  {% elif st.status == 'upcoming' %}🟠 À venir
+                  {% elif st.status == 'late' %}🔴 En retard
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+
+            <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
+              <input type="hidden" name="index" value="{{ i }}">
+              <button type="submit" class="step-btn {% if step.done %}done{% endif %}">
+                {% if step.done %}✅{% else %}✏️{% endif %} {{ step.name }}
+              </button>
+            </form>
+
+            {% if not step.done and date_obj %}
+              {% set diff = (date_obj.date() - now().date()).days %}
+              <div class="status-text">
+                {% if diff < 0 %}
+                  ⚠️ Retard de {{ diff|abs }} jours
+                {% elif diff == 0 %}
+                  🟢 Aujourd’hui
+                {% elif diff == 1 %}
+                  🕓 Demain
+                {% else %}
+                  ⏳ Dans {{ diff }} jours
+                {% endif %}
+                ({{ date_obj.strftime("%d/%m/%Y") }})
+              </div>
             {% endif %}
-          {% endif %}
-        </div>
-      {% endfor %}
-    </div>
+
+          </div>
+        {% endfor %}
+      </div>
+
+    {% endif %}
+
   {% endif %}
 </main>
 
 <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
 
 <script>
+document.getElementById("year").textContent = new Date().getFullYear();
 
-  document.getElementById('year').textContent = new Date().getFullYear();
-window.scrollTo(0, 0);
-
-
-  // === Stockage temporaire pour les filtres ===
-// (disparaît dès qu'on quitte la page)
 const STORAGE_KEY = "sessionFilter_{{ s.id }}";
 const storage = sessionStorage;
+const filterSelect = document.getElementById("filterSelect");
+const searchInput = document.getElementById("searchInput");
+const steps = document.querySelectorAll(".step");
 
-const filterSelect = document.getElementById('filterSelect');
-const searchInput = document.getElementById('searchInput');
-const steps = document.querySelectorAll('.step');
-
-// === Applique les filtres ===
 function applyFilters() {
   const filter = filterSelect.value;
   const query = searchInput.value.toLowerCase().trim();
-
   steps.forEach(step => {
-    const isDone = step.dataset.done === 'true';
+    const isDone = step.dataset.done === "true";
     const name = step.dataset.name;
     let visible = true;
-
-    // Filtre statut
-    if (filter === 'done' && !isDone) visible = false;
-    if (filter === 'notdone' && isDone) visible = false;
-
-    // Filtre texte
+    if (filter === "done" && !isDone) visible = false;
+    if (filter === "notdone" && isDone) visible = false;
     if (query && !name.includes(query)) visible = false;
-
-    step.classList.toggle('hidden', !visible);
+    step.classList.toggle("hidden", !visible);
   });
-
-  // Sauvegarde les filtres tant qu'on reste sur la page
   storage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
 }
 
-// === Restaure les filtres uniquement pendant la session de navigation ===
 function restoreFilters() {
   const saved = storage.getItem(STORAGE_KEY);
   if (!saved) return;
-  try {
-    const { filter, query } = JSON.parse(saved);
-    if (filter) filterSelect.value = filter;
-    if (query) searchInput.value = query;
-    applyFilters();
-  } catch(e) {}
+  const { filter, query } = JSON.parse(saved);
+  if (filter) filterSelect.value = filter;
+  if (query) searchInput.value = query;
+  applyFilters();
 }
 
-// === Écouteurs ===
-filterSelect.addEventListener('change', applyFilters);
-searchInput.addEventListener('input', applyFilters);
-
-// === Restauration ===
-restoreFilters();
-
-// === Bouton réinitialiser ===
-document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+filterSelect.addEventListener("change", applyFilters);
+searchInput.addEventListener("input", applyFilters);
+document.getElementById("resetFiltersBtn").addEventListener("click", () => {
   filterSelect.value = "all";
   searchInput.value = "";
-  applyFilters();
   storage.removeItem(STORAGE_KEY);
+  applyFilters();
 });
+
+restoreFilters();
 </script>
+
 </body>
 </html>

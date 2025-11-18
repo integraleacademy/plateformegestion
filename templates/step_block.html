@@ -1,0 +1,53 @@
+<div class="step" id="step{{ i }}" 
+     data-done="{{ 'true' if entry.step.done else 'false' }}"
+     data-name="{{ entry.step.name|lower }}">
+
+  <div class="step-head">
+    {% if entry.step.done %}
+      <div class="status-chip ok">✅ Étape validée</div>
+    {% else %}
+      <div class="status-chip 
+           {% if entry.st.status == 'on_time' %}ok
+           {% elif entry.st.status == 'upcoming' %}upcoming
+           {% elif entry.st.status == 'late' %}late
+           {% else %}na{% endif %}">
+        {% if entry.st.status == 'on_time' %}
+          🟢 À temps
+        {% elif entry.st.status == 'upcoming' %}
+          🟠 À venir
+        {% elif entry.st.status == 'late' %}
+          🔴 En retard
+        {% else %}
+          —
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('toggle_step', sid=s.id) }}#step{{ i }}">
+    <input type="hidden" name="index" value="{{ i }}">
+    <button type="submit" class="step-btn {% if entry.step.done %}done{% endif %}">
+      <span class="icon">{% if entry.step.done %}✅{% else %}✏️{% endif %}</span>
+      <span class="label">{{ entry.step.name }}</span>
+    </button>
+  </form>
+
+  {% if entry.step.done and entry.step.done_at %}
+    <div class="done-info">Étape validée le {{ entry.step.done_at }}</div>
+  {% else %}
+    {% if entry.deadline %}
+      {% set diff = (entry.deadline.date() - now().date()).days %}
+      <div class="status-text">
+        {% if diff < 0 %}
+          ⚠️ Retard de {{ diff|abs }} jours ({{ entry.deadline.strftime('%d/%m/%Y') }})
+        {% elif diff == 0 %}
+          🟢 Aujourd’hui ({{ entry.deadline.strftime('%d/%m/%Y') }})
+        {% elif diff == 1 %}
+          🕓 Demain ({{ entry.deadline.strftime('%d/%m/%Y') }})
+        {% else %}
+          ⏳ Dans {{ diff }} jours ({{ entry.deadline.strftime('%d/%m/%Y') }})
+        {% endif %}
+      </div>
+    {% endif %}
+  {% endif %}
+</div>

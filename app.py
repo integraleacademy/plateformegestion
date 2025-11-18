@@ -137,88 +137,89 @@ APS_A3P_STEPS = [
 ]
 
 SSIAP_STEPS = [
+
     # ============================
-    # 📌 SESSION (Article 4)
+    # 📌 SESSION — Article 4
     # ============================
-    {"name": "Formateur nommé", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Contrat formateur envoyé", "relative_to": "start", "offset_type": "before", "days": 7},
-    {"name": "Contrat formateur signé et imprimé", "relative_to": "start", "offset_type": "before", "days": 5},
-    {"name": "Nombre de candidats ≤ 12 vérifié", "relative_to": "start", "offset_type": "before", "days": 2},
-    {"name": "Préfecture avisée ouverture session", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Préfecture avisée date examen", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Convocations formation envoyées aux candidats", "relative_to": "start", "offset_type": "before", "days": 15},
-    {"name": "Test de français envoyé aux candidats", "relative_to": "start", "offset_type": "before", "days": 7},
+    {"name": "Le formateur a été nommé (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Le contrat d'intervention a été envoyé au formateur (7 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 7},
+    {"name": "Le contrat d'intervention formateur a été signé et imprimé (5 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 5},
+    {"name": "Le nombre de candidats est de 12 maximum (2 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 2},
+    {"name": "La préfecture a été avisée de l'ouverture de la session 2 mois avant le démarrage (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "La préfecture a été avisée de la date d'examen 2 mois avant le démarrage (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Les convocations en formation ont été envoyées aux candidats (15 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 15},
+    {"name": "Le test de français a été envoyé à tous les candidats (7 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 7},
 
     # =======================================
-    # 📌 DOSSIER CANDIDAT (Formation)
+    # 📌 DOSSIER CANDIDAT (formation)
     # =======================================
-    {"name": "Pièce d'identité présente (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Attestation secourisme présente (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "2 photos d'identité présentes (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Certificat médical conforme présent (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Test de français présent dans dossier (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Contrat formation signé présent", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Dossiers candidats vérifiés (formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Le dossier comporte la pièce d'identité de chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Le dossier comporte l'attestation de formation au secourisme de chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Le dossier comporte 2 photos d'identité (1 archive, 1 diplôme) pour chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Le dossier comporte le certificat médical conforme à l'Annexe VII de l'arrêté du 2 mai 2005 modifié de chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Le dossier comporte une copie du test de français réalisé par chaque candidat en amont de la formation (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Le dossier comporte le contrat de formation signé par chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
+    {"name": "Les dossiers de chaque candidat ont été vérifiés avant le démarrage de la session (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
 
     # =======================================
     # 📌 DEMANDE PRÉSIDENCE JURY SDIS (Art 8)
     # =======================================
-    {"name": "SDIS avisé date des épreuves", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Demande : nom, fonction, qualification jury chef fournis", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Attestation engagement jury chef fournie", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Engagement établissement pour mise à disposition locaux fourni", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Planning session fourni", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Planning : nom/qualité/formateurs indiqués", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Convention de demande de présidence fournie en double", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Demande présidence envoyée en LRAR", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Le SDIS a été avisé de la date d'organisation des épreuves (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "La demande comporte le nom, la fonction et la qualification du jury chef de service incendie (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "La demande comporte l'attestation d'engagement (accord) du jury chef de service incendie (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "L'engagement écrit, du propriétaire ou de l'exploitant de l'établissement, de mettre à disposition les locaux et d'autoriser la manipulation des installations techniques nécessaires au déroulement de l'épreuve pratique est fournit (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Le planning de la session est fournit (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Sur le planning le nom, la qualité, la fonction et les qualifications des formateurs sont indiqués (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "La convention de demande de présidence jury SDIS en fournit en double exemplaire (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "La demande de présidence de jury SDIS a été envoyé en LRAR (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
 
     # =======================================
-    # 📌 DOSSIER CANDIDAT (Examen)
+    # 📌 DOSSIER CANDIDAT (examen)
     # =======================================
-    {"name": "Dossiers examen imprimés pour jury", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : pièce d'identité", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : attestation secourisme", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : certificat médical conforme", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : test de français", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : certificat de réalisation", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : PV individuel pré-rempli", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : attestation non même entreprise jury", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Dossier examen : attestation capable main courante", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Les dossiers examen des candidats sont imprimés pour les membres du jury (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte la pièce d'identité du candidat (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte l'attestation de formation au secourisme (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte le certificat médical conforme à l'Annexe VII de l'arrêté du 2 mai 2005 modifié (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte le test de français réalisé par le candidat en amont de la formation (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte le certificat de réalisation de la formation (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte le PV d'examen individuel pré-rempli (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte une attestation du directeur certifiant que les candidats ne travaillent pas dans la même entreprise que le jury (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Chaque dossier examen comporte une attestation du directeur certifiant que les candidats sont capables d'écrire une main courante (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
 
     # =======================================
-    # 📌 ORGANISATION DE L'EXAMEN
+    # 📌 ORGANISATION DE L’EXAMEN
     # =======================================
-    {"name": "Jury chef de service nommé", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Lieu d'examen réservé", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Convocations examen envoyées", "relative_to": "exam", "offset_type": "before", "days": 15},
-    {"name": "Télécommandes Quizzbox vérifiées", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Logiciel Quizzbox paramétré", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "PV collectif imprimé", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Salle examen théorique préparée", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Vérification pièces d'identité (jour J)", "relative_to": "exam", "offset_type": "after", "days": 0},
-    {"name": "PV résultats QCM imprimé ×2", "relative_to": "exam", "offset_type": "after", "days": 0},
-    {"name": "PV individuels photocopiés ×3", "relative_to": "exam", "offset_type": "after", "days": 0},
-    {"name": "PV collectif photocopié ×2", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "Le jury chef de service de sécurité incendie a été nommé (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Le lieu d'examen (pratique) a été réservé (65 jours avant début de session)", "relative_to": "start", "offset_type": "before", "days": 65},
+    {"name": "Les convocations à l'examen ont été envoyées aux candidats (15 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 15},
+    {"name": "Les télécommandes QUIZZBOX ont été vérifiées en vue de l'examen (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Le logiciel QUIZZBOX a été paramétré pour l'examen (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Le procès verbal collectif a été pré-rempli et imprimé (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "La salle d'examen théorique a été préparée et vérifiée (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
+    {"name": "Les pièces d'identité des candidats ont été vérifié par le jury (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "Le PV de résultats examen théorique (QCM Quizzbox) a été imprimé en double exemplaire : SDIS et archives (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "A l'issue de l'examen les PV d'examen individuels ont été photocopiés en triples exemplaires : SDIS, candidats et archives (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
+    {"name": "A l'issue de l'examen le PV d'examen collectif a été photocopié en doubles exemplaires : SDIS et archives (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
 
     # =======================================
-    # 📌 DIPLOMES (Annexe VIII / Article 11)
+    # 📌 DIPLÔMES — Annexe VIII / Article 11
     # =======================================
-    {"name": "Diplôme : photo couleur présente", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplôme : numéros vérifiés", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplôme : signature directeur apposée", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplôme : imprimé sur papier rigide", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplômes envoyés SDIS en LRAR", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Diplômes validés par SDIS", "relative_to": "exam", "offset_type": "after", "days": 30},
-    {"name": "Diplômes distribués aux candidats", "relative_to": "exam", "offset_type": "after", "days": 35},
-    {"name": "Récépissés diplômes signés", "relative_to": "exam", "offset_type": "after", "days": 35},
-    {"name": "Diplômes référencés dans tableau Excel", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Chaque diplôme comporte une photographie couleur dans l'angle droit (2 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Les numéros de diplômes ont été vérifiés (2 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "La signature du directeur du centre de formation agréé est apposée dans l'angle inférieur gauche (2 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Les diplômes ont été imprimé sur du papier rigide 180g (2 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Les diplômes ont été envoyés au SDIS en LRAR (2 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
+    {"name": "Les diplômes ont été validé par le SDIS (30 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 30},
+    {"name": "Les diplômes ont été distribués aux candidats (35 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 35},
+    {"name": "Les candidats ont signé le récépissé de délivrance, preuve de remise du diplôme (35 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 35},
+    {"name": "Les diplômes sont référencés dans un tableau Excel pour assurer la traçabilité (2 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
 
     # =======================================
-    # 📌 CLÔTURE SESSION
+    # 📌 CLÔTURE DE SESSION
     # =======================================
-    {"name": "Rapport traçabilité généré", "relative_to": "exam", "offset_type": "after", "days": 40},
-    {"name": "Rapport traçabilité envoyé préfecture", "relative_to": "exam", "offset_type": "after", "days": 40},
-    {"name": "Rapport traçabilité archivé", "relative_to": "exam", "offset_type": "after", "days": 40},
+    {"name": "Le rapport de traçabilité et de conformité a été généré (40 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 40},
+    {"name": "Le rapport de traçabilité et de conformité a été envoyé par mail à la préfecture (40 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 40},
+    {"name": "Le rapport de traçabilité et de conformité a été imprimé et archivé (40 jours après l'examen)", "relative_to": "exam", "offset_type": "after", "days": 40},
 ]
 
 

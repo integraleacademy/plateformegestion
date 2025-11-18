@@ -80,7 +80,6 @@
 
   <div style="background:red;color:white;padding:5px;">VERSION TEST</div>
 
-
   <div class="actions-bar">
     <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
       <button type="submit" class="btn edit">✏️ Modifier la session</button>
@@ -94,6 +93,9 @@
     <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
   {% else %}
 
+    {# --------------------------
+       Préparation des steps
+       -------------------------- #}
     {% set steps_with_deadlines = [] %}
     {% for i in range(s.steps|length) %}
       {% set st = statuses[i] %}
@@ -102,11 +104,12 @@
       {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
     {% endfor %}
 
+    {# =====================================================
+       TRI SPÉCIFIQUE SSIAP vs TRI PAR DATE
+       ===================================================== #}
     {% if s.formation == "SSIAP" %}
 
-      {# ============================
-         ORDRE RÉGLEMENTAIRE SSIAP
-         ============================ #}
+      {# Ordre réglementaire SSIAP #}
       {% set SSIAP_ORDER = [
         "Le formateur a été nommé",
         "Le contrat d'intervention a été envoyé au formateur",
@@ -172,37 +175,15 @@
       ] %}
 
       {% set sorted_steps = [] %}
-{% for name in SSIAP_ORDER %}
-    {% for entry in steps_with_deadlines %}
-        {% if entry.step.name == name %}
+      {% for name in SSIAP_ORDER %}
+        {% for entry in steps_with_deadlines %}
+          {% if entry.step.name == name %}
             {% set _ = sorted_steps.append(entry) %}
-        {% endif %}
-    {% endfor %}
-{% endfor %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
 
-
-    {% else %}
-      {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
-    {% endif %}
-
-      <!-- ============================
-         Barre filtres / recherche
-         ============================ -->
-    <div class="filter-bar">
-      <label for="filterSelect"><strong>Afficher :</strong></label>
-      <select id="filterSelect">
-        <option value="all">Toutes les échéances</option>
-        <option value="done">✅ Validées uniquement</option>
-        <option value="notdone">⏳ Non validées uniquement</option>
-      </select>
-      <input type="text" id="searchInput" placeholder="🔍 Rechercher une échéance...">
-      <button type="button" id="resetFiltersBtn">🧹 Réinitialiser</button>
-    </div>
-
-    <!-- ============================
-         MAPPING EXACT SSIAP (par intitulé)
-         ============================ -->
-
+      {# Macro de catégorisation SSIAP #}
       {% macro ssiap_category(name) %}
         {% if name in [
           "Le formateur a été nommé",
@@ -215,7 +196,6 @@
           "Le test de français a été envoyé à tous les candidats"
         ] %}
           session
-
         {% elif name in [
           "Le dossier comporte la pièce d'identité de chaque candidat",
           "Le dossier comporte l'attestation de formation au secourisme de chaque candidat",
@@ -226,7 +206,6 @@
           "Les dossiers des candidats ont été vérifiés avant le démarrage"
         ] %}
           dossier_formation
-
         {% elif name in [
           "Le SDIS a été avisé de la date d'organisation des épreuves",
           "La demande comporte le nom, fonction et qualification du jury chef de service incendie",
@@ -238,7 +217,6 @@
           "La demande de présidence de jury SDIS a été envoyée en LRAR"
         ] %}
           sdis
-
         {% elif name in [
           "Les dossiers examen des candidats sont imprimés pour le jury",
           "Dossier examen : pièce d'identité du candidat",
@@ -251,7 +229,6 @@
           "Dossier examen : attestation capacité rédaction main courante"
         ] %}
           dossier_examen
-
         {% elif name in [
           "Le jury chef de service incendie a été nommé",
           "Le lieu d'examen (pratique) a été réservé",
@@ -266,7 +243,6 @@
           "PV d'examen collectif photocopié (×2)"
         ] %}
           organisation
-
         {% elif name in [
           "Chaque diplôme comporte une photo couleur",
           "Les numéros de diplômes ont été vérifiés",
@@ -279,39 +255,54 @@
           "Les diplômes sont référencés dans un tableau Excel"
         ] %}
           diplomes
-
         {% elif name in [
           "Le rapport de traçabilité et conformité a été généré",
           "Le rapport de traçabilité et conformité a été envoyé à la préfecture",
           "Le rapport de traçabilité et conformité a été imprimé et archivé"
         ] %}
           cloture
-
         {% else %}
           other
         {% endif %}
       {% endmacro %}
+
+    {% else %}
+      {# Pour APS / A3P / GENERAL : tri chronologique #}
+      {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
     {% endif %}
+
+    <!-- ============================
+         Barre filtres / recherche
+         ============================ -->
+    <div class="filter-bar">
+      <label for="filterSelect"><strong>Afficher :</strong></label>
+      <select id="filterSelect">
+        <option value="all">Toutes les échéances</option>
+        <option value="done">✅ Validées uniquement</option>
+        <option value="notdone">⏳ Non validées uniquement</option>
+      </select>
+      <input type="text" id="searchInput" placeholder="🔍 Rechercher une échéance...">
+      <button type="button" id="resetFiltersBtn">🧹 Réinitialiser</button>
+    </div>
 
     <!-- ============================
          LISTE DES ÉTAPES
          ============================ -->
-   <div class="steps" id="stepsContainer">
+    <div class="steps" id="stepsContainer">
 
-  {% if s.formation == "SSIAP" %}
-    {% set ns = namespace(
-      session=false,
-      dossier_formation=false,
-      sdis=false,
-      dossier_examen=false,
-      organisation=false,
-      diplomes=false,
-      cloture=false
-    ) %}
-  {% endif %}
+      {% if s.formation == "SSIAP" %}
+        {% set ns = namespace(
+          session=false,
+          dossier_formation=false,
+          sdis=false,
+          dossier_examen=false,
+          organisation=false,
+          diplomes=false,
+          cloture=false
+        ) %}
+      {% endif %}
 
-  {% for entry in sorted_steps %}
-
+      {% for entry in sorted_steps %}
         {% set i = entry.index %}
         {% set step = entry.step %}
         {% set st = entry.st %}
@@ -319,7 +310,6 @@
 
         {% if s.formation == "SSIAP" %}
           {% set cat = ssiap_category(step.name) %}
-
           {% if cat == "session" and not ns.session %}
             <h2 class="ssiaptitle">📌 Session – Article 4</h2>
             {% set ns.session = true %}
@@ -344,7 +334,7 @@
           {% endif %}
         {% endif %}
 
-              <div class="step"
+        <div class="step"
              id="step{{ i }}"
              data-done="{{ 'true' if step.done else 'false' }}"
              data-name="{{ step.name|lower }}">
@@ -479,9 +469,3 @@
 
 </body>
 </html>
-
-
-
-
-
-

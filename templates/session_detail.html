@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
 
+  <!-- CSS global -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
   <style>
@@ -39,15 +40,6 @@
     .step { transition: all 0.3s ease; }
     .hidden { display: none !important; }
 
-    .category-title {
-      margin: 35px 0 10px;
-      font-size: 20px;
-      font-weight: 700;
-      color: #2b2b2b;
-      border-left: 6px solid #c0392b;
-      padding-left: 10px;
-    }
-
     .status-chip.upcoming {
       background: #fff3e0;
       color: #e67e22;
@@ -56,6 +48,16 @@
       padding: 3px 8px;
       font-weight: 600;
       font-size: 13px;
+    }
+
+    /* TITRES DE SECTIONS SSIAP */
+    .ssiaptitle {
+      margin: 35px 0 12px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #444;
+      padding-left: 4px;
+      border-left: 5px solid #c0392b;
     }
   </style>
 </head>
@@ -79,20 +81,24 @@
 
 <main class="container">
 
+  <!-- Boutons Modifier / Supprimer -->
   <div class="actions-bar">
     <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
       <button type="submit" class="btn edit">✏️ Modifier la session</button>
     </form>
+
     <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
-      <button type="submit" class="btn danger">🗑️ Supprimer</button>
+      <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
     </form>
   </div>
 
-  {% if not s.steps %}
+    {% if not s.steps %}
     <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
-
   {% else %}
 
+    {# ============================
+       Préparation des étapes + deadlines
+       ============================ #}
     {% set steps_with_deadlines = [] %}
     {% for i in range(s.steps|length) %}
       {% set st = statuses[i] %}
@@ -101,100 +107,177 @@
       {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
     {% endfor %}
 
+    {# Tri par date (et Python respecte l'ordre pour les dates identiques) #}
     {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
 
-    <!-- FILTRES -->
+    {# ============================
+       Barre filtres / recherche
+       ============================ #}
     <div class="filter-bar">
-      <label><strong>Afficher :</strong></label>
+      <label for="filterSelect"><strong>Afficher :</strong></label>
       <select id="filterSelect">
         <option value="all">Toutes les échéances</option>
-        <option value="done">✅ Validées</option>
-        <option value="notdone">⏳ Non validées</option>
+        <option value="done">✅ Validées uniquement</option>
+        <option value="notdone">⏳ Non validées uniquement</option>
       </select>
       <input type="text" id="searchInput" placeholder="🔍 Rechercher une échéance...">
       <button type="button" id="resetFiltersBtn">🧹 Réinitialiser</button>
     </div>
 
-    <!-- TITRES SSIAP -->
-    {% set titles_shown = {
-      'session': false,
-      'dossier_formation': false,
-      'sdis': false,
-      'dossier_examen': false,
-      'organisation': false,
-      'diplomes': false,
-      'cloture': false
-    } %}
+    {# ============================
+       MAPPING EXACT SSIAP (par intitulé)
+       ============================ #}
+    {% if s.formation == "SSIAP" %}
+      {% set ns = namespace(
+        session=false,
+        dossier_formation=false,
+        sdis=false,
+        dossier_examen=false,
+        organisation=false,
+        diplomes=false,
+        cloture=false
+      ) %}
 
-    {% macro category_of(name) %}
-      {%- if "formateur" in name or "Préfecture" in name or "candidats est de 12" in name or "convocations en formation" in name or "test de français a été envoyé" in name -%}
-        session
-      {%- elif "Le dossier comporte" in name or "Dossiers candidats" in name -%}
-        dossier_formation
-      {%- elif "SDIS" in name or "jury chef" in name or "présidence" in name -%}
-        sdis
-      {%- elif "Dossier examen" in name or "dossiers examen" in name -%}
-        dossier_examen
-      {%- elif "Quizzbox" in name or "Salle examen" in name or "jour de l'examen" in name or "convocations à l'examen" in name -%}
-        organisation
-      {%- elif "Diplôme" in name or "diplômes" in name -%}
-        diplomes
-      {%- elif "traçabilité" in name -%}
-        cloture
-      {%- else -%}
-        other
-      {%- endif %}
-    {% endmacro %}
+      {% macro ssiap_category(name) %}
+        {# SESSION – Article 4 #}
+        {% if name in [
+          "Le formateur a été nommé",
+          "Le contrat d'intervention a été envoyé au formateur",
+          "Le contrat d'intervention formateur a été signé et imprimé",
+          "Le nombre de candidats est de 12 maximum",
+          "La préfecture a été avisée de l'ouverture de la session",
+          "La préfecture a été avisée de la date d'examen",
+          "Les convocations en formation ont été envoyées aux candidats",
+          "Le test de français a été envoyé à tous les candidats"
+        ] %}
+          session
 
+        {# DOSSIER CANDIDAT – Formation (Article 4) #}
+        {% elif name in [
+          "Le dossier comporte la pièce d'identité de chaque candidat",
+          "Le dossier comporte l'attestation de formation au secourisme de chaque candidat",
+          "Le dossier comporte 2 photos d'identité pour chaque candidat",
+          "Le dossier comporte le certificat médical conforme (Annexe VII)",
+          "Le dossier comporte une copie du test de français réalisé avant formation",
+          "Le dossier comporte le contrat de formation signé par chaque candidat",
+          "Les dossiers des candidats ont été vérifiés avant le démarrage"
+        ] %}
+          dossier_formation
+
+        {# DEMANDE PRÉSIDENCE JURY SDIS – Article 8 #}
+        {% elif name in [
+          "Le SDIS a été avisé de la date d'organisation des épreuves",
+          "La demande comporte le nom, fonction et qualification du jury chef de service incendie",
+          "La demande comporte l'attestation d'engagement du jury chef de service incendie",
+          "L'engagement du propriétaire/exploitant pour mise à disposition des locaux est fourni",
+          "Le planning de la session est fourni",
+          "Le planning indique nom, qualité, fonction et qualifications des formateurs",
+          "La convention de demande de présidence jury SDIS est fournie en double exemplaire",
+          "La demande de présidence de jury SDIS a été envoyée en LRAR"
+        ] %}
+          sdis
+
+        {# DOSSIER CANDIDAT – Examen #}
+        {% elif name in [
+          "Les dossiers examen des candidats sont imprimés pour le jury",
+          "Dossier examen : pièce d'identité du candidat",
+          "Dossier examen : attestation de formation au secourisme",
+          "Dossier examen : certificat médical conforme (Annexe VII)",
+          "Dossier examen : test de français réalisé avant formation",
+          "Dossier examen : certificat de réalisation de la formation",
+          "Dossier examen : PV d'examen individuel pré-rempli",
+          "Dossier examen : attestation du directeur (pas même entreprise que jury)",
+          "Dossier examen : attestation capacité rédaction main courante"
+        ] %}
+          dossier_examen
+
+        {# ORGANISATION DE L'EXAMEN #}
+        {% elif name in [
+          "Le jury chef de service incendie a été nommé",
+          "Le lieu d'examen (pratique) a été réservé",
+          "Les convocations à l'examen ont été envoyées aux candidats",
+          "Les télécommandes Quizzbox ont été vérifiées",
+          "Le logiciel Quizzbox a été paramétré",
+          "Le procès verbal collectif a été pré-rempli et imprimé",
+          "La salle d'examen théorique a été préparée et vérifiée",
+          "Les pièces d'identité des candidats ont été vérifiées par le jury",
+          "PV résultats examen théorique imprimé (×2)",
+          "PV d'examen individuels photocopiés (×3)",
+          "PV d'examen collectif photocopié (×2)"
+        ] %}
+          organisation
+
+        {# DIPLÔMES – Annexe VIII / Article 11 #}
+        {% elif name in [
+          "Chaque diplôme comporte une photo couleur",
+          "Les numéros de diplômes ont été vérifiés",
+          "La signature du directeur est apposée",
+          "Les diplômes ont été imprimés sur papier rigide 180g",
+          "Les diplômes ont été envoyés au SDIS en LRAR",
+          "Les diplômes ont été validés par le SDIS",
+          "Les diplômes ont été distribués aux candidats",
+          "Les candidats ont signé le récépissé de délivrance du diplôme",
+          "Les diplômes sont référencés dans un tableau Excel"
+        ] %}
+          diplomes
+
+        {# CLÔTURE DE SESSION #}
+        {% elif name in [
+          "Le rapport de traçabilité et conformité a été généré",
+          "Le rapport de traçabilité et conformité a été envoyé à la préfecture",
+          "Le rapport de traçabilité et conformité a été imprimé et archivé"
+        ] %}
+          cloture
+
+        {% else %}
+          other
+        {% endif %}
+      {% endmacro %}
+    {% endif %}
+
+    {# ============================
+       LISTE DES ÉTAPES
+       ============================ #}
     <div class="steps" id="stepsContainer">
-
       {% for entry in sorted_steps %}
         {% set i = entry.index %}
         {% set step = entry.step %}
         {% set st = entry.st %}
         {% set date_obj = entry.deadline %}
 
+        {# 🔥 TITRES SSIAP : uniquement pour SSIAP, à la 1re occurrence de chaque groupe #}
         {% if s.formation == "SSIAP" %}
-          {% set cat = category_of(step.name) %}
+          {% set cat = ssiap_category(step.name) %}
 
-          {% if cat == "session" and not titles_shown.session %}
-            <div class="category-title">📌 Session</div>
-            {% set _ = titles_shown.update({'session': true}) %}
-          {% endif %}
-
-          {% if cat == "dossier_formation" and not titles_shown.dossier_formation %}
-            <div class="category-title">📁 Dossier candidat (formation)</div>
-            {% set _ = titles_shown.update({'dossier_formation': true}) %}
-          {% endif %}
-
-          {% if cat == "sdis" and not titles_shown.sdis %}
-            <div class="category-title">🏛️ Demande présidence de jury SDIS</div>
-            {% set _ = titles_shown.update({'sdis': true}) %}
-          {% endif %}
-
-          {% if cat == "dossier_examen" and not titles_shown.dossier_examen %}
-            <div class="category-title">📄 Dossier candidat (examen)</div>
-            {% set _ = titles_shown.update({'dossier_examen': true}) %}
-          {% endif %}
-
-          {% if cat == "organisation" and not titles_shown.organisation %}
-            <div class="category-title">📝 Organisation de l'examen</div>
-            {% set _ = titles_shown.update({'organisation': true}) %}
-          {% endif %}
-
-          {% if cat == "diplomes" and not titles_shown.diplomes %}
-            <div class="category-title">🎓 Diplômes</div>
-            {% set _ = titles_shown.update({'diplomes': true}) %}
-          {% endif %}
-
-          {% if cat == "cloture" and not titles_shown.cloture %}
-            <div class="category-title">📚 Clôture de session</div>
-            {% set _ = titles_shown.update({'cloture': true}) %}
+          {% if cat == "session" and not ns.session %}
+            <h2 class="ssiaptitle">📌 Session – Article 4</h2>
+            {% set ns.session = true %}
+          {% elif cat == "dossier_formation" and not ns.dossier_formation %}
+            <h2 class="ssiaptitle">📁 Dossier candidat – Formation (Article 4)</h2>
+            {% set ns.dossier_formation = true %}
+          {% elif cat == "sdis" and not ns.sdis %}
+            <h2 class="ssiaptitle">🏛️ Demande de présidence de jury SDIS – Article 8</h2>
+            {% set ns.sdis = true %}
+          {% elif cat == "dossier_examen" and not ns.dossier_examen %}
+            <h2 class="ssiaptitle">🗂️ Dossier candidat – Examen</h2>
+            {% set ns.dossier_examen = true %}
+          {% elif cat == "organisation" and not ns.organisation %}
+            <h2 class="ssiaptitle">🧪 Organisation de l'examen</h2>
+            {% set ns.organisation = true %}
+          {% elif cat == "diplomes" and not ns.diplomes %}
+            <h2 class="ssiaptitle">🎓 Diplômes – Annexe VIII / Article 11</h2>
+            {% set ns.diplomes = true %}
+          {% elif cat == "cloture" and not ns.cloture %}
+            <h2 class="ssiaptitle">📑 Clôture de session</h2>
+            {% set ns.cloture = true %}
           {% endif %}
         {% endif %}
 
-        <div class="step" id="step{{ i }}" data-done="{{ 'true' if step.done else 'false' }}" data-name="{{ step.name|lower }}">
-          
+        <div class="step"
+             id="step{{ i }}"
+             data-done="{{ 'true' if step.done else 'false' }}"
+             data-name="{{ step.name|lower }}">
+
           <div class="step-head">
             {% if step.done %}
               <div class="status-chip ok">✅ Étape validée</div>
@@ -204,10 +287,15 @@
                 {% elif st.status == 'upcoming' %}upcoming
                 {% elif st.status == 'late' %}late
                 {% else %}na{% endif %}">
-                {% if st.status == 'on_time' %}🟢 À temps
-                {% elif st.status == 'upcoming' %}🟠 À venir
-                {% elif st.status == 'late' %}🔴 En retard
-                {% else %}—{% endif %}
+                {% if st.status == 'on_time' %}
+                  🟢 À temps
+                {% elif st.status == 'upcoming' %}
+                  🟠 À venir
+                {% elif st.status == 'late' %}
+                  🔴 En retard
+                {% else %}
+                  —
+                {% endif %}
               </div>
             {% endif %}
           </div>
@@ -224,80 +312,102 @@
             <div class="done-info">Étape validée le {{ step.done_at }}</div>
           {% else %}
             {% if date_obj %}
+              {% if s.formation == 'GENERAL' %}
+                <form method="post"
+                      action="{{ url_for('update_step_date', sid=s.id) }}"
+                      style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                  <input type="hidden" name="index" value="{{ i }}">
+                  <input type="date"
+                         name="new_date"
+                         value="{{ date_obj.strftime('%Y-%m-%d') if date_obj else '' }}"
+                         style="padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;">
+                  <button type="submit"
+                          style="background: #f4c45a; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer;">
+                    📝
+                  </button>
+                </form>
+              {% endif %}
+
               {% set diff = (date_obj.date() - now().date()).days %}
               <div class="status-text">
                 {% if diff < 0 %}
-                  ⚠️ Retard de {{ diff|abs }} jours ({{ date_obj.strftime('%d/%m/%Y') }})
+                  ⚠️ Retard de {{ diff|abs }} jour{% if diff|abs > 1 %}s{% endif %} ({{ date_obj.strftime("%d/%m/%Y") }})
                 {% elif diff == 0 %}
-                  🟢 Aujourd’hui ({{ date_obj.strftime('%d/%m/%Y') }})
+                  🟢 Aujourd’hui ({{ date_obj.strftime("%d/%m/%Y") }})
                 {% elif diff == 1 %}
-                  🕓 Demain ({{ date_obj.strftime('%d/%m/%Y') }})
+                  🕓 À venir demain ({{ date_obj.strftime("%d/%m/%Y") }})
                 {% else %}
-                  ⏳ Dans {{ diff }} jours ({{ date_obj.strftime('%d/%m/%Y') }})
+                  ⏳ À venir dans {{ diff }} jours ({{ date_obj.strftime("%d/%m/%Y") }})
                 {% endif %}
               </div>
             {% endif %}
           {% endif %}
         </div>
-
       {% endfor %}
     </div>
-
   {% endif %}
-
 </main>
 
-<footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
+  <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
 
 <script>
-document.getElementById('year').textContent = new Date().getFullYear();
-window.scrollTo(0,0);
+  document.getElementById('year').textContent = new Date().getFullYear();
+  window.scrollTo(0, 0);
 
-const STORAGE_KEY = "sessionFilter_{{ s.id }}";
-const filterSelect = document.getElementById('filterSelect');
-const searchInput = document.getElementById('searchInput');
-const steps = document.querySelectorAll('.step');
-const storage = sessionStorage;
+  const STORAGE_KEY = "sessionFilter_{{ s.id }}";
+  const storage = sessionStorage;
 
-function applyFilters() {
-  const filter = filterSelect.value;
-  const query = searchInput.value.toLowerCase().trim();
+  const filterSelect = document.getElementById('filterSelect');
+  const searchInput = document.getElementById('searchInput');
+  const steps = document.querySelectorAll('.step');
 
-  steps.forEach(step => {
-    let visible = true;
-    const isDone = step.dataset.done === 'true';
-    const name = step.dataset.name;
+  function applyFilters() {
+    const filter = filterSelect.value;
+    const query = searchInput.value.toLowerCase().trim();
 
-    if (filter === 'done' && !isDone) visible = false;
-    if (filter === 'notdone' && isDone) visible = false;
-    if (query && !name.includes(query)) visible = false;
+    steps.forEach(step => {
+      const isDone = step.dataset.done === 'true';
+      const name = step.dataset.name;
+      let visible = true;
 
-    step.classList.toggle('hidden', !visible);
+      if (filter === 'done' && !isDone) visible = false;
+      if (filter === 'notdone' && isDone) visible = false;
+
+      if (query && !name.includes(query)) visible = false;
+
+      step.classList.toggle('hidden', !visible);
+    });
+
+    storage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
+  }
+
+  function restoreFilters() {
+    const saved = storage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const { filter, query } = JSON.parse(saved);
+      if (filter) filterSelect.value = filter;
+      if (query) searchInput.value = query;
+      applyFilters();
+    } catch (e) {}
+  }
+
+  filterSelect.addEventListener('change', applyFilters);
+  searchInput.addEventListener('input', applyFilters);
+  document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+    filterSelect.value = "all";
+    searchInput.value = "";
+    applyFilters();
+    storage.removeItem(STORAGE_KEY);
   });
 
-  storage.setItem(STORAGE_KEY, JSON.stringify({ filter, query }));
-}
-
-function restoreFilters() {
-  const saved = storage.getItem(STORAGE_KEY);
-  if (!saved) return;
-  const { filter, query } = JSON.parse(saved);
-  filterSelect.value = filter;
-  searchInput.value = query;
-  applyFilters();
-}
-
-filterSelect.addEventListener('change', applyFilters);
-searchInput.addEventListener('input', applyFilters);
-document.getElementById('resetFiltersBtn').addEventListener('click', () => {
-  filterSelect.value = "all";
-  searchInput.value = "";
-  applyFilters();
-  storage.removeItem(STORAGE_KEY);
-});
-
-restoreFilters();
+  restoreFilters();
 </script>
 
 </body>
 </html>
+
+
+  
+
+  

@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>{{ title }}</title>
 
-  <!-- CSS global -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
   <style>
@@ -26,38 +25,36 @@
       border-radius: 6px;
       font-size: 14px;
     }
-    .filter-bar input {
-      flex: 1;
-    }
+    .filter-bar input { flex: 1; }
+
     .status-text {
       font-size: 13px;
       color: #555;
       margin-top: 4px;
       margin-left: 4px;
     }
-    .step.late .status-text { color: #c0392b; }
-    .step.on_time .status-text { color: #2980b9; }
-    .step { transition: all 0.3s ease; }
-    .hidden { display: none !important; }
+
+    .step.late .status-text { color:#c0392b; }
+    .step.on_time .status-text { color:#2980b9; }
+    .hidden { display:none!important; }
 
     .status-chip.upcoming {
-      background: #fff3e0;
-      color: #e67e22;
-      border: 1px solid #f0b37e;
-      border-radius: 8px;
-      padding: 3px 8px;
-      font-weight: 600;
-      font-size: 13px;
+      background:#fff3e0;
+      color:#e67e22;
+      border:1px solid #f0b37e;
+      border-radius:8px;
+      padding:3px 8px;
+      font-weight:600;
+      font-size:13px;
     }
 
-    /* TITRES DE SECTIONS SSIAP */
     .ssiaptitle {
-      margin: 35px 0 12px;
-      font-size: 20px;
-      font-weight: 700;
-      color: #444;
-      padding-left: 4px;
-      border-left: 5px solid #c0392b;
+      margin:35px 0 12px;
+      font-size:20px;
+      font-weight:700;
+      color:#444;
+      padding-left:4px;
+      border-left:5px solid #c0392b;
     }
   </style>
 </head>
@@ -81,24 +78,19 @@
 
 <main class="container">
 
-  <!-- Boutons Modifier / Supprimer -->
   <div class="actions-bar">
     <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
       <button type="submit" class="btn edit">✏️ Modifier la session</button>
     </form>
-
     <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
       <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
     </form>
   </div>
 
-    {% if not s.steps %}
+  {% if not s.steps %}
     <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
   {% else %}
 
-    {# ============================
-       Préparation des étapes + deadlines
-       ============================ #}
     {% set steps_with_deadlines = [] %}
     {% for i in range(s.steps|length) %}
       {% set st = statuses[i] %}
@@ -107,12 +99,84 @@
       {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
     {% endfor %}
 
-    {# Tri par date (et Python respecte l'ordre pour les dates identiques) #}
-    {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
+    {% if s.formation == "SSIAP" %}
 
-    {# ============================
-       Barre filtres / recherche
-       ============================ #}
+      {# ============================
+         ORDRE RÉGLEMENTAIRE SSIAP
+         ============================ #}
+      {% set SSIAP_ORDER = [
+        "Le formateur a été nommé",
+        "Le contrat d'intervention a été envoyé au formateur",
+        "Le contrat d'intervention formateur a été signé et imprimé",
+        "Le nombre de candidats est de 12 maximum",
+        "La préfecture a été avisée de l'ouverture de la session",
+        "La préfecture a été avisée de la date d'examen",
+        "Les convocations en formation ont été envoyées aux candidats",
+        "Le test de français a été envoyé à tous les candidats",
+
+        "Le dossier comporte la pièce d'identité de chaque candidat",
+        "Le dossier comporte l'attestation de formation au secourisme de chaque candidat",
+        "Le dossier comporte 2 photos d'identité pour chaque candidat",
+        "Le dossier comporte le certificat médical conforme (Annexe VII)",
+        "Le dossier comporte une copie du test de français réalisé avant formation",
+        "Le dossier comporte le contrat de formation signé par chaque candidat",
+        "Les dossiers des candidats ont été vérifiés avant le démarrage",
+
+        "Le SDIS a été avisé de la date d'organisation des épreuves",
+        "La demande comporte le nom, fonction et qualification du jury chef de service incendie",
+        "La demande comporte l'attestation d'engagement du jury chef de service incendie",
+        "L'engagement du propriétaire/exploitant pour mise à disposition des locaux est fourni",
+        "Le planning de la session est fourni",
+        "Le planning indique nom, qualité, fonction et qualifications des formateurs",
+        "La convention de demande de présidence jury SDIS est fournie en double exemplaire",
+        "La demande de présidence de jury SDIS a été envoyée en LRAR",
+
+        "Les dossiers examen des candidats sont imprimés pour le jury",
+        "Dossier examen : pièce d'identité du candidat",
+        "Dossier examen : attestation de formation au secourisme",
+        "Dossier examen : certificat médical conforme (Annexe VII)",
+        "Dossier examen : test de français réalisé avant formation",
+        "Dossier examen : certificat de réalisation de la formation",
+        "Dossier examen : PV d'examen individuel pré-rempli",
+        "Dossier examen : attestation du directeur (pas même entreprise que jury)",
+        "Dossier examen : attestation capacité rédaction main courante",
+
+        "Le jury chef de service incendie a été nommé",
+        "Le lieu d'examen (pratique) a été réservé",
+        "Les convocations à l'examen ont été envoyées aux candidats",
+        "Les télécommandes Quizzbox ont été vérifiées",
+        "Le logiciel Quizzbox a été paramétré",
+        "Le procès verbal collectif a été pré-rempli et imprimé",
+        "La salle d'examen théorique a été préparée et vérifiée",
+        "Les pièces d'identité des candidats ont été vérifiées par le jury",
+        "PV résultats examen théorique imprimé (×2)",
+        "PV d'examen individuels photocopiés (×3)",
+        "PV d'examen collectif photocopié (×2)",
+
+        "Chaque diplôme comporte une photo couleur",
+        "Les numéros de diplômes ont été vérifiés",
+        "La signature du directeur est apposée",
+        "Les diplômes ont été imprimés sur papier rigide 180g",
+        "Les diplômes ont été envoyés au SDIS en LRAR",
+        "Les diplômes ont été validés par le SDIS",
+        "Les diplômes ont été distribués aux candidats",
+        "Les candidats ont signé le récépissé de délivrance du diplôme",
+        "Les diplômes sont référencés dans un tableau Excel",
+
+        "Le rapport de traçabilité et conformité a été généré",
+        "Le rapport de traçabilité et conformité a été envoyé à la préfecture",
+        "Le rapport de traçabilité et conformité a été imprimé et archivé"
+      ] %}
+
+      {% set sorted_steps = steps_with_deadlines|sort(attribute='step.name', key=lambda x: SSIAP_ORDER.index(x.step.name)) %}
+
+    {% else %}
+      {% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
+    {% endif %}
+
+      <!-- ============================
+         Barre filtres / recherche
+         ============================ -->
     <div class="filter-bar">
       <label for="filterSelect"><strong>Afficher :</strong></label>
       <select id="filterSelect">
@@ -124,9 +188,9 @@
       <button type="button" id="resetFiltersBtn">🧹 Réinitialiser</button>
     </div>
 
-    {# ============================
-       MAPPING EXACT SSIAP (par intitulé)
-       ============================ #}
+    <!-- ============================
+         MAPPING EXACT SSIAP (par intitulé)
+         ============================ -->
     {% if s.formation == "SSIAP" %}
       {% set ns = namespace(
         session=false,
@@ -139,7 +203,6 @@
       ) %}
 
       {% macro ssiap_category(name) %}
-        {# SESSION – Article 4 #}
         {% if name in [
           "Le formateur a été nommé",
           "Le contrat d'intervention a été envoyé au formateur",
@@ -152,7 +215,6 @@
         ] %}
           session
 
-        {# DOSSIER CANDIDAT – Formation (Article 4) #}
         {% elif name in [
           "Le dossier comporte la pièce d'identité de chaque candidat",
           "Le dossier comporte l'attestation de formation au secourisme de chaque candidat",
@@ -164,7 +226,6 @@
         ] %}
           dossier_formation
 
-        {# DEMANDE PRÉSIDENCE JURY SDIS – Article 8 #}
         {% elif name in [
           "Le SDIS a été avisé de la date d'organisation des épreuves",
           "La demande comporte le nom, fonction et qualification du jury chef de service incendie",
@@ -177,7 +238,6 @@
         ] %}
           sdis
 
-        {# DOSSIER CANDIDAT – Examen #}
         {% elif name in [
           "Les dossiers examen des candidats sont imprimés pour le jury",
           "Dossier examen : pièce d'identité du candidat",
@@ -191,7 +251,6 @@
         ] %}
           dossier_examen
 
-        {# ORGANISATION DE L'EXAMEN #}
         {% elif name in [
           "Le jury chef de service incendie a été nommé",
           "Le lieu d'examen (pratique) a été réservé",
@@ -207,7 +266,6 @@
         ] %}
           organisation
 
-        {# DIPLÔMES – Annexe VIII / Article 11 #}
         {% elif name in [
           "Chaque diplôme comporte une photo couleur",
           "Les numéros de diplômes ont été vérifiés",
@@ -221,7 +279,6 @@
         ] %}
           diplomes
 
-        {# CLÔTURE DE SESSION #}
         {% elif name in [
           "Le rapport de traçabilité et conformité a été généré",
           "Le rapport de traçabilité et conformité a été envoyé à la préfecture",
@@ -235,9 +292,9 @@
       {% endmacro %}
     {% endif %}
 
-    {# ============================
-       LISTE DES ÉTAPES
-       ============================ #}
+    <!-- ============================
+         LISTE DES ÉTAPES
+         ============================ -->
     <div class="steps" id="stepsContainer">
       {% for entry in sorted_steps %}
         {% set i = entry.index %}
@@ -245,7 +302,6 @@
         {% set st = entry.st %}
         {% set date_obj = entry.deadline %}
 
-        {# 🔥 TITRES SSIAP : uniquement pour SSIAP, à la 1re occurrence de chaque groupe #}
         {% if s.formation == "SSIAP" %}
           {% set cat = ssiap_category(step.name) %}
 
@@ -253,10 +309,10 @@
             <h2 class="ssiaptitle">📌 Session – Article 4</h2>
             {% set ns.session = true %}
           {% elif cat == "dossier_formation" and not ns.dossier_formation %}
-            <h2 class="ssiaptitle">📁 Dossier candidat – Formation (Article 4)</h2>
+            <h2 class="ssiaptitle">📁 Dossier candidat – Formation</h2>
             {% set ns.dossier_formation = true %}
           {% elif cat == "sdis" and not ns.sdis %}
-            <h2 class="ssiaptitle">🏛️ Demande de présidence de jury SDIS – Article 8</h2>
+            <h2 class="ssiaptitle">🏛️ Demande présidence jury SDIS</h2>
             {% set ns.sdis = true %}
           {% elif cat == "dossier_examen" and not ns.dossier_examen %}
             <h2 class="ssiaptitle">🗂️ Dossier candidat – Examen</h2>
@@ -265,7 +321,7 @@
             <h2 class="ssiaptitle">🧪 Organisation de l'examen</h2>
             {% set ns.organisation = true %}
           {% elif cat == "diplomes" and not ns.diplomes %}
-            <h2 class="ssiaptitle">🎓 Diplômes – Annexe VIII / Article 11</h2>
+            <h2 class="ssiaptitle">🎓 Diplômes – Article 11</h2>
             {% set ns.diplomes = true %}
           {% elif cat == "cloture" and not ns.cloture %}
             <h2 class="ssiaptitle">📑 Clôture de session</h2>
@@ -273,7 +329,7 @@
           {% endif %}
         {% endif %}
 
-        <div class="step"
+              <div class="step"
              id="step{{ i }}"
              data-done="{{ 'true' if step.done else 'false' }}"
              data-name="{{ step.name|lower }}">
@@ -343,12 +399,13 @@
             {% endif %}
           {% endif %}
         </div>
+
       {% endfor %}
     </div>
   {% endif %}
 </main>
 
-  <footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
+<footer class="footer">© <span id="year"></span> Intégrale Academy</footer>
 
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
@@ -394,6 +451,7 @@
 
   filterSelect.addEventListener('change', applyFilters);
   searchInput.addEventListener('input', applyFilters);
+
   document.getElementById('resetFiltersBtn').addEventListener('click', () => {
     filterSelect.value = "all";
     searchInput.value = "";
@@ -407,7 +465,3 @@
 </body>
 </html>
 
-
-  
-
-  

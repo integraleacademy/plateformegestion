@@ -440,6 +440,26 @@ def send_daily_overdue_summary():
     except Exception as e:
         print("❌ Erreur envoi mail quotidien :", e)
 
+# ------------------------------------------------------------
+# 🔐 Authentification simple pour la préfecture (HTTP Basic)
+# ------------------------------------------------------------
+from functools import wraps
+from flask import request, Response
+
+def pref_auth_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not (auth.username == "prefecture" and auth.password == "pref2025"):
+            return Response(
+                "Accès réservé à la préfecture.\n",
+                401,
+                {"WWW-Authenticate": 'Basic realm="Accès Préfecture"'}
+            )
+        return f(*args, **kwargs)
+    return decorated
+
+
 # -----------------------
 # Routes principales
 # -----------------------
@@ -544,24 +564,86 @@ def create_session():
 
 @app.route("/sessions/<sid>")
 def session_detail(sid):
+    # --- 🔐 Vérification accès préfecture si ?key= est présent ---
+    public_key = request.args.get("key")
+
+    PREF_EMAIL = os.getenv("PREF_EMAIL")
+    PREF_PASSWORD = os.getenv("PREF_PASSWORD")
+
+    if public_key:
+        expected = f"{PREF_EMAIL}:{PREF_PASSWORD}"
+        encoded = base64.b64encode(expected.encode()).decode()
+
+        if public_key != encoded:
+            abort(403)  # accès refusé
+
+    # --- 🔧 Chargement session ---
     data = load_sessions()
     session = find_session(data, sid)
     if not session:
         abort(404)
 
-    # 🔄 Synchronise cette session avant de l’afficher
     sync_steps(session)
     save_sessions(data)
-
 
     statuses = []
     for i in range(len(session["steps"])):
         st, dl = status_for_step(i, session)
         statuses.append({"status": st, "deadline": (dl.strftime("%Y-%m-%d") if dl else None)})
-    order = sorted(range(len(session["steps"])), key=lambda i: deadline_for(i, session) or datetime.max)
+
+    order = sorted(
+        range(len(session["steps"])),
+        key=lambda i: deadline_for(i, session) or datetime.max
+    )
+
     auto_archive_if_all_done(session)
     save_sessions(data)
-    return render_template("session_detail.html", title=f"{session['formation']} — Détail", s=session, statuses=statuses, order=order, now=datetime.now)
+
+    return render_template(
+        "session_detail.html",
+        title=f"{session['formation']} — Détail",
+        s=session,
+        statuses=statuses,
+        order=order,
+        now=datetime.now
+    )
+
+
+# ------------------------------------------------------------
+# 🔐 Route spéciale préfecture : accès en lecture seule
+# ------------------------------------------------------------
+@app.route("/prefecture/session/<sid>")
+@pref_auth_required
+def prefecture_session(sid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+
+    # recalcul des statuts
+    statuses = []
+    for i in range(len(session["steps"])):
+        st, dl = status_for_step(i, session)
+        statuses.append({
+            "status": st,
+            "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
+        })
+
+    order = sorted(
+        range(len(session["steps"])),
+        key=lambda i: deadline_for(i, session) or datetime.max
+    )
+
+    # page dédiée "prefecture_session.html"
+    return render_template(
+        "prefecture_session.html",
+        title=f"Dossier session — Préfecture",
+        s=session,
+        statuses=statuses,
+        order=order,
+        now=datetime.now
+    )
+
 
 @app.route("/sessions/<sid>/edit", methods=["GET","POST"])
 def edit_session(sid):

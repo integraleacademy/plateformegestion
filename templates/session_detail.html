@@ -152,7 +152,7 @@
     "Le test de français a été envoyé à tous les candidats (7 jours avant début de session)"
   ],
 
-  "📁 Dossier candidat (formation)" : [
+    "📁 Dossier candidat (formation)" : [
     "Le dossier comporte la pièce d'identité de chaque candidat (1er jour de formation)",
     "Le dossier comporte l'attestation de formation au secourisme de chaque candidat (1er jour de formation)",
     "Le dossier comporte 2 photos d'identité (1 archive, 1 diplôme) pour chaque candidat (1er jour de formation)",
@@ -218,33 +218,48 @@
   ]
 } %}
 
-
 <!-- ========= SOMMAIRE SSIAP ========= -->
 
 <div class="sommaire-ssi">
   <h2 style="margin-bottom:10px;">📘 Sommaire</h2>
+
   <div class="sommaire-list">
+
     {% for title, items in sections.items() %}
       {% set total = items|length %}
       {% set done = 0 %}
+
       {% for entry in sorted_steps %}
-        {% if entry.step.name in items and entry.step.done %}
+        {% if entry.step.name in items and entry.st.status == "done" %}
           {% set done = done + 1 %}
         {% endif %}
       {% endfor %}
+
       <a href="#section_{{ loop.index }}" class="sommaire-item">
-        <span>{{ title.split(' ')[0] }}</span> {{ title }} <strong>({{ done }}/{{ total }})</strong>
+        <span>{{ title.split(' ')[0] }}</span> {{ title }}
+        <strong>({{ done }}/{{ total }})</strong>
       </a>
     {% endfor %}
+
   </div>
 </div>
 
 <!-- ========= SECTIONS SSIAP ========= -->
 
 {% for title, items in sections.items() %}
+  {% set total = items|length %}
+  {% set done = 0 %}
+
+  {% for entry in sorted_steps %}
+    {% if entry.step.name in items and entry.st.status == "done" %}
+      {% set done = done + 1 %}
+    {% endif %}
+  {% endfor %}
+
   <h2 id="section_{{ loop.index }}" class="section-title">
-    {{ title }}
+    {{ title }} — <span style="color:#000;font-weight:700;">{{ done }}/{{ total }}</span>
   </h2>
+
   <div class="section-line"></div>
 
   {% for entry in sorted_steps %}
@@ -253,9 +268,10 @@
       {% include 'step_block.html' %}
     {% endif %}
   {% endfor %}
+
 {% endfor %}
 
-{% else %}
+  {% else %}
 
 <!-- ======================================================================= -->
 <!--                  MODE NORMAL (APS / A3P / BTS / GENERAL)                -->
@@ -351,4 +367,5 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 

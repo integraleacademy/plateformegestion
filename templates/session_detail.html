@@ -219,7 +219,6 @@
 } %}
 
 <!-- ========= SOMMAIRE SSIAP ========= -->
-
 <div class="sommaire-ssi">
   <h2 style="margin-bottom:10px;">📘 Sommaire</h2>
 
@@ -230,7 +229,7 @@
       {% set done = 0 %}
 
       {% for entry in sorted_steps %}
-        {% if entry.step.name in items and entry.st.status == "done" %}
+        {% if entry.step.name in items and entry.step.done %}
           {% set done = done + 1 %}
         {% endif %}
       {% endfor %}
@@ -239,10 +238,12 @@
         <span>{{ title.split(' ')[0] }}</span> {{ title }}
         <strong>({{ done }}/{{ total }})</strong>
       </a>
+
     {% endfor %}
 
   </div>
 </div>
+
 
 <!-- ========= SECTIONS SSIAP ========= -->
 
@@ -367,5 +368,6 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 

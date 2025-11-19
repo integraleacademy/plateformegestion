@@ -223,29 +223,8 @@
   </div>
 </div>
 
-{% endif %}
-
-
 <!-- ========================================================= -->
-<!--                      2️⃣ ACTIONS                          -->
-<!-- ========================================================= -->
-
-<div class="actions-bar">
-  <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
-    <button type="submit" class="btn edit">✏️ Modifier la session</button>
-  </form>
-  <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
-    <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
-  </form>
-</div>
-
-{% if not s.steps %}
-<p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
-{% else %}
-
-
-<!-- ========================================================= -->
-<!--                 3️⃣ AFFICHAGE DES SECTIONS                -->
+<!--        2️⃣ SECTIONS SSIAP (corrigées dans le bon if)     -->
 <!-- ========================================================= -->
 
 {% for title, items in sections.items() %}
@@ -276,9 +255,22 @@
   {% endfor %}
 {% endfor %}
 
-{% endif %}
-</main>
+{% else %}
 
+<!-- ========================================================= -->
+<!--       MODE NORMAL (APS / A3P / BTS / GENERAL)             -->
+<!-- ========================================================= -->
+
+<div class="steps">
+  {% for i in range(s.steps|length) %}
+      {% set entry = {"index": i, "step": s.steps[i], "st": statuses[i]} %}
+      {% include 'step_block.html' %}
+  {% endfor %}
+</div>
+
+{% endif %}
+
+</main>
 
 <footer class="footer">
   © <span id="year"></span> Intégrale Academy
@@ -288,55 +280,11 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 window.scrollTo(0,0);
 
-// === Filtres ===
-const STORAGE_KEY = "sessionFilter_{{ s.id }}";
-const storage = sessionStorage;
-const filterSelect = document.getElementById('filterSelect');
-const searchInput = document.getElementById('searchInput');
-const steps = document.querySelectorAll("div.step");
-
-function applyFilters(){
-  const filter = filterSelect.value;
-  const query = searchInput.value.toLowerCase().trim();
-  steps.forEach(step=>{
-    const isDone = step.dataset.done==="true";
-    const name = step.dataset.name||"";
-    let visible = true;
-    if(filter==="done" && !isDone) visible=false;
-    if(filter==="notdone" && isDone) visible=false;
-    if(query && !name.includes(query)) visible=false;
-    step.classList.toggle("hidden",!visible);
-  });
-  storage.setItem(STORAGE_KEY,JSON.stringify({filter,query}));
-}
-
-function restoreFilters(){
-  const saved = storage.getItem(STORAGE_KEY);
-  if(!saved) return;
-  try{
-    const {filter,query}=JSON.parse(saved);
-    if(filter) filterSelect.value=filter;
-    if(query) searchInput.value=query;
-    applyFilters();
-  }catch(e){}
-}
-
-filterSelect?.addEventListener("change",applyFilters);
-searchInput?.addEventListener("input",applyFilters);
-restoreFilters();
-
-document.getElementById("resetFiltersBtn")?.addEventListener("click",()=>{
-  filterSelect.value="all";
-  searchInput.value="";
-  applyFilters();
-  storage.removeItem(STORAGE_KEY);
-});
-
 // === Replier / Déplier tout ===
 let allCollapsed = false;
 document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
   allCollapsed = !allCollapsed;
-  steps.forEach(step=>{
+  document.querySelectorAll("div.step").forEach(step=>{
     step.style.display = allCollapsed ? "none" : "";
   });
 });

@@ -166,8 +166,8 @@
     "Le SDIS a été avisé de la date d'organisation des épreuves (65 jours avant début de session)",
     "La demande comporte le nom, la fonction et la qualification du jury chef de service incendie (65 jours avant début de session)",
     "La demande comporte l'attestation d'engagement (accord) du jury chef de service incendie (65 jours avant début de session)",
-    "L'engagement écrit, du propriétaire ou de l'exploitant de l'établissement, de mettre à disposition les locaux et d'autoriser la manipulation des installations techniques nécessaires au déroulement de l'épreuve pratique est fournit (65 jours avant début de session)",
-    "Le planning de la session est fournit (65 jours avant début de session)",
+    "L'engagement écrit, du propriétaire ou de l'exploitant de l'établissement, de mettre à disposition les locaux et d'autoriser la manipulation des installations techniques nécessaires au déroulement de l'épreuve pratique est fourni (65 jours avant début de session)",
+    "Le planning de la session est fourni (65 jours avant début de session)",
     "Sur le planning le nom, la qualité, la fonction et les qualifications des formateurs sont indiqués (65 jours avant début de session)",
     "La convention de demande de présidence jury SDIS en fournit en double exemplaire (65 jours avant début de session)",
     "La demande de présidence de jury SDIS a été envoyé en LRAR (65 jours avant début de session)"
@@ -226,19 +226,19 @@
 
     {% for title, items in sections.items() %}
       {% set total = items|length %}
-      {% set done = 0 %}
+      {% set ns = namespace(done=0) %}
 
       {% for entry in sorted_steps %}
         {% for item in items %}
-          {% if entry.step.name|lower|trim == item|lower|trim and entry.step.done %}
-            {% set done = done + 1 %}
+          {% if entry.step.name == item and entry.step.done %}
+            {% set ns.done = ns.done + 1 %}
           {% endif %}
         {% endfor %}
       {% endfor %}
 
       <a href="#section_{{ loop.index }}" class="sommaire-item">
         <span>{{ title.split(' ')[0] }}</span> {{ title }}
-        <strong>({{ done }}/{{ total }})</strong>
+        <strong>({{ ns.done }}/{{ total }})</strong>
       </a>
 
     {% endfor %}
@@ -249,35 +249,37 @@
 
 
 
+
 <!-- ========= SECTIONS SSIAP ========= -->
 
 {% for title, items in sections.items() %}
   {% set total = items|length %}
-  {% set done = 0 %}
+  {% set ns = namespace(done=0) %}
 
   {% for entry in sorted_steps %}
     {% for item in items %}
-      {% if entry.step.name|lower|trim == item|lower|trim and entry.step.done %}
-        {% set done = done + 1 %}
+      {% if entry.step.name == item and entry.step.done %}
+        {% set ns.done = ns.done + 1 %}
       {% endif %}
     {% endfor %}
   {% endfor %}
 
   <h2 id="section_{{ loop.index }}" class="section-title">
-    {{ title }} — <span style="color:#000;font-weight:700;">{{ done }}/{{ total }}</span>
+    {{ title }} — <span style="color:#000;font-weight:700;">{{ ns.done }}/{{ total }}</span>
   </h2>
 
   <div class="section-line"></div>
 
   {% for entry in sorted_steps %}
     {% for item in items %}
-      {% if entry.step.name|lower|trim == item|lower|trim %}
+      {% if entry.step.name == item %}
         {% set i = entry.index %}
         {% include 'step_block.html' %}
       {% endif %}
     {% endfor %}
   {% endfor %}
 {% endfor %}
+
 
 
   {% else %}
@@ -376,6 +378,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

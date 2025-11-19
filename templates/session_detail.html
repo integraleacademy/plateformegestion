@@ -229,9 +229,11 @@
       {% set done = 0 %}
 
       {% for entry in sorted_steps %}
-        {% if entry.step.name in items and entry.step.done %}
-          {% set done = done + 1 %}
-        {% endif %}
+        {% for item in items %}
+          {% if entry.step.name|lower|trim == item|lower|trim and entry.step.done %}
+            {% set done = done + 1 %}
+          {% endif %}
+        {% endfor %}
       {% endfor %}
 
       <a href="#section_{{ loop.index }}" class="sommaire-item">
@@ -246,6 +248,7 @@
 
 
 
+
 <!-- ========= SECTIONS SSIAP ========= -->
 
 {% for title, items in sections.items() %}
@@ -253,9 +256,11 @@
   {% set done = 0 %}
 
   {% for entry in sorted_steps %}
-    {% if entry.step.name in items and entry.step.done %}
-      {% set done = done + 1 %}
-    {% endif %}
+    {% for item in items %}
+      {% if entry.step.name|lower|trim == item|lower|trim and entry.step.done %}
+        {% set done = done + 1 %}
+      {% endif %}
+    {% endfor %}
   {% endfor %}
 
   <h2 id="section_{{ loop.index }}" class="section-title">
@@ -265,13 +270,15 @@
   <div class="section-line"></div>
 
   {% for entry in sorted_steps %}
-    {% if entry.step.name in items %}
-      {% set i = entry.index %}
-      {% include 'step_block.html' %}
-    {% endif %}
+    {% for item in items %}
+      {% if entry.step.name|lower|trim == item|lower|trim %}
+        {% set i = entry.index %}
+        {% include 'step_block.html' %}
+      {% endif %}
+    {% endfor %}
   {% endfor %}
-
 {% endfor %}
+
 
   {% else %}
 
@@ -369,6 +376,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

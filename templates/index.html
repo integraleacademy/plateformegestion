@@ -195,7 +195,16 @@
     <div class="emoji">👨‍🏫</div>
     <div class="title">Contrôle formateurs</div>
     <div class="desc">Dossiers & conformité</div>
-    <div class="notif empty">📂 Ouvrir</div>
+    <div class="notif 
+  {% if formateurs_non_conformes == 0 %}ok{% else %}alert{% endif %}
+">
+  {% if formateurs_non_conformes == 0 %}
+    ✅ Tous les formateurs sont conformes
+  {% else %}
+    ⚠️ {{ formateurs_non_conformes }} non-conformité{{ "s" if formateurs_non_conformes>1 }} détectée{{ "s" if formateurs_non_conformes>1 }}
+  {% endif %}
+</div>
+
   </a>
 
 

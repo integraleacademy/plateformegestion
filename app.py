@@ -462,13 +462,41 @@ def pref_auth_required(f):
         return f(*args, **kwargs)
     return decorated
 
+# ------------------------------------------------------------
+# 📋 Résumé conformité globale formateurs (pour l'index)
+# ------------------------------------------------------------
+def get_formateurs_global_non_conformites():
+    formateurs = load_formateurs()
+    total_non_conformes = 0
+
+    for f in formateurs:
+        for doc in f.get("documents", []):
+            status = doc.get("status")
+
+            # mise à jour auto selon la date (comme dans le détail)
+            auto_update_document_status(doc)
+
+            # Expiration ou statut explicitement non conforme
+            if status == "non_conforme":
+                total_non_conformes += 1
+
+    return total_non_conformes
+
+
 
 # -----------------------
 # Routes principales
 # -----------------------
 @app.route("/")
 def index():
-    return render_template("index.html", title="Plateforme de gestion Intégrale Academy")
+    nb_non_conformes = get_formateurs_global_non_conformites()
+
+    return render_template(
+        "index.html",
+        title="Plateforme de gestion Intégrale Academy",
+        formateurs_non_conformes=nb_non_conformes
+    )
+
 
 @app.route("/sessions")
 def sessions_home():

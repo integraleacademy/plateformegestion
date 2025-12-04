@@ -1226,7 +1226,7 @@ def update_formateur_document(fid, doc_id):
 @app.route("/formateurs/<fid>/documents/<doc_id>/attachments/<filename>")
 def download_formateur_attachment(fid, doc_id, filename):
     subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
-    return send_from_directory(subdir, filename, as_attachment=True)
+    return send_from_directory(subdir, filename, as_attachment=False)
 
 
 

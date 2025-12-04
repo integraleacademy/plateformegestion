@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Contrôle formateur</title>
 
-  <!-- Feuille de style principale si tu l’utilises -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
@@ -26,7 +25,7 @@
 
   <hr style="margin:15px 0;">
 
-  <!-- Ajouter une nouvelle ligne de contrôle -->
+  <!-- Ajouter une nouvelle ligne -->
   <form method="POST" action="{{ url_for('add_formateur_document', fid=formateur.id) }}" style="display:flex;gap:10px;align-items:baseline;margin-bottom:15px;flex-wrap:wrap;">
     <div style="flex:1 1 250px;">
       <label>Ajouter une nouvelle ligne de contrôle :</label>
@@ -49,26 +48,26 @@
           <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:220px;">Pièces jointes</th>
         </tr>
       </thead>
+
       <tbody>
         {% for doc in formateur.documents %}
         <tr>
-          <form method="POST"
+          <!-- 👉 Formulaire unique, non imbriqué = auto-save enfin fonctionnel -->
+          <form class="auto-save-form"
+                method="POST"
                 action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
-                enctype="multipart/form-data"
-                class="auto-save-form">
+                enctype="multipart/form-data">
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
               {{ doc.label }}
             </td>
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
-              <input type="date"
-                name="expiration"
-                value="{{ doc.expiration or '' }}"
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+              <input type="date" name="expiration" value="{{ doc.expiration or '' }}"
                 style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
             </td>
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
               <select name="status"
                 style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;
                   {% if doc.status == 'conforme' %}background:#d4edda;color:#155724;
@@ -77,22 +76,20 @@
                   {% endif %}">
                 <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
                 <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
-                <option value="non_conforme" {% if doc.status == "non_conforme" or not doc.status %}selected{% endif %}>Non conforme</option>
+                <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
               </select>
             </td>
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
-              <textarea name="commentaire"
-                rows="2"
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+              <textarea name="commentaire" rows="2"
                 style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
             </td>
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
               {% if doc.attachments %}
                 <div style="margin-bottom:6px;">
                   {% for att in doc.attachments %}
-                    <div>
-                      📎
+                    <div>📎
                       <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
                          target="_blank"
                          style="font-size:12px;text-decoration:none;">
@@ -102,8 +99,8 @@
                   {% endfor %}
                 </div>
               {% endif %}
-              <input type="file" name="piece_jointe" multiple
-                style="font-size:11px;">
+
+              <input type="file" name="piece_jointe" multiple style="font-size:11px;">
             </td>
 
           </form>
@@ -120,28 +117,21 @@
 </div>
 
 <script>
-  // Auto-save : envoie le formulaire dès qu'on change un champ
-  document.querySelectorAll(".auto-save-form").forEach(form => {
-    form.querySelectorAll("input[type='date'], select, textarea").forEach(el => {
-      el.addEventListener("change", () => {
-        form.submit();
-      });
-      el.addEventListener("blur", () => {
-        if (el.tagName === "TEXTAREA" || el.type === "date") {
-          form.submit();
-        }
-      });
-    });
-
-    const fileInput = form.querySelector("input[type='file']");
-    if (fileInput) {
-      fileInput.addEventListener("change", () => {
-        if (fileInput.files.length > 0) {
-          form.submit();
-        }
-      });
-    }
+document.querySelectorAll(".auto-save-form").forEach(form => {
+  // Tous les champs texte & select
+  form.querySelectorAll("input[type='date'], textarea, select").forEach(el => {
+    el.addEventListener("change", () => form.submit());
+    el.addEventListener("blur", () => form.submit());
   });
+
+  // Upload fichiers
+  const fileInput = form.querySelector("input[type='file']");
+  if (fileInput) {
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length > 0) form.submit();
+    });
+  }
+});
 </script>
 
 </body>

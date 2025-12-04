@@ -1254,3 +1254,30 @@ def dotations_data():
     except Exception as e:
         print("Erreur /dotations_data.json :", e)
         return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
+
+# ------------------------------------------------------------
+# 📊 Route JSON Formateurs (pour tuile dashboard)
+# ------------------------------------------------------------
+@app.route("/formateurs_data.json")
+def formateurs_data():
+    try:
+        formateurs = load_formateurs()
+        total_non_conformes = 0
+
+        for f in formateurs:
+            for doc in f.get("documents", []):
+                auto_update_document_status(doc)
+                if doc.get("status") == "non_conforme":
+                    total_non_conformes += 1
+
+        payload = {
+            "non_conformes": total_non_conformes
+        }
+
+        headers = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+        return json.dumps(payload, ensure_ascii=False), 200, headers
+
+    except Exception as e:
+        print("Erreur /formateurs_data.json :", e)
+        return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
+

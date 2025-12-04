@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Contrôle formateur</title>
-
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
@@ -14,9 +13,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
       <a href="{{ url_for('formateurs_home') }}" style="font-size:13px;text-decoration:none;">⬅️ Retour à la liste</a>
-      <h2 style="margin:6px 0 0;">
-        👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
-      </h2>
+      <h2 style="margin:6px 0 0;">👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}</h2>
       <div style="font-size:13px;color:#555;margin-top:4px;">
         {{ formateur.email or "Email : —" }} • {{ formateur.telephone or "Téléphone : —" }}
       </div>
@@ -41,24 +38,25 @@
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="background:#f4f6f7;">
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Élément à contrôler</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:150px;">Date d'expiration</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:160px;">Statut</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Commentaire</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:220px;">Pièces jointes</th>
+          <th>Élément</th>
+          <th style="width:150px;">Expiration</th>
+          <th style="width:160px;">Statut</th>
+          <th>Commentaire</th>
+          <th style="width:220px;">Pièces jointes</th>
         </tr>
       </thead>
 
       <tbody>
         {% for doc in formateur.documents %}
 
-        <!-- FORMULAIRE NON IMBRIQUÉ = CORRECTION DU BUG -->
+        <!-- FORMULAIRE ENTIER AUTOUR DE LA LIGNE = OBLIGATOIRE -->
         <form class="auto-save-form"
               method="POST"
               action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
               enctype="multipart/form-data">
 
-        <tr>
+          <tr>
+
             <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
               {{ doc.label }}
             </td>
@@ -70,11 +68,17 @@
 
             <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
               <select name="status"
-                style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;
+                style="
+                  width:100%;
+                  padding:4px 6px;
+                  border-radius:6px;
+                  border:1px solid #ddd;
+                  font-size:12px;
                   {% if doc.status == 'conforme' %}background:#d4edda;color:#155724;
                   {% elif doc.status == 'non_conforme' %}background:#f8d7da;color:#721c24;
                   {% elif doc.status == 'non_concerne' %}background:#e0e0e0;color:#000;
-                  {% endif %}">
+                  {% endif %}
+                ">
                 <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
                 <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
                 <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
@@ -90,20 +94,21 @@
               {% if doc.attachments %}
                 <div style="margin-bottom:6px;">
                   {% for att in doc.attachments %}
-                    <div>📎
-                      <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
-                         target="_blank"
-                         style="font-size:12px;text-decoration:none;">
-                        {{ att.original_name }}
-                      </a>
-                    </div>
+                  <div>📎
+                    <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
+                       target="_blank"
+                       style="font-size:12px;text-decoration:none;">
+                      {{ att.original_name }}
+                    </a>
+                  </div>
                   {% endfor %}
                 </div>
               {% endif %}
 
               <input type="file" name="piece_jointe" multiple style="font-size:11px;">
             </td>
-        </tr>
+
+          </tr>
 
         </form>
         {% endfor %}
@@ -111,15 +116,10 @@
     </table>
   </div>
 
-  <p style="margin-top:10px;font-size:12px;color:#666;">
-    ℹ️ Tout changement (date, statut, commentaire, pièces jointes) est enregistré automatiquement.
-  </p>
-
 </div>
 
 <script>
 document.querySelectorAll(".auto-save-form").forEach(form => {
-
   form.querySelectorAll("input[type='date'], textarea, select").forEach(el => {
     el.addEventListener("change", () => form.submit());
     el.addEventListener("blur", () => form.submit());

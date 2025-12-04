@@ -151,7 +151,26 @@
 
   const fid = container.dataset.fid;
 
-  // 🔥 Fonction couleur statut (instantanée)
+  // 🎯 Auto-détection expiration
+  function checkExpiration(row) {
+    const dateInput = row.querySelector("input[name='expiration']");
+    const statusSelect = row.querySelector("select[name='status']");
+    if (!dateInput || !statusSelect) return;
+
+    if (!dateInput.value) return;
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const exp = new Date(dateInput.value + "T00:00:00");
+
+    if (exp < today) {
+      statusSelect.value = "non_conforme";
+      updateSelectColor(statusSelect);
+    }
+  }
+
+  // 🔥 Fonction couleur statut
   function updateSelectColor(selectEl) {
     const v = selectEl.value;
 
@@ -170,7 +189,7 @@
     }
   }
 
-  // Mise à jour couleur au chargement
+  // Couleurs au chargement
   document.querySelectorAll(".status-select").forEach(sel => {
     updateSelectColor(sel);
   });
@@ -216,7 +235,10 @@
 
     ["change", "blur"].forEach(evt => {
       if (expirationInput)
-        expirationInput.addEventListener(evt, () => sendUpdate(row));
+        expirationInput.addEventListener(evt, () => {
+          checkExpiration(row);
+          sendUpdate(row);
+        });
 
       if (statusSelect)
         statusSelect.addEventListener(evt, () => {

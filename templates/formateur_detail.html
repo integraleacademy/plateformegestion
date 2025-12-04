@@ -3,17 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <title>Contrôle formateur</title>
+
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
 
-<div style="max-width:1100px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+<div id="formateur-detail"
+     data-fid="{{ formateur.id }}"
+     style="max-width:1100px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
 
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
       <a href="{{ url_for('formateurs_home') }}" style="font-size:13px;text-decoration:none;">⬅️ Retour à la liste</a>
-      <h2 style="margin:6px 0 0;">👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}</h2>
+      <h2 style="margin:6px 0 0;">
+        👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
+      </h2>
       <div style="font-size:13px;color:#555;margin-top:4px;">
         {{ formateur.email or "Email : —" }} • {{ formateur.telephone or "Téléphone : —" }}
       </div>
@@ -38,62 +43,53 @@
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="background:#f4f6f7;">
-          <th>Élément</th>
-          <th style="width:150px;">Expiration</th>
-          <th style="width:160px;">Statut</th>
-          <th>Commentaire</th>
-          <th style="width:220px;">Pièces jointes</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Élément à contrôler</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:150px;">Date d'expiration</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:160px;">Statut</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Commentaire</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:220px;">Pièces jointes</th>
         </tr>
       </thead>
 
       <tbody>
         {% for doc in formateur.documents %}
+        <tr data-doc-id="{{ doc.id }}">
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+            {{ doc.label }}
+          </td>
 
-        <!-- FORMULAIRE ENTIER AUTOUR DE LA LIGNE = OBLIGATOIRE -->
-        <form class="auto-save-form"
-              method="POST"
-              action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
-              enctype="multipart/form-data">
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+            <input
+              type="date"
+              name="expiration"
+              value="{{ doc.expiration or '' }}"
+              style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+          </td>
 
-          <tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+            <select name="status"
+              style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;
+                {% if doc.status == 'conforme' %}background:#d4edda;color:#155724;
+                {% elif doc.status == 'non_conforme' %}background:#f8d7da;color:#721c24;
+                {% elif doc.status == 'non_concerne' %}background:#e0e0e0;color:#000;
+                {% endif %}">
+              <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
+              <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
+              <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
+            </select>
+          </td>
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-              {{ doc.label }}
-            </td>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+            <textarea
+              name="commentaire"
+              rows="2"
+              style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
+          </td>
 
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-              <input type="date" name="expiration" value="{{ doc.expiration or '' }}"
-                style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-            </td>
-
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-              <select name="status"
-                style="
-                  width:100%;
-                  padding:4px 6px;
-                  border-radius:6px;
-                  border:1px solid #ddd;
-                  font-size:12px;
-                  {% if doc.status == 'conforme' %}background:#d4edda;color:#155724;
-                  {% elif doc.status == 'non_conforme' %}background:#f8d7da;color:#721c24;
-                  {% elif doc.status == 'non_concerne' %}background:#e0e0e0;color:#000;
-                  {% endif %}
-                ">
-                <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
-                <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
-                <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
-              </select>
-            </td>
-
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-              <textarea name="commentaire" rows="2"
-                style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
-            </td>
-
-            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-              {% if doc.attachments %}
-                <div style="margin-bottom:6px;">
-                  {% for att in doc.attachments %}
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+            {% if doc.attachments %}
+              <div style="margin-bottom:6px;">
+                {% for att in doc.attachments %}
                   <div>📎
                     <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
                        target="_blank"
@@ -101,37 +97,101 @@
                       {{ att.original_name }}
                     </a>
                   </div>
-                  {% endfor %}
-                </div>
-              {% endif %}
+                {% endfor %}
+              </div>
+            {% endif %}
 
-              <input type="file" name="piece_jointe" multiple style="font-size:11px;">
-            </td>
-
-          </tr>
-
-        </form>
+            <input type="file" name="piece_jointe" multiple style="font-size:11px;">
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
+  <p style="margin-top:10px;font-size:12px;color:#666;">
+    ℹ️ Tout changement (date, statut, commentaire, pièces jointes) est enregistré automatiquement.
+  </p>
+
 </div>
 
 <script>
-document.querySelectorAll(".auto-save-form").forEach(form => {
-  form.querySelectorAll("input[type='date'], textarea, select").forEach(el => {
-    el.addEventListener("change", () => form.submit());
-    el.addEventListener("blur", () => form.submit());
-  });
+(function () {
+  const container = document.getElementById("formateur-detail");
+  if (!container) return;
 
-  const fileInput = form.querySelector("input[type='file']");
-  if (fileInput) {
-    fileInput.addEventListener("change", () => {
-      if (fileInput.files.length > 0) form.submit();
+  const fid = container.dataset.fid;
+
+  function sendUpdate(row) {
+    const docId = row.dataset.docId;
+    if (!docId) return;
+
+    const url = `/formateurs/${fid}/documents/${docId}/update`;
+
+    const expirationInput = row.querySelector("input[name='expiration']");
+    const statusSelect    = row.querySelector("select[name='status']");
+    const commentaireArea = row.querySelector("textarea[name='commentaire']");
+    const fileInput       = row.querySelector("input[name='piece_jointe']");
+
+    const formData = new FormData();
+
+    if (expirationInput) {
+      formData.append("expiration", expirationInput.value || "");
+    }
+    if (statusSelect) {
+      formData.append("status", statusSelect.value || "");
+    }
+    if (commentaireArea) {
+      formData.append("commentaire", commentaireArea.value || "");
+    }
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      Array.from(fileInput.files).forEach(f => {
+        formData.append("piece_jointe", f);
+      });
+    }
+
+    fetch(url, {
+      method: "POST",
+      body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+      console.log("Sauvegarde OK", data);
+      // Optionnel : vider le champ fichier après upload
+      if (fileInput) fileInput.value = "";
+    })
+    .catch(err => {
+      console.error("Erreur sauvegarde document formateur :", err);
     });
   }
-});
+
+  document.querySelectorAll("tr[data-doc-id]").forEach(row => {
+    const expirationInput = row.querySelector("input[name='expiration']");
+    const statusSelect    = row.querySelector("select[name='status']");
+    const commentaireArea = row.querySelector("textarea[name='commentaire']");
+    const fileInput       = row.querySelector("input[name='piece_jointe']");
+
+    ["change", "blur"].forEach(evt => {
+      if (expirationInput) {
+        expirationInput.addEventListener(evt, () => sendUpdate(row));
+      }
+      if (statusSelect) {
+        statusSelect.addEventListener(evt, () => sendUpdate(row));
+      }
+      if (commentaireArea) {
+        commentaireArea.addEventListener(evt, () => sendUpdate(row));
+      }
+    });
+
+    if (fileInput) {
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files && fileInput.files.length > 0) {
+          sendUpdate(row);
+        }
+      });
+    }
+  });
+})();
 </script>
 
 </body>

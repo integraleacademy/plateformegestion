@@ -51,13 +51,14 @@
 
       <tbody>
         {% for doc in formateur.documents %}
-        <tr>
-          <!-- 👉 Formulaire unique, non imbriqué = auto-save enfin fonctionnel -->
-          <form class="auto-save-form"
-                method="POST"
-                action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
-                enctype="multipart/form-data">
 
+        <!-- FORMULAIRE NON IMBRIQUÉ = CORRECTION DU BUG -->
+        <form class="auto-save-form"
+              method="POST"
+              action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
+              enctype="multipart/form-data">
+
+        <tr>
             <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
               {{ doc.label }}
             </td>
@@ -102,9 +103,9 @@
 
               <input type="file" name="piece_jointe" multiple style="font-size:11px;">
             </td>
-
-          </form>
         </tr>
+
+        </form>
         {% endfor %}
       </tbody>
     </table>
@@ -118,13 +119,12 @@
 
 <script>
 document.querySelectorAll(".auto-save-form").forEach(form => {
-  // Tous les champs texte & select
+
   form.querySelectorAll("input[type='date'], textarea, select").forEach(el => {
     el.addEventListener("change", () => form.submit());
     el.addEventListener("blur", () => form.submit());
   });
 
-  // Upload fichiers
   const fileInput = form.querySelector("input[type='file']");
   if (fileInput) {
     fileInput.addEventListener("change", () => {

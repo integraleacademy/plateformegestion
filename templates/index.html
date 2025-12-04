@@ -595,5 +595,72 @@ async function updateHebergement() {
     refreshAll();
     setInterval(refreshAll, 15000);
   </script>
+
+  <script>
+/* === Recharge automatique d’une ligne après sauvegarde === */
+function reloadRow(fid, docId, rowElem) {
+  fetch(`/formateurs/${fid}`)
+    .then(r => r.text())
+    .then(html => {
+      // On crée un DOM temporaire
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // On retrouve dans le HTML rechargé la ligne du même document
+      const newRow = doc.querySelector(`tr[data-doc-id="${docId}"]`);
+      if (!newRow) return;
+
+      // On remplace la ligne actuelle par la nouvelle (actualisée)
+      rowElem.innerHTML = newRow.innerHTML;
+
+      // On relance les listeners (expiration, statut, commentaire, fichiers)
+      attachListenersToRow(rowElem);
+    });
+}
+
+/* === Réattacher les événements après mise à jour === */
+function attachListenersToRow(row) {
+  const expiration = row.querySelector("input[name='expiration']");
+  const statusSel  = row.querySelector("select[name='status']");
+  const comment    = row.querySelector("textarea[name='commentaire']");
+  const fileInput  = row.querySelector("input[name='piece_jointe']");
+  const fid        = document.getElementById("formateur-detail").dataset.fid;
+  const docId      = row.dataset.docId;
+
+  function update() {
+    // On rappelle la fonction sendUpdate déjà existante
+    sendUpdate(row);
+
+    // Puis on recharge la ligne avec les données mises à jour
+    setTimeout(() => reloadRow(fid, docId, row), 200);
+  }
+
+  if (expiration) expiration.addEventListener("change", update);
+  if (statusSel)  statusSel.addEventListener("change", update);
+  if (comment)    comment.addEventListener("blur", update);
+  if (fileInput)  fileInput.addEventListener("change", update);
+}
+
+/* === Activer automatiquement sur toutes les lignes existantes === */
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("tr[data-doc-id]").forEach(row => {
+    attachListenersToRow(row);
+  });
+});
+</script>
+
+  <script>
+  // Rafraîchit automatiquement la page toutes les 10 minutes
+  // 10 min = 10 * 60 * 1000 = 600 000 ms
+  setInterval(() => {
+    console.log("⟳ Rafraîchissement automatique (toutes les 10 minutes)...");
+    window.location.reload();
+  }, 600000);
+</script>
+
+
+  
+
+  
 </body>
 </html>

@@ -99,6 +99,31 @@
   .recent-acceptes.card{ grid-column: 1 / -1; }
 }
 
+    /* === Tooltip sur les tuiles formateurs === */
+#notif-formateurs {
+  position: relative;
+}
+
+#notif-formateurs:hover::after {
+  content: attr(data-tooltip);
+  white-space: pre;
+  position: absolute;
+  left: 50%;
+  top: 110%;
+  transform: translateX(-50%);
+  background: #fff;
+  color: #333;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  font-size: 13px;
+  z-index: 999;
+  width: max-content;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+
 
 
 
@@ -562,7 +587,7 @@ async function updateHebergement() {
   }
 }
 
-// --- FORMATEURS ---
+// --- FORMATEURS --- (compact + tooltip au survol)
 async function updateFormateurs() {
   const box = document.getElementById("notif-formateurs");
 
@@ -572,30 +597,36 @@ async function updateFormateurs() {
 
     const d = await r.json();
     const n = d.non_conformes || 0;
+    const liste = d.liste || [];
 
-if (n === 0) {
-  box.className = "notif ok";
-  box.innerHTML = "✅ Tous les formateurs sont conformes";
-} else {
-  box.className = "notif alert";
+    if (n === 0) {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Tous les formateurs sont conformes";
+      box.removeAttribute("data-tooltip");
+      return;
+    }
 
-  const liste = d.liste || [];
-  let noms = "";
+    // --- état visuel compact ---
+    box.className = "notif alert";
+    box.innerHTML = `⚠️ ${n} non-conformité${n>1?"s":""} détectée${n>1?"s":""}`;
 
-  if (liste.length > 0) {
-    noms = "<br>" + liste.map(nom => `• ${nom}`).join("<br>");
-  }
+    // --- texte du tooltip ---
+    if (liste.length > 0) {
+      box.setAttribute(
+        "data-tooltip",
+        liste.map(nom => `• ${nom}`).join("\n")
+      );
+    } else {
+      box.removeAttribute("data-tooltip");
+    }
 
-  box.innerHTML =
-    `⚠️ ${n} non-conformité${n>1?"s":""} détectée${n>1?"s":""}` + noms;
-}
-
-
-  } catch (err) {
+  } catch {
     box.className = "notif error";
     box.innerHTML = "🔒 Erreur Formateurs";
+    box.removeAttribute("data-tooltip");
   }
 }
+
 
 
 

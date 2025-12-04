@@ -1083,23 +1083,37 @@ def auto_update_document_status(doc):
 @app.route("/formateurs")
 def formateurs_home():
     formateurs = load_formateurs()
-    # petit indicateur de conformité globale (optionnel pour le template)
+
     for f in formateurs:
         total = 0
         conformes = 0
+
         for doc in f.get("documents", []):
+            # mise à jour auto des statuts
             auto_update_document_status(doc)
+
             status = doc.get("status", "non_conforme")
+
+            # on exclut les "non concernés"
             if status != "non_concerne":
                 total += 1
                 if status == "conforme":
                     conformes += 1
+
+        # 🔥 calcul final stocké pour le HTML
         f["conformite"] = {
             "conformes": conformes,
             "total": total
         }
+
     save_formateurs(formateurs)
-    return render_template("formateurs.html", title="Contrôle formateurs", formateurs=formateurs)
+
+    return render_template(
+        "formateurs.html",
+        title="Contrôle formateurs",
+        formateurs=formateurs
+    )
+
 
 
 @app.route("/formateurs/add", methods=["POST"])

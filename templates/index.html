@@ -408,25 +408,46 @@ async function updateBTS() {
 
 
     // --- VTC ---
-    async function updateVtc() {
-      const box = document.getElementById("notif-vtc");
-      try {
-        const r = await fetch("https://vtc-qh20.onrender.com/data.json");
-        if (!r.ok) throw 0;
-        const d = await r.json();
-        const c = (Array.isArray(d)?d:[]).filter(x=>!x.statut||x.statut.trim().toUpperCase()==="A INSCRIRE A L'EXAMEN").length;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `🚖 ${c} dossier${c>1?"s":""} VTC à inscrire`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier VTC en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur VTC";
-      }
+async function updateVtc() {
+  const box = document.getElementById("notif-vtc");
+
+  try {
+    const r = await fetch("https://vtc-qh20.onrender.com/summary.json");
+    if (!r.ok) throw 0;
+
+    const d = await r.json();
+
+    const a = d.a_inscrire || 0;
+    const l = d.livres_a_envoyer || 0;
+
+    let texte = "";
+
+    if (a === 0 && l === 0) {
+      box.className = "notif ok";
+      box.innerHTML = "🚖 Tout est OK";
+      return;
     }
+
+    // au moins un des deux compteurs est > 0
+    box.className = "notif wait";
+
+    if (a > 0) {
+      texte += `🚖 ${a} dossier${a>1?"s":""} à inscrire`;
+    }
+
+    if (l > 0) {
+      if (texte !== "") texte += " — ";
+      texte += `📕 ${l} livre${l>1?"s":""} à envoyer`;
+    }
+
+    box.innerHTML = texte;
+
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur VTC";
+  }
+}
+
 
     // --- CONTRATS ---
     async function updateContrats() {

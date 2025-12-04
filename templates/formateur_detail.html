@@ -87,17 +87,16 @@
           </td>
 
           <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-            {% if doc.attachments %}
+            {% if doc.attachments and doc.attachments|length > 0 %}
+              {% set last = doc.attachments|last %}
               <div style="margin-bottom:6px;">
-                {% for att in doc.attachments %}
-                  <div>📎
-                    <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
-                       target="_blank"
-                       style="font-size:12px;text-decoration:none;">
-                      {{ att.original_name }}
-                    </a>
-                  </div>
-                {% endfor %}
+                <div>📎
+                  <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=last.filename) }}"
+                     target="_blank"
+                     style="font-size:12px;text-decoration:none;">
+                    {{ last.original_name }}
+                  </a>
+                </div>
               </div>
             {% endif %}
 
@@ -145,6 +144,7 @@
       formData.append("commentaire", commentaireArea.value || "");
     }
     if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      // on envoie les fichiers sélectionnés (le backend prend le dernier en affichage)
       Array.from(fileInput.files).forEach(f => {
         formData.append("piece_jointe", f);
       });
@@ -157,7 +157,6 @@
     .then(r => r.json())
     .then(data => {
       console.log("Sauvegarde OK", data);
-      // Optionnel : vider le champ fichier après upload
       if (fileInput) fileInput.value = "";
     })
     .catch(err => {

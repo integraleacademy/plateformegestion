@@ -1263,15 +1263,19 @@ def formateurs_data():
     try:
         formateurs = load_formateurs()
         total_non_conformes = 0
+        liste_formateurs = set()   # éviter les doublons
 
         for f in formateurs:
+            nom_complet = f"{f.get('prenom','')} {f.get('nom','')}".strip()
             for doc in f.get("documents", []):
                 auto_update_document_status(doc)
                 if doc.get("status") == "non_conforme":
                     total_non_conformes += 1
+                    liste_formateurs.add(nom_complet)
 
         payload = {
-            "non_conformes": total_non_conformes
+            "non_conformes": total_non_conformes,
+            "liste": sorted(list(liste_formateurs))
         }
 
         headers = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}

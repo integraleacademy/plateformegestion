@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, abort, flash
 import smtplib
 from email.mime.text import MIMEText
+from flask import Flask, render_template, request, redirect, url_for, abort, flash, send_from_directory
+from werkzeug.utils import secure_filename
+
 
 # --- 🔧 Forcer le fuseau horaire français ---
 os.environ['TZ'] = 'Europe/Paris'
@@ -951,6 +954,253 @@ def changer_statut(id):
             break
     save_dotations(data)
     return redirect(url_for("dotations_home"))
+
+# ------------------------------------------------------------
+# 👨‍🏫 GESTION DES FORMATEURS (Contrôle formateurs)
+# ------------------------------------------------------------
+
+FORMATEURS_FILE = os.path.join(DATA_DIR, "formateurs.json")
+FORMATEUR_FILES_DIR = os.path.join(DATA_DIR, "formateurs_files")
+os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
+
+DEFAULT_DOC_LABELS = [
+    "Badge formateur indépendant",
+    "Pièce d’identité",
+    "Carte pro formateur",
+    "Carte pro APS",
+    "Carte pro A3P",
+    "Diplôme APS",
+    "Diplôme A3P",
+    "Numéro NDA",
+    "Extrait SIRENE moins de 3 mois",
+    "Attestation d’assurance RC PRO",
+    "Extrait KBIS moins de 3 mois",
+    "DRACAR moins de 3 mois",
+    "Diplôme SSIAP 1 à jour",
+    "Diplôme SSIAP 2 à jour",
+    "Diplôme SSIAP 3 à jour",
+    "Carte formateur SST",
+    "Attestation prévention des risques terroristes",
+    "Attestation événementiel spécifique",
+    "Attestation palpation de sécurité",
+    "Attestation gestion des conflits",
+    "Attestation gestion des conflits dégradés",
+    "Diplôme formateur pédagogie",
+    "Attestation sur l’honneur CNAPS",
+    "Attestation de vigilance URSSAF de moins de 3 mois",
+    "Charte qualité du formateur",
+    "Attestation vacataire APS Adef",
+    "Attestation vacataire A3P Adef",
+    "Agrément dirigeant CNAPS (AGD)",
+    "Autorisation d’exercice CNAPS",
+]
+
+def load_formateurs():
+    if os.path.exists(FORMATEURS_FILE):
+        try:
+            with open(FORMATEURS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            pass
+    return []
+
+
+def save_formateurs(data):
+    with open(FORMATEURS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def find_formateur(formateurs, fid):
+    for f in formateurs:
+        if f.get("id") == fid:
+            return f
+    return None
+
+
+def build_default_documents():
+    docs = []
+    for label in DEFAULT_DOC_LABELS:
+        docs.append({
+            "id": str(uuid.uuid4())[:8],
+            "label": label,
+            "expiration": "",
+            "status": "non_conforme",  # par défaut
+            "commentaire": "",
+            "attachments": []  # liste de {filename, original_name}
+        })
+    return docs
+
+
+def auto_update_document_status(doc):
+    """
+    Si une date d'expiration est renseignée et dépassée,
+    on force le statut à 'non_conforme' (sauf si 'non_concerne').
+    """
+    if doc.get("status") == "non_concerne":
+        return
+
+    exp_str = doc.get("expiration", "").strip()
+    if not exp_str:
+        return
+
+    dt = parse_date(exp_str)
+    if not dt:
+        return
+
+    if dt.date() < datetime.now().date():
+        doc["status"] = "non_conforme"
+
+@app.route("/formateurs")
+def formateurs_home():
+    formateurs = load_formateurs()
+    # petit indicateur de conformité globale (optionnel pour le template)
+    for f in formateurs:
+        total = 0
+        conformes = 0
+        for doc in f.get("documents", []):
+            auto_update_document_status(doc)
+            status = doc.get("status", "non_conforme")
+            if status != "non_concerne":
+                total += 1
+                if status == "conforme":
+                    conformes += 1
+        f["conformite"] = {
+            "conformes": conformes,
+            "total": total
+        }
+    save_formateurs(formateurs)
+    return render_template("formateurs.html", title="Contrôle formateurs", formateurs=formateurs)
+
+
+@app.route("/formateurs/add", methods=["POST"])
+def add_formateur():
+    formateurs = load_formateurs()
+    fid = str(uuid.uuid4())[:8]
+    formateur = {
+        "id": fid,
+        "nom": request.form.get("nom", "").strip(),
+        "prenom": request.form.get("prenom", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "telephone": request.form.get("telephone", "").strip(),
+        "documents": build_default_documents()
+    }
+    formateurs.append(formateur)
+    save_formateurs(formateurs)
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>")
+def formateur_detail(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    # mise à jour auto des statuts selon la date d'expiration
+    for doc in formateur.get("documents", []):
+        auto_update_document_status(doc)
+    save_formateurs(formateurs)
+
+    return render_template(
+        "formateur_detail.html",
+        title=f"Contrôle formateur — {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
+        formateur=formateur
+    )
+
+
+@app.route("/formateurs/<fid>/delete", methods=["POST"])
+def delete_formateur(fid):
+    formateurs = load_formateurs()
+    formateurs = [f for f in formateurs if f.get("id") != fid]
+    save_formateurs(formateurs)
+    flash("Formateur supprimé.", "ok")
+    return redirect(url_for("formateurs_home"))
+
+
+@app.route("/formateurs/<fid>/documents/add", methods=["POST"])
+def add_formateur_document(fid):
+    label = request.form.get("label", "").strip()
+    if not label:
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    doc = {
+        "id": str(uuid.uuid4())[:8],
+        "label": label,
+        "expiration": "",
+        "status": "non_conforme",
+        "commentaire": "",
+        "attachments": []
+    }
+    formateur.setdefault("documents", []).append(doc)
+    save_formateurs(formateurs)
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/documents/<doc_id>/update", methods=["POST"])
+def update_formateur_document(fid, doc_id):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    docs = formateur.get("documents", [])
+    doc = next((d for d in docs if d.get("id") == doc_id), None)
+    if not doc:
+        abort(404)
+
+    # champs texte
+    if "expiration" in request.form:
+        doc["expiration"] = request.form.get("expiration", "").strip()
+
+    if "status" in request.form:
+        status = request.form.get("status")
+        if status in ("non_concerne", "conforme", "non_conforme"):
+            doc["status"] = status
+
+    if "commentaire" in request.form:
+        doc["commentaire"] = request.form.get("commentaire", "").strip()
+
+    # pièces jointes
+    files = request.files.getlist("piece_jointe")
+    if files:
+        subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
+        os.makedirs(subdir, exist_ok=True)
+        attachments = doc.setdefault("attachments", [])
+
+        for f in files:
+            if not f.filename:
+                continue
+            original_name = f.filename
+            safe_name = secure_filename(original_name)
+            # pour éviter les collisions simples
+            stored_name = f"{int(time.time())}_{safe_name}"
+            filepath = os.path.join(subdir, stored_name)
+            f.save(filepath)
+            attachments.append({
+                "filename": stored_name,
+                "original_name": original_name
+            })
+
+    # Mise à jour auto statut si date dépassée
+    auto_update_document_status(doc)
+
+    save_formateurs(formateurs)
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/documents/<doc_id>/attachments/<filename>")
+def download_formateur_attachment(fid, doc_id, filename):
+    subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
+    return send_from_directory(subdir, filename, as_attachment=True)
+
+
 
 # ------------------------------------------------------------
 # 📊 Route JSON pour les dotations (affichage sur index)

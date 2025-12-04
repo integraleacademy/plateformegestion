@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="max-width:1100px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
+      <a href="{{ url_for('formateurs_home') }}" style="font-size:13px;text-decoration:none;">⬅️ Retour à la liste</a>
+      <h2 style="margin:6px 0 0;">
+        👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
+      </h2>
+      <div style="font-size:13px;color:#555;margin-top:4px;">
+        {{ formateur.email or "Email : —" }} • {{ formateur.telephone or "Téléphone : —" }}
+      </div>
+    </div>
+  </div>
+
+  <hr style="margin:15px 0;">
+
+  <!-- Ajouter une nouvelle ligne de contrôle -->
+  <form method="POST" action="{{ url_for('add_formateur_document', fid=formateur.id) }}" style="display:flex;gap:10px;align-items:baseline;margin-bottom:15px;flex-wrap:wrap;">
+    <div style="flex:1 1 250px;">
+      <label>Ajouter une nouvelle ligne de contrôle :</label>
+      <input type="text" name="label" placeholder="Intitulé du document..." required
+             style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+    <button type="submit" style="padding:7px 14px;border:none;border-radius:8px;background:#2980b9;color:#fff;font-weight:600;cursor:pointer;">
+      ➕ Ajouter une ligne
+    </button>
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f4f6f7;">
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Élément à contrôler</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:150px;">Date d'expiration</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:160px;">Statut</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Commentaire</th>
+          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:220px;">Pièces jointes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in formateur.documents %}
+        <tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+            {{ doc.label }}
+          </td>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+            <form method="POST"
+                  action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
+                  enctype="multipart/form-data"
+                  class="auto-save-form">
+              <input type="date"
+                     name="expiration"
+                     value="{{ doc.expiration or '' }}"
+                     style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+          </td>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+              <select name="status"
+                      style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+                <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
+                <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
+                <option value="non_conforme" {% if doc.status == "non_conforme" or not doc.status %}selected{% endif %}>Non conforme</option>
+              </select>
+          </td>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+              <textarea name="commentaire"
+                        rows="2"
+                        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
+          </td>
+          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+              {% if doc.attachments %}
+                <div style="margin-bottom:6px;">
+                  {% for att in doc.attachments %}
+                    <div>
+                      📎
+                      <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
+                         target="_blank"
+                         style="font-size:12px;text-decoration:none;">
+                        {{ att.original_name }}
+                      </a>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <input type="file" name="piece_jointe" multiple
+                     style="font-size:11px;">
+              <!-- Pas de bouton : auto-submit en JS -->
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:10px;font-size:12px;color:#666;">
+    ℹ️ Tout changement (date, statut, commentaire, pièces jointes) est enregistré automatiquement.
+  </p>
+
+</div>
+
+<script>
+  // Auto-save : envoie le formulaire dès qu'on change un champ
+  document.querySelectorAll(".auto-save-form").forEach(form => {
+    form.querySelectorAll("input[type='date'], select, textarea").forEach(el => {
+      el.addEventListener("change", () => {
+        form.submit();
+      });
+      el.addEventListener("blur", () => {
+        if (el.tagName === "TEXTAREA" || el.type === "date") {
+          form.submit();
+        }
+      });
+    });
+
+    const fileInput = form.querySelector("input[type='file']");
+    if (fileInput) {
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+          form.submit();
+        }
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="max-width:1000px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+
+  <h2 style="margin-top:0;">👨‍🏫 Contrôle des formateurs</h2>
+
+  <!-- Formulaire ajout formateur -->
+  <form method="POST" action="{{ url_for('add_formateur') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:20px;">
+    <div style="flex:1 1 180px;">
+      <label>Nom</label>
+      <input type="text" name="nom" required style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+    <div style="flex:1 1 180px;">
+      <label>Prénom</label>
+      <input type="text" name="prenom" required style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+    <div style="flex:1 1 220px;">
+      <label>Email</label>
+      <input type="email" name="email" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+    <div style="flex:1 1 180px;">
+      <label>Téléphone</label>
+      <input type="text" name="telephone" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+    <div>
+      <button type="submit" style="padding:8px 14px;border:none;border-radius:8px;background:#1e8449;color:#fff;font-weight:600;cursor:pointer;">
+        ➕ Ajouter
+      </button>
+    </div>
+  </form>
+
+  {% if formateurs %}
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:#f4f6f7;">
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Formateur</th>
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Email</th>
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Téléphone</th>
+        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Conformité</th>
+        <th style="text-align:right;padding:8px;border-bottom:1px solid #eee;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in formateurs %}
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">
+          <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="text-decoration:none;color:#2c3e50;font-weight:600;">
+            {{ f.prenom }} {{ f.nom|upper }}
+          </a>
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">{{ f.email or "—" }}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">{{ f.telephone or "—" }}</td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">
+          {% set conf = f.conformite %}
+          {% if conf.total %}
+            {{ conf.conformes }} / {{ conf.total }} conformes
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;">
+          <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="margin-right:8px;font-size:13px;">🔍 Ouvrir</a>
+          <form method="POST" action="{{ url_for('delete_formateur', fid=f.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer ce formateur ?');">
+            <button type="submit" style="border:none;background:none;color:#c0392b;font-size:13px;cursor:pointer;">🗑️ Supprimer</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p style="margin-top:10px;">Aucun formateur enregistré pour le moment.</p>
+  {% endif %}
+
+</div>
+
+{% endblock %}

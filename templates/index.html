@@ -573,13 +573,23 @@ async function updateFormateurs() {
     const d = await r.json();
     const n = d.non_conformes || 0;
 
-    if (n === 0) {
-      box.className = "notif ok";
-      box.innerHTML = "✅ Tous les formateurs sont conformes";
-    } else {
-      box.className = "notif alert";
-      box.innerHTML = `⚠️ ${n} non-conformité${n>1?"s":""} détectée${n>1?"s":""}`;
-    }
+if (n === 0) {
+  box.className = "notif ok";
+  box.innerHTML = "✅ Tous les formateurs sont conformes";
+} else {
+  box.className = "notif alert";
+
+  const liste = d.liste || [];
+  let noms = "";
+
+  if (liste.length > 0) {
+    noms = "<br>" + liste.map(nom => `• ${nom}`).join("<br>");
+  }
+
+  box.innerHTML =
+    `⚠️ ${n} non-conformité${n>1?"s":""} détectée${n>1?"s":""}` + noms;
+}
+
 
   } catch (err) {
     box.className = "notif error";

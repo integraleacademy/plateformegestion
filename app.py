@@ -1176,21 +1176,21 @@ def update_formateur_document(fid, doc_id):
     formateurs = load_formateurs()
     formateur = find_formateur(formateurs, fid)
     if not formateur:
-        abort(404)
+        return {"ok": False, "error": "Formateur introuvable"}, 404
 
     docs = formateur.get("documents", [])
     doc = next((d for d in docs if d.get("id") == doc_id), None)
     if not doc:
-        abort(404)
+        return {"ok": False, "error": "Document introuvable"}, 404
 
     # champs texte
     if "expiration" in request.form:
         doc["expiration"] = request.form.get("expiration", "").strip()
 
     if "status" in request.form:
-        status = request.form.get("status")
-        if status in ("non_concerne", "conforme", "non_conforme"):
-            doc["status"] = status
+        st = request.form.get("status")
+        if st in ("non_concerne", "conforme", "non_conforme"):
+            doc["status"] = st
 
     if "commentaire" in request.form:
         doc["commentaire"] = request.form.get("commentaire", "").strip()
@@ -1207,7 +1207,6 @@ def update_formateur_document(fid, doc_id):
                 continue
             original_name = f.filename
             safe_name = secure_filename(original_name)
-            # pour éviter les collisions simples
             stored_name = f"{int(time.time())}_{safe_name}"
             filepath = os.path.join(subdir, stored_name)
             f.save(filepath)
@@ -1216,11 +1215,12 @@ def update_formateur_document(fid, doc_id):
                 "original_name": original_name
             })
 
-    # Mise à jour auto statut si date dépassée
     auto_update_document_status(doc)
-
     save_formateurs(formateurs)
-    return redirect(url_for("formateur_detail", fid=fid))
+
+    # ⛔️ PLUS AUCUN REDIRECT
+    return {"ok": True}
+
 
 
 @app.route("/formateurs/<fid>/documents/<doc_id>/attachments/<filename>")

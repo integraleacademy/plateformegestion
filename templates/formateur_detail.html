@@ -52,33 +52,42 @@
       <tbody>
         {% for doc in formateur.documents %}
         <tr>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
-            {{ doc.label }}
-          </td>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
-            <form method="POST"
-                  action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
-                  enctype="multipart/form-data"
-                  class="auto-save-form">
+          <form method="POST"
+                action="{{ url_for('update_formateur_document', fid=formateur.id, doc_id=doc.id) }}"
+                enctype="multipart/form-data"
+                class="auto-save-form">
+
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+              {{ doc.label }}
+            </td>
+
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
               <input type="date"
-                     name="expiration"
-                     value="{{ doc.expiration or '' }}"
-                     style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-          </td>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+                name="expiration"
+                value="{{ doc.expiration or '' }}"
+                style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+            </td>
+
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
               <select name="status"
-                      style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+                style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;
+                  {% if doc.status == 'conforme' %}background:#d4edda;color:#155724;
+                  {% elif doc.status == 'non_conforme' %}background:#f8d7da;color:#721c24;
+                  {% elif doc.status == 'non_concerne' %}background:#e0e0e0;color:#000;
+                  {% endif %}">
                 <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
                 <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
                 <option value="non_conforme" {% if doc.status == "non_conforme" or not doc.status %}selected{% endif %}>Non conforme</option>
               </select>
-          </td>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+            </td>
+
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
               <textarea name="commentaire"
-                        rows="2"
-                        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
-          </td>
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
+                rows="2"
+                style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
+            </td>
+
+            <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;">
               {% if doc.attachments %}
                 <div style="margin-bottom:6px;">
                   {% for att in doc.attachments %}
@@ -94,10 +103,10 @@
                 </div>
               {% endif %}
               <input type="file" name="piece_jointe" multiple
-                     style="font-size:11px;">
-              <!-- Pas de bouton : auto-submit en JS -->
-            </form>
-          </td>
+                style="font-size:11px;">
+            </td>
+
+          </form>
         </tr>
         {% endfor %}
       </tbody>

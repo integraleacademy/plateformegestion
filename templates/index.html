@@ -191,21 +191,13 @@
     <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
   </a>
 
-    <a class="card" href="{{ url_for('formateurs_home') }}">
-    <div class="emoji">👨‍🏫</div>
-    <div class="title">Contrôle formateurs</div>
-    <div class="desc">Dossiers & conformité</div>
-    <div class="notif 
-  {% if formateurs_non_conformes == 0 %}ok{% else %}alert{% endif %}
-">
-  {% if formateurs_non_conformes == 0 %}
-    ✅ Tous les formateurs sont conformes
-  {% else %}
-    ⚠️ {{ formateurs_non_conformes }} non-conformité{{ "s" if formateurs_non_conformes>1 }} détectée{{ "s" if formateurs_non_conformes>1 }}
-  {% endif %}
-</div>
+<a class="card" href="{{ url_for('formateurs_home') }}">
+  <div class="emoji">👨‍🏫</div>
+  <div class="title">Contrôle formateurs</div>
+  <div class="desc">Dossiers & conformité</div>
+  <div id="notif-formateurs" class="notif empty">👨‍🏫 Chargement...</div>
+</a>
 
-  </a>
 
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin_hebergement" target="_blank" rel="noopener">
@@ -570,6 +562,30 @@ async function updateHebergement() {
   }
 }
 
+// --- FORMATEURS ---
+async function updateFormateurs() {
+  const box = document.getElementById("notif-formateurs");
+
+  try {
+    const r = await fetch("/formateurs_data.json");
+    if (!r.ok) throw 0;
+
+    const d = await r.json();
+    const n = d.non_conformes || 0;
+
+    if (n === 0) {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Tous les formateurs sont conformes";
+    } else {
+      box.className = "notif alert";
+      box.innerHTML = `⚠️ ${n} non-conformité${n>1?"s":""} détectée${n>1?"s":""}`;
+    }
+
+  } catch (err) {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur Formateurs";
+  }
+}
 
 
 
@@ -586,6 +602,7 @@ async function updateHebergement() {
   updateDotations();
   updateBTS(); 
   updateHebergement();
+  updateFormateurs();
 }
 
 
@@ -656,6 +673,8 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("⟳ Rafraîchissement automatique (toutes les 10 minutes)...");
     window.location.reload();
   }, 600000);
+
+    
 </script>
 
 

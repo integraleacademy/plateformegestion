@@ -86,22 +86,37 @@
               style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
           </td>
 
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-            {% if doc.attachments and doc.attachments|length > 0 %}
-              {% set last = doc.attachments|last %}
-              <div style="margin-bottom:6px;">
-                <div>📎
-                  <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=last.filename) }}"
-                     target="_blank"
-                     style="font-size:12px;text-decoration:none;">
-                    {{ last.original_name }}
-                  </a>
-                </div>
-              </div>
-            {% endif %}
+<td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
 
-            <input type="file" name="piece_jointe" multiple style="font-size:11px;">
-          </td>
+  {% if doc.attachments %}
+    <div style="margin-bottom:6px;">
+
+      {% for att in doc.attachments %}
+        {% set ext = att.original_name.split('.')[-1]|lower %}
+        <div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+
+          {% if ext in ["jpg","jpeg","png","gif","webp"] %}
+            <span>🖼️</span>
+          {% elif ext in ["pdf"] %}
+            <span>📄</span>
+          {% else %}
+            <span>📎</span>
+          {% endif %}
+
+          <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
+             target="_blank"
+             style="font-size:12px;text-decoration:none;color:#007bff;">
+            {{ att.original_name }}
+          </a>
+        </div>
+      {% endfor %}
+
+    </div>
+  {% endif %}
+
+  <input type="file" name="piece_jointe" multiple style="font-size:11px;">
+</td>
+
         </tr>
         {% endfor %}
       </tbody>
@@ -195,3 +210,4 @@
 
 </body>
 </html>
+

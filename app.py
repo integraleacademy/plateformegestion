@@ -1386,6 +1386,116 @@ def print_formateur_dossier(fid):
         today=datetime.now().strftime("%d/%m/%Y")
     )
 
+import hashlib
+import time
+
+def generate_upload_token(fid):
+    secret = app.secret_key
+    raw = f"{fid}:{secret}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def verify_upload_token(fid, token):
+    return token == generate_upload_token(fid)
+
+@app.route("/formateurs/<fid>/upload", methods=["GET", "POST"])
+def upload_formateur_documents(fid):
+    token = request.args.get("token", "")
+    if not verify_upload_token(fid, token):
+        abort(403)
+
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    # documents à corriger
+    docs_ko = [
+        d for d in formateur.get("documents", [])
+        if d.get("status") == "non_conforme"
+    ]
+
+    if request.method == "POST":
+        doc_id = request.form.get("doc_id")
+        files = request.files.getlist("files")
+
+        doc = next((d for d in docs_ko if d["id"] == doc_id), None)
+        if not doc:
+            abort(400)
+
+        subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
+        os.makedirs(subdir, exist_ok=True)
+
+        for f in files:
+            if not f.filename:
+                continue
+            safe = secure_filename(f.filename)
+            name = f"{int(time.time())}_{safe}"
+            f.save(os.path.join(subdir, name))
+            doc.setdefault("attachments", []).append({
+                "filename": name,
+                "original_name": f.filename
+            })
+
+        save_formateurs(formateurs)
+        flash("Document transmis avec succès.", "ok")
+        return redirect(request.url)
+
+    return render_template(
+        "formateur_upload.html",
+        formateur=formateur,
+        docs_ko=docs_ko
+    )
+
+@app.route("/formateurs/<fid>/send_mail", methods=["POST"])
+def send_formateur_relance(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    docs_ko = [
+        d["label"] for d in formateur.get("documents", [])
+        if d.get("status") == "non_conforme"
+    ]
+
+    if not docs_ko:
+        flash("Aucun document à relancer.", "ok")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    token = generate_upload_token(fid)
+    link = url_for(
+        "upload_formateur_documents",
+        fid=fid,
+        token=token,
+        _external=True
+    )
+
+    body = f"""
+    Bonjour {formateur.get('prenom')},<br><br>
+
+    Votre dossier formateur présente les éléments suivants à régulariser :<br>
+    <ul>
+      {''.join(f'<li>{d}</li>' for d in docs_ko)}
+    </ul>
+
+    Merci de transmettre les documents via le lien ci-dessous :<br>
+    <a href="{link}">{link}</a><br><br>
+
+    Cordialement,<br>
+    <b>Intégrale Academy</b>
+    """
+
+    send_email(
+        formateur.get("email"),
+        "Documents manquants — Dossier formateur",
+        body
+    )
+
+    flash("📧 Mail envoyé au formateur.", "ok")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+
 
 
 

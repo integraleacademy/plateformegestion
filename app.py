@@ -1021,6 +1021,8 @@ DEFAULT_DOC_LABELS = [
     "Attestation vacataire A3P Adef",
     "Agrément dirigeant CNAPS (AGD)",
     "Autorisation d’exercice CNAPS",
+    "CV à jour",
+    "Photo d'identité",
 ]
 
 def load_formateurs():

@@ -56,17 +56,6 @@
     background:#2471a3;
   }
 
-  .flash-ok {
-    background:#27ae60;
-    color:white;
-    padding:14px 18px;
-    border-radius:12px;
-    font-weight:700;
-    text-align:center;
-    margin-bottom:25px;
-    box-shadow:0 4px 12px rgba(0,0,0,.15);
-  }
-
   .all-good {
     background:#f4fff6;
     border:1px solid #c9f2d2;
@@ -83,17 +72,6 @@
 <body>
 
 <div class="container">
-
-  <!-- ✅ MESSAGE DE CONFIRMATION -->
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, msg in messages %}
-        <div class="flash-ok">
-          ✅ {{ msg }}
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
 
   <h1>Transmission de documents — Intégrale Academy</h1>
 

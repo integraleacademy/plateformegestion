@@ -28,6 +28,23 @@
       <h2 style="margin:6px 0 0;">
         👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
       </h2>
+
+      <div style="margin-top:10px;">
+  <a href="{{ url_for('export_formateur_dossier', fid=formateur.id) }}"
+     style="
+        display:inline-block;
+        padding:8px 16px;
+        background:#27ae60;
+        color:white;
+        border-radius:8px;
+        font-weight:600;
+        font-size:13px;
+        text-decoration:none;
+     ">
+    📦 Exporter le dossier
+  </a>
+</div>
+
       <div style="font-size:13px;color:#555;margin-top:4px;">
         {{ formateur.email or "Email : —" }} • {{ formateur.telephone or "Téléphone : —" }}
       </div>
@@ -261,3 +278,4 @@
 
 </body>
 </html>
+

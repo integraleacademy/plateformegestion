@@ -1245,6 +1245,51 @@ def download_formateur_attachment(fid, doc_id, filename):
     return send_from_directory(subdir, filename, as_attachment=False)
 
 
+@app.route(
+    "/formateurs/<fid>/documents/<doc_id>/attachments/<filename>/delete",
+    methods=["POST"]
+)
+def delete_formateur_attachment(fid, doc_id, filename):
+
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        return {"ok": False}, 404
+
+    doc = next(
+        (d for d in formateur.get("documents", [])
+         if d.get("id") == doc_id),
+        None
+    )
+    if not doc:
+        return {"ok": False}, 404
+
+    # 📁 Suppression fichier physique
+    file_path = os.path.join(
+        FORMATEUR_FILES_DIR,
+        fid,
+        doc_id,
+        filename
+    )
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    # 🧹 Suppression dans le JSON
+    doc["attachments"] = [
+        a for a in doc.get("attachments", [])
+        if a.get("filename") != filename
+    ]
+
+    # 🔁 Si plus de PJ → non conforme
+    if not doc["attachments"]:
+        doc["status"] = "non_conforme"
+
+    save_formateurs(formateurs)
+
+    return {"ok": True}
+
+
+
 
 # ------------------------------------------------------------
 # 📊 Route JSON pour les dotations (affichage sur index)

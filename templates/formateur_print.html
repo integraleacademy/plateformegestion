@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>État du dossier formateur</title>
+
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    color: #000;
+    margin: 30px;
+  }
+
+  h1 {
+    font-size: 18px;
+    margin-bottom: 5px;
+  }
+
+  h2 {
+    font-size: 14px;
+    margin-top: 25px;
+  }
+
+  .meta {
+    font-size: 12px;
+    margin-bottom: 15px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+
+  th, td {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    text-align: left;
+  }
+
+  th {
+    background: #f0f0f0;
+  }
+
+  .ok { background: #d4edda; }
+  .ko { background: #f8d7da; }
+  .na { background: #e0e0e0; }
+
+  .print-btn {
+    margin-bottom: 20px;
+  }
+
+  @media print {
+    .print-btn {
+      display: none;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<div class="print-btn">
+  <button onclick="window.print()" style="padding:8px 14px;font-weight:600;">
+    🖨️ Imprimer
+  </button>
+</div>
+
+<h1>INTÉGRALE ACADEMY</h1>
+<div class="meta">
+  <b>État du dossier formateur</b><br>
+  Édité le : {{ today }}
+</div>
+
+<div class="meta">
+  <b>Nom :</b> {{ formateur.nom|upper }}<br>
+  <b>Prénom :</b> {{ formateur.prenom }}<br>
+  <b>Email :</b> {{ formateur.email or "—" }}<br>
+  <b>Téléphone :</b> {{ formateur.telephone or "—" }}
+</div>
+
+<h2>📂 Détail des documents</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Document</th>
+      <th>Statut</th>
+      <th>Date d’expiration</th>
+      <th>Observation</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for doc in formateur.documents %}
+    <tr class="
+      {% if doc.status == 'conforme' %}ok{% elif doc.status == 'non_conforme' %}ko{% else %}na{% endif %}
+    ">
+      <td>{{ doc.label }}</td>
+      <td>
+        {% if doc.status == "conforme" %}✅ Conforme
+        {% elif doc.status == "non_conforme" %}❌ Non conforme
+        {% else %}⚪ Non concerné{% endif %}
+      </td>
+      <td>{{ doc.expiration or "—" }}</td>
+      <td>{{ doc.commentaire or "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if non_conformes %}
+<h2>⚠️ Documents à régulariser</h2>
+<ul>
+  {% for doc in non_conformes %}
+    <li>{{ doc.label }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<h2>✍️ Engagement du formateur</h2>
+<p>
+Je reconnais avoir pris connaissance de l’état de mon dossier et m’engage à fournir
+les documents manquants ou non conformes dans les meilleurs délais.
+</p>
+
+<br><br>
+
+<table style="width:100%;border:none;">
+  <tr>
+    <td style="border:none;width:50%;">
+      Fait à : .........................................
+    </td>
+    <td style="border:none;width:50%;">
+      Signature du formateur :
+      <br><br><br>
+      ..................................................
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

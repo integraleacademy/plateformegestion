@@ -1299,3 +1299,65 @@ def formateurs_data():
         print("Erreur /formateurs_data.json :", e)
         return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
 
+import zipfile
+from flask import send_file
+from io import BytesIO
+
+@app.route("/formateurs/<fid>/export")
+def export_formateur_dossier(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    nom = (formateur.get("nom") or "").upper()
+    prenom = (formateur.get("prenom") or "").strip()
+    dossier_name = f"{nom} {prenom}".strip()
+
+    # ZIP en mémoire (pas écrit sur le disque)
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for doc in formateur.get("documents", []):
+            label = doc.get("label", "Document").strip()
+
+            for att in doc.get("attachments", []):
+                filename = att.get("filename")
+                original = att.get("original_name")
+
+                if not filename or not original:
+                    continue
+
+                file_path = os.path.join(
+                    FORMATEUR_FILES_DIR,
+                    fid,
+                    doc["id"],
+                    filename
+                )
+
+                if not os.path.exists(file_path):
+                    continue
+
+                ext = os.path.splitext(original)[1]
+                clean_name = f"{label} {prenom} {nom}{ext}"
+
+                arcname = os.path.join(
+                    dossier_name,
+                    clean_name
+                )
+
+                zipf.write(file_path, arcname)
+
+    zip_buffer.seek(0)
+
+    zip_filename = f"Dossier formateur {prenom} {nom}.zip"
+
+    return send_file(
+        zip_buffer,
+        as_attachment=True,
+        download_name=zip_filename,
+        mimetype="application/zip"
+    )
+
+
+

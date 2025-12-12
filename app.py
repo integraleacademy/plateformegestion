@@ -1359,5 +1359,31 @@ def export_formateur_dossier(fid):
         mimetype="application/zip"
     )
 
+@app.route("/formateurs/<fid>/print")
+def print_formateur_dossier(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    # Mise à jour auto des statuts avant impression
+    for doc in formateur.get("documents", []):
+        auto_update_document_status(doc)
+
+    # Liste des docs non conformes / manquants
+    non_conformes = [
+        d for d in formateur.get("documents", [])
+        if d.get("status") == "non_conforme"
+    ]
+
+    return render_template(
+        "formateur_print.html",
+        title="État du dossier formateur",
+        formateur=formateur,
+        non_conformes=non_conformes,
+        today=datetime.now().strftime("%d/%m/%Y")
+    )
+
+
 
 

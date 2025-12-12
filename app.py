@@ -1436,6 +1436,8 @@ def upload_formateur_documents(fid):
                 "original_name": f.filename
             })
 
+        doc["status"] = "conforme"
+
         save_formateurs(formateurs)
         flash("Document transmis avec succès.", "ok")
         return redirect(request.url)

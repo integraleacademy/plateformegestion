@@ -133,22 +133,38 @@
 
       {% for att in doc.attachments %}
         {% set ext = att.original_name.split('.')[-1]|lower %}
-        <div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+<div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
 
-          {% if ext in ["jpg","jpeg","png","gif","webp"] %}
-            <span>🖼️</span>
-          {% elif ext in ["pdf"] %}
-            <span>📄</span>
-          {% else %}
-            <span>📎</span>
-          {% endif %}
+  {% if ext in ["jpg","jpeg","png","gif","webp"] %}
+    <span>🖼️</span>
+  {% elif ext in ["pdf"] %}
+    <span>📄</span>
+  {% else %}
+    <span>📎</span>
+  {% endif %}
 
-          <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}"
-             target="_blank"
-             style="font-size:12px;text-decoration:none;color:#007bff;">
-            {{ att.original_name }}
-          </a>
-        </div>
+  <a href="{{ url_for('download_formateur_attachment',
+                      fid=formateur.id,
+                      doc_id=doc.id,
+                      filename=att.filename) }}"
+     target="_blank"
+     style="font-size:12px;text-decoration:none;color:#007bff;">
+    {{ att.original_name }}
+  </a>
+
+  <!-- 🗑️ SUPPRIMER PJ -->
+  <button type="button"
+          class="delete-att"
+          data-doc="{{ doc.id }}"
+          data-file="{{ att.filename }}"
+          title="Supprimer"
+          style="border:none;background:none;color:#c0392b;
+                 cursor:pointer;font-size:13px;">
+    🗑️
+  </button>
+
+</div>
+
       {% endfor %}
 
     </div>
@@ -289,11 +305,37 @@
       });
     }
   });
+// 🗑️ Suppression d'une pièce jointe
+document.querySelectorAll(".delete-att").forEach(btn => {
+  btn.addEventListener("click", () => {
+
+    if (!confirm("Supprimer cette pièce jointe ?")) return;
+
+    const docId = btn.dataset.doc;
+    const filename = btn.dataset.file;
+
+    fetch(`/formateurs/${fid}/documents/${docId}/attachments/${filename}/delete`, {
+      method: "POST"
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        // retire la ligne visuellement
+        btn.parentElement.remove();
+        showToast();
+      }
+    })
+    .catch(err => console.error("Erreur suppression PJ :", err));
+  });
+});
+
+  
 })();
 </script>
 
 </body>
 </html>
+
 
 
 

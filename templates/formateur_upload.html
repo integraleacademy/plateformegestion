@@ -2,28 +2,131 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Dépôt de documents</title>
+<title>Dépôt de documents — Intégrale Academy</title>
+
 <style>
-  body { font-family:Arial; margin:40px; }
-  h1 { font-size:20px; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f5f6f8;
+    margin:0;
+    padding:40px 15px;
+  }
+
+  .container {
+    max-width:900px;
+    margin:auto;
+    background:#fff;
+    padding:30px;
+    border-radius:14px;
+    box-shadow:0 6px 20px rgba(0,0,0,.08);
+  }
+
+  h1 {
+    font-size:22px;
+    margin-top:0;
+  }
+
+  h3 {
+    margin-bottom:10px;
+  }
+
+  .doc-block {
+    border-top:1px solid #eee;
+    padding-top:20px;
+    margin-top:20px;
+  }
+
+  input[type="file"] {
+    margin-top:8px;
+  }
+
+  button {
+    margin-top:12px;
+    padding:10px 18px;
+    border:none;
+    border-radius:8px;
+    background:#2980b9;
+    color:white;
+    font-weight:700;
+    cursor:pointer;
+    font-size:14px;
+  }
+
+  button:hover {
+    background:#2471a3;
+  }
+
+  .flash-ok {
+    background:#27ae60;
+    color:white;
+    padding:14px 18px;
+    border-radius:12px;
+    font-weight:700;
+    text-align:center;
+    margin-bottom:25px;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
+  }
+
+  .all-good {
+    background:#f4fff6;
+    border:1px solid #c9f2d2;
+    color:#1e7e34;
+    padding:20px;
+    border-radius:14px;
+    font-weight:700;
+    text-align:center;
+    margin-top:20px;
+  }
 </style>
 </head>
+
 <body>
 
-<h1>Transmission de documents — Intégrale Academy</h1>
+<div class="container">
 
-<p>Bonjour {{ formateur.prenom }}, merci de transmettre les documents demandés ci-dessous.</p>
+  <!-- ✅ MESSAGE DE CONFIRMATION -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="flash-ok">
+          ✅ {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-{% for doc in docs_ko %}
-  <hr>
-  <h3>{{ doc.label }}</h3>
-  <form method="POST" enctype="multipart/form-data">
-    <input type="hidden" name="doc_id" value="{{ doc.id }}">
-    <input type="file" name="files" multiple required>
-    <br><br>
-    <button type="submit">📤 Envoyer le document</button>
-  </form>
-{% endfor %}
+  <h1>Transmission de documents — Intégrale Academy</h1>
+
+  <p>
+    Bonjour <b>{{ formateur.prenom }}</b>,<br>
+    merci de transmettre les documents demandés ci-dessous.
+  </p>
+
+  <!-- 📄 LISTE DES DOCUMENTS À TRANSMETTRE -->
+  {% for doc in docs_ko %}
+    <div class="doc-block">
+      <h3>📄 {{ doc.label }}</h3>
+
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="doc_id" value="{{ doc.id }}">
+
+        <input type="file" name="files" multiple required>
+
+        <br>
+        <button type="submit">📤 Envoyer le document</button>
+      </form>
+    </div>
+  {% endfor %}
+
+  <!-- ✅ DOSSIER COMPLET -->
+  {% if not docs_ko %}
+    <div class="all-good">
+      ✅ Merci, votre dossier formateur est désormais complet.<br>
+      Aucune action supplémentaire n’est nécessaire.
+    </div>
+  {% endif %}
+
+</div>
 
 </body>
 </html>

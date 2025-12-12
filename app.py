@@ -5,6 +5,9 @@ import smtplib
 from email.mime.text import MIMEText
 from flask import Flask, render_template, request, redirect, url_for, abort, flash, send_from_directory
 from werkzeug.utils import secure_filename
+from functools import wraps
+from flask import session
+
 
 
 # --- 🔧 Forcer le fuseau horaire français ---
@@ -14,6 +17,85 @@ time.tzset()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
+
+ADMIN_USER = os.environ.get("ADMIN_USER")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+
+# ------------------------------------------------------------
+# 🔐 AUTHENTIFICATION ADMIN
+# ------------------------------------------------------------
+
+def login_required(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+
+        # ✅ Autoriser le lien formateur public avec token
+        if request.path.startswith("/formateurs/") and "/upload" in request.path:
+            return f(*args, **kwargs)
+
+        # 🔐 Vérification session admin
+        if not session.get("admin_logged"):
+            return redirect(url_for("login", next=request.path))
+
+        return f(*args, **kwargs)
+    return wrapped
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+
+        if email == ADMIN_USER and password == ADMIN_PASSWORD:
+            session["admin_logged"] = True
+            return redirect(request.args.get("next") or url_for("index"))
+
+        flash("Identifiants incorrects", "error")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+@app.before_request
+def protect_all_routes():
+    path = request.path
+
+    # ✅ autoriser page login / logout
+    if path.startswith("/login") or path.startswith("/logout"):
+        return None
+
+    # ✅ autoriser les fichiers statiques (css/js/images)
+    if path.startswith("/static/"):
+        return None
+
+    # ✅ autoriser lien public formateur (upload avec token)
+    if path.startswith("/formateurs/") and "/upload" in path:
+        return None
+
+    # ✅ autoriser accès préfecture (auth basic gérée dans la route)
+    if path.startswith("/prefecture/"):
+        return None
+
+    # ✅ autoriser les routes cron (Render Cron)
+    if path.startswith("/cron-"):
+        return None
+
+    # 🔐 tout le reste nécessite une session admin
+    if not session.get("admin_logged"):
+        return redirect(url_for("login", next=path))
+
+    return None
+
+
+
+
+
+
 
 
 # --- Filtres Jinja ---
@@ -1540,6 +1622,8 @@ def send_formateur_relance(fid):
 
     flash("📧 Mail envoyé au formateur.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
+
+    
 
 
 

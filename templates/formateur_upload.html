@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Dépôt de documents</title>
+<style>
+  body { font-family:Arial; margin:40px; }
+  h1 { font-size:20px; }
+</style>
+</head>
+<body>
+
+<h1>Transmission de documents — Intégrale Academy</h1>
+
+<p>Bonjour {{ formateur.prenom }}, merci de transmettre les documents demandés ci-dessous.</p>
+
+{% for doc in docs_ko %}
+  <hr>
+  <h3>{{ doc.label }}</h3>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="doc_id" value="{{ doc.id }}">
+    <input type="file" name="files" multiple required>
+    <br><br>
+    <button type="submit">📤 Envoyer le document</button>
+  </form>
+{% endfor %}
+
+</body>
+</html>

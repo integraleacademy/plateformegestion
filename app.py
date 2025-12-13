@@ -1176,6 +1176,13 @@ def formateurs_home():
                 "statut": "non_attribuee"
             }
 
+        if "badge" not in f:
+        f["badge"] = {
+            "attribue": False,
+            "numero": "",
+            "statut": "non_attribue"
+        }
+
     for f in formateurs:
         total = 0
         conformes = 0

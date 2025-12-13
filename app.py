@@ -1169,22 +1169,26 @@ def formateurs_home():
     formateurs = load_formateurs()
 
     for f in formateurs:
+        if "cle" not in f:
+            f["cle"] = {
+                "attribuee": False,
+                "numero": "",
+                "statut": "non_attribuee"
+            }
+
+    for f in formateurs:
         total = 0
         conformes = 0
 
         for doc in f.get("documents", []):
-            # mise à jour auto des statuts
             auto_update_document_status(doc)
 
             status = doc.get("status", "non_conforme")
-
-            # on exclut les "non concernés"
             if status != "non_concerne":
                 total += 1
                 if status == "conforme":
                     conformes += 1
 
-        # 🔥 calcul final stocké pour le HTML
         f["conformite"] = {
             "conformes": conformes,
             "total": total
@@ -1204,17 +1208,44 @@ def formateurs_home():
 def add_formateur():
     formateurs = load_formateurs()
     fid = str(uuid.uuid4())[:8]
+
     formateur = {
         "id": fid,
         "nom": request.form.get("nom", "").strip(),
         "prenom": request.form.get("prenom", "").strip(),
         "email": request.form.get("email", "").strip(),
         "telephone": request.form.get("telephone", "").strip(),
+
+        "cle": {
+            "attribuee": False,
+            "numero": "",
+            "statut": "non_attribuee"
+        },
+
         "documents": build_default_documents()
     }
+
     formateurs.append(formateur)
     save_formateurs(formateurs)
     return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/cle/update", methods=["POST"])
+def update_formateur_cle(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        return {"ok": False}, 404
+
+    cle = formateur.setdefault("cle", {})
+
+    cle["attribuee"] = request.form.get("attribuee") == "true"
+    cle["numero"] = request.form.get("numero", "").strip()
+    cle["statut"] = request.form.get("statut", "non_attribuee")
+
+    save_formateurs(formateurs)
+    return {"ok": True}
+
 
 
 @app.route("/formateurs/<fid>")
@@ -1620,21 +1651,13 @@ def send_formateur_relance(fid):
         body
     )
 
-    flash("📧 Mail envoyé au formateur.", "ok")
-    return redirect(url_for("formateur_detail", fid=fid))
-
-        send_email(
-        formateur.get("email"),
-        "Documents manquants — Dossier formateur",
-        body
-    )
-
     # ✅ TRACE DE LA RELANCE
     formateur["last_relance"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_formateurs(formateurs)
 
     flash("📧 Mail envoyé au formateur.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
+
 
 
     

@@ -118,6 +118,59 @@
       Non rendue
     </option>
   </select>
+  </div> <!-- fin cle-box -->
+
+
+<!-- 🎫 BADGE BARRIÈRE -->
+<div id="badge-box"
+     style="margin-top:12px;padding:14px 16px;border-radius:12px;
+            background:#f8f9fa;border:1px solid #e0e0e0;
+            display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+
+  <strong style="font-size:14px;">🎫 Badge barrière :</strong>
+
+  <!-- Attribué -->
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+    <input type="checkbox" id="badge-attribue"
+           {% if formateur.badge.attribue %}checked{% endif %}>
+    Attribué
+  </label>
+
+  <!-- Numéro -->
+  <input type="text"
+         id="badge-numero"
+         placeholder="N° badge"
+         value="{{ formateur.badge.numero }}"
+         style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
+                font-size:13px;width:110px;">
+
+  <!-- Statut -->
+  <select id="badge-statut"
+          style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
+                 font-size:13px;">
+    <option value="non_attribue"
+      {% if formateur.badge.statut == "non_attribue" %}selected{% endif %}>
+      Non attribué
+    </option>
+    <option value="attribue"
+      {% if formateur.badge.statut == "attribue" %}selected{% endif %}>
+      Attribué
+    </option>
+    <option value="rendu"
+      {% if formateur.badge.statut == "rendu" %}selected{% endif %}>
+      Rendu
+    </option>
+    <option value="non_rendu"
+      {% if formateur.badge.statut == "non_rendu" %}selected{% endif %}>
+      Non rendu
+    </option>
+  </select>
+
+</div>
+
+
+
+  
 
 </div>
 
@@ -446,6 +499,65 @@ if (cleAttribuee && cleNumero && cleStatut) {
   cleStatut.addEventListener("change", saveCle);
 }
 
+  /* ===============================
+   🎫 GESTION BADGE BARRIÈRE
+================================ */
+
+const badgeBox = document.getElementById("badge-box");
+const badgeAttribue = document.getElementById("badge-attribue");
+const badgeNumero = document.getElementById("badge-numero");
+const badgeStatut = document.getElementById("badge-statut");
+
+function updateBadgeColor() {
+  if (!badgeBox) return;
+
+  badgeBox.style.background = "#f8f9fa";
+  badgeBox.style.borderColor = "#ddd";
+
+  switch (badgeStatut.value) {
+    case "attribue":
+      badgeBox.style.background = "#e8f5e9";
+      badgeBox.style.borderColor = "#2ecc71";
+      break;
+    case "rendu":
+      badgeBox.style.background = "#e3f2fd";
+      badgeBox.style.borderColor = "#3498db";
+      break;
+    case "non_rendu":
+      badgeBox.style.background = "#fdecea";
+      badgeBox.style.borderColor = "#e74c3c";
+      break;
+  }
+}
+
+function saveBadge() {
+  fetch(`/formateurs/${fid}/badge/update`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      attribue: badgeAttribue.checked ? "true" : "false",
+      numero: badgeNumero.value || "",
+      statut: badgeStatut.value
+    })
+  })
+  .then(r => r.json())
+  .then(() => {
+    showToast();
+    updateBadgeColor();
+  })
+  .catch(err => console.error("Erreur sauvegarde badge :", err));
+}
+
+if (badgeAttribue && badgeNumero && badgeStatut) {
+  updateBadgeColor();
+  badgeAttribue.addEventListener("change", saveBadge);
+  badgeNumero.addEventListener("blur", saveBadge);
+  badgeStatut.addEventListener("change", saveBadge);
+}
+
+
 
   
 
@@ -455,6 +567,7 @@ if (cleAttribuee && cleNumero && cleStatut) {
 
 </body>
 </html>
+
 
 
 

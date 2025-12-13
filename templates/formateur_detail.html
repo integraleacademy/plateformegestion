@@ -68,7 +68,58 @@
   <div style="margin-top:6px;font-size:13px;color:#e67e22;font-weight:600;">
     📧 Dernière relance : {{ formateur.last_relance }}
   </div>
+
+
+
+      
 {% endif %}
+
+            <!-- 🔑 GESTION DE LA CLÉ -->
+<div id="cle-box"
+     style="margin-top:14px;padding:14px 16px;border-radius:12px;
+            background:#f8f9fa;border:1px solid #e0e0e0;
+            display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+
+  <strong style="font-size:14px;">🔑 Clé :</strong>
+
+  <!-- Attribuée -->
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+    <input type="checkbox" id="cle-attribuee"
+           {% if formateur.cle.attribuee %}checked{% endif %}>
+    Attribuée
+  </label>
+
+  <!-- Numéro -->
+  <input type="text"
+         id="cle-numero"
+         placeholder="N° de clé"
+         value="{{ formateur.cle.numero }}"
+         style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
+                font-size:13px;width:110px;">
+
+  <!-- Statut -->
+  <select id="cle-statut"
+          style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
+                 font-size:13px;">
+    <option value="non_attribuee"
+      {% if formateur.cle.statut == "non_attribuee" %}selected{% endif %}>
+      Non attribuée
+    </option>
+    <option value="attribuee"
+      {% if formateur.cle.statut == "attribuee" %}selected{% endif %}>
+      Attribuée
+    </option>
+    <option value="rendue"
+      {% if formateur.cle.statut == "rendue" %}selected{% endif %}>
+      Rendue
+    </option>
+    <option value="non_rendue"
+      {% if formateur.cle.statut == "non_rendue" %}selected{% endif %}>
+      Non rendue
+    </option>
+  </select>
+
+</div>
 
     </div>
   </div>
@@ -335,12 +386,76 @@ document.querySelectorAll(".delete-att").forEach(btn => {
   });
 });
 
+  /* ===============================
+   🔑 GESTION CLÉ FORMATEUR
+================================ */
+
+const cleBox = document.getElementById("cle-box");
+const cleAttribuee = document.getElementById("cle-attribuee");
+const cleNumero = document.getElementById("cle-numero");
+const cleStatut = document.getElementById("cle-statut");
+
+function updateCleColor() {
+  if (!cleBox) return;
+
+  cleBox.style.background = "#f8f9fa";
+  cleBox.style.borderColor = "#ddd";
+
+  switch (cleStatut.value) {
+    case "attribuee":
+      cleBox.style.background = "#e8f5e9";
+      cleBox.style.borderColor = "#2ecc71";
+      break;
+    case "rendue":
+      cleBox.style.background = "#e3f2fd";
+      cleBox.style.borderColor = "#3498db";
+      break;
+    case "non_rendue":
+      cleBox.style.background = "#fdecea";
+      cleBox.style.borderColor = "#e74c3c";
+      break;
+  }
+}
+
+function saveCle() {
+  fetch(`/formateurs/${fid}/cle/update`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      attribuee: cleAttribuee.checked ? "true" : "false",
+      numero: cleNumero.value || "",
+      statut: cleStatut.value
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    showToast();
+    updateCleColor();
+  })
+  .catch(err => console.error("Erreur sauvegarde clé :", err));
+}
+
+if (cleAttribuee && cleNumero && cleStatut) {
+
+  updateCleColor(); // couleur au chargement
+
+  cleAttribuee.addEventListener("change", saveCle);
+  cleNumero.addEventListener("blur", saveCle);
+  cleStatut.addEventListener("change", saveCle);
+}
+
+
+  
+
   
 })();
 </script>
 
 </body>
 </html>
+
 
 
 

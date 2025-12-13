@@ -553,16 +553,12 @@ def get_formateurs_global_non_conformites():
 
     for f in formateurs:
         for doc in f.get("documents", []):
-            status = doc.get("status")
-
-            # mise à jour auto selon la date (comme dans le détail)
             auto_update_document_status(doc)
-
-            # Expiration ou statut explicitement non conforme
-            if status == "non_conforme":
+            if doc.get("status") == "non_conforme":
                 total_non_conformes += 1
 
     return total_non_conformes
+
 
 
 
@@ -1177,13 +1173,13 @@ def formateurs_home():
             }
 
         if "badge" not in f:
-        f["badge"] = {
-            "attribue": False,
-            "numero": "",
-            "statut": "non_attribue"
-        }
+            f["badge"] = {
+                "attribue": False,
+                "numero": "",
+                "statut": "non_attribue"
+            }
 
-    for f in formateurs:
+        # ✅ calcul conformité
         total = 0
         conformes = 0
 
@@ -1196,10 +1192,7 @@ def formateurs_home():
                 if status == "conforme":
                     conformes += 1
 
-        f["conformite"] = {
-            "conformes": conformes,
-            "total": total
-        }
+        f["conformite"] = {"conformes": conformes, "total": total}
 
     save_formateurs(formateurs)
 
@@ -1208,6 +1201,7 @@ def formateurs_home():
         title="Contrôle formateurs",
         formateurs=formateurs
     )
+
 
 
 
@@ -1229,12 +1223,19 @@ def add_formateur():
             "statut": "non_attribuee"
         },
 
+        "badge": {
+            "attribue": False,
+            "numero": "",
+            "statut": "non_attribue"
+        },
+
         "documents": build_default_documents()
     }
 
     formateurs.append(formateur)
     save_formateurs(formateurs)
     return redirect(url_for("formateur_detail", fid=fid))
+
 
 
 @app.route("/formateurs/<fid>/cle/update", methods=["POST"])

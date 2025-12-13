@@ -1623,6 +1623,20 @@ def send_formateur_relance(fid):
     flash("📧 Mail envoyé au formateur.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
 
+        send_email(
+        formateur.get("email"),
+        "Documents manquants — Dossier formateur",
+        body
+    )
+
+    # ✅ TRACE DE LA RELANCE
+    formateur["last_relance"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_formateurs(formateurs)
+
+    flash("📧 Mail envoyé au formateur.", "ok")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
     
 
 

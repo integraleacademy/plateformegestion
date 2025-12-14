@@ -202,6 +202,14 @@
     <div id="notif-factures" class="notif empty">💼 Chargement...</div>
   </a>
 
+  <a class="card" href="https://assistance-alw9.onrender.com/admin-devis" target="_blank" rel="noopener">
+  <div class="emoji">🧾</div>
+  <div class="title">Demandes de devis</div>
+  <div class="desc">Devis détaillés & financement</div>
+  <div id="notif-devis" class="notif empty">🧾 Chargement...</div>
+</a>
+
+
   <a class="card" href="{{ url_for('dotations_home') }}">
     <div class="emoji">🎁</div>
     <div class="title">Gestion des dotations</div>
@@ -627,6 +635,34 @@ async function updateFormateurs() {
   }
 }
 
+    // --- DEVIS ---
+async function updateDevis() {
+  const box = document.getElementById("notif-devis");
+  if (!box) return;
+
+  try {
+    const r = await fetch("https://assistance-alw9.onrender.com/devis_data.json");
+    if (!r.ok) throw 0;
+
+    const d = await r.json();
+    const n = d.a_envoyer || 0;
+
+    if (n > 0) {
+      box.className = "notif wait";
+      box.innerHTML = `🧾 ${n} devis à envoyer`;
+    } else {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Aucun devis en attente";
+    }
+
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur devis";
+  }
+}
+
+    
+
 
 
 
@@ -644,6 +680,8 @@ async function updateFormateurs() {
   updateBTS(); 
   updateHebergement();
   updateFormateurs();
+  updateDevis();
+
 }
 
 
@@ -714,6 +752,8 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("⟳ Rafraîchissement automatique (toutes les 10 minutes)...");
     window.location.reload();
   }, 600000);
+
+    
 
     
 </script>

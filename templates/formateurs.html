@@ -83,37 +83,49 @@
     <p style="margin-top:10px;">Aucun formateur enregistré pour le moment.</p>
   {% endif %}
 
-  <!-- ===== LISTE DES CLÉS & BADGES ===== -->
+<!-- ===== LISTE DES CLÉS & BADGES ===== -->
 <div style="margin-top:40px;padding:20px;background:#f8f9fa;border-radius:12px;">
 
+  <!-- 🔑 CLÉS -->
   <h3 style="margin-top:0;margin-bottom:15px;">🔑 Clés attribuées</h3>
 
   {% if liste_cles %}
     <p style="font-size:15px;">
-      <b>Numéros attribués :</b> {{ liste_cles|join(", ") }}
+      <b>Attribuées :</b> {{ liste_cles|join(", ") }}
     </p>
   {% else %}
     <p>Aucune clé attribuée.</p>
   {% endif %}
 
+  <p style="font-size:15px;color:#2c3e50;margin-top:8px;">
+    <b>Disponibles :</b> {{ cles_dispos|join(", ") }}
+  </p>
+
   <hr style="margin:25px 0;">
 
+  <!-- 🟦 BADGES -->
   <h3 style="margin-bottom:15px;">🟦 Badges portail attribués</h3>
 
   {% if liste_badges %}
     <p style="font-size:15px;">
-      <b>Numéros attribués :</b> {{ liste_badges|join(", ") }}
+      <b>Attribués :</b> {{ liste_badges|join(", ") }}
     </p>
   {% else %}
     <p>Aucun badge attribué.</p>
   {% endif %}
 
+  <p style="font-size:15px;color:#2c3e50;margin-top:8px;">
+    <b>Disponibles :</b> {{ badges_dispos|join(", ") }}
+  </p>
+
 </div>
+
 
 
 </div>
 
 </body>
 </html>
+
 
 

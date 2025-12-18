@@ -1876,65 +1876,71 @@ Cordialement,<br>
 def assign_cle():
     payload = request.get_json()
     numero = str(payload.get("numero"))
-    fid = payload.get("fid")  # peut être "" pour Libre
+    fid = payload.get("fid")
 
     formateurs = load_formateurs()
 
-    # 1️⃣ Retirer cette clé à tous les formateurs existants
+    # 🔄 Retirer cette clé à tous les formateurs
     for f in formateurs:
         cle = f.setdefault("cle", {})
         if cle.get("numero") == numero:
             cle["attribuee"] = False
             cle["numero"] = ""
+            cle["statut"] = "non_attribuee"
             cle["custom_nom"] = ""
 
-    # 2️⃣ Si Libre → on s'arrête là
-    if fid == "" or fid is None:
+    # 🚫 Si Libre → fini
+    if not fid:
         save_formateurs(formateurs)
         return {"ok": True}
 
-    # 3️⃣ Sinon, attribuer la clé au bon formateur
+    # ✅ Sinon attribuer la clé
     formateur = next((f for f in formateurs if f["id"] == fid), None)
     if not formateur:
         return {"ok": False, "error": "Formateur introuvable"}
 
     formateur["cle"]["attribuee"] = True
     formateur["cle"]["numero"] = numero
-    formateur["cle"]["custom_nom"] = ""  # pas de nom libre ici
+    formateur["cle"]["statut"] = "attribuee"
+    formateur["cle"]["custom_nom"] = ""
 
     save_formateurs(formateurs)
     return {"ok": True}
+
 
 @app.route("/badge/assign", methods=["POST"])
 def assign_badge():
     payload = request.get_json()
     numero = str(payload.get("numero"))
-    fid = payload.get("fid")  # peut être "" pour Libre
+    fid = payload.get("fid")
 
     formateurs = load_formateurs()
 
-    # 1️⃣ Retirer ce badge à tous les formateurs existants
+    # 🔄 Retirer ce badge à tous les formateurs
     for f in formateurs:
         badge = f.setdefault("badge", {})
         if badge.get("numero") == numero:
             badge["attribue"] = False
             badge["numero"] = ""
+            badge["statut"] = "non_attribue"
 
-    # 2️⃣ Si Libre → terminé
-    if fid == "" or fid is None:
+    # 🚫 Si Libre
+    if not fid:
         save_formateurs(formateurs)
         return {"ok": True}
 
-    # 3️⃣ Sinon attribuer au bon formateur
+    # ✅ Sinon attribuer le badge
     formateur = next((f for f in formateurs if f["id"] == fid), None)
     if not formateur:
         return {"ok": False, "error": "Formateur introuvable"}
 
     formateur["badge"]["attribue"] = True
     formateur["badge"]["numero"] = numero
+    formateur["badge"]["statut"] = "attribue"
 
     save_formateurs(formateurs)
     return {"ok": True}
+
 
 
 

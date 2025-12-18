@@ -1644,11 +1644,12 @@ def send_formateur_relance(fid):
         _external=True
     )
 
-# ✉️ Contenu du mail avec bouton visible
-body = f"""
+    # ✉️ Contenu du mail avec bouton visible
+    body = f"""
 Bonjour {formateur.get('prenom')},<br><br>
 
-Votre dossier formateur nécessite quelques mises à jour. Merci de transmettre vos documents via le bouton ci-dessous. <b style='color:#d00000;'>Les envois par mail ne sont plus acceptés.</b><br><br>
+Votre dossier formateur nécessite quelques mises à jour. Merci de transmettre vos documents via le bouton ci-dessous. 
+<b style='color:#d00000;'>Les envois par mail ne sont plus acceptés.</b><br><br>
 
 <div style="text-align:center;margin:25px 0;">
   <a href="{link}" style="
@@ -1695,6 +1696,7 @@ Cordialement,<br>
 
     flash("📧 Mail envoyé au formateur.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
+
 
 
 

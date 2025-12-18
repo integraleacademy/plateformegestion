@@ -90,12 +90,20 @@
   </label>
 
   <!-- Numéro -->
-  <input type="text"
-         id="cle-numero"
-         placeholder="N° de clé"
-         value="{{ formateur.cle.numero }}"
-         style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-                font-size:13px;width:110px;">
+<select id="cle-numero"
+        style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
+               font-size:13px;width:130px;">
+  <option value="">— Aucune —</option>
+
+  {% for num, info in etat_cles.items() %}
+    <option value="{{ num }}"
+      {% if formateur.cle.numero == num %}selected{% endif %}
+    >
+      {{ num }} – {{ info.type }}
+    </option>
+  {% endfor %}
+</select>
+
 
   <!-- Statut -->
   <select id="cle-statut"
@@ -137,12 +145,20 @@
   </label>
 
   <!-- Numéro -->
-  <input type="text"
-         id="badge-numero"
-         placeholder="N° badge"
-         value="{{ formateur.badge.numero }}"
-         style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-                font-size:13px;width:110px;">
+<select id="badge-numero"
+        style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
+               font-size:13px;width:130px;">
+  <option value="">— Aucun —</option>
+
+  {% for num, info in etat_badges.items() %}
+    <option value="{{ num }}"
+      {% if formateur.badge.numero == num %}selected{% endif %}
+    >
+      Badge {{ num }}
+    </option>
+  {% endfor %}
+</select>
+
 
   <!-- Statut -->
   <select id="badge-statut"
@@ -608,6 +624,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

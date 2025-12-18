@@ -1187,46 +1187,49 @@ def auto_update_document_status(doc):
 # ------------------------------------------------------------
 def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
     """
-    Retourne deux dictionnaires du type :
-    cles[num] = {"type": "...", "attribue_a": "..."}
+    Retourne :
+    etat_cles[num]  = { "type": "...", "attribue_a": "..." }
+    etat_badges[num] = { "type": "Badge portail", "attribue_a": "..." }
     """
-    cles = {}
-    badges = {}
 
-    # --- Initialisation ---
-    for i in range(1, total_cles + 1):
-        cles[i] = {
-            "type": TYPES_CLES.get(i, "Normal"),
+    # --- Clés ---
+    etat_cles = {
+        i: {
+            "type": TYPES_CLES.get(i, "Inconnu"),
             "attribue_a": "Libre"
         }
+        for i in range(1, total_cles + 1)
+    }
 
-    for i in range(1, total_badges + 1):
-        badges[i] = {
+    # --- Badges ---
+    etat_badges = {
+        i: {
             "type": "Badge portail",
             "attribue_a": "Libre"
         }
+        for i in range(1, total_badges + 1)
+    }
 
-    # --- Attribution si un formateur possède la clé ---
     for f in formateurs:
-        nom_prenom = f"{f.get('prenom', '')} {f.get('nom', '').upper()}".strip()
+        nom_prenom = f"{f.get('prenom','')} {f.get('nom','').upper()}".strip()
 
-        # --- Clé ---
+        # ---- CLÉ ----
         cle = f.get("cle", {})
-        num = cle.get("numero", "").strip()
-        if cle.get("attribuee") and num.isdigit():
-            num = int(num)
-            if 1 <= num <= total_cles:
-                cles[num]["attribue_a"] = nom_prenom
+        num_c = cle.get("numero", "").strip()
+        if cle.get("attribuee") and num_c.isdigit():
+            num = int(num_c)
+            if num in etat_cles:
+                etat_cles[num]["attribue_a"] = nom_prenom
 
-        # --- Badge ---
+        # ---- BADGE ----
         badge = f.get("badge", {})
         num_b = badge.get("numero", "").strip()
         if badge.get("attribue") and num_b.isdigit():
-            num_b = int(num_b)
-            if 1 <= num_b <= total_badges:
-                badges[num_b]["attribue_a"] = nom_prenom
+            num = int(num_b)
+            if num in etat_badges:
+                etat_badges[num]["attribue_a"] = nom_prenom
 
-    return cles, badges
+    return etat_cles, etat_badges
 
 
 # --- CONFIG TYPES DE CLES ---

@@ -556,12 +556,18 @@ if (badgeAttribue && badgeNumero && badgeStatut) {
   badgeStatut.addEventListener("change", saveBadge);
 }
 
-  // 👁️ Afficher / masquer les documents non concernés
-  window.toggleNonConcerne = function () {
-    document.querySelectorAll(".non-concerne").forEach(row => {
-      row.style.display = (row.style.display === "none") ? "" : "";
-    });
-  };
+
+// 👁️ Afficher / masquer les documents non concernés
+window.toggleNonConcerne = function () {
+  document.querySelectorAll(".non-concerne").forEach(row => {
+    if (row.style.display === "" || row.style.display === "table-row") {
+      row.style.display = "none";
+    } else {
+      row.style.display = "";
+    }
+  });
+};
+
 
 
   // 🚫 Masquer automatiquement les lignes non concernées au chargement
@@ -580,6 +586,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

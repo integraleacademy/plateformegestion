@@ -94,7 +94,11 @@
       <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="doc_id" value="{{ doc.id }}">
 
-        <input type="file" name="files" multiple required>
+        <input type="file" name="files" multiple required accept=".pdf,.png,.jpg,.jpeg">
+        <p style="font-size:13px;color:#666;margin:6px 0 0;">
+  Formats acceptés : <b>PDF, PNG, JPG, JPEG</b>
+</p>
+
 
         <br>
         <button type="submit">📤 Envoyer le document</button>
@@ -114,4 +118,5 @@
 
 </body>
 </html>
+
 

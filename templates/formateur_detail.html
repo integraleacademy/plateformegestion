@@ -97,12 +97,13 @@
 
   {% for num, info in etat_cles.items() %}
     <option value="{{ num }}"
-      {% if formateur.cle.numero == num %}selected{% endif %}
+      {% if formateur.cle.numero|string == num|string %}selected{% endif %}
     >
       {{ num }} – {{ info.type }}
     </option>
   {% endfor %}
 </select>
+
 
 
   <!-- Statut -->
@@ -152,12 +153,13 @@
 
   {% for num, info in etat_badges.items() %}
     <option value="{{ num }}"
-      {% if formateur.badge.numero == num %}selected{% endif %}
+      {% if formateur.badge.numero|string == num|string %}selected{% endif %}
     >
       Badge {{ num }}
     </option>
   {% endfor %}
 </select>
+
 
 
   <!-- Statut -->
@@ -624,6 +626,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

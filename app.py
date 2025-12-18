@@ -1902,6 +1902,37 @@ def assign_cle():
     save_formateurs(formateurs)
     return {"ok": True}
 
+@app.route("/badge/assign", methods=["POST"])
+def assign_badge():
+    payload = request.get_json()
+    numero = str(payload.get("numero"))
+    fid = payload.get("fid")  # peut être "" pour Libre
+
+    formateurs = load_formateurs()
+
+    # 1️⃣ Retirer ce badge à tous les formateurs existants
+    for f in formateurs:
+        badge = f.setdefault("badge", {})
+        if badge.get("numero") == numero:
+            badge["attribue"] = False
+            badge["numero"] = ""
+
+    # 2️⃣ Si Libre → terminé
+    if fid == "" or fid is None:
+        save_formateurs(formateurs)
+        return {"ok": True}
+
+    # 3️⃣ Sinon attribuer au bon formateur
+    formateur = next((f for f in formateurs if f["id"] == fid), None)
+    if not formateur:
+        return {"ok": False, "error": "Formateur introuvable"}
+
+    formateur["badge"]["attribue"] = True
+    formateur["badge"]["numero"] = numero
+
+    save_formateurs(formateurs)
+    return {"ok": True}
+
 
 
 

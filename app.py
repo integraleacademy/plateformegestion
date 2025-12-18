@@ -1574,7 +1574,7 @@ def upload_formateur_documents(fid):
     if not formateur:
         abort(404)
 
-    # documents à corriger
+    # Documents à régulariser
     docs_ko = [
         d for d in formateur.get("documents", [])
         if d.get("status") == "non_conforme"
@@ -1591,19 +1591,29 @@ def upload_formateur_documents(fid):
         subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
         os.makedirs(subdir, exist_ok=True)
 
+        allowed_ext = ["pdf", "png", "jpg", "jpeg"]
+
         for f in files:
             if not f.filename:
                 continue
+
+            # Vérification extension
+            ext = f.filename.lower().rsplit(".", 1)[-1]
+            if ext not in allowed_ext:
+                flash("❌ Seuls les fichiers PDF, PNG, JPG et JPEG sont acceptés.", "error")
+                return redirect(request.url)
+
             safe = secure_filename(f.filename)
             name = f"{int(time.time())}_{safe}"
             f.save(os.path.join(subdir, name))
+
             doc.setdefault("attachments", []).append({
                 "filename": name,
                 "original_name": f.filename
             })
 
+        # Après upload → conforme
         doc["status"] = "conforme"
-
         save_formateurs(formateurs)
         flash("Document transmis avec succès.", "ok")
         return redirect(request.url)
@@ -1613,6 +1623,7 @@ def upload_formateur_documents(fid):
         formateur=formateur,
         docs_ko=docs_ko
     )
+
 
 @app.route("/formateurs/<fid>/send_mail", methods=["POST"])
 def send_formateur_relance(fid):

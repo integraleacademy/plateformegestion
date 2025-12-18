@@ -191,6 +191,13 @@
     </button>
   </form>
 
+  <button onclick="toggleNonConcerne()" 
+        style="margin-bottom:15px;padding:8px 12px;background:#ddd;border:none;
+               border-radius:6px;cursor:pointer;font-size:13px;">
+  👁️ Afficher / Masquer les documents non concernés
+</button>
+
+
   <div style="max-width:900px;margin:0 auto;overflow-x:auto;">
     <table style="border-collapse:collapse;font-size:13px;width:auto;">
       <thead>
@@ -204,88 +211,80 @@
       </thead>
 
       <tbody>
-        {% for doc in formateur.documents %}
-        <tr data-doc-id="{{ doc.id }}">
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-            {{ doc.label }}
-          </td>
+  {% for doc in formateur.documents %}
+  <tr data-doc-id="{{ doc.id }}" class="{% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
+    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+      {{ doc.label }}
+    </td>
 
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-            <input
-              type="date"
-              name="expiration"
-              value="{{ doc.expiration or '' }}"
-              style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-          </td>
+    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+      <input
+        type="date"
+        name="expiration"
+        value="{{ doc.expiration or '' }}"
+        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+    </td>
 
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-            <select name="status" class="status-select"
-              data-status="{{ doc.status }}"
-              style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-              
-              <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
-              <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
-              <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
-            </select>
-          </td>
+    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+      <select name="status" class="status-select"
+        data-status="{{ doc.status }}"
+        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
+        <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
+        <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
+        <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
+      </select>
+    </td>
 
-          <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-            <textarea
-              name="commentaire"
-              rows="2"
-              style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
-          </td>
+    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+      <textarea
+        name="commentaire"
+        rows="2"
+        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
+    </td>
 
-<td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
+      {% if doc.attachments %}
+        <div style="margin-bottom:6px;">
+          {% for att in doc.attachments %}
+            {% set ext = att.original_name.split('.')[-1]|lower %}
+            <div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+              {% if ext in ["jpg","jpeg","png","gif","webp"] %}
+                <span>🖼️</span>
+              {% elif ext in ["pdf"] %}
+                <span>📄</span>
+              {% else %}
+                <span>📎</span>
+              {% endif %}
 
-  {% if doc.attachments %}
-    <div style="margin-bottom:6px;">
+              <a href="{{ url_for('download_formateur_attachment',
+                                  fid=formateur.id,
+                                  doc_id=doc.id,
+                                  filename=att.filename) }}"
+                 target="_blank"
+                 style="font-size:12px;text-decoration:none;color:#007bff;">
+                {{ att.original_name }}
+              </a>
 
-      {% for att in doc.attachments %}
-        {% set ext = att.original_name.split('.')[-1]|lower %}
-<div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+              <button type="button"
+                      class="delete-att"
+                      data-doc="{{ doc.id }}"
+                      data-file="{{ att.filename }}"
+                      title="Supprimer"
+                      style="border:none;background:none;color:#c0392b;
+                             cursor:pointer;font-size:13px;">
+                🗑️
+              </button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
 
-  {% if ext in ["jpg","jpeg","png","gif","webp"] %}
-    <span>🖼️</span>
-  {% elif ext in ["pdf"] %}
-    <span>📄</span>
-  {% else %}
-    <span>📎</span>
-  {% endif %}
+      <input type="file" name="piece_jointe" multiple style="font-size:11px;">
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
 
-  <a href="{{ url_for('download_formateur_attachment',
-                      fid=formateur.id,
-                      doc_id=doc.id,
-                      filename=att.filename) }}"
-     target="_blank"
-     style="font-size:12px;text-decoration:none;color:#007bff;">
-    {{ att.original_name }}
-  </a>
-
-  <!-- 🗑️ SUPPRIMER PJ -->
-  <button type="button"
-          class="delete-att"
-          data-doc="{{ doc.id }}"
-          data-file="{{ att.filename }}"
-          title="Supprimer"
-          style="border:none;background:none;color:#c0392b;
-                 cursor:pointer;font-size:13px;">
-    🗑️
-  </button>
-
-</div>
-
-      {% endfor %}
-
-    </div>
-  {% endif %}
-
-  <input type="file" name="piece_jointe" multiple style="font-size:11px;">
-</td>
-
-        </tr>
-        {% endfor %}
-      </tbody>
     </table>
   </div>
 
@@ -557,6 +556,19 @@ if (badgeAttribue && badgeNumero && badgeStatut) {
   badgeStatut.addEventListener("change", saveBadge);
 }
 
+  // 👁️ Afficher / masquer les documents non concernés
+function toggleNonConcerne() {
+  document.querySelectorAll(".non-concerne").forEach(row => {
+    row.style.display = (row.style.display === "none") ? "" : "none";
+  });
+}
+
+  // 🚫 Masquer automatiquement les lignes non concernées au chargement
+document.querySelectorAll(".non-concerne").forEach(row => {
+  row.style.display = "none";
+});
+
+
 
 
   
@@ -567,6 +579,7 @@ if (badgeAttribue && badgeNumero && badgeStatut) {
 
 </body>
 </html>
+
 
 
 

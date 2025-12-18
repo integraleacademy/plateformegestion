@@ -1187,13 +1187,26 @@ def auto_update_document_status(doc):
 # ------------------------------------------------------------
 def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
     """
-    Retourne deux dictionnaires :
-    cles[numéro] = "Prenom NOM" ou "Libre"
-    badges[numéro] = "Prenom NOM" ou "Libre"
+    Retourne deux dictionnaires du type :
+    cles[num] = {"type": "...", "attribue_a": "..."}
     """
-    cles = {i: "Libre" for i in range(1, total_cles + 1)}
-    badges = {i: "Libre" for i in range(1, total_badges + 1)}
+    cles = {}
+    badges = {}
 
+    # --- Initialisation ---
+    for i in range(1, total_cles + 1):
+        cles[i] = {
+            "type": TYPES_CLES.get(i, "Normal"),
+            "attribue_a": "Libre"
+        }
+
+    for i in range(1, total_badges + 1):
+        badges[i] = {
+            "type": "Badge portail",
+            "attribue_a": "Libre"
+        }
+
+    # --- Attribution si un formateur possède la clé ---
     for f in formateurs:
         nom_prenom = f"{f.get('prenom', '')} {f.get('nom', '').upper()}".strip()
 
@@ -1203,7 +1216,7 @@ def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
         if cle.get("attribuee") and num.isdigit():
             num = int(num)
             if 1 <= num <= total_cles:
-                cles[num] = nom_prenom
+                cles[num]["attribue_a"] = nom_prenom
 
         # --- Badge ---
         badge = f.get("badge", {})
@@ -1211,9 +1224,30 @@ def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
         if badge.get("attribue") and num_b.isdigit():
             num_b = int(num_b)
             if 1 <= num_b <= total_badges:
-                badges[num_b] = nom_prenom
+                badges[num_b]["attribue_a"] = nom_prenom
 
     return cles, badges
+
+
+# --- CONFIG TYPES DE CLES ---
+TYPES_CLES = {
+    1: "PASS GENERAL",
+    2: "PASS GENERAL",
+    3: "PASS GENERAL",
+    4: "PASS PARTIEL",
+    5: "PASS PARTIEL",
+    6: "Formateurs",
+    7: "Formateurs",
+    8: "Formateurs",
+    9: "Formateurs",
+    10: "Formateurs",
+    11: "Formateurs",
+    12: "Formateurs",
+    13: "Formateurs",
+    14: "Formateurs",
+    15: "Formateurs"
+}
+
 
 
 @app.route("/formateurs")

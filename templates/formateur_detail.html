@@ -506,6 +506,28 @@ const badgeBox = document.getElementById("badge-box");
 const badgeAttribue = document.getElementById("badge-attribue");
 const badgeNumero = document.getElementById("badge-numero");
 const badgeStatut = document.getElementById("badge-statut");
+  // --- Mise à jour automatique du formulaire badge selon la sélection ---cest q
+if (badgeAttribue && badgeStatut && badgeNumero) {
+    badgeAttribue.addEventListener("change", () => {
+        const selection = badgeAttribue.value;
+
+        // Si "Aucun"
+        if (!selection) {
+            badgeStatut.value = "";
+            badgeNumero.value = "";
+            return;
+        }
+
+        // Si "Attribué Badge X"
+        if (selection.includes("Badge")) {
+            const parts = selection.split(" ");
+            const numero = parts[1];
+            badgeStatut.value = "attribue";
+            badgeNumero.value = numero;
+        }
+    });
+}
+
 
 function updateBadgeColor() {
   if (!badgeBox) return;
@@ -586,6 +608,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

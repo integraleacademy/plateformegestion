@@ -1644,27 +1644,43 @@ def send_formateur_relance(fid):
         _external=True
     )
 
-    # ✉️ Contenu du mail
-    body = f"""
-    Bonjour {formateur.get('prenom')},<br><br>
+# ✉️ Contenu du mail avec bouton visible
+body = f"""
+Bonjour {formateur.get('prenom')},<br><br>
 
-    Votre dossier formateur nécessite quelques mises à jour. Voici les éléments à régulariser :<br><br>
+Votre dossier formateur nécessite quelques mises à jour. Merci de transmettre vos documents via le bouton ci-dessous. <b style='color:#d00000;'>Les envois par mail ne sont plus acceptés.</b><br><br>
 
-    <ul style="font-size:15px;line-height:1.5;">
-      {''.join(
-        f"<li><b>{d['label']}</b>"
-        + (f"<br><span style='color:red;font-weight:600;'>⚠️ {d['commentaire']}</span>" if d['commentaire'] else "")
-        + "</li><br>"
-        for d in docs_ko
-      )}
-    </ul>
+<div style="text-align:center;margin:25px 0;">
+  <a href="{link}" style="
+      display:inline-block;
+      padding:14px 28px;
+      background:#0f62fe;
+      color:#ffffff !important;
+      font-size:18px;
+      font-weight:700;
+      border-radius:8px;
+      text-decoration:none;
+      box-shadow:0 4px 12px rgba(0,0,0,0.18);
+  ">
+      📁 Déposer mes documents
+  </a>
+</div>
 
-    Merci de transmettre les documents via le lien ci-dessous :<br>
-    <a href="{link}" style="font-weight:600;color:#1a73e8;">{link}</a><br><br>
+Voici les éléments à régulariser :<br><br>
 
-    Cordialement,<br>
-    <b>Intégrale Academy</b>
-    """
+<ul style="font-size:15px;line-height:1.5;">
+  {''.join(
+    f"<li><b>{d['label']}</b>"
+    + (f"<br><span style='color:red;font-weight:600;'>⚠️ {d['commentaire']}</span>" if d['commentaire'] else "")
+    + "</li><br>"
+    for d in docs_ko
+  )}
+</ul>
+
+Cordialement,<br>
+<b>Intégrale Academy</b>
+"""
+
 
     # 📩 Envoi
     send_email(

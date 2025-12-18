@@ -1397,6 +1397,23 @@ def update_formateur_cle(fid):
     return {"ok": True}
 
 
+@app.route("/formateurs/<fid>/badge/update", methods=["POST"])
+def update_formateur_badge(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        return {"ok": False}, 404
+
+    badge = formateur.setdefault("badge", {})
+
+    badge["attribue"] = request.form.get("attribue") == "true"
+    badge["numero"] = request.form.get("numero", "").strip()
+    badge["statut"] = request.form.get("statut", "non_attribue")
+
+    save_formateurs(formateurs)
+    return {"ok": True}
+
+
 
 
 @app.route("/formateurs/<fid>")

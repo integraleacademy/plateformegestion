@@ -131,13 +131,26 @@
       </td>
 
       <td style="padding:8px;border-bottom:1px solid #eee;">
-        {% if info.attribue_a == "Libre" %}
-          <span style="color:#777;">Libre</span>
-        {% else %}
-          <span style="color:#1e8449;font-weight:700;">
-            {{ info.attribue_a }}
-          </span>
-        {% endif %}
+       <td style="padding:8px;border-bottom:1px solid #eee;">
+  <select onchange="assignCle({{ num }}, this.value)"
+          style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;">
+    
+    <!-- Option Libre -->
+    <option value="" {% if info.attribue_a == 'Libre' %}selected{% endif %}>
+      Libre
+    </option>
+
+    <!-- Liste formateurs -->
+    {% for f in formateurs %}
+      <option value="{{ f.id }}"
+        {% if info.attribue_a == f.prenom + ' ' + f.nom.upper() %}selected{% endif %}
+      >
+        {{ f.prenom }} {{ f.nom|upper }}
+      </option>
+    {% endfor %}
+  </select>
+</td>
+
       </td>
     </tr>
 
@@ -188,8 +201,29 @@
 
 </div>
 
+  <script>
+function assignCle(numero, fid) {
+    fetch("/cle/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero: numero, fid: fid })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert("Erreur : " + (data.error || "Impossible d’attribuer la clé."));
+        }
+    });
+}
+</script>
+
+  
+
 </body>
 </html>
+
 
 
 

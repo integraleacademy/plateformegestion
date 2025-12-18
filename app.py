@@ -1180,6 +1180,42 @@ def auto_update_document_status(doc):
     if dt.date() < datetime.now().date():
         doc["status"] = "non_conforme"
 
+
+
+# ------------------------------------------------------------
+# 🔑🟦 ÉTAT COMPLET DES CLÉS & BADGES
+# ------------------------------------------------------------
+def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
+    """
+    Retourne deux dictionnaires :
+    cles[numéro] = "Prenom NOM" ou "Libre"
+    badges[numéro] = "Prenom NOM" ou "Libre"
+    """
+    cles = {i: "Libre" for i in range(1, total_cles + 1)}
+    badges = {i: "Libre" for i in range(1, total_badges + 1)}
+
+    for f in formateurs:
+        nom_prenom = f"{f.get('prenom', '')} {f.get('nom', '').upper()}".strip()
+
+        # --- Clé ---
+        cle = f.get("cle", {})
+        num = cle.get("numero", "").strip()
+        if cle.get("attribuee") and num.isdigit():
+            num = int(num)
+            if 1 <= num <= total_cles:
+                cles[num] = nom_prenom
+
+        # --- Badge ---
+        badge = f.get("badge", {})
+        num_b = badge.get("numero", "").strip()
+        if badge.get("attribue") and num_b.isdigit():
+            num_b = int(num_b)
+            if 1 <= num_b <= total_badges:
+                badges[num_b] = nom_prenom
+
+    return cles, badges
+
+
 @app.route("/formateurs")
 def formateurs_home():
     formateurs = load_formateurs()
@@ -1244,6 +1280,8 @@ def formateurs_home():
     cles_dispos = [n for n in total_cles if n not in liste_cles]
     badges_dispos = [n for n in total_badges if n not in liste_badges]
 
+    # ===== ÉTAT COMPLET CLÉS & BADGES =====
+    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 15, 15)
 
 
     return render_template(
@@ -1253,7 +1291,9 @@ def formateurs_home():
         liste_cles=liste_cles,
         liste_badges=liste_badges,
         cles_dispos=cles_dispos,
-        badges_dispos=badges_dispos
+        badges_dispos=badges_dispos,
+        etat_cles=etat_cles,       # 👈 ajouté
+        etat_badges=etat_badges   # 👈 ajouté
     )
 
 

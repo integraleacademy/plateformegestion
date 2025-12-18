@@ -1216,10 +1216,34 @@ def formateurs_home():
 
     save_formateurs(formateurs)
 
+    # ===== EXTRACTION DES CLÉS & BADGES =====
+    liste_cles = []
+    liste_badges = []
+
+    for f in formateurs:
+        # --- Clés ---
+        cle = f.get("cle", {})
+        num = cle.get("numero", "").strip()
+        if cle.get("attribuee") and num.isdigit():
+            liste_cles.append(int(num))
+
+        # --- Badges ---
+        badge = f.get("badge", {})
+        num_b = badge.get("numero", "").strip()
+        if badge.get("attribue") and num_b.isdigit():
+            liste_badges.append(int(num_b))
+
+    liste_cles = sorted(liste_cles)
+    liste_badges = sorted(liste_badges)
+
+
     return render_template(
         "formateurs.html",
         title="Contrôle formateurs",
-        formateurs=formateurs
+        formateurs=formateurs, 
+        liste_cles=liste_cles,
+        liste_badges=liste_badges
+
     )
 
 

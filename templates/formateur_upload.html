@@ -84,6 +84,12 @@
   {% for doc in docs_ko %}
     <div class="doc-block">
       <h3>📄 {{ doc.label }}</h3>
+      {% if doc.commentaire %}
+  <p style="color:#c70000;font-weight:700;margin:5px 0 15px;">
+    ⚠️ {{ doc.commentaire }}
+  </p>
+{% endif %}
+
 
       <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="doc_id" value="{{ doc.id }}">
@@ -108,3 +114,4 @@
 
 </body>
 </html>
+

@@ -83,42 +83,69 @@
     <p style="margin-top:10px;">Aucun formateur enregistré pour le moment.</p>
   {% endif %}
 
-<!-- ===== LISTE DES CLÉS & BADGES ===== -->
+<!-- ===== LISTE DES CLÉS & BADGES (vue détaillée) ===== -->
 <div style="margin-top:40px;padding:20px;background:#f8f9fa;border-radius:12px;">
 
   <!-- 🔑 CLÉS -->
-  <h3 style="margin-top:0;margin-bottom:15px;">🔑 Clés attribuées</h3>
+  <h3 style="margin-top:0;margin-bottom:15px;">🔑 Clés</h3>
 
-  {% if liste_cles %}
-    <p style="font-size:15px;">
-      <b>Attribuées :</b> {{ liste_cles|join(", ") }}
-    </p>
-  {% else %}
-    <p>Aucune clé attribuée.</p>
-  {% endif %}
-
-  <p style="font-size:15px;color:#2c3e50;margin-top:8px;">
-    <b>Disponibles :</b> {{ cles_dispos|join(", ") }}
-  </p>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:30px;">
+    <thead>
+      <tr style="background:#eef1f5;">
+        <th style="padding:8px;text-align:left;">Numéro</th>
+        <th style="padding:8px;text-align:left;">Attribuée à</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for num, nom in etat_cles.items() %}
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">
+          {{ num }}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">
+          {% if nom == "Libre" %}
+            <span style="color:#777;">Libre</span>
+          {% else %}
+            <span style="color:#1e8449;font-weight:700;">{{ nom }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
   <hr style="margin:25px 0;">
 
   <!-- 🟦 BADGES -->
-  <h3 style="margin-bottom:15px;">🟦 Badges portail attribués</h3>
+  <h3 style="margin-bottom:15px;">🟦 Badges portail</h3>
 
-  {% if liste_badges %}
-    <p style="font-size:15px;">
-      <b>Attribués :</b> {{ liste_badges|join(", ") }}
-    </p>
-  {% else %}
-    <p>Aucun badge attribué.</p>
-  {% endif %}
-
-  <p style="font-size:15px;color:#2c3e50;margin-top:8px;">
-    <b>Disponibles :</b> {{ badges_dispos|join(", ") }}
-  </p>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:#eef1f5;">
+        <th style="padding:8px;text-align:left;">Numéro</th>
+        <th style="padding:8px;text-align:left;">Attribué à</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for num, nom in etat_badges.items() %}
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">
+          {{ num }}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">
+          {% if nom == "Libre" %}
+            <span style="color:#777;">Libre</span>
+          {% else %}
+            <span style="color:#0d6efd;font-weight:700;">{{ nom }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
 </div>
+
 
 
 
@@ -126,6 +153,7 @@
 
 </body>
 </html>
+
 
 
 

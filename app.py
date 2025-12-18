@@ -753,6 +753,26 @@ def prefecture_session(sid):
         now=datetime.now
     )
 
+@app.route("/formateurs/<fid>/edit", methods=["GET", "POST"])
+def edit_formateur(fid):
+    data = load_data()
+
+    formateur = next((f for f in data["formateurs"] if f["id"] == fid), None)
+    if not formateur:
+        abort(404)
+
+    if request.method == "POST":
+        formateur["nom"] = request.form.get("nom", "").strip()
+        formateur["prenom"] = request.form.get("prenom", "").strip()
+        formateur["email"] = request.form.get("email", "").strip()
+        formateur["telephone"] = request.form.get("telephone", "").strip()
+
+        save_data(data)
+        return redirect(url_for("formateurs_home"))
+
+    return render_template("edit_formateur.html", formateur=formateur)
+
+
 
 @app.route("/sessions/<sid>/edit", methods=["GET","POST"])
 def edit_session(sid):

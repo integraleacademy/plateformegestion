@@ -557,11 +557,12 @@ if (badgeAttribue && badgeNumero && badgeStatut) {
 }
 
   // 👁️ Afficher / masquer les documents non concernés
-function toggleNonConcerne() {
-  document.querySelectorAll(".non-concerne").forEach(row => {
-    row.style.display = (row.style.display === "none") ? "" : "none";
-  });
-}
+  window.toggleNonConcerne = function () {
+    document.querySelectorAll(".non-concerne").forEach(row => {
+      row.style.display = (row.style.display === "none") ? "" : "";
+    });
+  };
+
 
   // 🚫 Masquer automatiquement les lignes non concernées au chargement
 document.querySelectorAll(".non-concerne").forEach(row => {
@@ -579,6 +580,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

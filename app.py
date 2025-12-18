@@ -1186,11 +1186,6 @@ def auto_update_document_status(doc):
 # 🔑🟦 ÉTAT COMPLET DES CLÉS & BADGES
 # ------------------------------------------------------------
 def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
-    """
-    Retourne :
-    etat_cles[num]  = { "type": "...", "attribue_a": "..." }
-    etat_badges[num] = { "type": "Badge portail", "attribue_a": "..." }
-    """
 
     # --- Clés ---
     etat_cles = {
@@ -1215,28 +1210,31 @@ def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
 
         # ---- CLÉ ----
         cle = f.get("cle", {})
-        num_c = cle.get("numero", "").strip()
-        if cle.get("attribuee") and num_c.isdigit():
+        num_c = str(cle.get("numero", "")).strip()
+
+        # 🔥 Normalisation : True / "true" / "1" / "on"
+        attrib_c = str(cle.get("attribuee", "")).lower() in ("true", "1", "yes", "on")
+
+        if attrib_c and num_c.isdigit():
             num = int(num_c)
             if num in etat_cles:
-                # Nom personnalisé si rempli
                 nom_custom = cle.get("custom_nom", "").strip()
-                
-                # Sinon nom du formateur
-                nom_formateur = f"{f.get('prenom','')} {f.get('nom','').upper()}".strip()
-                
+                nom_formateur = nom_prenom
                 etat_cles[num]["attribue_a"] = nom_custom if nom_custom else nom_formateur
-
 
         # ---- BADGE ----
         badge = f.get("badge", {})
-        num_b = badge.get("numero", "").strip()
-        if badge.get("attribue") and num_b.isdigit():
+        num_b = str(badge.get("numero", "")).strip()
+
+        attrib_b = str(badge.get("attribue", "")).lower() in ("true", "1", "yes", "on")
+
+        if attrib_b and num_b.isdigit():
             num = int(num_b)
             if num in etat_badges:
                 etat_badges[num]["attribue_a"] = nom_prenom
 
     return etat_cles, etat_badges
+
 
 
 # --- CONFIG TYPES DE CLES ---

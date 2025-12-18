@@ -1869,6 +1869,41 @@ Cordialement,<br>
     return redirect(url_for("formateur_detail", fid=fid))
 
 
+@app.route("/cle/assign", methods=["POST"])
+def assign_cle():
+    payload = request.get_json()
+    numero = str(payload.get("numero"))
+    fid = payload.get("fid")  # peut être "" pour Libre
+
+    formateurs = load_formateurs()
+
+    # 1️⃣ Retirer cette clé à tous les formateurs existants
+    for f in formateurs:
+        cle = f.setdefault("cle", {})
+        if cle.get("numero") == numero:
+            cle["attribuee"] = False
+            cle["numero"] = ""
+            cle["custom_nom"] = ""
+
+    # 2️⃣ Si Libre → on s'arrête là
+    if fid == "" or fid is None:
+        save_formateurs(formateurs)
+        return {"ok": True}
+
+    # 3️⃣ Sinon, attribuer la clé au bon formateur
+    formateur = next((f for f in formateurs if f["id"] == fid), None)
+    if not formateur:
+        return {"ok": False, "error": "Formateur introuvable"}
+
+    formateur["cle"]["attribuee"] = True
+    formateur["cle"]["numero"] = numero
+    formateur["cle"]["custom_nom"] = ""  # pas de nom libre ici
+
+    save_formateurs(formateurs)
+    return {"ok": True}
+
+
+
 
 
 

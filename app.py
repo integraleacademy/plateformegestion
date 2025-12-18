@@ -1415,7 +1415,6 @@ def update_formateur_badge(fid):
 
 
 
-
 @app.route("/formateurs/<fid>")
 def formateur_detail(fid):
     formateurs = load_formateurs()
@@ -1428,11 +1427,17 @@ def formateur_detail(fid):
         auto_update_document_status(doc)
     save_formateurs(formateurs)
 
+    # 🔑🟦 RÉCUPÉRER TOUTES LES CLÉS / BADGES EXISTANTS
+    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 15, 15)
+
     return render_template(
         "formateur_detail.html",
         title=f"Contrôle formateur — {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
-        formateur=formateur
+        formateur=formateur,
+        etat_cles=etat_cles,       # 👈 indispensable
+        etat_badges=etat_badges    # 👈 indispensable
     )
+
 
 
 @app.route("/formateurs/<fid>/delete", methods=["POST"])

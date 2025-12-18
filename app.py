@@ -1219,7 +1219,14 @@ def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
         if cle.get("attribuee") and num_c.isdigit():
             num = int(num_c)
             if num in etat_cles:
-                etat_cles[num]["attribue_a"] = nom_prenom
+                # Nom personnalisé si rempli
+                nom_custom = cle.get("custom_nom", "").strip()
+                
+                # Sinon nom du formateur
+                nom_formateur = f"{f.get('prenom','')} {f.get('nom','').upper()}".strip()
+                
+                etat_cles[num]["attribue_a"] = nom_custom if nom_custom else nom_formateur
+
 
         # ---- BADGE ----
         badge = f.get("badge", {})
@@ -1383,8 +1390,12 @@ def update_formateur_cle(fid):
     cle["numero"] = request.form.get("numero", "").strip()
     cle["statut"] = request.form.get("statut", "non_attribuee")
 
+    # 🆕 AJOUT — nom libre si la clé est donnée à quelqu’un qui n’est pas formateur
+    cle["custom_nom"] = request.form.get("custom_nom", "").strip()
+
     save_formateurs(formateurs)
     return {"ok": True}
+
 
 
 

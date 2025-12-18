@@ -1236,15 +1236,26 @@ def formateurs_home():
     liste_cles = sorted(liste_cles)
     liste_badges = sorted(liste_badges)
 
+    # ===== PLAGES TOTALES =====
+    total_cles = list(range(1, 16))       # Clés 1 → 15
+    total_badges = list(range(1, 16))     # Badges 1 → 15
+
+    # ===== NUMÉROS DISPONIBLES =====
+    cles_dispos = [n for n in total_cles if n not in liste_cles]
+    badges_dispos = [n for n in total_badges if n not in liste_badges]
+
+
 
     return render_template(
         "formateurs.html",
         title="Contrôle formateurs",
-        formateurs=formateurs, 
+        formateurs=formateurs,
         liste_cles=liste_cles,
-        liste_badges=liste_badges
-
+        liste_badges=liste_badges,
+        cles_dispos=cles_dispos,
+        badges_dispos=badges_dispos
     )
+
 
 
 

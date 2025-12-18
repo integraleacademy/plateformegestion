@@ -1621,8 +1621,13 @@ def send_formateur_relance(fid):
     if not formateur:
         abort(404)
 
+    # 📌 Documents non conformes avec commentaire
     docs_ko = [
-        d["label"] for d in formateur.get("documents", [])
+        {
+            "label": d["label"],
+            "commentaire": d.get("commentaire", "").strip()
+        }
+        for d in formateur.get("documents", [])
         if d.get("status") == "non_conforme"
     ]
 
@@ -1630,6 +1635,7 @@ def send_formateur_relance(fid):
         flash("Aucun document à relancer.", "ok")
         return redirect(url_for("formateur_detail", fid=fid))
 
+    # 🔗 Génération lien sécurisé pour upload
     token = generate_upload_token(fid)
     link = url_for(
         "upload_formateur_documents",
@@ -1638,33 +1644,42 @@ def send_formateur_relance(fid):
         _external=True
     )
 
+    # ✉️ Contenu du mail
     body = f"""
     Bonjour {formateur.get('prenom')},<br><br>
 
-    Votre dossier formateur présente les éléments suivants à régulariser :<br>
-    <ul>
-      {''.join(f'<li>{d}</li>' for d in docs_ko)}
+    Votre dossier formateur nécessite quelques mises à jour. Voici les éléments à régulariser :<br><br>
+
+    <ul style="font-size:15px;line-height:1.5;">
+      {''.join(
+        f"<li><b>{d['label']}</b>"
+        + (f"<br><span style='color:red;font-weight:600;'>⚠️ {d['commentaire']}</span>" if d['commentaire'] else "")
+        + "</li><br>"
+        for d in docs_ko
+      )}
     </ul>
 
     Merci de transmettre les documents via le lien ci-dessous :<br>
-    <a href="{link}">{link}</a><br><br>
+    <a href="{link}" style="font-weight:600;color:#1a73e8;">{link}</a><br><br>
 
     Cordialement,<br>
     <b>Intégrale Academy</b>
     """
 
+    # 📩 Envoi
     send_email(
         formateur.get("email"),
         "Documents manquants — Dossier formateur",
         body
     )
 
-    # ✅ TRACE DE LA RELANCE
+    # 🕒 Trace de la relance
     formateur["last_relance"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_formateurs(formateurs)
 
     flash("📧 Mail envoyé au formateur.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
+
 
 
 

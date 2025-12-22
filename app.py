@@ -1242,18 +1242,22 @@ TYPES_CLES = {
     1: "PASS GENERAL",
     2: "PASS GENERAL",
     3: "PASS GENERAL",
+
     4: "PASS PARTIEL",
     5: "PASS PARTIEL",
-    6: "Formateurs",
-    7: "Formateurs",
-    8: "Formateurs",
-    9: "Formateurs",
-    10: "Formateurs",
-    11: "Formateurs",
-    12: "Formateurs",
-    13: "Formateurs",
-    14: "Formateurs",
-    15: "Formateurs"
+    6: "PASS PARTIEL",      # 🔥 changement demandé
+
+    7: "APPARTEMENT",       # 🔥 renommage
+
+    8: "VIOLET",
+    9: "VIOLET",
+    10: "VIOLET",
+    11: "VIOLET",
+    12: "VIOLET",
+    13: "VIOLET",
+    14: "VIOLET",
+    15: "VIOLET",
+    16: "VIOLET"            # 🔥 ajout de la 16e clé
 }
 
 
@@ -1315,7 +1319,7 @@ def formateurs_home():
     liste_badges = sorted(liste_badges)
 
     # ===== PLAGES TOTALES =====
-    total_cles = list(range(1, 16))       # Clés 1 → 15
+    total_cles = list(range(1, 17))  # Clés 1 → 16
     total_badges = list(range(1, 16))     # Badges 1 → 15
 
     # ===== NUMÉROS DISPONIBLES =====
@@ -1323,7 +1327,7 @@ def formateurs_home():
     badges_dispos = [n for n in total_badges if n not in liste_badges]
 
     # ===== ÉTAT COMPLET CLÉS & BADGES =====
-    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 15, 15)
+    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
 
 
     return render_template(
@@ -1426,7 +1430,7 @@ def formateur_detail(fid):
     save_formateurs(formateurs)
 
     # 🔑🟦 RÉCUPÉRER TOUTES LES CLÉS / BADGES EXISTANTS
-    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 15, 15)
+    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
 
     return render_template(
         "formateur_detail.html",

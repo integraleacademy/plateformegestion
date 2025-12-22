@@ -1942,6 +1942,11 @@ def assign_badge():
     return {"ok": True}
 
 
+@app.route("/distributeur")
+def distributeur_home():
+    data = load_distributeur()
+    return render_template("distributeur.html", data=data)
+
 @app.route("/distributeur/add/<int:ligne_id>", methods=["POST"])
 def distributeur_add(ligne_id):
     data = load_distributeur()

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Réassort distributeur — Intégrale Academy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  body{
+    margin:0;
+    padding:0;
+    background:#f4f6f8;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .page{
+    max-width:900px;
+    margin:40px auto;
+    background:white;
+    padding:25px;
+    border-radius:16px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.08);
+  }
+
+  h1{
+    margin-top:0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .item{
+    background:#0f172a;
+    color:#f8fafc;
+    padding:18px;
+    border-radius:12px;
+    margin-bottom:15px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.15);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+
+  .left-info{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+
+  .produit{
+    font-size:18px;
+    font-weight:600;
+  }
+
+  .etage{
+    font-size:13px;
+    opacity:0.8;
+  }
+
+  .reassort{
+    font-size:14px;
+    margin-top:4px;
+    background:#111827;
+    padding:4px 8px;
+    border-radius:6px;
+    display:inline-block;
+    color:#fde68a;
+  }
+
+  .ok-btn{
+    border:none;
+    background:#22c55e;
+    color:#02140a;
+    font-weight:600;
+    padding:10px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+
+  .ok-btn:hover{
+    filter:brightness(1.05);
+  }
+
+  .no-items{
+    padding:40px;
+    text-align:center;
+    color:#555;
+    font-size:17px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="page">
+
+  <h1>🧃 Réassort distributeur</h1>
+
+  {% if items|length == 0 %}
+    <div class="no-items">
+      Aucun réassort à faire 🎉
+    </div>
+  {% else %}
+
+    {% for item in items %}
+    <div class="item">
+      <div class="left-info">
+        <div class="produit">{{ item.nom }}</div>
+        <div class="etage">Étage {{ item.ligne_id }}</div>
+        <div class="reassort">Réassort à faire : {{ item.reassort }}</div>
+      </div>
+
+      <form method="post"
+            action="{{ url_for('distributeur_reassort_valider', ligne_id=item.ligne_id, produit_id=item.produit_id) }}">
+        <button class="ok-btn">OK ✅</button>
+      </form>
+    </div>
+    {% endfor %}
+
+  {% endif %}
+
+</div>
+
+</body>
+</html>

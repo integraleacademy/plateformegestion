@@ -1942,6 +1942,73 @@ def assign_badge():
     return {"ok": True}
 
 
+@app.route("/distributeur/add/<int:ligne_id>", methods=["POST"])
+def distributeur_add(ligne_id):
+    data = load_distributeur()
+
+    # Trouver la ligne
+    ligne = next((l for l in data["lignes"] if l["id"] == ligne_id), None)
+    if not ligne:
+        abort(404)
+
+    # Ajouter un produit vide
+    new_product = {
+        "id": str(uuid.uuid4())[:8],
+        "nom": "",
+        "qte_cible": 0,
+        "qte_actuelle": 0,
+        "prix_achat": 0.0,
+        "prix_vente": 0.0
+    }
+
+    ligne["produits"].append(new_product)
+    save_distributeur(data)
+
+    return redirect(url_for("distributeur_home"))
+
+@app.route("/distributeur/update/<int:ligne_id>/<pid>", methods=["POST"])
+def distributeur_update(ligne_id, pid):
+    data = load_distributeur()
+
+    # retrouver la ligne
+    ligne = next((l for l in data["lignes"] if l["id"] == ligne_id), None)
+    if not ligne:
+        abort(404)
+
+    # retrouver le produit
+    produit = next((p for p in ligne["produits"] if p["id"] == pid), None)
+    if not produit:
+        abort(404)
+
+    # mise à jour
+    produit["nom"] = request.form.get("nom", "").strip()
+    produit["qte_cible"] = int(request.form.get("qte_cible", 0))
+    produit["qte_actuelle"] = int(request.form.get("qte_actuelle", 0))
+    produit["prix_achat"] = float(request.form.get("prix_achat", 0))
+    produit["prix_vente"] = float(request.form.get("prix_vente", 0))
+
+    save_distributeur(data)
+
+    return redirect(url_for("distributeur_home"))
+
+@app.route("/distributeur/delete/<int:ligne_id>/<pid>", methods=["POST"])
+def distributeur_delete(ligne_id, pid):
+    data = load_distributeur()
+
+    # retrouver la ligne
+    ligne = next((l for l in data["lignes"] if l["id"] == ligne_id), None)
+    if not ligne:
+        abort(404)
+
+    # filtrer les produits en supprimant celui voulu
+    ligne["produits"] = [p for p in ligne["produits"] if p.get("id") != pid]
+
+    save_distributeur(data)
+
+    return redirect(url_for("distributeur_home"))
+
+
+
 
 
 

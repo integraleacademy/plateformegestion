@@ -2003,30 +2003,41 @@ def distributeur_add(ligne_id):
 
     return redirect(url_for("distributeur_home"))
 
+def to_int(x):
+    try:
+        return int(x)
+    except:
+        return 0
+
+def to_float(x):
+    try:
+        return float(x)
+    except:
+        return 0.0
+
+
 @app.route("/distributeur/update/<int:ligne_id>/<pid>", methods=["POST"])
 def distributeur_update(ligne_id, pid):
     data = load_distributeur()
 
-    # retrouver la ligne
-    ligne = next((l for l in data["lignes"] if l["id"] == ligne_id), None)
-    if not ligne:
-        return "not found", 404
+    for ligne in data["lignes"]:
+        if ligne["id"] == ligne_id:
+            for produit in ligne["produits"]:
+                if produit["id"] == pid:
 
-    # retrouver le produit
-    produit = next((p for p in ligne["produits"] if str(p["id"]) == str(pid)), None)
-    if not produit:
-        return "not found", 404
+                    produit["nom"] = request.form.get("nom", "")
 
-    # mise à jour
-    produit["nom"] = request.form.get("nom", "").strip()
-    produit["qte_cible"] = int(request.form.get("qte_cible", 0))
-    produit["qte_actuelle"] = int(request.form.get("qte_actuelle", 0))
-    produit["prix_achat"] = float(request.form.get("prix_achat", 0))
-    produit["prix_vente"] = float(request.form.get("prix_vente", 0))
+                    produit["qte_cible"] = to_int(request.form.get("qte_cible"))
+                    produit["qte_actuelle"] = to_int(request.form.get("qte_actuelle"))
 
-    save_distributeur(data)
+                    produit["prix_achat"] = to_float(request.form.get("prix_achat"))
+                    produit["prix_vente"] = to_float(request.form.get("prix_vente"))
 
-    return "ok"
+                    save_distributeur(data)
+                    return "ok"
+
+    return "error", 400
+
 
 
 @app.route("/distributeur/delete/<int:ligne_id>/<pid>", methods=["POST"])

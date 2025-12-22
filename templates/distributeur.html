@@ -1,281 +1,365 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>Gestion du distributeur — Intégrale Academy</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body{
-      font-family: Arial, Helvetica, sans-serif;
-      background:#f5f6f8;
       margin:0;
       padding:0;
+      font-family: Arial, Helvetica, sans-serif;
+      background:#f4f6f8;
+      color:#111;
     }
-    .page{
+    .page-wrapper{
       max-width:1200px;
       margin:30px auto;
-      padding:0 15px;
+      padding:0 15px 40px;
     }
-    h1{
-      margin:0 0 5px 0;
-      font-size:28px;
+    .page-title{
       display:flex;
       align-items:center;
       gap:10px;
+      font-size:24px;
+      font-weight:700;
+      margin-bottom:8px;
     }
-    h1::before{
-      content:"🍩";
-      font-size:26px;
+    .page-title span.icon{
+      width:34px;
+      height:34px;
+      border-radius:50%;
+      background:#111;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:18px;
     }
-    .subtitle{
-      color:#555;
+    .page-subtitle{
       font-size:14px;
+      color:#555;
       margin-bottom:20px;
     }
 
-    .board{
-      background:#111b25;
+    .bloc-ligne{
+      background:#0f172a;
       border-radius:18px;
-      padding:25px 30px;
-      box-shadow:0 18px 40px rgba(0,0,0,0.18);
-      color:#fff;
+      padding:18px 20px 22px;
+      margin-bottom:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.15);
+      color:#f9fafb;
     }
-
-    .row{
+    .ligne-header{
       display:flex;
-      align-items:flex-start;
-      gap:25px;
-      margin-bottom:25px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:14px;
     }
-
-    .row-label{
-      min-width:90px;
-    }
-    .badge-etage{
-      display:inline-block;
-      padding:9px 18px;
+    .badge-ligne{
+      background:#020617;
+      padding:6px 12px;
       border-radius:999px;
-      background:#0b1018;
-      border:1px solid rgba(255,255,255,0.18);
-      font-size:14px;
-      font-weight:700;
-      box-shadow:0 4px 10px rgba(0,0,0,.3);
-      text-align:center;
+      font-size:13px;
+      font-weight:600;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .ligne-info{
+      font-size:13px;
+      color:#9ca3af;
     }
 
-    .row-content{
-      flex:1;
+    /* --- Rangée de produits en horizontal --- */
+    .produits-row{
+      display:flex;
+      gap:14px;
+      overflow-x:auto;
+      padding-bottom:6px;
+    }
+    .produits-row::-webkit-scrollbar{
+      height:6px;
+    }
+    .produits-row::-webkit-scrollbar-thumb{
+      background:#475569;
+      border-radius:999px;
+    }
+
+    /* --- Carte produit --- */
+    .card-produit{
+      min-width:260px;
+      max-width:260px;
+      background:#020617;
+      border-radius:14px;
+      padding:12px 14px 14px;
+      box-shadow:0 6px 14px rgba(0,0,0,0.35);
       display:flex;
       flex-direction:column;
-      gap:12px;
+      gap:6px;
     }
-
-    .add-card{
-      border:2px dashed rgba(255,255,255,0.28);
-      border-radius:14px;
-      padding:14px 18px;
-      text-align:center;
-      cursor:pointer;
-      background:rgba(255,255,255,0.02);
-      transition:all .18s ease;
-    }
-    .add-card button{
-      all:unset;
-      cursor:pointer;
-      display:block;
-      width:100%;
-    }
-    .add-card:hover{
-      background:rgba(255,255,255,0.06);
-      transform:translateY(-1px);
-      box-shadow:0 6px 18px rgba(0,0,0,0.45);
-    }
-    .add-plus{
-      font-size:24px;
+    .card-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
       margin-bottom:4px;
     }
-    .add-title{
+    .card-title{
+      font-size:13px;
       font-weight:600;
-      font-size:14px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:#e5e7eb;
     }
-    .add-sub{
-      font-size:11px;
-      opacity:.65;
+    .trash-btn{
+      border:none;
+      background:transparent;
+      color:#9ca3af;
+      cursor:pointer;
+      font-size:15px;
+    }
+    .trash-btn:hover{
+      color:#f97373;
     }
 
-    .products{
+    .field-group{
       display:flex;
       flex-direction:column;
-      gap:10px;
-      margin-top:6px;
+      gap:2px;
+      margin-top:4px;
     }
-
-    .product-card{
-      background:rgba(10,15,24,0.96);
-      border-radius:12px;
-      padding:10px 12px;
-      border:1px solid rgba(255,255,255,0.12);
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px 12px;
-      align-items:flex-end;
-    }
-
-    .product-card label{
-      display:block;
+    .field-label{
       font-size:11px;
       text-transform:uppercase;
-      letter-spacing:.04em;
-      opacity:.7;
-      margin-bottom:3px;
+      letter-spacing:.06em;
+      color:#9ca3af;
     }
-    .product-card input{
-      background:#0a1119;
-      border-radius:6px;
-      border:1px solid rgba(255,255,255,0.18);
-      padding:6px 7px;
-      color:#fff;
-      font-size:13px;
-      min-width:80px;
-    }
-    .product-card input:focus{
-      outline:none;
-      border-color:#46c16b;
-      box-shadow:0 0 0 1px rgba(70,193,107,0.4);
-    }
-
-    .field{
-      display:flex;
-      flex-direction:column;
-    }
-
-    .actions{
-      margin-left:auto;
+    .input-line{
       display:flex;
       gap:6px;
     }
-    .btn{
+    input[type="text"],
+    input[type="number"]{
+      width:100%;
+      box-sizing:border-box;
+      border-radius:8px;
+      border:1px solid #1f2937;
+      background:#020617;
+      color:#e5e7eb;
+      font-size:13px;
+      padding:6px 8px;
+      outline:none;
+    }
+    input[type="number"]{
+      text-align:right;
+    }
+    input:focus{
+      border-color:#22c55e;
+    }
+
+    .badge-info{
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      display:inline-block;
+      margin-top:4px;
+    }
+    .badge-reassort{
+      background:#111827;
+      color:#fde68a;
+    }
+    .badge-marge-ok{
+      background:#022c22;
+      color:#6ee7b7;
+    }
+    .badge-marge-bad{
+      background:#450a0a;
+      color:#fecaca;
+    }
+
+    .btn-save{
+      margin-top:6px;
       border:none;
       border-radius:999px;
-      font-size:13px;
       padding:6px 10px;
+      font-size:12px;
+      font-weight:600;
       cursor:pointer;
+      background:#22c55e;
+      color:#02140a;
       display:inline-flex;
       align-items:center;
       gap:4px;
     }
-    .btn-save{
-      background:#46c16b;
-      color:#02110a;
-      font-weight:600;
-    }
-    .btn-delete{
-      background:transparent;
-      border:1px solid rgba(255,255,255,0.4);
-      color:#fff;
-    }
-    .btn-delete:hover{
-      background:rgba(255,255,255,0.12);
+    .btn-save:hover{
+      filter:brightness(1.05);
     }
 
-    .empty-text{
-      font-size:12px;
+    /* --- Carte "Ajouter un produit" --- */
+    .card-add{
+      min-width:220px;
+      max-width:220px;
+      border-radius:14px;
+      border:2px dashed #374151;
+      background:#020617;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      color:#9ca3af;
+      padding:12px;
+      cursor:pointer;
+      transition:all .15s ease;
+      text-align:center;
+    }
+    .card-add:hover{
+      border-color:#22c55e;
+      background:#020617;
+      color:#d1fae5;
+    }
+    .card-add button{
+      all:unset;
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+      width:100%;
+      height:100%;
+    }
+    .card-add-icon{
+      width:30px;
+      height:30px;
+      border-radius:999px;
+      border:1px dashed #4b5563;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:20px;
+    }
+    .card-add-text{
+      font-size:13px;
+    }
+    .card-add-ligne{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
       opacity:.7;
-      margin-top:4px;
-    }
-
-    @media (max-width:780px){
-      .board{
-        padding:18px 14px;
-      }
-      .row{
-        flex-direction:column;
-        gap:10px;
-      }
-      .row-label{
-        min-width:auto;
-      }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <h1>Gestion du distributeur</h1>
-    <div class="subtitle">
-      Chaque ligne représente un étage du distributeur. Chaque case correspond à un produit (boisson, snack, etc.).
-    </div>
 
-    <div class="board">
-      {% for ligne in data.lignes %}
-      <div class="row">
-        <div class="row-label">
-          <div class="badge-etage">Étage {{ ligne.id }}</div>
-        </div>
+<div class="page-wrapper">
+  <div class="page-title">
+    <span class="icon">🍫</span>
+    <span>Gestion du distributeur</span>
+  </div>
+  <div class="page-subtitle">
+    Chaque ligne représente un étage du distributeur. Chaque “case” correspond à un produit (boisson, snack, etc.).
+  </div>
 
-        <div class="row-content">
-          <!-- Produits déjà existants sur cette ligne -->
-          <div class="products">
-            {% if ligne.produits %}
-              {% for p in ligne.produits %}
-              <form class="product-card"
-                    method="post"
-                    action="{{ url_for('distributeur_update', ligne_id=ligne.id, pid=p.id) }}">
-                <div class="field" style="min-width:140px;">
-                  <label>Produit</label>
-                  <input type="text" name="nom" value="{{ p.nom }}">
-                </div>
-
-                <div class="field">
-                  <label>Qté cible</label>
-                  <input type="number" name="qte_cible" value="{{ p.qte_cible }}" min="0">
-                </div>
-
-                <div class="field">
-                  <label>Qté actuelle</label>
-                  <input type="number" name="qte_actuelle" value="{{ p.qte_actuelle }}" min="0">
-                </div>
-
-                <div class="field">
-                  <label>Prix achat (€)</label>
-                  <input type="number" step="0.01" name="prix_achat" value="{{ p.prix_achat }}">
-                </div>
-
-                <div class="field">
-                  <label>Prix vente (€)</label>
-                  <input type="number" step="0.01" name="prix_vente" value="{{ p.prix_vente }}">
-                </div>
-
-                <div class="actions">
-                  <button type="submit" class="btn btn-save">💾 Sauvegarder</button>
-              </form>
-                  <form method="post"
-                        action="{{ url_for('distributeur_delete', ligne_id=ligne.id, pid=p.id) }}"
-                        onsubmit="return confirm('Supprimer ce produit ?');">
-                    <button type="submit" class="btn btn-delete">🗑️</button>
-                  </form>
-                </div>
-
-              {% endfor %}
-            {% else %}
-              <div class="empty-text">Aucun produit enregistré sur cet étage.</div>
-            {% endif %}
-          </div>
-
-          <!-- Bouton ajouter un produit -->
-          <form method="post" action="{{ url_for('distributeur_add', ligne_id=ligne.id) }}">
-            <div class="add-card">
-              <button type="submit">
-                <div class="add-plus">+</div>
-                <div class="add-title">Ajouter un produit</div>
-                <div class="add-sub">Ligne {{ ligne.id }}</div>
-              </button>
-            </div>
-          </form>
+  {% for ligne in data.lignes %}
+    <div class="bloc-ligne">
+      <div class="ligne-header">
+        <div class="badge-ligne">Étage {{ loop.index }}</div>
+        <div class="ligne-info">
+          {% if ligne.produits %}
+            {{ ligne.produits|length }} produit(s) enregistré(s) sur cet étage.
+          {% else %}
+            Aucun produit enregistré sur cet étage.
+          {% endif %}
         </div>
       </div>
-      {% endfor %}
+
+      <div class="produits-row">
+        {% for p in ligne.produits %}
+          {% set q_cible = p.qte_cible or 0 %}
+          {% set q_actuelle = p.qte_actuelle or 0 %}
+          {% set reassort = q_cible - q_actuelle %}
+          {% set prix_achat = p.prix_achat or 0 %}
+          {% set prix_vente = p.prix_vente or 0 %}
+          {% set marge = prix_vente - prix_achat %}
+          {% set marge_ok = prix_vente >= prix_achat * 2 %}
+
+          <div class="card-produit">
+            <div class="card-header">
+              <div class="card-title">Produit</div>
+              <form method="post" action="{{ url_for('distributeur_delete', ligne_id=ligne.id, pid=p.id) }}">
+                <button type="submit" class="trash-btn" title="Supprimer ce produit">🗑</button>
+              </form>
+            </div>
+
+            <form method="post" action="{{ url_for('distributeur_update', ligne_id=ligne.id, pid=p.id) }}">
+              <div class="field-group">
+                <label class="field-label">Nom du produit</label>
+                <input type="text" name="nom" value="{{ p.nom }}" placeholder="Ex : Coca, Snickers, etc.">
+              </div>
+
+              <div class="field-group">
+                <div class="field-label">Quantités</div>
+                <div class="input-line">
+                  <div style="flex:1;">
+                    <small style="font-size:11px;color:#9ca3af;">Cible</small>
+                    <input type="number" name="qte_cible" value="{{ p.qte_cible }}" min="0" step="1">
+                  </div>
+                  <div style="flex:1;">
+                    <small style="font-size:11px;color:#9ca3af;">Actuelle</small>
+                    <input type="number" name="qte_actuelle" value="{{ p.qte_actuelle }}" min="0" step="1">
+                  </div>
+                </div>
+                <span class="badge-info badge-reassort">
+                  Réassort à faire : {{ reassort }}
+                </span>
+              </div>
+
+              <div class="field-group">
+                <div class="field-label">Prix</div>
+                <div class="input-line">
+                  <div style="flex:1;">
+                    <small style="font-size:11px;color:#9ca3af;">Achat (€)</small>
+                    <input type="number" name="prix_achat" value="{{ p.prix_achat }}" step="0.01" min="0">
+                  </div>
+                  <div style="flex:1;">
+                    <small style="font-size:11px;color:#9ca3af;">Vente (€)</small>
+                    <input type="number" name="prix_vente" value="{{ p.prix_vente }}" step="0.01" min="0">
+                  </div>
+                </div>
+
+                {% if prix_achat > 0 %}
+                  <span class="badge-info {% if marge_ok %}badge-marge-ok{% else %}badge-marge-bad{% endif %}">
+                    Marge : {{ "%.2f"|format(marge) }} €{% if not marge_ok %} ⚠️ (inférieure à x2){% endif %}
+                  </span>
+                {% else %}
+                  <span class="badge-info badge-marge-bad">
+                    Marge : N/A (prix d'achat non renseigné)
+                  </span>
+                {% endif %}
+              </div>
+
+              <button type="submit" class="btn-save">
+                💾 Sauvegarder
+              </button>
+            </form>
+          </div>
+        {% endfor %}
+
+        <!-- Carte Ajouter un produit -->
+        <div class="card-add">
+          <form method="post" action="{{ url_for('distributeur_add', ligne_id=ligne.id) }}">
+            <button type="submit">
+              <div class="card-add-icon">+</div>
+              <div class="card-add-text">Ajouter un produit</div>
+              <div class="card-add-ligne">Ligne {{ ligne.id }}</div>
+            </button>
+          </form>
+        </div>
+
+      </div>
     </div>
-  </div>
+  {% endfor %}
+</div>
+
 </body>
 </html>

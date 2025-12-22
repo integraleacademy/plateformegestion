@@ -121,12 +121,16 @@
   <!-- Type de clé -->
   <td style="padding:8px;border-bottom:1px solid #eee;">
     <span style="font-weight:700; color:
-      {% if info.type == 'PASS GENERAL' %}#0d6efd
-      {% elif info.type == 'PASS PARTIEL' %}#f39c12
-      {% else %}#1e8449{% endif %}
-    ">
-      {{ info.type }}
-    </span>
+  {% if info.type == 'PASS GENERAL' %}#f39c12
+  {% elif info.type == 'PASS PARTIEL' %}#27ae60
+  {% elif info.type == 'APPARTEMENT' %}#8e44ad
+  {% elif info.type == 'VIOLET' %}#8e44ad
+  {% else %}#8e44ad
+  {% endif %}
+">
+  {{ info.type }}
+</span>
+
   </td>
 
   <!-- Sélecteur attribution -->
@@ -251,6 +255,7 @@ function assignBadge(numero, fid) {
 
 </body>
 </html>
+
 
 
 

@@ -2044,6 +2044,46 @@ def distributeur_delete(ligne_id, pid):
 
     return redirect(url_for("distributeur_home"))
 
+@app.route("/reassort")
+def distributeur_reassort():
+    data = load_distributeur()
+
+    items = []
+    for ligne in data["lignes"]:
+        for p in ligne["produits"]:
+            q_cible = p.get("qte_cible", 0)
+            q_actuelle = p.get("qte_actuelle", 0)
+
+            if q_actuelle < q_cible:
+                items.append({
+                    "ligne_id": ligne["id"],
+                    "produit_id": p["id"],
+                    "nom": p.get("nom", "Produit"),
+                    "reassort": q_cible - q_actuelle,
+                    "q_cible": q_cible,
+                    "q_actuelle": q_actuelle,
+                })
+
+    return render_template("reassort.html", items=items)
+
+@app.route("/reassort/valider/<int:ligne_id>/<int:produit_id>", methods=["POST"])
+def distributeur_reassort_valider(ligne_id, produit_id):
+    data = load_distributeur()
+
+    for ligne in data["lignes"]:
+        if ligne["id"] == ligne_id:
+            for p in ligne["produits"]:
+                if p["id"] == produit_id:
+                    # Mise à jour automatique
+                    p["qte_actuelle"] = p.get("qte_cible", 0)
+
+                    save_distributeur(data)
+                    break
+
+    return redirect(url_for("distributeur_reassort"))
+
+
+
 
 
 

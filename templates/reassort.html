@@ -29,6 +29,21 @@
     gap:10px;
   }
 
+  .back-btn{
+    display:inline-block;
+    margin-bottom:20px;
+    background:#0f172a;
+    color:#f8fafc;
+    padding:10px 16px;
+    border-radius:8px;
+    text-decoration:none;
+    font-weight:600;
+    box-shadow:0 4px 8px rgba(0,0,0,0.15);
+  }
+  .back-btn:hover{
+    filter:brightness(1.1);
+  }
+
   .item{
     background:#0f172a;
     color:#f8fafc;
@@ -97,6 +112,8 @@
 <body>
 
 <div class="page">
+
+  <a href="{{ url_for('distributeur') }}" class="back-btn">← Retour au distributeur</a>
 
   <h1>🧃 Réassort distributeur</h1>
 

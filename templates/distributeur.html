@@ -260,6 +260,15 @@
     Chaque ligne représente un étage du distributeur. Chaque “case” correspond à un produit (boisson, snack, etc.).
   </div>
 
+  <div style="margin-bottom:20px; text-align:right;">
+    <a href="{{ url_for('distributeur_reassort') }}"
+       style="background:#22c55e;padding:10px 16px;border-radius:8px;color:#02140a;
+              font-weight:600;text-decoration:none;box-shadow:0 4px 8px rgba(0,0,0,0.15);">
+        🧃 Voir le réassort
+    </a>
+</div>
+
+
   {% for ligne in data.lignes %}
     <div class="bloc-ligne">
       <div class="ligne-header">
@@ -458,4 +467,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </body>
 </html>
+
 

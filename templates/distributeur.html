@@ -409,16 +409,24 @@ function autoSave(input) {
 // Ajoute l’auto-save sur tous les champs
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".card-produit").forEach(card => {
-    // Calcul initial pour que les badges soient corrects dès le chargement
+    // Calcul initial
     updateLiveCalcul(card);
 
     card.querySelectorAll("input").forEach(input => {
+      
+      // 🔥 Debounce pour éviter le spam de requêtes
+      let saveTimer;
       input.addEventListener("input", () => {
-        autoSave(input);
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          autoSave(input);
+        }, 400);
       });
+
     });
   });
 });
+
 </script>
 
 <script>
@@ -475,4 +483,5 @@ function updateLiveCalcul(card) {
 
 </body>
 </html>
+
 

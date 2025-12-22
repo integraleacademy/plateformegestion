@@ -2010,12 +2010,12 @@ def distributeur_update(ligne_id, pid):
     # retrouver la ligne
     ligne = next((l for l in data["lignes"] if l["id"] == ligne_id), None)
     if not ligne:
-        abort(404)
+        return "not found", 404
 
     # retrouver le produit
     produit = next((p for p in ligne["produits"] if p["id"] == pid), None)
     if not produit:
-        abort(404)
+        return "not found", 404
 
     # mise à jour
     produit["nom"] = request.form.get("nom", "").strip()
@@ -2026,7 +2026,8 @@ def distributeur_update(ligne_id, pid):
 
     save_distributeur(data)
 
-    return redirect(url_for("distributeur_home"))
+    return "ok"
+
 
 @app.route("/distributeur/delete/<int:ligne_id>/<pid>", methods=["POST"])
 def distributeur_delete(ligne_id, pid):

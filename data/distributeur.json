@@ -1,0 +1,34 @@
+# ------------------------------------------------------------
+# ☕️ GESTION DISTRIBUTEUR — STOCKAGE
+# ------------------------------------------------------------
+
+DISTRIBUTEUR_FILE = os.path.join(DATA_DIR, "distributeur.json")
+
+def load_distributeur():
+    if os.path.exists(DISTRIBUTEUR_FILE):
+        try:
+            with open(DISTRIBUTEUR_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+
+    # Structure initiale (Choix C)
+    return {
+        "lignes": [
+            {"id": 1, "produits": []},  # 4 cases max à l'origine
+            {"id": 2, "produits": []},  # 5
+            {"id": 3, "produits": []},  # 8
+            {"id": 4, "produits": []},  # 7
+            {"id": 5, "produits": []},  # 8
+        ]
+    }
+
+def save_distributeur(data):
+    with open(DISTRIBUTEUR_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+@app.route("/distributeur")
+def distributeur_home():
+    data = load_distributeur()
+    return render_template("distributeur.html", data=data)

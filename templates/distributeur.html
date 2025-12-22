@@ -71,7 +71,6 @@
       color:#9ca3af;
     }
 
-    /* --- Rangée de produits en horizontal --- */
     .produits-row{
       display:flex;
       gap:14px;
@@ -86,7 +85,6 @@
       border-radius:999px;
     }
 
-    /* --- Carte produit --- */
     .card-produit{
       min-width:260px;
       max-width:260px;
@@ -177,25 +175,6 @@
       color:#fecaca;
     }
 
-    .btn-save{
-      margin-top:6px;
-      border:none;
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:12px;
-      font-weight:600;
-      cursor:pointer;
-      background:#22c55e;
-      color:#02140a;
-      display:inline-flex;
-      align-items:center;
-      gap:4px;
-    }
-    .btn-save:hover{
-      filter:brightness(1.05);
-    }
-
-    /* --- Carte "Ajouter un produit" --- */
     .card-add{
       min-width:220px;
       max-width:220px;
@@ -214,7 +193,6 @@
     }
     .card-add:hover{
       border-color:#22c55e;
-      background:#020617;
       color:#d1fae5;
     }
     .card-add button{
@@ -256,8 +234,9 @@
     <span class="icon">🍫</span>
     <span>Gestion du distributeur</span>
   </div>
+
   <div class="page-subtitle">
-    Chaque ligne représente un étage du distributeur. Chaque “case” correspond à un produit (boisson, snack, etc.).
+    Chaque ligne représente un étage du distributeur. Chaque “case” correspond à un produit.
   </div>
 
   <div style="margin-bottom:20px; text-align:right;">
@@ -266,8 +245,7 @@
               font-weight:600;text-decoration:none;box-shadow:0 4px 8px rgba(0,0,0,0.15);">
         🧃 Voir le réassort
     </a>
-</div>
-
+  </div>
 
   {% for ligne in data.lignes %}
     <div class="bloc-ligne">
@@ -275,9 +253,9 @@
         <div class="badge-ligne">Étage {{ loop.index }}</div>
         <div class="ligne-info">
           {% if ligne.produits %}
-            {{ ligne.produits|length }} produit(s) enregistré(s) sur cet étage.
+            {{ ligne.produits|length }} produit(s).
           {% else %}
-            Aucun produit enregistré sur cet étage.
+            Aucun produit.
           {% endif %}
         </div>
       </div>
@@ -295,27 +273,28 @@
           <div class="card-produit">
             <div class="card-header">
               <div class="card-title">Produit</div>
+
               <form method="post" action="{{ url_for('distributeur_delete', ligne_id=ligne.id, pid=p.id) }}">
-                <button type="submit" class="trash-btn" title="Supprimer ce produit">🗑</button>
+                <button type="submit" class="trash-btn">🗑</button>
               </form>
             </div>
 
             <form method="post" action="{{ url_for('distributeur_update', ligne_id=ligne.id, pid=p.id) }}">
               <div class="field-group">
                 <label class="field-label">Nom du produit</label>
-                <input type="text" name="nom" value="{{ p.nom }}" placeholder="Ex : Coca, Snickers, etc.">
+                <input type="text" name="nom" value="{{ p.nom }}">
               </div>
 
               <div class="field-group">
-                <div class="field-label">Quantités</div>
+                <label class="field-label">Quantités</label>
                 <div class="input-line">
                   <div style="flex:1;">
-                    <small style="font-size:11px;color:#9ca3af;">Cible</small>
-                    <input type="number" name="qte_cible" value="{{ p.qte_cible }}" min="0" step="1">
+                    <small>Cible</small>
+                    <input type="number" name="qte_cible" value="{{ p.qte_cible }}">
                   </div>
                   <div style="flex:1;">
-                    <small style="font-size:11px;color:#9ca3af;">Actuelle</small>
-                    <input type="number" name="qte_actuelle" value="{{ p.qte_actuelle }}" min="0" step="1">
+                    <small>Actuelle</small>
+                    <input type="number" name="qte_actuelle" value="{{ p.qte_actuelle }}">
                   </div>
                 </div>
                 <span class="badge-info badge-reassort">
@@ -324,35 +303,33 @@
               </div>
 
               <div class="field-group">
-                <div class="field-label">Prix</div>
+                <label class="field-label">Prix</label>
                 <div class="input-line">
                   <div style="flex:1;">
-                    <small style="font-size:11px;color:#9ca3af;">Achat (€)</small>
-                    <input type="number" name="prix_achat" value="{{ p.prix_achat }}" step="0.01" min="0">
+                    <small>Achat</small>
+                    <input type="number" name="prix_achat" value="{{ p.prix_achat }}" step="0.01">
                   </div>
                   <div style="flex:1;">
-                    <small style="font-size:11px;color:#9ca3af;">Vente (€)</small>
-                    <input type="number" name="prix_vente" value="{{ p.prix_vente }}" step="0.01" min="0">
+                    <small>Vente</small>
+                    <input type="number" name="prix_vente" value="{{ p.prix_vente }}" step="0.01">
                   </div>
                 </div>
 
                 {% if prix_achat > 0 %}
                   <span class="badge-info {% if marge_ok %}badge-marge-ok{% else %}badge-marge-bad{% endif %}">
-                    Marge : {{ "%.2f"|format(marge) }} €{% if not marge_ok %} ⚠️ (inférieure à x2){% endif %}
+                    Marge : {{ "%.2f"|format(marge) }} €
+                    {% if not marge_ok %} ⚠️ (inférieure à x2){% endif %}
                   </span>
                 {% else %}
                   <span class="badge-info badge-marge-bad">
-                    Marge : N/A (prix d'achat non renseigné)
+                    Marge : N/A
                   </span>
                 {% endif %}
               </div>
-
-
             </form>
           </div>
         {% endfor %}
 
-        <!-- Carte Ajouter un produit -->
         <div class="card-add">
           <form method="post" action="{{ url_for('distributeur_add', ligne_id=ligne.id) }}">
             <button type="submit">
@@ -368,20 +345,23 @@
   {% endfor %}
 </div>
 
+<!-- SCRIPT AUTO SAVE + FIX -->
 <script>
-// Affichage du toast
 function showToastAutoSave() {
   const toast = document.getElementById("autosave-toast");
   toast.style.display = "block";
   setTimeout(() => {
     toast.style.display = "none";
-  }, 2000);
+  }, 1200);
 }
 
-// Auto-sauvegarde
+// AUTO SAVE corrigé
 function autoSave(input) {
   const card = input.closest(".card-produit");
-  const form = card.querySelector("form");
+
+  // ⚠️ IMPORTANT : dans la carte, le 1er form = supprimer, le 2e = sauvegarder
+  const forms = card.querySelectorAll("form");
+  const form = forms[1];
 
   const formData = new FormData(form);
 
@@ -389,83 +369,59 @@ function autoSave(input) {
     method: "POST",
     body: formData
   })
-  .then(r => r.text())
-  .then(() => showToastAutoSave());
+  .then(() => {
+    updateLiveCalcul(card);
+    showToastAutoSave();
+  });
 }
 
-// Ajoute l’auto-save sur tous les champs
+// Active auto-save
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".card-produit input").forEach(input => {
-    input.addEventListener("input", () => {
-      autoSave(input);
-    });
+    input.addEventListener("input", () => autoSave(input));
   });
 });
-</script>
 
-<script>
-// Recalcule réassort + marge en direct
+// Calcul dynamique
 function updateLiveCalcul(card) {
-  const qCible = parseFloat(card.querySelector("input[name='qte_cible']").value) || 0;
-  const qActuelle = parseFloat(card.querySelector("input[name='qte_actuelle']").value) || 0;
-  const pAchat = parseFloat(card.querySelector("input[name='prix_achat']").value) || 0;
-  const pVente = parseFloat(card.querySelector("input[name='prix_vente']").value) || 0;
+  const qC = parseFloat(card.querySelector("input[name='qte_cible']").value) || 0;
+  const qA = parseFloat(card.querySelector("input[name='qte_actuelle']").value) || 0;
+  const a = parseFloat(card.querySelector("input[name='prix_achat']").value) || 0;
+  const v = parseFloat(card.querySelector("input[name='prix_vente']").value) || 0;
 
-  const reassort = qCible - qActuelle;
-  const marge = pVente - pAchat;
+  const reassort = qC - qA;
+  const marge = v - a;
 
-  // Réassort badge
-  const reassortBadge = card.querySelector(".badge-reassort");
-  reassortBadge.textContent = "Réassort à faire : " + reassort;
+  card.querySelector(".badge-reassort").textContent =
+    "Réassort à faire : " + reassort;
 
-  // Marge badge
-  const margeBadge = card.querySelector(".badge-info");
-  if (pAchat > 0) {
-    margeBadge.textContent = "Marge : " + marge.toFixed(2) + " €";
+  const badge = card.querySelector(".badge-info");
 
-    if (pVente < pAchat * 2) {
-      margeBadge.classList.remove("badge-marge-ok");
-      margeBadge.classList.add("badge-marge-bad");
-      margeBadge.textContent += " ⚠️ (inférieure à x2)";
+  if (a > 0) {
+    badge.textContent = "Marge : " + marge.toFixed(2) + " €";
+    if (v < a * 2) {
+      badge.classList.add("badge-marge-bad");
+      badge.classList.remove("badge-marge-ok");
+      badge.textContent += " ⚠️ (inférieure à x2)";
     } else {
-      margeBadge.classList.remove("badge-marge-bad");
-      margeBadge.classList.add("badge-marge-ok");
+      badge.classList.add("badge-marge-ok");
+      badge.classList.remove("badge-marge-bad");
     }
-
   } else {
-    margeBadge.textContent = "Marge : N/A (prix d'achat non renseigné)";
-    margeBadge.classList.remove("badge-marge-ok");
-    margeBadge.classList.add("badge-marge-bad");
+    badge.textContent = "Marge : N/A";
+    badge.classList.add("badge-marge-bad");
+    badge.classList.remove("badge-marge-ok");
   }
 }
-
-// Activer le calcul en live
-document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".card-produit").forEach(card => {
-    card.querySelectorAll("input").forEach(input => {
-      input.addEventListener("input", () => {
-        updateLiveCalcul(card);
-      });
-    });
-  });
-});
 </script>
 
-
-<!-- TOAST AUTO SAVE -->
+<!-- TOAST -->
 <div id="autosave-toast"
-     style="position:fixed;top:20px;right:20px;
-            background:#22c55e;color:#02140a;
-            padding:10px 18px;font-weight:600;
-            border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,0.15);
-            display:none;z-index:999;">
+     style="position:fixed;top:20px;right:20px;background:#22c55e;
+            color:#02140a;padding:10px 18px;font-weight:600;border-radius:8px;
+            box-shadow:0 4px 10px rgba(0,0,0,0.15);display:none;z-index:999;">
   ✔️ Sauvegardé automatiquement
 </div>
 
-  
-
-
 </body>
 </html>
-
-

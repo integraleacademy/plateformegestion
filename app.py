@@ -2013,7 +2013,7 @@ def distributeur_update(ligne_id, pid):
         return "not found", 404
 
     # retrouver le produit
-    produit = next((p for p in ligne["produits"] if p["id"] == pid), None)
+    produit = next((p for p in ligne["produits"] if str(p["id"]) == str(pid)), None)
     if not produit:
         return "not found", 404
 
@@ -2067,14 +2067,14 @@ def distributeur_reassort():
 
     return render_template("reassort.html", items=items)
 
-@app.route("/reassort/valider/<int:ligne_id>/<int:produit_id>", methods=["POST"])
+@app.route("/reassort/valider/<int:ligne_id>/<produit_id>", methods=["POST"])
 def distributeur_reassort_valider(ligne_id, produit_id):
     data = load_distributeur()
 
     for ligne in data["lignes"]:
         if ligne["id"] == ligne_id:
             for p in ligne["produits"]:
-                if p["id"] == produit_id:
+                if str(p["id"]) == str(produit_id):
                     # Mise à jour automatique
                     p["qte_actuelle"] = p.get("qte_cible", 0)
 

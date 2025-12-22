@@ -1941,6 +1941,38 @@ def assign_badge():
     save_formateurs(formateurs)
     return {"ok": True}
 
+# ------------------------------------------------------------
+# 🟩 GESTION DU DISTRIBUTEUR — PERSISTENCE JSON
+# ------------------------------------------------------------
+
+DISTRIBUTEUR_FILE = os.path.join(DATA_DIR, "distributeur.json")
+
+def load_distributeur():
+    """Charge le distributeur depuis le fichier JSON, ou crée une structure par défaut."""
+    if os.path.exists(DISTRIBUTEUR_FILE):
+        try:
+            with open(DISTRIBUTEUR_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+
+    # Structure par défaut (5 lignes vides)
+    return {
+        "lignes": [
+            {"id": 1, "produits": []},
+            {"id": 2, "produits": []},
+            {"id": 3, "produits": []},
+            {"id": 4, "produits": []},
+            {"id": 5, "produits": []}
+        ]
+    }
+
+def save_distributeur(data):
+    """Sauvegarde complète du distributeur."""
+    with open(DISTRIBUTEUR_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 
 @app.route("/distributeur")
 def distributeur_home():

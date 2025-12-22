@@ -6,6 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
+
+    .reset-btn{
+  background:#334155;
+  border:none;
+  color:#f8fafc;
+  padding:4px 10px;
+  border-radius:6px;
+  font-size:11px;
+  cursor:pointer;
+  margin-top:4px;
+}
+.reset-btn:hover{
+  filter:brightness(1.2);
+}
+
     body{
       margin:0;
       padding:0;
@@ -321,6 +336,7 @@
                     <input type="number" name="qte_actuelle" value="{{ p.qte_actuelle }}" min="0" step="1">
                   </div>
                 </div>
+                <button type="button" class="reset-btn" onclick="resetActuelle(this)">Remise à 0</button>
                 <span class="badge-info badge-reassort">
                   Réassort à faire : {{ reassort }}
                 </span>
@@ -429,6 +445,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </script>
 
+  <script>
+function resetActuelle(btn){
+  const card = btn.closest(".card-produit");
+  if (!card) return;
+
+  const inputActuelle = card.querySelector("input[name='qte_actuelle']");
+  if (!inputActuelle) return;
+
+  // Met le champ à VIDE (pas "0")
+  inputActuelle.value = "";
+
+  // Recalcule l'affichage
+  updateLiveCalcul(card);
+
+  // Sauvegarde automatiquement
+  autoSave(inputActuelle);
+}
+</script>
+
+
 <script>
 // Recalcule réassort + marge en direct
 function updateLiveCalcul(card) {
@@ -483,5 +519,6 @@ function updateLiveCalcul(card) {
 
 </body>
 </html>
+
 
 

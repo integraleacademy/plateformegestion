@@ -18,6 +18,20 @@ time.tzset()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
+from datetime import timedelta
+
+IS_RENDER = os.environ.get("RENDER", "").lower() == "true"
+
+# ✅ cookies/session persistants (Render = HTTPS)
+app.config.update(
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=IS_RENDER,   # ✅ Secure seulement sur Render
+)
+
+
+
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
@@ -48,8 +62,10 @@ def login():
         password = request.form.get("password", "").strip()
 
         if email == ADMIN_USER and password == ADMIN_PASSWORD:
+            session.permanent = True        # ✅ garde la session X jours
             session["admin_logged"] = True
             return redirect(request.args.get("next") or url_for("index"))
+
 
         flash("Identifiants incorrects", "error")
 
@@ -83,6 +99,10 @@ def protect_all_routes():
 
     # ✅ autoriser les routes cron (Render Cron)
     if path.startswith("/cron-"):
+        return None
+
+    # ✅ autoriser routes publiques utiles (dashboard / tests)
+    if path in ("/healthz", "/data.json", "/dotations_data.json", "/formateurs_data.json", "/tz-test"):
         return None
 
     # 🔐 tout le reste nécessite une session admin

@@ -81,6 +81,24 @@
       transition:.2s;
     }
     .toggle-all-btn:hover { background:#d9a848; }
+
+    /* FIX iPad/Safari : texte invisible (blanc sur fond blanc) */
+body, main, header, footer, p, h1, h2, h3, label, span, a, li, strong, em {
+  color: #111 !important;
+}
+
+/* Les cartes et sections déjà en fond blanc : on force le texte */
+.filter-bar, .sommaire-ssi, .step, .actions-bar {
+  color: #111 !important;
+}
+
+/* Champs de saisie/select (iOS peut “blanchir” le texte) */
+input, select, textarea {
+  color: #111 !important;
+  -webkit-text-fill-color: #111 !important; /* iOS Safari */
+  background: #fff !important;
+}
+
   </style>
 </head>
 
@@ -378,6 +396,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

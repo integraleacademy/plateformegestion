@@ -83,9 +83,10 @@
     .toggle-all-btn:hover { background:#d9a848; }
 
     /* FIX iPad/Safari : texte invisible (blanc sur fond blanc) */
-body, main, header, footer, p, h1, h2, h3, label, span, a, li, strong, em {
+body, main, header, footer, div, p, h1, h2, h3, label, span, a, li, strong, em, button {
   color: #111 !important;
 }
+
 
 /* Les cartes et sections déjà en fond blanc : on force le texte */
 .filter-bar, .sommaire-ssi, .step, .actions-bar {
@@ -99,15 +100,51 @@ input, select, textarea {
   background: #fff !important;
 }
 
+/* Boutons de retour : visibles partout (PC + iPad) */
+a.back{
+  display:inline-block !important;
+  background:#f4c45a !important;
+  color:#000 !important;
+  padding:6px 12px !important;
+  border-radius:8px !important;
+  font-weight:800 !important;
+  text-decoration:none !important;
+  margin-right:10px !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  position:relative !important;
+  z-index:9999 !important;
+  line-height:1 !important;
+}
+
+a.back:hover{ background:#d9a848 !important; }
+
+  .brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+
   </style>
 </head>
 
 <body>
 <header class="topbar">
   <div class="brand">
+    <a href="https://plateformegestion.onrender.com/sessions" class="back back-sessions">⬅️ Retour sessions</a>
     <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
+
     <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
-    <div>
+
+    <div class="brand-text">
       <h1>{{ s.formation }} — Fiche session</h1>
       <div class="clock small">
         Du {{ s.date_debut|datefr if s.date_debut else '—' }}
@@ -117,6 +154,7 @@ input, select, textarea {
     </div>
   </div>
 </header>
+
 
 <main class="container">
 
@@ -396,6 +434,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

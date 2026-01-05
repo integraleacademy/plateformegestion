@@ -170,6 +170,17 @@ a.back:hover{ background:#d9a848 !important; }
   font-weight:800;
 }
 
+    
+/* ✅ Header (topbar) : forcer texte lisible */
+header.topbar,
+header.topbar * {
+  color: #fff !important;
+}
+
+/* Dates un peu plus discrètes */
+header.topbar .clock.small {
+  opacity: 0.9;
+}
 
 
   </style>
@@ -178,8 +189,7 @@ a.back:hover{ background:#d9a848 !important; }
 <body>
 <header class="topbar">
   <div class="brand">
-    <a href="https://plateformegestion.onrender.com/sessions" class="back back-sessions">⬅️ Retour sessions</a>
-    <a href="{{ url_for('sessions_home') }}" class="back">← Retour</a>
+    <a href="{{ url_for('sessions_home') }}" class="back">⬅️ Retour sessions</a>
 
     <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
 
@@ -193,6 +203,8 @@ a.back:hover{ background:#d9a848 !important; }
     </div>
   </div>
 </header>
+
+
 
 
 <main class="container">
@@ -506,6 +518,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

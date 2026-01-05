@@ -239,6 +239,9 @@ APS_A3P_STEPS = [
     {"name": "Signature fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
     {"name":"Fin de formation EDOF", "relative_to":"exam", "offset_type":"after", "days":1},
     {"name": "Signature registre entretien SST", "relative_to": "start", "offset_type": "after", "days": 15},
+    {"name": "Distribition des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1},
+    {"name": "Récupérer paiement logement", "relative_to": "start", "offset_type": "after", "days": 1},
+    {"name":"Préparation planning de ménage", "relative_to":"start", "offset_type":"before", "days":2},
 ]
 
 SSIAP_STEPS = [

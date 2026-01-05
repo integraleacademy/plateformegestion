@@ -265,6 +265,7 @@ APS_A3P_STEPS = [
     {"name": "Distribition des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1},
     {"name": "Récupérer paiement logement", "relative_to": "start", "offset_type": "after", "days": 1},
     {"name":"Préparation planning de ménage", "relative_to":"start", "offset_type":"before", "days":2},
+    {"name":"Créer groupe Whatsapp et donner infos hébergement", "relative_to":"start", "offset_type":"before", "days":15},
 ]
 
 SSIAP_STEPS = [

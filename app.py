@@ -205,10 +205,41 @@ def find_session(data, sid):
     return None
 
 def sync_steps(session):
-    """Ajoute automatiquement les nouvelles étapes manquantes selon la formation."""
+    """Reconstruit les étapes selon le modèle officiel (ordre + ajout + évite doublons),
+    tout en conservant done/done_at/custom_date des étapes existantes.
+    """
     formation = session.get("formation")
-    if formation not in ("APS", "A3P", "SSIAP"):
+
+    if formation in ("APS", "A3P"):
+        rules = APS_A3P_STEPS
+    elif formation == "SSIAP":
+        rules = SSIAP_STEPS
+    elif formation == "GENERAL":
+        rules = GENERAL_STEPS
+    else:
         return
+
+    # sécurité si steps absent
+    session.setdefault("steps", [])
+
+    # index existant par nom
+    existing_by_name = {s.get("name"): s for s in session["steps"] if s.get("name")}
+
+    new_steps = []
+    for rule in rules:
+        name = rule["name"]
+        old = existing_by_name.get(name)
+
+        # ✅ on conserve l'état existant si présent
+        new_steps.append({
+            "name": name,
+            "done": bool(old.get("done")) if old else False,
+            "done_at": old.get("done_at") if old else None,
+            "custom_date": old.get("custom_date") if old else None
+        })
+
+    session["steps"] = new_steps
+
 
     # Récupère la liste actuelle des règles depuis le code
     rules = APS_A3P_STEPS if formation in ("APS", "A3P") else SSIAP_STEPS
@@ -262,8 +293,8 @@ APS_A3P_STEPS = [
     {"name": "Signature fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
     {"name":"Fin de formation EDOF", "relative_to":"exam", "offset_type":"after", "days":1},
     {"name": "Signature registre entretien SST", "relative_to": "start", "offset_type": "after", "days": 15},
-    {"name": "Distribition des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1},
-    {"name": "Récupérer paiement logement", "relative_to": "start", "offset_type": "after", "days": 1},
+    {"name": "Distribution des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1},
+    {"name": "Récupérer paiement logement", "relative_to": "start", "offset_type": "after", "days": 0},
     {"name":"Préparation planning de ménage", "relative_to":"start", "offset_type":"before", "days":2},
 ]
 
@@ -389,12 +420,20 @@ def default_steps_for(formation):
 # -----------------------
 def _rule_for(formation, step_index):
     if formation in ("APS", "A3P"):
-        return APS_A3P_STEPS[step_index]
-    if formation == "SSIAP":
-        return SSIAP_STEPS[step_index]
-    if formation == "GENERAL":
-        return GENERAL_STEPS[step_index]
-    return None
+        rules = APS_A3P_STEPS
+    elif formation == "SSIAP":
+        rules = SSIAP_STEPS
+    elif formation == "GENERAL":
+        rules = GENERAL_STEPS
+    else:
+        return None
+
+    # ✅ Protection anti IndexError
+    if step_index < 0 or step_index >= len(rules):
+        return None
+
+    return rules[step_index]
+
 
 
 def parse_date(date_str):

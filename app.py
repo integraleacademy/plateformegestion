@@ -1,6 +1,6 @@
 import os, json, uuid, base64
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, abort, flash
+from flask import Flask, render_template, request, redirect, url_for, abort, flash, send_file
 import smtplib
 from email.mime.text import MIMEText
 from flask import Flask, render_template, request, redirect, url_for, abort, flash, send_from_directory
@@ -150,6 +150,29 @@ app.jinja_env.globals['get_status_label'] = get_status_label
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
+
+# -----------------------
+# 📅 Planning PDF (par session)
+# -----------------------
+PLANNING_DIR = os.path.join(DATA_DIR, "plannings")
+os.makedirs(PLANNING_DIR, exist_ok=True)
+
+def get_planning_for_session(sid):
+    data = load_sessions()
+    s = find_session(data, sid)
+    if not s:
+        return None
+    return s.get("planning_pdf")  # ex: "planning_session_<sid>.pdf"
+
+def set_planning_for_session(sid, filename):
+    data = load_sessions()
+    s = find_session(data, sid)
+    if not s:
+        return False
+    s["planning_pdf"] = filename
+    save_sessions(data)
+    return True
+
 
 FROM_EMAIL = os.environ.get("FROM_EMAIL")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
@@ -737,7 +760,9 @@ def session_detail(sid):
         s=session,
         statuses=statuses,
         order=order,
-        now=datetime.now
+        now=datetime.now,
+        planning_pdf=session.get("planning_pdf")
+        
     )
 
 
@@ -859,6 +884,53 @@ def delete_session(sid):
     save_sessions(data)
     flash("Session supprimée.","ok")
     return redirect(url_for("sessions_home"))
+
+@app.post("/sessions/<sid>/planning/upload")
+def upload_planning_pdf(sid):
+    f = request.files.get("planning_pdf")
+    if not f or f.filename == "":
+        flash("❌ Aucun fichier reçu.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+
+    # sécurité : on force PDF
+    if not f.filename.lower().endswith(".pdf"):
+        flash("❌ Le fichier doit être un PDF.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+
+    saved_name = f"planning_session_{sid}.pdf"
+    path = os.path.join(PLANNING_DIR, saved_name)
+    f.save(path)
+
+    set_planning_for_session(sid, saved_name)
+    flash("✅ Planning PDF enregistré.", "ok")
+    return redirect(url_for("session_detail", sid=sid))
+
+
+@app.get("/sessions/<sid>/planning/view")
+def view_planning_pdf(sid):
+    name = get_planning_for_session(sid)
+    if not name:
+        abort(404)
+
+    path = os.path.join(PLANNING_DIR, name)
+    if not os.path.exists(path):
+        abort(404)
+
+    return send_file(path, mimetype="application/pdf", as_attachment=False)
+
+
+@app.get("/sessions/<sid>/planning/download")
+def download_planning_pdf(sid):
+    name = get_planning_for_session(sid)
+    if not name:
+        abort(404)
+
+    path = os.path.join(PLANNING_DIR, name)
+    if not os.path.exists(path):
+        abort(404)
+
+    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=name)
+
 
 @app.route("/healthz")
 def healthz():

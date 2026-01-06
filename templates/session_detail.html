@@ -270,7 +270,11 @@ header.topbar .clock.small {
   {% set deadline = st.deadline | datetime if st.deadline else None %}
   {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
 {% endfor %}
-{% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
+{# ✅ Tri safe : d'abord celles avec deadline, puis celles sans #}
+{% set steps_dated = steps_with_deadlines | selectattr('deadline', 'ne', none) | list %}
+{% set steps_nodate = steps_with_deadlines | selectattr('deadline', 'equalto', none) | list %}
+{% set sorted_steps = (steps_dated | sort(attribute='deadline')) + steps_nodate %}
+
 
 <!-- ======================================================================= -->
 <!--                              MODE SSIAP                                 -->
@@ -518,6 +522,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

@@ -270,7 +270,8 @@ header.topbar .clock.small {
   {% set deadline = st.deadline | datetime if st.deadline else None %}
   {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
 {% endfor %}
-{% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
+{% set sorted_steps = steps_with_deadlines|sort(attribute='deadline', default=now().replace(year=2100)) %}
+
 
 <!-- ======================================================================= -->
 <!--                              MODE SSIAP                                 -->
@@ -518,6 +519,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

@@ -280,7 +280,8 @@ header.topbar .clock.small {
 <!--                              MODE SSIAP                                 -->
 <!-- ======================================================================= -->
 
-{% if s.formation == 'SSIAP' %}
+{% if 'SSIAP' in (s.formation|string|upper) %}
+
 
 <button id="toggleAllBtn" class="toggle-all-btn">↕️ Replier / Déplier tout</button>
 
@@ -522,6 +523,7 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 
 </body>
 </html>
+
 
 
 

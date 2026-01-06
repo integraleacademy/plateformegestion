@@ -2,633 +2,522 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Contrôle formateur</title>
-
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+  <style>
+    .filter-bar {
+      display:flex; flex-wrap:wrap; gap:10px; margin-bottom:25px;
+      background:#fff; border-radius:10px; padding:10px 15px;
+      box-shadow:0 2px 6px rgba(0,0,0,.1); align-items:center;
+    }
+    .filter-bar select,.filter-bar input {
+      padding:8px 10px; border:1px solid #ccc;
+      border-radius:6px; font-size:14px;
+    }
+    .filter-bar input { flex:1; }
+
+    .section-title {
+      margin-top:35px;
+      font-size:22px;
+      font-weight:700;
+      color:#F4C45A;
+      display:block;
+    }
+    .section-line {
+      width:100%;
+      height:2px;
+      background:#F4C45A;
+      margin:4px 0 18px 0;
+      border-radius:5px;
+      opacity:0.8;
+    }
+
+    .hidden { display:none!important; }
+    .step { margin-bottom:18px; transition:all .25s; }
+
+    /* SOMMAIRE SSIAP */
+    .sommaire-ssi {
+      background:#fff;
+      padding:15px 20px;
+      border-radius:12px;
+      box-shadow:0 3px 10px rgba(0,0,0,0.08);
+      margin-bottom:28px;
+      position:sticky;
+      top:65px;
+      z-index:99;
+    }
+    .sommaire-list {
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px 18px;
+    }
+    .sommaire-item {
+      background:#f4f4f4;
+      padding:7px 12px;
+      border-radius:8px;
+      text-decoration:none;
+      color:#333;
+      font-weight:600;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      transition:0.2s;
+    }
+    .sommaire-item:hover {
+      background:#f4c45a;
+      color:#000;
+    }
+
+    .toggle-all-btn {
+      background:#f4c45a;
+      border:none;
+      padding:8px 14px;
+      border-radius:8px;
+      font-weight:700;
+      cursor:pointer;
+      margin-bottom:20px;
+      transition:.2s;
+    }
+    .toggle-all-btn:hover { background:#d9a848; }
+
+    /* FIX iPad/Safari : texte invisible (blanc sur fond blanc) */
+body, main, header, footer, div, p, h1, h2, h3, label, span, a, li, strong, em, button {
+  color: #111 !important;
+}
+
+
+/* Les cartes et sections déjà en fond blanc : on force le texte */
+.filter-bar, .sommaire-ssi, .step, .actions-bar {
+  color: #111 !important;
+}
+
+/* Champs de saisie/select (iOS peut “blanchir” le texte) */
+input, select, textarea {
+  color: #111 !important;
+  -webkit-text-fill-color: #111 !important; /* iOS Safari */
+  background: #fff !important;
+}
+
+/* Boutons de retour : visibles partout (PC + iPad) */
+a.back{
+  display:inline-block !important;
+  background:#f4c45a !important;
+  color:#000 !important;
+  padding:6px 12px !important;
+  border-radius:8px !important;
+  font-weight:800 !important;
+  text-decoration:none !important;
+  margin-right:10px !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  position:relative !important;
+  z-index:9999 !important;
+  line-height:1 !important;
+}
+
+a.back:hover{ background:#d9a848 !important; }
+
+  .brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+    .planning-box{
+  background:#fff;
+  border-radius:12px;
+  box-shadow:0 3px 10px rgba(0,0,0,0.08);
+  padding:16px 18px;
+  margin:18px 0 22px 0;
+}
+.planning-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.planning-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.planning-form{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.planning-form input[type="file"]{
+  border:1px solid #ddd;
+  padding:8px;
+  border-radius:10px;
+  background:#fafafa;
+}
+.btn.small{
+  padding:8px 12px;
+  border-radius:10px;
+  font-weight:800;
+}
+
+    
+/* ✅ Header (topbar) : forcer texte lisible */
+header.topbar,
+header.topbar * {
+  color: #fff !important;
+}
+
+/* Dates un peu plus discrètes */
+header.topbar .clock.small {
+  opacity: 0.9;
+}
+
+
+  </style>
 </head>
 
 <body>
+<header class="topbar">
+  <div class="brand">
+    <a href="{{ url_for('sessions_home') }}" class="back">⬅️ Retour sessions</a>
 
-<!-- 🔔 Message sauvegardé -->
-<div id="save-toast"
-     style="position:fixed;top:20px;left:50%;transform:translateX(-50%);
-            background:#27ae60;color:white;padding:10px 20px;border-radius:8px;
-            font-size:14px;box-shadow:0 4px 10px rgba(0,0,0,0.15);
-            display:none;z-index:999;font-weight:600;">
-  ✔️ Sauvegardé
-</div>
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
 
-<div id="formateur-detail"
-     data-fid="{{ (formateur.id if formateur is defined and formateur else (s.formateur_id if s is defined and s.formateur_id else '')) }}"
-     style="max-width:1100px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
-
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div>
-      <a href="{{ url_for('formateurs_home') }}" style="font-size:13px;text-decoration:none;">⬅️ Retour à la liste</a>
-      <h2 style="margin:6px 0 0;">
-        👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
-      </h2>
-  
-<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-  
-  <!-- 📦 Export ZIP -->
-  <a href="{{ url_for('export_formateur_dossier', fid=formateur.id) }}"
-     style="padding:8px 16px;background:#27ae60;color:white;border-radius:8px;
-            font-weight:600;font-size:13px;text-decoration:none;">
-    📦 Exporter le dossier
-  </a>
-
-  <!-- 🖨️ Impression -->
-  <a href="{{ url_for('print_formateur_dossier', fid=formateur.id) }}"
-     target="_blank"
-     style="padding:8px 16px;background:#555;color:white;border-radius:8px;
-            font-weight:600;font-size:13px;text-decoration:none;">
-    🖨️ Imprimer le dossier
-  </a>
-
-  <!-- 📧 ENVOI MAIL FORMATEUR (CE QUI MANQUAIT) -->
-  <form method="POST"
-        action="{{ url_for('send_formateur_relance', fid=formateur.id) }}"
-        style="display:inline;">
-    <button type="submit"
-            style="padding:8px 16px;background:#e67e22;color:white;border:none;
-                   border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;">
-      📧 Relancer le formateur
-    </button>
-  </form>
-
-</div>
-
-
-
-      <div style="font-size:13px;color:#555;margin-top:4px;">
-        {{ formateur.email or "Email : —" }} • {{ formateur.telephone or "Téléphone : —" }}
+    <div class="brand-text">
+      <h1>{{ s.formation }} — Fiche session</h1>
+      <div class="clock small">
+        Du {{ s.date_debut|datefr if s.date_debut else '—' }}
+        au {{ s.date_fin|datefr if s.date_fin else '—' }} •
+        Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}
       </div>
-      {% if formateur.last_relance %}
-  <div style="margin-top:6px;font-size:13px;color:#e67e22;font-weight:600;">
-    📧 Dernière relance : {{ formateur.last_relance }}
+    </div>
+  </div>
+</header>
+
+
+
+
+<main class="container">
+
+<!-- ======================================================================= -->
+<!--                            ACTIONS (boutons)                            -->
+<!-- ======================================================================= -->
+
+<div class="actions-bar">
+  <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
+    <button type="submit" class="btn edit">✏️ Modifier la session</button>
+  </form>
+  <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
+    <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
+  </form>
+</div>
+
+  <!-- ===================== PLANNING PDF ===================== -->
+<section class="planning-box">
+  <div class="planning-header">
+    <h2 style="margin:0;">📅 Planning de formation (PDF)</h2>
+
+    {% if planning_pdf %}
+      <div class="planning-actions">
+        <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Consulter</a>
+        <a class="btn small" href="{{ url_for('download_planning_pdf', sid=s.id) }}">⬇️ Télécharger</a>
+      </div>
+    {% endif %}
   </div>
 
+  {% if planning_pdf %}
+    <p class="muted" style="margin-top:8px;">
+      Fichier actuel : <strong>{{ planning_pdf }}</strong>
+    </p>
+  {% else %}
+    <p class="muted" style="margin-top:8px;">Aucun planning PDF ajouté pour cette session.</p>
+  {% endif %}
+
+  <form method="post"
+        action="{{ url_for('upload_planning_pdf', sid=s.id) }}"
+        enctype="multipart/form-data"
+        class="planning-form">
+
+    <input type="file" name="planning_pdf" accept="application/pdf" required>
+    <button type="submit" class="btn">📤 Envoyer le planning</button>
+  </form>
+</section>
+<!-- ========================================================= -->
 
 
-      
+{% if not s.steps %}
+<p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
+{% else %}
+
+<!-- ======================================================================= -->
+<!--                   TRI PAR DEADLINE POUR TOUS LES MODES                  -->
+<!-- ======================================================================= -->
+
+{% set steps_with_deadlines = [] %}
+{% for i in range(s.steps|length) %}
+  {% set st = statuses[i] %}
+  {% set step = s.steps[i] %}
+  {% set deadline = st.deadline | datetime if st.deadline else None %}
+  {% set _ = steps_with_deadlines.append({'index': i, 'step': step, 'st': st, 'deadline': deadline}) %}
+{% endfor %}
+{% set sorted_steps = steps_with_deadlines|sort(attribute='deadline') %}
+
+<!-- ======================================================================= -->
+<!--                              MODE SSIAP                                 -->
+<!-- ======================================================================= -->
+
+{% if s.formation == 'SSIAP' %}
+
+<button id="toggleAllBtn" class="toggle-all-btn">↕️ Replier / Déplier tout</button>
+
+{% set sections = {
+  "🔥 Session" : [
+    "Le formateur a été nommé (65 jours avant début de session)",
+    "Le contrat d'intervention a été envoyé au formateur (7 jours avant début de session)",
+    "Le contrat d'intervention formateur a été signé et imprimé (5 jours avant début de session)",
+    "Le nombre de candidats est de 12 maximum (2 jours avant début de session)",
+    "La préfecture a été avisée de l'ouverture de la session 2 mois avant le démarrage (65 jours avant début de session)",
+    "La préfecture a été avisée de la date d'examen 2 mois avant le démarrage (65 jours avant début de session)",
+    "Les convocations en formation ont été envoyées aux candidats (15 jours avant début de session)",
+    "Le test de français a été envoyé à tous les candidats (7 jours avant début de session)"
+  ],
+
+    "📁 Dossier candidat (formation)" : [
+    "Le dossier comporte la pièce d'identité de chaque candidat (1er jour de formation)",
+    "Le dossier comporte l'attestation de formation au secourisme de chaque candidat (1er jour de formation)",
+    "Le dossier comporte 2 photos d'identité (1 archive, 1 diplôme) pour chaque candidat (1er jour de formation)",
+    "Le dossier comporte le certificat médical conforme à l'Annexe VII de l'arrêté du 2 mai 2005 modifié de chaque candidat (1er jour de formation)",
+    "Le dossier comporte une copie du test de français réalisé par chaque candidat en amont de la formation (1er jour de formation)",
+    "Le dossier comporte le contrat de formation signé par chaque candidat (1er jour de formation)",
+    "Les dossiers de chaque candidat ont été vérifiés avant le démarrage de la session (1er jour de formation)"
+  ],
+
+"🏛️ Demande présidence de jury SDIS" : [
+    "Le SDIS a été avisé de la date d'organisation des épreuves (65 jours avant début de session)",
+    "La demande comporte le nom, la fonction et la qualification du jury chef de service incendie (65 jours avant début de session)",
+    "La demande comporte l'attestation d'engagement (accord) du jury chef de service incendie (65 jours avant début de session)",
+    "L'engagement écrit, du propriétaire ou de l'exploitant de l'établissement, de mettre à disposition les locaux et d'autoriser la manipulation des installations techniques nécessaires au déroulement de l'épreuve pratique est fournit (65 jours avant début de session)",
+    "Le planning de la session est fournit (65 jours avant début de session)",
+    "Sur le planning le nom, la qualité, la fonction et les qualifications des formateurs sont indiqués (65 jours avant début de session)",
+    "La convention de demande de présidence jury SDIS en fournit en double exemplaire (65 jours avant début de session)",
+    "La demande de présidence de jury SDIS a été envoyé en LRAR (65 jours avant début de session)"
+],
+
+  "🧾 Dossier candidat (examen)" : [
+    "Les dossiers examen des candidats sont imprimés pour les membres du jury (2 jours avant l'examen)",
+    "Chaque dossier examen comporte la pièce d'identité du candidat (2 jours avant l'examen)",
+    "Chaque dossier examen comporte l'attestation de formation au secourisme (2 jours avant l'examen)",
+    "Chaque dossier examen comporte le certificat médical conforme à l'Annexe VII de l'arrêté du 2 mai 2005 modifié (2 jours avant l'examen)",
+    "Chaque dossier examen comporte le test de français réalisé par le candidat en amont de la formation (2 jours avant l'examen)",
+    "Chaque dossier examen comporte le certificat de réalisation de la formation (2 jours avant l'examen)",
+    "Chaque dossier examen comporte le PV d'examen individuel pré-rempli (2 jours avant l'examen)",
+    "Chaque dossier examen comporte une attestation du directeur certifiant que les candidats ne travaillent pas dans la même entreprise que le jury (2 jours avant l'examen)",
+    "Chaque dossier examen comporte une attestation du directeur certifiant que les candidats sont capables d'écrire une main courante (2 jours avant l'examen)"
+  ],
+
+  "🧪 Organisation de l'examen" : [
+    "Le jury chef de service de sécurité incendie a été nommé (65 jours avant début de session)",
+    "Le lieu d'examen (pratique) a été réservé (65 jours avant début de session)",
+    "Les convocations à l'examen ont été envoyées aux candidats (15 jours avant l'examen)",
+    "Les télécommandes QUIZZBOX ont été vérifiées en vue de l'examen (2 jours avant l'examen)",
+    "Le logiciel QUIZZBOX a été paramétré pour l'examen (2 jours avant l'examen)",
+    "Le procès verbal collectif a été pré-rempli et imprimé (2 jours avant l'examen)",
+    "La salle d'examen théorique a été préparée et vérifiée (2 jours avant l'examen)",
+    "Les pièces d'identité des candidats ont été vérifié par le jury (jour de l'examen)",
+    "Le PV de résultats examen théorique (QCM Quizzbox) a été imprimé en double exemplaire : SDIS et archives (jour de l'examen)",
+    "A l'issue de l'examen les PV d'examen individuels ont été photocopiés en triples exemplaires : SDIS, candidats et archives (jour de l'examen)",
+    "A l'issue de l'examen le PV d'examen collectif a été photocopié en doubles exemplaires : SDIS et archives (jour de l'examen)"
+  ],
+
+  "🎓 Diplômes" : [
+    "Chaque diplôme comporte une photographie couleur dans l'angle droit (2 jours après l'examen)",
+    "Les numéros de diplômes ont été vérifiés (2 jours après l'examen)",
+    "La signature du directeur du centre de formation agréé est apposée dans l'angle inférieur gauche (2 jours après l'examen)",
+    "Les diplômes ont été imprimé sur du papier rigide 180g (2 jours après l'examen)",
+    "Les diplômes ont été envoyés au SDIS en LRAR (2 jours après l'examen)",
+    "Les diplômes ont été validé par le SDIS (30 jours après l'examen)",
+    "Les diplômes ont été distribués aux candidats (35 jours après l'examen)",
+    "Les candidats ont signé le récépissé de délivrance, preuve de remise du diplôme (35 jours après l'examen)",
+    "Les diplômes sont référencés dans un tableau Excel pour assurer la traçabilité (2 jours après l'examen)"
+  ],
+
+  "📦 Clôture de session" : [
+    "Le rapport de traçabilité et de conformité a été généré (40 jours après l'examen)",
+    "Le rapport de traçabilité et de conformité a été envoyé par mail à la préfecture (40 jours après l'examen)",
+    "Le rapport de traçabilité et de conformité a été imprimé et archivé (40 jours après l'examen)"
+  ]
+} %}
+
+<!-- ========= SOMMAIRE SSIAP ========= -->
+
+<div class="sommaire-ssi">
+  <h2 style="margin-bottom:10px;">📘 Sommaire</h2>
+  <div class="sommaire-list">
+
+    {% for title, items in sections.items() %}
+      {% set total = items|length %}
+      {% set ns = namespace(done=0) %}
+
+      {% for entry in sorted_steps %}
+        {% for item in items %}
+          {% if entry.step.name == item and entry.step.done %}
+            {% set ns.done = ns.done + 1 %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+
+      <a href="#section_{{ loop.index }}" class="sommaire-item">
+        <span>{{ title.split(' ')[0] }}</span> {{ title }}
+        <strong>({{ ns.done }}/{{ total }})</strong>
+      </a>
+
+    {% endfor %}
+
+  </div>
+</div>
+
+
+
+
+
+<!-- ========= SECTIONS SSIAP ========= -->
+
+{% for title, items in sections.items() %}
+  {% set total = items|length %}
+  {% set ns = namespace(done=0) %}
+
+  {% for entry in sorted_steps %}
+    {% for item in items %}
+      {% if entry.step.name == item and entry.step.done %}
+        {% set ns.done = ns.done + 1 %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  <h2 id="section_{{ loop.index }}" class="section-title">
+    {{ title }} — <span style="color:#000;font-weight:700;">{{ ns.done }}/{{ total }}</span>
+  </h2>
+
+  <div class="section-line"></div>
+
+  {% for entry in sorted_steps %}
+    {% for item in items %}
+      {% if entry.step.name == item %}
+        {% set i = entry.index %}
+        {% include 'step_block.html' %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+{% endfor %}
+
+
+
+  {% else %}
+
+<!-- ======================================================================= -->
+<!--                  MODE NORMAL (APS / A3P / BTS / GENERAL)                -->
+<!--                            VERSION D’ORIGINE                            -->
+<!-- ======================================================================= -->
+
+<div class="filter-bar">
+  <label><strong>Afficher :</strong></label>
+  <select id="filterSelect">
+    <option value="all">Toutes les étapes</option>
+    <option value="done">✅ Validées</option>
+    <option value="notdone">⏳ Non validées</option>
+  </select>
+
+  <input id="searchInput" type="text" placeholder="🔍 Rechercher une étape...">
+
+  <button id="resetFiltersBtn" type="button">🧹 Réinitialiser</button>
+</div>
+
+<div class="steps" id="stepsContainer">
+  {% for entry in sorted_steps %}
+    {% set i = entry.index %}
+    {% include 'step_block.html' %}
+  {% endfor %}
+</div>
+
+{% endif %}
 {% endif %}
 
-            <!-- 🔑 GESTION DE LA CLÉ -->
-<div id="cle-box"
-     style="margin-top:14px;padding:14px 16px;border-radius:12px;
-            background:#f8f9fa;border:1px solid #e0e0e0;
-            display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+</main>
 
-  <strong style="font-size:14px;">🔑 Clé :</strong>
-
-  <!-- Attribuée -->
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-    <input type="checkbox" id="cle-attribuee"
-           {% if formateur.cle.attribuee %}checked{% endif %}>
-    Attribuée
-  </label>
-
-  <!-- Numéro -->
-<select id="cle-numero"
-        style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-               font-size:13px;width:130px;">
-  <option value="">— Aucune —</option>
-
-  {% for num, info in etat_cles.items() %}
-    <option value="{{ num }}"
-      {% if formateur.cle.numero|string == num|string %}selected{% endif %}
-    >
-      {{ num }} – {{ info.type }}
-    </option>
-  {% endfor %}
-</select>
-
-
-
-  <!-- Statut -->
-  <select id="cle-statut"
-          style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-                 font-size:13px;">
-    <option value="non_attribuee"
-      {% if formateur.cle.statut == "non_attribuee" %}selected{% endif %}>
-      Non attribuée
-    </option>
-    <option value="attribuee"
-      {% if formateur.cle.statut == "attribuee" %}selected{% endif %}>
-      Attribuée
-    </option>
-    <option value="rendue"
-      {% if formateur.cle.statut == "rendue" %}selected{% endif %}>
-      Rendue
-    </option>
-    <option value="non_rendue"
-      {% if formateur.cle.statut == "non_rendue" %}selected{% endif %}>
-      Non rendue
-    </option>
-  </select>
-  </div> <!-- fin cle-box -->
-
-
-<!-- 🎫 BADGE BARRIÈRE -->
-<div id="badge-box"
-     style="margin-top:12px;padding:14px 16px;border-radius:12px;
-            background:#f8f9fa;border:1px solid #e0e0e0;
-            display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
-
-  <strong style="font-size:14px;">🎫 Badge barrière :</strong>
-
-  <!-- Attribué -->
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-    <input type="checkbox" id="badge-attribue"
-           {% if formateur.badge.attribue %}checked{% endif %}>
-    Attribué
-  </label>
-
-  <!-- Numéro -->
-<select id="badge-numero"
-        style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-               font-size:13px;width:130px;">
-  <option value="">— Aucun —</option>
-
-  {% for num, info in etat_badges.items() %}
-    <option value="{{ num }}"
-      {% if formateur.badge.numero|string == num|string %}selected{% endif %}
-    >
-      Badge {{ num }}
-    </option>
-  {% endfor %}
-</select>
-
-
-
-  <!-- Statut -->
-  <select id="badge-statut"
-          style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-                 font-size:13px;">
-    <option value="non_attribue"
-      {% if formateur.badge.statut == "non_attribue" %}selected{% endif %}>
-      Non attribué
-    </option>
-    <option value="attribue"
-      {% if formateur.badge.statut == "attribue" %}selected{% endif %}>
-      Attribué
-    </option>
-    <option value="rendu"
-      {% if formateur.badge.statut == "rendu" %}selected{% endif %}>
-      Rendu
-    </option>
-    <option value="non_rendu"
-      {% if formateur.badge.statut == "non_rendu" %}selected{% endif %}>
-      Non rendu
-    </option>
-  </select>
-
-</div>
-
-
-
-  
-
-</div>
-
-    </div>
-  </div>
-
-  <hr style="margin:15px 0;">
-
-  <!-- Ajouter une nouvelle ligne -->
-  <form method="POST" action="{{ url_for('add_formateur_document', fid=formateur.id) }}" style="display:flex;gap:10px;align-items:baseline;margin-bottom:15px;flex-wrap:wrap;">
-    <div style="flex:1 1 250px;">
-      <label>Ajouter une nouvelle ligne de contrôle :</label>
-      <input type="text" name="label" placeholder="Intitulé du document..." required
-             style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <button type="submit" style="padding:7px 14px;border:none;border-radius:8px;background:#2980b9;color:#fff;font-weight:600;cursor:pointer;">
-      ➕ Ajouter une ligne
-    </button>
-  </form>
-
-  <button onclick="toggleNonConcerne()" 
-        style="margin-bottom:15px;padding:8px 12px;background:#ddd;border:none;
-               border-radius:6px;cursor:pointer;font-size:13px;">
-  👁️ Afficher / Masquer les documents non concernés
-</button>
-
-
-  <div style="max-width:900px;margin:0 auto;overflow-x:auto;">
-    <table style="border-collapse:collapse;font-size:13px;width:auto;">
-      <thead>
-        <tr style="background:#f4f6f7;">
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Élément à contrôler</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:150px;">Date d'expiration</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:160px;">Statut</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Commentaire</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:220px;">Pièces jointes</th>
-        </tr>
-      </thead>
-
-      <tbody>
-  {% for doc in formateur.documents %}
-  <tr data-doc-id="{{ doc.id }}" class="{% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      {{ doc.label }}
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      <input
-        type="date"
-        name="expiration"
-        value="{{ doc.expiration or '' }}"
-        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      <select name="status" class="status-select"
-        data-status="{{ doc.status }}"
-        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-        <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
-        <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
-        <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
-      </select>
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      <textarea
-        name="commentaire"
-        rows="2"
-        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      {% if doc.attachments %}
-        <div style="margin-bottom:6px;">
-          {% for att in doc.attachments %}
-            {% set ext = att.original_name.split('.')[-1]|lower %}
-            <div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-              {% if ext in ["jpg","jpeg","png","gif","webp"] %}
-                <span>🖼️</span>
-              {% elif ext in ["pdf"] %}
-                <span>📄</span>
-              {% else %}
-                <span>📎</span>
-              {% endif %}
-
-              <a href="{{ url_for('download_formateur_attachment',
-                                  fid=formateur.id,
-                                  doc_id=doc.id,
-                                  filename=att.filename) }}"
-                 target="_blank"
-                 style="font-size:12px;text-decoration:none;color:#007bff;">
-                {{ att.original_name }}
-              </a>
-
-              <button type="button"
-                      class="delete-att"
-                      data-doc="{{ doc.id }}"
-                      data-file="{{ att.filename }}"
-                      title="Supprimer"
-                      style="border:none;background:none;color:#c0392b;
-                             cursor:pointer;font-size:13px;">
-                🗑️
-              </button>
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      <input type="file" name="piece_jointe" multiple style="font-size:11px;">
-    </td>
-  </tr>
-  {% endfor %}
-</tbody>
-
-    </table>
-  </div>
-
-  <p style="margin-top:10px;font-size:12px;color:#666;">
-    ℹ️ Tout changement (date, statut, commentaire, pièces jointes) est enregistré automatiquement.
-  </p>
-
-</div>
+<footer class="footer">
+  © <span id="year"></span> Intégrale Academy
+</footer>
 
 <script>
-(function () {
+document.getElementById('year').textContent = new Date().getFullYear();
+window.scrollTo(0,0);
 
-  const toast = document.getElementById("save-toast");
+// SSESSIONS FILTERING
+const STORAGE_KEY = "sessionFilter_{{ s.id }}";
+const filterSelect = document.getElementById('filterSelect');
+const searchInput = document.getElementById('searchInput');
+const steps = document.querySelectorAll(".step");
 
-  function showToast() {
-    toast.style.display = "block";
-    setTimeout(() => { toast.style.display = "none"; }, 1500);
-  }
-
-  const container = document.getElementById("formateur-detail");
-  if (!container) return;
-
-  const fid = container.dataset.fid;
-
-  // 🎯 Auto-détection expiration
-  function checkExpiration(row) {
-    const dateInput = row.querySelector("input[name='expiration']");
-    const statusSelect = row.querySelector("select[name='status']");
-    if (!dateInput || !statusSelect) return;
-
-    if (!dateInput.value) return;
-
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    const exp = new Date(dateInput.value + "T00:00:00");
-
-    if (exp < today) {
-      statusSelect.value = "non_conforme";
-      updateSelectColor(statusSelect);
-    }
-  }
-
-  // 🔥 Fonction couleur statut
-  function updateSelectColor(selectEl) {
-    const v = selectEl.value;
-
-    selectEl.style.background = "";
-    selectEl.style.color = "";
-
-    if (v === "conforme") {
-      selectEl.style.background = "#d4edda";
-      selectEl.style.color = "#155724";
-    } else if (v === "non_conforme") {
-      selectEl.style.background = "#f8d7da";
-      selectEl.style.color = "#721c24";
-    } else if (v === "non_concerne") {
-      selectEl.style.background = "#e0e0e0";
-      selectEl.style.color = "#000";
-    }
-  }
-
-  // Couleurs au chargement
-  document.querySelectorAll(".status-select").forEach(sel => {
-    updateSelectColor(sel);
+function applyFilters(){
+  if(!filterSelect) return;
+  const filter = filterSelect.value;
+  const query = searchInput.value.toLowerCase().trim();
+  steps.forEach(step=>{
+    const isDone = step.dataset.done==="true";
+    const name = step.dataset.name||"";
+    let visible = true;
+    if(filter==="done" && !isDone) visible=false;
+    if(filter==="notdone" && isDone) visible=false;
+    if(query && !name.includes(query)) visible=false;
+    step.classList.toggle("hidden",!visible);
   });
+  sessionStorage.setItem(STORAGE_KEY,JSON.stringify({filter,query}));
+}
 
-  function sendUpdate(row) {
-    const docId = row.dataset.docId;
-    if (!docId) return;
+function restoreFilters(){
+  if(!filterSelect) return;
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if(!saved) return;
+  try{
+    const {filter,query}=JSON.parse(saved);
+    if(filter) filterSelect.value=filter;
+    if(query) searchInput.value=query;
+    applyFilters();
+  }catch(e){}
+}
 
-    const url = `/formateurs/${fid}/documents/${docId}/update`;
+filterSelect?.addEventListener("change",applyFilters);
+searchInput?.addEventListener("input",applyFilters);
+document.getElementById("resetFiltersBtn")?.addEventListener("click",()=>{
+  filterSelect.value="all";
+  searchInput.value="";
+  applyFilters();
+  sessionStorage.removeItem(STORAGE_KEY);
+});
+restoreFilters();
 
-    const expirationInput = row.querySelector("input[name='expiration']");
-    const statusSelect    = row.querySelector("select[name='status']");
-    const commentaireArea = row.querySelector("textarea[name='commentaire']");
-    const fileInput       = row.querySelector("input[name='piece_jointe']");
-
-    const formData = new FormData();
-
-    if (expirationInput) formData.append("expiration", expirationInput.value || "");
-    if (statusSelect)    formData.append("status", statusSelect.value || "");
-    if (commentaireArea) formData.append("commentaire", commentaireArea.value || "");
-    if (fileInput && fileInput.files.length > 0) {
-      Array.from(fileInput.files).forEach(f => {
-        formData.append("piece_jointe", f);
-      });
-    }
-
-    fetch(url, {
-      method: "POST",
-      body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-      showToast();
-    })
-    .catch(err => console.error("Erreur sauvegarde :", err));
-  }
-
-  document.querySelectorAll("tr[data-doc-id]").forEach(row => {
-    const expirationInput = row.querySelector("input[name='expiration']");
-    const statusSelect    = row.querySelector("select[name='status']");
-    const commentaireArea = row.querySelector("textarea[name='commentaire']");
-    const fileInput       = row.querySelector("input[name='piece_jointe']");
-
-    ["change", "blur"].forEach(evt => {
-      if (expirationInput)
-        expirationInput.addEventListener(evt, () => {
-          checkExpiration(row);
-          sendUpdate(row);
-        });
-
-      if (statusSelect)
-        statusSelect.addEventListener(evt, () => {
-          updateSelectColor(statusSelect);
-          sendUpdate(row);
-        });
-
-      if (commentaireArea)
-        commentaireArea.addEventListener(evt, () => sendUpdate(row));
-    });
-
-    if (fileInput) {
-      fileInput.addEventListener("change", () => {
-        if (fileInput.files.length > 0) sendUpdate(row);
-      });
-    }
-  });
-// 🗑️ Suppression d'une pièce jointe
-document.querySelectorAll(".delete-att").forEach(btn => {
-  btn.addEventListener("click", () => {
-
-    if (!confirm("Supprimer cette pièce jointe ?")) return;
-
-    const docId = btn.dataset.doc;
-    const filename = btn.dataset.file;
-
-    fetch(`/formateurs/${fid}/documents/${docId}/attachments/${filename}/delete`, {
-      method: "POST"
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        // retire la ligne visuellement
-        btn.parentElement.remove();
-        showToast();
-      }
-    })
-    .catch(err => console.error("Erreur suppression PJ :", err));
+// TOGGLE (SSIAP)
+let allCollapsed = false;
+document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
+  allCollapsed = !allCollapsed;
+  document.querySelectorAll("div.step").forEach(step=>{
+    step.style.display = allCollapsed ? "none" : "";
   });
 });
-
-  /* ===============================
-   🔑 GESTION CLÉ FORMATEUR
-================================ */
-
-const cleBox = document.getElementById("cle-box");
-const cleAttribuee = document.getElementById("cle-attribuee");
-const cleNumero = document.getElementById("cle-numero");
-const cleStatut = document.getElementById("cle-statut");
-
-function updateCleColor() {
-  if (!cleBox) return;
-
-  cleBox.style.background = "#f8f9fa";
-  cleBox.style.borderColor = "#ddd";
-
-  switch (cleStatut.value) {
-    case "attribuee":
-      cleBox.style.background = "#e8f5e9";
-      cleBox.style.borderColor = "#2ecc71";
-      break;
-    case "rendue":
-      cleBox.style.background = "#e3f2fd";
-      cleBox.style.borderColor = "#3498db";
-      break;
-    case "non_rendue":
-      cleBox.style.background = "#fdecea";
-      cleBox.style.borderColor = "#e74c3c";
-      break;
-  }
-}
-
-function saveCle() {
-  fetch(`/formateurs/${fid}/cle/update`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      attribuee: cleAttribuee.checked ? "true" : "false",
-      numero: cleNumero.value || "",
-      statut: cleStatut.value
-    })
-  })
-  .then(r => r.json())
-  .then(data => {
-    showToast();
-    updateCleColor();
-  })
-  .catch(err => console.error("Erreur sauvegarde clé :", err));
-}
-
-if (cleAttribuee && cleNumero && cleStatut) {
-
-  updateCleColor(); // couleur au chargement
-
-  cleAttribuee.addEventListener("change", saveCle);
-  cleNumero.addEventListener("blur", saveCle);
-  cleStatut.addEventListener("change", saveCle);
-}
-
-  /* ===============================
-   🎫 GESTION BADGE BARRIÈRE
-================================ */
-
-const badgeBox = document.getElementById("badge-box");
-const badgeAttribue = document.getElementById("badge-attribue");
-const badgeNumero = document.getElementById("badge-numero");
-const badgeStatut = document.getElementById("badge-statut");
-  // --- Mise à jour automatique du formulaire badge selon la sélection ---cest q
-if (badgeAttribue && badgeStatut && badgeNumero) {
-    badgeAttribue.addEventListener("change", () => {
-        const selection = badgeAttribue.value;
-
-        // Si "Aucun"
-        if (!selection) {
-            badgeStatut.value = "";
-            badgeNumero.value = "";
-            return;
-        }
-
-        // Si "Attribué Badge X"
-        if (selection.includes("Badge")) {
-            const parts = selection.split(" ");
-            const numero = parts[1];
-            badgeStatut.value = "attribue";
-            badgeNumero.value = numero;
-        }
-    });
-}
-
-
-function updateBadgeColor() {
-  if (!badgeBox) return;
-
-  badgeBox.style.background = "#f8f9fa";
-  badgeBox.style.borderColor = "#ddd";
-
-  switch (badgeStatut.value) {
-    case "attribue":
-      badgeBox.style.background = "#e8f5e9";
-      badgeBox.style.borderColor = "#2ecc71";
-      break;
-    case "rendu":
-      badgeBox.style.background = "#e3f2fd";
-      badgeBox.style.borderColor = "#3498db";
-      break;
-    case "non_rendu":
-      badgeBox.style.background = "#fdecea";
-      badgeBox.style.borderColor = "#e74c3c";
-      break;
-  }
-}
-
-function saveBadge() {
-  fetch(`/formateurs/${fid}/badge/update`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      attribue: badgeAttribue.checked ? "true" : "false",
-      numero: badgeNumero.value || "",
-      statut: badgeStatut.value
-    })
-  })
-  .then(r => r.json())
-  .then(() => {
-    showToast();
-    updateBadgeColor();
-  })
-  .catch(err => console.error("Erreur sauvegarde badge :", err));
-}
-
-if (badgeAttribue && badgeNumero && badgeStatut) {
-  updateBadgeColor();
-  badgeAttribue.addEventListener("change", saveBadge);
-  badgeNumero.addEventListener("blur", saveBadge);
-  badgeStatut.addEventListener("change", saveBadge);
-}
-
-
-// 👁️ Afficher / masquer les documents non concernés
-window.toggleNonConcerne = function () {
-  document.querySelectorAll(".non-concerne").forEach(row => {
-    if (row.style.display === "" || row.style.display === "table-row") {
-      row.style.display = "none";
-    } else {
-      row.style.display = "";
-    }
-  });
-};
-
-
-
-  // 🚫 Masquer automatiquement les lignes non concernées au chargement
-document.querySelectorAll(".non-concerne").forEach(row => {
-  row.style.display = "none";
-});
-
-
-
-
-  
-
-  
-})();
 </script>
 
 </body>
 </html>
-
-
-
 
 
 

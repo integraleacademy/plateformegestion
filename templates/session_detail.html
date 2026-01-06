@@ -19,7 +19,7 @@
 </div>
 
 <div id="formateur-detail"
-     data-fid="{{ formateur.id }}"
+     data-fid="{{ (formateur.id if formateur is defined and formateur else (s.formateur_id if s is defined and s.formateur_id else '')) }}"
      style="max-width:1100px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
 
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -626,6 +626,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

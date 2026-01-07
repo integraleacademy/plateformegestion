@@ -53,11 +53,29 @@
     <tbody>
       {% for f in formateurs %}
       <tr>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">
-          <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="text-decoration:none;color:#2c3e50;font-weight:600;">
-            {{ f.prenom }} {{ f.nom|upper }}
-          </a>
-        </td>
+<td style="padding:8px;border-bottom:1px solid #f0f0f0;">
+  <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="text-decoration:none;color:#2c3e50;font-weight:600;">
+    {{ f.prenom }} {{ f.nom|upper }}
+  </a>
+
+  {% if f.a_controler %}
+    <span style="
+      margin-left:8px;
+      display:inline-block;
+      padding:3px 8px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      background:#fff3cd;
+      color:#8a6d3b;
+      border:1px solid #ffeeba;
+      vertical-align:middle;
+    ">
+      📌 Docs à contrôler
+    </span>
+  {% endif %}
+</td>
+
         <td style="padding:8px;border-bottom:1px solid #f0f0f0;">{{ f.email or "—" }}</td>
         <td style="padding:8px;border-bottom:1px solid #f0f0f0;">{{ f.telephone or "—" }}</td>
         <td style="padding:8px;border-bottom:1px solid #f0f0f0;">
@@ -255,6 +273,7 @@ function assignBadge(numero, fid) {
 
 </body>
 </html>
+
 
 
 

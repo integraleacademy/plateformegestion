@@ -610,29 +610,42 @@ async function updateFormateurs() {
     if (!r.ok) throw 0;
 
     const d = await r.json();
-    const n = d.non_conformes || 0;
-    const liste = d.liste || [];
 
-    if (n === 0) {
+    const nNC = d.non_conformes || 0;
+    const nAC = d.a_controler || 0;
+
+    const listNC = d.liste_non_conformes || [];
+    const listAC = d.liste_a_controler || [];
+
+    // ✅ Rien à signaler
+    if (nNC === 0 && nAC === 0) {
       box.className = "notif ok";
       box.innerHTML = "✅ Tous les formateurs sont conformes";
       box.removeAttribute("data-tooltip");
       return;
     }
 
-    // --- état visuel compact ---
-    box.className = "notif alert";
-    box.innerHTML = `⚠️ ${n} non-conformité${n>1?"s":""} détectée${n>1?"s":""}`;
-
-    // --- texte du tooltip ---
-    if (liste.length > 0) {
-      box.setAttribute(
-        "data-tooltip",
-        liste.map(nom => `• ${nom}`).join("\n")
-      );
+    // ✅ Message compact (priorité aux non conformes)
+    if (nNC > 0) {
+      box.className = "notif alert";
+      box.innerHTML = `⚠️ ${nNC} non-conformité${nNC>1?"s":""} — 📌 ${nAC} à contrôler`;
     } else {
-      box.removeAttribute("data-tooltip");
+      box.className = "notif wait";
+      box.innerHTML = `📌 ${nAC} doc${nAC>1?"s":""} à contrôler`;
     }
+
+    // ✅ Tooltip combiné
+    let tooltip = "";
+    if (listNC.length) {
+      tooltip += "⚠️ Non conformes :\n" + listNC.map(nom => `• ${nom}`).join("\n");
+    }
+    if (listAC.length) {
+      if (tooltip) tooltip += "\n\n";
+      tooltip += "📌 À contrôler :\n" + listAC.map(nom => `• ${nom}`).join("\n");
+    }
+
+    if (tooltip) box.setAttribute("data-tooltip", tooltip);
+    else box.removeAttribute("data-tooltip");
 
   } catch {
     box.className = "notif error";
@@ -640,6 +653,7 @@ async function updateFormateurs() {
     box.removeAttribute("data-tooltip");
   }
 }
+
 
     // --- DEVIS ---
 async function updateDevis() {

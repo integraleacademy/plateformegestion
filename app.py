@@ -1753,21 +1753,42 @@ def dotations_data():
 def formateurs_data():
     try:
         formateurs = load_formateurs()
+
         total_non_conformes = 0
-        liste_formateurs = set()   # éviter les doublons
+        total_a_controler = 0
+
+        liste_non_conformes = set()
+        liste_a_controler = set()
 
         for f in formateurs:
             nom_complet = f"{f.get('prenom','')} {f.get('nom','')}".strip()
+
+            has_non_conforme = False
+            has_a_controler = False
+
             for doc in f.get("documents", []):
                 auto_update_document_status(doc)
-                if doc.get("status") in ("non_conforme", "a_controler"):
-                    total_non_conformes += 1
-                    liste_formateurs.add(nom_complet)
+                st = doc.get("status")
 
+                if st == "non_conforme":
+                    total_non_conformes += 1
+                    has_non_conforme = True
+
+                if st == "a_controler":
+                    total_a_controler += 1
+                    has_a_controler = True
+
+            if has_non_conforme:
+                liste_non_conformes.add(nom_complet)
+
+            if has_a_controler:
+                liste_a_controler.add(nom_complet)
 
         payload = {
             "non_conformes": total_non_conformes,
-            "liste": sorted(list(liste_formateurs))
+            "a_controler": total_a_controler,
+            "liste_non_conformes": sorted(list(liste_non_conformes)),
+            "liste_a_controler": sorted(list(liste_a_controler)),
         }
 
         headers = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
@@ -1776,6 +1797,7 @@ def formateurs_data():
     except Exception as e:
         print("Erreur /formateurs_data.json :", e)
         return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
+
 
 import zipfile
 from flask import send_file
@@ -1905,7 +1927,7 @@ def upload_formateur_documents(fid):
 
         for f in files:
             if not f.filename:
-                continuef
+                continue
 
             # Vérification extension
             ext = f.filename.lower().rsplit(".", 1)[-1]

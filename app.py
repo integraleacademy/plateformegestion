@@ -1628,8 +1628,9 @@ def update_formateur_document(fid, doc_id):
 
     if "status" in request.form:
         st = request.form.get("status")
-        if st in ("non_concerne", "conforme", "non_conforme"):
+        if st in ("non_concerne", "a_controler", "conforme", "non_conforme"):
             doc["status"] = st
+
 
     if "commentaire" in request.form:
         doc["commentaire"] = request.form.get("commentaire", "").strip()
@@ -1897,7 +1898,7 @@ def upload_formateur_documents(fid):
 
         for f in files:
             if not f.filename:
-                continue
+                continuef
 
             # Vérification extension
             ext = f.filename.lower().rsplit(".", 1)[-1]
@@ -1915,7 +1916,7 @@ def upload_formateur_documents(fid):
             })
 
         # Après upload → conforme
-        doc["status"] = "conforme"
+        doc["status"] = "a_controler"
         save_formateurs(formateurs)
         flash("Document transmis avec succès.", "ok")
         return redirect(request.url)

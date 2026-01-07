@@ -248,8 +248,10 @@
         data-status="{{ doc.status }}"
         style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
         <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
+        <option value="a_controler" {% if doc.status == "a_controler" %}selected{% endif %}>A contrôler</option>
         <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
         <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
+
       </select>
     </td>
 
@@ -347,23 +349,27 @@
   }
 
   // 🔥 Fonction couleur statut
-  function updateSelectColor(selectEl) {
-    const v = selectEl.value;
+function updateSelectColor(selectEl) {
+  const v = selectEl.value;
 
-    selectEl.style.background = "";
-    selectEl.style.color = "";
+  selectEl.style.background = "";
+  selectEl.style.color = "";
 
-    if (v === "conforme") {
-      selectEl.style.background = "#d4edda";
-      selectEl.style.color = "#155724";
-    } else if (v === "non_conforme") {
-      selectEl.style.background = "#f8d7da";
-      selectEl.style.color = "#721c24";
-    } else if (v === "non_concerne") {
-      selectEl.style.background = "#e0e0e0";
-      selectEl.style.color = "#000";
-    }
+  if (v === "conforme") {
+    selectEl.style.background = "#d4edda";
+    selectEl.style.color = "#155724";
+  } else if (v === "a_controler") {
+    selectEl.style.background = "#ffe8cc";   // orange clair
+    selectEl.style.color = "#7a3e00";
+  } else if (v === "non_conforme") {
+    selectEl.style.background = "#f8d7da";
+    selectEl.style.color = "#721c24";
+  } else if (v === "non_concerne") {
+    selectEl.style.background = "#e0e0e0";
+    selectEl.style.color = "#000";
   }
+}
+
 
   // Couleurs au chargement
   document.querySelectorAll(".status-select").forEach(sel => {
@@ -626,6 +632,7 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
+
 
 
 

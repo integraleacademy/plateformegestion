@@ -1417,9 +1417,10 @@ def formateurs_home():
                 "statut": "non_attribue"
             }
 
-        # ✅ calcul conformité
+        # ✅ conformité + simple indicateur "docs à contrôler"
         total = 0
         conformes = 0
+        a_controler = False
 
         for doc in f.get("documents", []):
             auto_update_document_status(doc)
@@ -1429,8 +1430,12 @@ def formateurs_home():
                 total += 1
                 if status == "conforme":
                     conformes += 1
+                if status == "a_controler":
+                    a_controler = True
 
         f["conformite"] = {"conformes": conformes, "total": total}
+        f["a_controler"] = a_controler
+
 
     save_formateurs(formateurs)
 

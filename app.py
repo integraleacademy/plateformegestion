@@ -640,8 +640,9 @@ def get_formateurs_global_non_conformites():
     for f in formateurs:
         for doc in f.get("documents", []):
             auto_update_document_status(doc)
-            if doc.get("status") == "non_conforme":
+            if doc.get("status") in ("non_conforme", "a_controler"):
                 total_non_conformes += 1
+
 
     return total_non_conformes
 
@@ -1754,9 +1755,10 @@ def formateurs_data():
             nom_complet = f"{f.get('prenom','')} {f.get('nom','')}".strip()
             for doc in f.get("documents", []):
                 auto_update_document_status(doc)
-                if doc.get("status") == "non_conforme":
+                if doc.get("status") in ("non_conforme", "a_controler"):
                     total_non_conformes += 1
                     liste_formateurs.add(nom_complet)
+
 
         payload = {
             "non_conformes": total_non_conformes,

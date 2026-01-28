@@ -410,13 +410,14 @@ async function updateDotations() {
     }
 
 // --- STAGIAIRES ---
+// --- STAGIAIRES ---
 async function updateStagiaires() {
   const box  = document.getElementById("notif-stagiaires");
   const card = document.getElementById("card-stagiaires");
 
   try {
-    // ✅ API gestionstagiaires : docs à contrôler
-    const r = await fetch("https://gestionstagiaires-r5no.onrender.com/api/docs_to_control");
+    // ✅ endpoint public (PAS besoin d’être loggé)
+    const r = await fetch("https://gestionstagiaires-r5no.onrender.com/docs_to_control.json", { cache: "no-store" });
     if (!r.ok) throw 0;
 
     const d = await r.json();
@@ -425,9 +426,9 @@ async function updateStagiaires() {
 
     if (count > 0) {
       box.className = "notif wait";
-      box.innerHTML = `📄 ${count} document${count>1?"s":""} à contrôler`;
+      box.innerHTML = `📄 ${count} document${count > 1 ? "s" : ""} à contrôler`;
 
-      // 👉 redirection directe vers le dossier prioritaire
+      // 👉 lien direct vers le dossier le plus urgent
       if (card && items.length && items[0].admin_url) {
         card.href = "https://gestionstagiaires-r5no.onrender.com" + items[0].admin_url;
       }
@@ -435,12 +436,12 @@ async function updateStagiaires() {
       box.className = "notif ok";
       box.innerHTML = "✅ Aucun document à contrôler";
 
-      // 👉 retour vers la liste des sessions
+      // 👉 retour vers les sessions
       if (card) {
         card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
       }
     }
-  } catch {
+  } catch (e) {
     box.className = "notif error";
     box.innerHTML = "🔒 Erreur Dossiers stagiaires";
 

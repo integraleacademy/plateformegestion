@@ -411,45 +411,45 @@ async function updateDotations() {
 
 // --- STAGIAIRES ---
 // --- STAGIAIRES ---
+// --- STAGIAIRES ---
 async function updateStagiaires() {
   const box  = document.getElementById("notif-stagiaires");
   const card = document.getElementById("card-stagiaires");
 
+  // par défaut, on garde le lien sessions
+  if (card) card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
+
   try {
-    // ✅ endpoint public (PAS besoin d’être loggé)
     const r = await fetch("https://gestionstagiaires-r5no.onrender.com/docs_to_control.json", { cache: "no-store" });
     if (!r.ok) throw 0;
 
     const d = await r.json();
-    const count = Number(d.count || 0);
     const items = Array.isArray(d.items) ? d.items : [];
+
+    // ✅ IMPORTANT : on ne fait PAS confiance à d.count si le backend est imprécis
+    const count = Math.max(Number(d.count || 0), items.length);
 
     if (count > 0) {
       box.className = "notif wait";
       box.innerHTML = `📄 ${count} document${count > 1 ? "s" : ""} à contrôler`;
 
-      // 👉 lien direct vers le dossier le plus urgent
-      if (card && items.length && items[0].admin_url) {
-        card.href = "https://gestionstagiaires-r5no.onrender.com" + items[0].admin_url;
+      // 👉 lien direct vers le dossier le plus urgent si fourni
+      const firstUrl = items?.[0]?.admin_url;
+      if (card && firstUrl) {
+        card.href = "https://gestionstagiaires-r5no.onrender.com" + firstUrl;
       }
     } else {
       box.className = "notif ok";
       box.innerHTML = "✅ Aucun document à contrôler";
-
-      // 👉 retour vers les sessions
-      if (card) {
-        card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
-      }
     }
+
   } catch (e) {
     box.className = "notif error";
     box.innerHTML = "🔒 Erreur Dossiers stagiaires";
-
-    if (card) {
-      card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
-    }
+    if (card) card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
   }
 }
+
 
     // --- INSCRIPTIONS BTS ---
 async function updateBTS() {

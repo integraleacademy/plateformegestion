@@ -167,7 +167,7 @@
     <div id="notif-suivi" class="notif empty">👮‍♂️ Chargement...</div>
   </a>
 
-  <a class="card" href="https://gestionstagiaires-r5no.onrender.com/admin/sessions" target="_blank" rel="noopener">
+  <a class="card" id="card-stagiaires" href="https://gestionstagiaires-r5no.onrender.com/admin/sessions" target="_blank" rel="noopener">
     <div class="emoji">🎓</div>
     <div class="title">Gestion des dossiers stagiaires</div>
     <div class="desc">Inscriptions & pièces justificatives </div>
@@ -409,26 +409,46 @@ async function updateDotations() {
       }
     }
 
-    // --- STAGIAIRES ---
-    async function updateStagiaires() {
-      const box = document.getElementById("notif-stagiaires");
-      try {
-        const r = await fetch("https://inscriptions-akou.onrender.com/data.json");
-        if (!r.ok) throw 0;
-        const d = await r.json();
-        const c = (Array.isArray(d)?d:d.dossiers||[]).filter(x=>!x.status||x.status.trim()===""||x.status==="INCOMPLET").length;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `🎓 ${c} dossier${c>1?"s":""} stagiaire${c>1?"s":""} à traiter`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier stagiaire en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Inscriptions";
+// --- STAGIAIRES ---
+async function updateStagiaires() {
+  const box  = document.getElementById("notif-stagiaires");
+  const card = document.getElementById("card-stagiaires");
+
+  try {
+    // ✅ API gestionstagiaires : docs à contrôler
+    const r = await fetch("https://gestionstagiaires-r5no.onrender.com/api/docs_to_control");
+    if (!r.ok) throw 0;
+
+    const d = await r.json();
+    const count = Number(d.count || 0);
+    const items = Array.isArray(d.items) ? d.items : [];
+
+    if (count > 0) {
+      box.className = "notif wait";
+      box.innerHTML = `📄 ${count} document${count>1?"s":""} à contrôler`;
+
+      // 👉 redirection directe vers le dossier prioritaire
+      if (card && items.length && items[0].admin_url) {
+        card.href = "https://gestionstagiaires-r5no.onrender.com" + items[0].admin_url;
+      }
+    } else {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Aucun document à contrôler";
+
+      // 👉 retour vers la liste des sessions
+      if (card) {
+        card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
       }
     }
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur Dossiers stagiaires";
+
+    if (card) {
+      card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
+    }
+  }
+}
 
     // --- INSCRIPTIONS BTS ---
 async function updateBTS() {

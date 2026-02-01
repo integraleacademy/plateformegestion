@@ -1,12 +1,22 @@
-import os, json, uuid, base64
-from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, abort, flash, send_file
+import os
+import json
+import uuid
+import base64
+import time
+import tempfile
+import zipfile
+import hashlib
 import smtplib
-from email.mime.text import MIMEText
-from flask import Flask, render_template, request, redirect, url_for, abort, flash, send_from_directory
-from werkzeug.utils import secure_filename
+from io import BytesIO
+from datetime import datetime, timedelta
 from functools import wraps
-from flask import session
+from email.mime.text import MIMEText
+
+from flask import (
+    Flask, render_template, request, redirect, url_for,
+    abort, flash, send_file, send_from_directory, session, Response
+)
+from werkzeug.utils import secure_filename
 
 
 
@@ -1222,6 +1232,7 @@ def changer_statut(id):
 # ------------------------------------------------------------
 
 FORMATEURS_FILE = os.path.join(DATA_DIR, "formateurs.json")
+FORMATEURS_LOCK = FORMATEURS_FILE + ".lock"
 FORMATEUR_FILES_DIR = os.path.join(DATA_DIR, "formateurs_files")
 os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
 
@@ -1260,20 +1271,77 @@ DEFAULT_DOC_LABELS = [
 ]
 
 def load_formateurs():
+    def _read_json(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    # 1) Lecture normale
     if os.path.exists(FORMATEURS_FILE):
         try:
-            with open(FORMATEURS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
+            data = _read_json(FORMATEURS_FILE)
+            if isinstance(data, list) and len(data) > 0:
+                return data
+        except Exception:
+            pass  # on tentera le backup
+
+    # 2) Tentative restore depuis .bak
+    bak_path = FORMATEURS_FILE + ".bak"
+    if os.path.exists(bak_path):
+        try:
+            data = _read_json(bak_path)
+            if isinstance(data, list):
+                # on restaure le fichier principal
+                save_formateurs(data)
+                return data
         except Exception:
             pass
+
+    # 3) Dernier recours
     return []
 
 
+
 def save_formateurs(data):
-    with open(FORMATEURS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    # verrou simple (anti écritures concurrentes)
+    start = time.time()
+    while os.path.exists(FORMATEURS_LOCK):
+        # évite de bloquer à l’infini si un lock “fantôme” reste
+        if time.time() - start > 5:
+            try:
+                os.remove(FORMATEURS_LOCK)
+            except Exception:
+                break
+        time.sleep(0.05)
+
+    # créer le lock
+    with open(FORMATEURS_LOCK, "w") as f:
+        f.write(str(os.getpid()))
+
+    try:
+        # écriture atomique: tmp -> replace
+        tmp_path = FORMATEURS_FILE + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(tmp_path, FORMATEURS_FILE)
+
+        # backup
+        bak_path = FORMATEURS_FILE + ".bak"
+        try:
+            with open(bak_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    finally:
+        try:
+            os.remove(FORMATEURS_LOCK)
+        except Exception:
+            pass
+
+
 
 
 def find_formateur(formateurs, fid):
@@ -1436,8 +1504,6 @@ def formateurs_home():
         f["conformite"] = {"conformes": conformes, "total": total}
         f["a_controler"] = a_controler
 
-
-    save_formateurs(formateurs)
 
     # ===== EXTRACTION DES CLÉS & BADGES =====
     liste_cles = []

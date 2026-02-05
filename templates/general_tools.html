@@ -81,13 +81,14 @@
     ];
 
     const openAll = () => {
-      urls.forEach((url, index) => {
-        setTimeout(() => window.open(url, "_blank", "noopener"), index * 150);
-      });
+      const openedTabs = urls.map((url) => window.open(url, "_blank", "noopener"));
+      const blocked = openedTabs.filter((tab) => !tab).length;
+      if (blocked > 0) {
+        alert("Certains onglets ont été bloqués. Autorisez les pop-ups pour ouvrir tous les outils.");
+      }
     };
 
     document.getElementById("open-all").addEventListener("click", openAll);
-    window.addEventListener("load", openAll);
   </script>
 </body>
 </html>

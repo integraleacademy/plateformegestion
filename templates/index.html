@@ -259,6 +259,12 @@
 
 <h2 class="section-title">Applications externes</h2>
 <div class="grid">
+  <a class="card" id="card-general" href="#" rel="noopener">
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Général" class="app-logo">
+    <div class="title">Général</div>
+    <div class="desc">Ouvrir tous les outils</div>
+  </a>
+
   <a class="card" href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">
     <img src="{{ url_for('static', filename='img/salesforce.png') }}" alt="Salesforce" class="app-logo">
     <div class="title">Salesforce</div>
@@ -290,6 +296,22 @@
 
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
+    const generalCard = document.getElementById("card-general");
+    if (generalCard) {
+      generalCard.addEventListener("click", (event) => {
+        event.preventDefault();
+        const urls = [
+          "https://integraleacademy.lightning.force.com/",
+          "https://phone.onoffbusiness.com/calls",
+          "https://calendly.com/app/scheduling/meeting_types/user/me",
+          "https://app.quicktalk.com/calls",
+          "https://app.planable.io/dashboard",
+          "https://www.linkedin.com/mynetwork/grow/",
+        ];
+
+        urls.forEach((url) => window.open(url, "_blank", "noopener"));
+      });
+    }
 
     // ✅ Bloc CNAPS Acceptés (7 jours)
     async function updateRecentAcceptes() {

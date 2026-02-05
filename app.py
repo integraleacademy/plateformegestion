@@ -673,6 +673,11 @@ def index():
     )
 
 
+@app.route("/general-tools")
+def general_tools():
+    return render_template("general_tools.html", title="Outils généraux")
+
+
 @app.route("/sessions")
 def sessions_home():
     data = load_sessions()

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    .open-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #2ecc71;
+      color: #fff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,.12);
+      transition: transform 0.2s ease;
+    }
+
+    .open-all:hover {
+      transform: translateY(-1px);
+    }
+
+    .tool-list {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .tool-list a {
+      display: block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
+      <div>
+        <h1>Outils généraux</h1>
+        <div class="desc">Ouverture groupée des applications externes</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <button class="open-all" id="open-all" type="button">🚀 Ouvrir tous les outils</button>
+
+    <div class="tool-list">
+      <a href="https://integraleacademy.lightning.force.com/" target="_blank" rel="noopener">Salesforce</a>
+      <a href="https://phone.onoffbusiness.com/calls" target="_blank" rel="noopener">Onoff</a>
+      <a href="https://calendly.com/app/scheduling/meeting_types/user/me" target="_blank" rel="noopener">Calendly</a>
+      <a href="https://app.quicktalk.com/calls" target="_blank" rel="noopener">Quicktalk</a>
+      <a href="https://app.planable.io/dashboard" target="_blank" rel="noopener">Planable</a>
+      <a href="https://www.linkedin.com/mynetwork/grow/" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </main>
+
+  <script>
+    const urls = [
+      "https://integraleacademy.lightning.force.com/",
+      "https://phone.onoffbusiness.com/calls",
+      "https://calendly.com/app/scheduling/meeting_types/user/me",
+      "https://app.quicktalk.com/calls",
+      "https://app.planable.io/dashboard",
+      "https://www.linkedin.com/mynetwork/grow/",
+    ];
+
+    const openAll = () => {
+      urls.forEach((url, index) => {
+        setTimeout(() => window.open(url, "_blank", "noopener"), index * 150);
+      });
+    };
+
+    document.getElementById("open-all").addEventListener("click", openAll);
+    window.addEventListener("load", openAll);
+  </script>
+</body>
+</html>

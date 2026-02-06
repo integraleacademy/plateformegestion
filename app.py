@@ -13,6 +13,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from functools import wraps
 from email.mime.text import MIMEText
+import logging
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -29,6 +30,8 @@ time.tzset()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
+
+logger = logging.getLogger("jury-notify")
 
 from datetime import timedelta
 
@@ -1100,16 +1103,26 @@ def notify_jury(sid):
         abort(404)
     ensure_jury_defaults(session)
     selected_ids = request.form.getlist("jury_ids")
+    logger.info("[jury notify] Déclenchement", extra={"sid": sid, "selected_ids": selected_ids})
     if not selected_ids:
         flash("Sélectionnez au moins un jury à notifier.", "error")
         return redirect(url_for("session_detail", sid=sid))
     base_url = request.url_root.rstrip("/")
+    logger.info("[jury notify] base_url=%s", base_url)
     results = []
     any_sent = False
     now_txt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for jury in session["jurys"]:
         if jury.get("id") not in selected_ids:
             continue
+        logger.info(
+            "[jury notify] Tentative",
+            extra={
+                "jid": jury.get("id"),
+                "email_set": bool(jury.get("email")),
+                "phone_set": bool(jury.get("telephone")),
+            },
+        )
         token = jury.get("token") or str(uuid.uuid4())
         jury["token"] = token
         yes_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='present')}?token={token}"
@@ -1117,7 +1130,11 @@ def notify_jury(sid):
         email_ok, email_msg = send_jury_invitation_email(session, jury, yes_url, no_url)
         sms_ok, sms_msg = send_jury_sms(session, jury, yes_url, no_url)
         results.append(f"{jury.get('prenom','')} {jury.get('nom','')}: {email_msg} / {sms_msg}")
-        print(f"[jury notify] {jury.get('email','')} {jury.get('telephone','')} -> {email_msg} / {sms_msg}")
+        logger.info(
+            "[jury notify] Résultat email=%s sms=%s",
+            email_msg,
+            sms_msg,
+        )
         if email_ok or sms_ok:
             any_sent = True
         jury["status"] = "pending"

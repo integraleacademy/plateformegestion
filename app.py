@@ -1099,6 +1099,7 @@ def add_jury(sid):
 
 @app.route("/sessions/<sid>/jury/notify", methods=["POST"])
 def notify_jury(sid):
+    print("🔥 HIT notify_jury", sid, dict(request.form.lists()))
     data = load_sessions()
     session = find_session(data, sid)
     if not session:

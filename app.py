@@ -28,6 +28,8 @@ os.environ['TZ'] = 'Europe/Paris'
 import time
 time.tzset()
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 

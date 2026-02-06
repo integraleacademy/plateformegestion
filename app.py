@@ -7,6 +7,8 @@ import tempfile
 import zipfile
 import hashlib
 import smtplib
+import urllib.parse
+import urllib.request
 from io import BytesIO
 from datetime import datetime, timedelta
 from functools import wraps
@@ -101,6 +103,10 @@ def protect_all_routes():
 
     # ✅ autoriser lien public formateur (upload avec token)
     if path.startswith("/formateurs/") and "/upload" in path:
+        return None
+
+    # ✅ autoriser réponses jury (lien email)
+    if path.startswith("/jury-response/"):
         return None
 
     # ✅ autoriser accès préfecture (auth basic gérée dans la route)
@@ -207,6 +213,15 @@ def load_sessions():
 def save_sessions(data):
     with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def ensure_jury_defaults(session):
+    session.setdefault("jurys", [])
+    session.setdefault("jury_notification_status", "to_notify")
+    for jury in session["jurys"]:
+        jury.setdefault("id", str(uuid.uuid4())[:8])
+        jury.setdefault("status", "pending")
+        jury.setdefault("token", str(uuid.uuid4()))
+        jury.setdefault("notified_at", None)
 
 def find_session(data, sid):
     for s in data["sessions"]:
@@ -621,6 +636,95 @@ def send_daily_overdue_summary():
     except Exception as e:
         print("❌ Erreur envoi mail quotidien :", e)
 
+
+def build_jury_invitation_html(session, jury, yes_url, no_url):
+    formation = session.get("formation", "—")
+    date_exam = format_date(session.get("date_exam", "—"))
+    full_name = f"{jury.get('prenom','').strip()} {jury.get('nom','').strip()}".strip()
+    return f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#222;line-height:1.6;">
+      <p>Bonjour{',' if full_name else ''} {full_name}</p>
+      <p>
+        Nous vous proposons d'intervenir en tant que membre de jury de notre session
+        <strong>{formation}</strong>, le <strong>{date_exam}</strong>.
+      </p>
+      <p>Pourriez-vous svp me confirmer votre présence pour cet examen ?</p>
+      <div style="margin:20px 0;">
+        <a href="{yes_url}" style="display:inline-block;background:#2a9134;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:600;margin-right:10px;">
+          JE CONFIRME MA PRESENCE
+        </a>
+        <a href="{no_url}" style="display:inline-block;background:#c0392b;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:600;">
+          JE NE SERAI PAS DISPONIBLE A CETTE DATE
+        </a>
+      </div>
+      <p>Merci par avance,</p>
+      <p style="margin-top:10px;">
+        Clément VAILLANT<br>
+        Intégrale Academy
+      </p>
+    </div>
+    """
+
+
+def send_jury_invitation_email(session, jury, yes_url, no_url):
+    if not FROM_EMAIL or not EMAIL_PASSWORD:
+        return False, "EMAIL non configuré"
+    to_email = jury.get("email", "").strip()
+    if not to_email:
+        return False, "Email jury manquant"
+    html = build_jury_invitation_html(session, jury, yes_url, no_url)
+    msg = MIMEText(html, "html", _charset="utf-8")
+    msg["Subject"] = f"Invitation jury — Session {session.get('formation', 'Formation')}"
+    msg["From"] = FROM_EMAIL
+    msg["To"] = to_email
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(FROM_EMAIL, EMAIL_PASSWORD)
+            server.sendmail(FROM_EMAIL, [to_email], msg.as_string())
+        return True, "Email envoyé"
+    except Exception as e:
+        return False, f"Erreur email: {e}"
+
+
+def send_jury_sms(session, jury, yes_url, no_url):
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER")
+    to_number = jury.get("telephone", "").strip()
+    if not account_sid or not auth_token or not from_number:
+        return False, "SMS non configuré"
+    if not to_number:
+        return False, "Téléphone jury manquant"
+    formation = session.get("formation", "—")
+    date_exam = format_date(session.get("date_exam", "—"))
+    message = (
+        "Bonjour,\n\n"
+        f"Nous vous proposons d'intervenir en tant que membre de jury de notre session {formation}, le {date_exam}.\n\n"
+        "Pourriez-vous svp me confirmer votre présence pour cet examen ?\n"
+        f"JE CONFIRME MA PRESENCE: {yes_url}\n"
+        f"JE NE SERAI PAS DISPONIBLE A CETTE DATE: {no_url}\n\n"
+        "Merci par avance,\n"
+        "Clément VAILLANT\n"
+        "Intégrale Academy"
+    )
+    payload = urllib.parse.urlencode({
+        "From": from_number,
+        "To": to_number,
+        "Body": message
+    }).encode("utf-8")
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+    request_obj = urllib.request.Request(url, data=payload, method="POST")
+    auth_header = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("utf-8")
+    request_obj.add_header("Authorization", f"Basic {auth_header}")
+    try:
+        with urllib.request.urlopen(request_obj, timeout=10) as response:
+            if 200 <= response.status < 300:
+                return True, "SMS envoyé"
+            return False, f"Erreur SMS: {response.status}"
+    except Exception as e:
+        return False, f"Erreur SMS: {e}"
+
 # ------------------------------------------------------------
 # 🔐 Authentification simple pour la préfecture (HTTP Basic)
 # ------------------------------------------------------------
@@ -766,6 +870,8 @@ def create_session():
         "color": FORMATION_COLORS.get(formation,"#555"),
         "steps": default_steps_for(formation),
         "archived": False,
+        "jurys": [],
+        "jury_notification_status": "to_notify",
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     data = load_sessions()
@@ -794,6 +900,7 @@ def session_detail(sid):
     if not session:
         abort(404)
 
+    ensure_jury_defaults(session)
     sync_steps(session)
     save_sessions(data)
 
@@ -819,6 +926,107 @@ def session_detail(sid):
         now=datetime.now,
         planning_pdf=session.get("planning_pdf")
         
+    )
+
+
+@app.route("/sessions/<sid>/jury/add", methods=["POST"])
+def add_jury(sid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+    ensure_jury_defaults(session)
+    jury = {
+        "id": str(uuid.uuid4())[:8],
+        "nom": request.form.get("nom", "").strip(),
+        "prenom": request.form.get("prenom", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "telephone": request.form.get("telephone", "").strip(),
+        "status": "pending",
+        "token": str(uuid.uuid4()),
+        "notified_at": None,
+    }
+    if not jury["nom"] or not jury["prenom"]:
+        flash("Nom et prénom du jury requis.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+    session["jurys"].append(jury)
+    save_sessions(data)
+    flash("Jury ajouté.", "success")
+    return redirect(url_for("session_detail", sid=sid))
+
+
+@app.route("/sessions/<sid>/jury/notify", methods=["POST"])
+def notify_jury(sid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+    ensure_jury_defaults(session)
+    selected_ids = request.form.getlist("jury_ids")
+    if not selected_ids:
+        flash("Sélectionnez au moins un jury à notifier.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+    base_url = request.url_root.rstrip("/")
+    results = []
+    now_txt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for jury in session["jurys"]:
+        if jury.get("id") not in selected_ids:
+            continue
+        token = jury.get("token") or str(uuid.uuid4())
+        jury["token"] = token
+        yes_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='present')}?token={token}"
+        no_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='absent')}?token={token}"
+        _, email_msg = send_jury_invitation_email(session, jury, yes_url, no_url)
+        _, sms_msg = send_jury_sms(session, jury, yes_url, no_url)
+        results.append(f"{email_msg} / {sms_msg}")
+        jury["status"] = "pending"
+        jury["notified_at"] = now_txt
+    session["jury_notification_status"] = "notified"
+    save_sessions(data)
+    if results:
+        flash("Notifications envoyées. " + " | ".join(results), "success")
+    return redirect(url_for("session_detail", sid=sid))
+
+
+@app.route("/sessions/<sid>/jury/<jid>/delete", methods=["POST"])
+def delete_jury(sid, jid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+    ensure_jury_defaults(session)
+    before = len(session["jurys"])
+    session["jurys"] = [j for j in session["jurys"] if j.get("id") != jid]
+    after = len(session["jurys"])
+    save_sessions(data)
+    if before == after:
+        flash("Jury introuvable.", "error")
+    else:
+        flash("Jury supprimé.", "success")
+    return redirect(url_for("session_detail", sid=sid))
+
+
+@app.route("/jury-response/<sid>/<jid>/<response>")
+def jury_response(sid, jid, response):
+    token = request.args.get("token", "")
+    if response not in ("present", "absent"):
+        abort(400)
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        abort(404)
+    ensure_jury_defaults(session)
+    jury = next((j for j in session["jurys"] if j.get("id") == jid), None)
+    if not jury or jury.get("token") != token:
+        abort(403)
+    jury["status"] = response
+    save_sessions(data)
+    return render_template(
+        "jury_response.html",
+        title="Réponse jury",
+        response=response,
+        jury=jury,
+        session=session
     )
 
 

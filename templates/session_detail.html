@@ -82,6 +82,132 @@
     }
     .toggle-all-btn:hover { background:#d9a848; }
 
+    .actions-bar {
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+
+    .jury-panel {
+      background:#fff;
+      border-radius:12px;
+      padding:18px 20px;
+      margin:16px 0 26px;
+      box-shadow:0 3px 10px rgba(0,0,0,0.08);
+    }
+    .jury-header {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .jury-label {
+      display:inline-block;
+      padding:6px 14px;
+      border-radius:20px;
+      font-weight:700;
+      color:#fff;
+      font-size:13px;
+    }
+    .jury-label.pending { background:#f39c12; }
+    .jury-label.notified { background:#f1c40f; color:#111; }
+    .jury-list {
+      margin:16px 0 0;
+      padding:0;
+      list-style:none;
+      display:grid;
+      gap:10px;
+    }
+    .jury-item {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:10px;
+      background:#fafafa;
+      border:1px solid #eee;
+    }
+    .jury-name { font-weight:700; }
+    .jury-status {
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:16px;
+      font-size:12px;
+      font-weight:700;
+      color:#fff;
+    }
+    .jury-status.pending { background:#f1c40f; color:#111; }
+    .jury-status.absent { background:#c0392b; }
+    .jury-status.present { background:#2a9134; }
+    .jury-actions { display:flex; gap:8px; }
+    .btn.small { padding:6px 10px; font-size:12px; }
+
+    .modal {
+      display:none;
+      position:fixed;
+      z-index:2000;
+      left:0;
+      top:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.55);
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .modal.open { display:flex; }
+    .modal-content {
+      width:100%;
+      max-width:640px;
+      background:#fff;
+      border-radius:16px;
+      padding:22px 24px;
+      box-shadow:0 10px 30px rgba(0,0,0,.2);
+    }
+    .modal-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    .modal-close {
+      background:#eee;
+      border:none;
+      border-radius:8px;
+      padding:6px 10px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .jury-form-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      gap:12px;
+      margin-top:12px;
+    }
+    .jury-form-grid input {
+      width:100%;
+      padding:8px 10px;
+      border:1px solid #ccc;
+      border-radius:6px;
+    }
+    .jury-checklist {
+      display:grid;
+      gap:10px;
+      margin:12px 0 18px;
+    }
+    .jury-checklist label {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      background:#f8f8f8;
+      padding:8px 10px;
+      border-radius:8px;
+      border:1px solid #eee;
+    }
+
     /* FIX iPad/Safari : texte invisible (blanc sur fond blanc) */
 body, main, header, footer, div, p, h1, h2, h3, label, span, a, li, strong, em, button {
   color: #111 !important;
@@ -194,7 +320,7 @@ header.topbar .clock.small {
     <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
 
     <div class="brand-text">
-      <h1>{{ s.formation }} — Fiche session</h1>
+      <h1>{{ s.formation|formation_label }} — Fiche session</h1>
       <div class="clock small">
         Du {{ s.date_debut|datefr if s.date_debut else '—' }}
         au {{ s.date_fin|datefr if s.date_fin else '—' }} •
@@ -217,9 +343,91 @@ header.topbar .clock.small {
   <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
     <button type="submit" class="btn edit">✏️ Modifier la session</button>
   </form>
+  <button type="button" class="btn gold" id="openJuryModal">📣 Notifier jury examen</button>
   <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
     <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
   </form>
+</div>
+
+<section class="jury-panel">
+  <div class="jury-header">
+    <h2 style="margin:0;">Jury session</h2>
+    {% if s.jury_notification_status == "notified" %}
+      <span class="jury-label notified">Jury notifié</span>
+    {% else %}
+      <span class="jury-label pending">Jury à notifier</span>
+    {% endif %}
+  </div>
+
+  {% if s.jurys %}
+    <ul class="jury-list">
+      {% for jury in s.jurys %}
+        <li class="jury-item">
+          <div>
+            <div class="jury-name">{{ jury.prenom }} {{ jury.nom }}</div>
+            <div class="muted" style="font-size:12px;">
+              {{ jury.email }}{% if jury.telephone %} • {{ jury.telephone }}{% endif %}
+            </div>
+          </div>
+          <div class="jury-actions">
+            {% if jury.status == "present" %}
+              <span class="jury-status present">jury présent</span>
+            {% elif jury.status == "absent" %}
+              <span class="jury-status absent">jury absent</span>
+            {% else %}
+              <span class="jury-status pending">en attente de réponse</span>
+            {% endif %}
+            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}" onsubmit="return confirm('Supprimer ce jury ?');">
+              <button type="submit" class="btn small danger">Supprimer</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted" style="margin-top:12px;">Aucun jury enregistré pour cette session.</p>
+  {% endif %}
+</section>
+
+<div class="modal" id="juryModal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 style="margin:0;">📣 Notifier jury examen</h3>
+      <button class="modal-close" type="button" id="closeJuryModal">✕</button>
+    </div>
+
+    <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}">
+      <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
+      {% if s.jurys %}
+        <div class="jury-checklist">
+          {% for jury in s.jurys %}
+            <label>
+              <input type="checkbox" name="jury_ids" value="{{ jury.id }}">
+              {{ jury.prenom }} {{ jury.nom }} — {{ jury.email or "email manquant" }}
+            </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Aucun jury disponible. Ajoutez-en un ci-dessous.</p>
+      {% endif %}
+      <button type="submit" class="btn gold">NOTIFIER</button>
+    </form>
+
+    <hr style="margin:20px 0;">
+
+    <button type="button" class="btn" id="toggleAddJury">➕ Ajouter un nouveau jury</button>
+    <form method="post" action="{{ url_for('add_jury', sid=s.id) }}" id="addJuryForm" style="display:none;">
+      <div class="jury-form-grid">
+        <input type="text" name="nom" placeholder="Nom" required>
+        <input type="text" name="prenom" placeholder="Prénom" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="text" name="telephone" placeholder="Téléphone" required>
+      </div>
+      <div style="margin-top:12px;">
+        <button type="submit" class="btn">Ajouter</button>
+      </div>
+    </form>
+  </div>
 </div>
 
   <!-- ===================== PLANNING PDF ===================== -->
@@ -586,6 +794,36 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
   document.querySelectorAll("div.step").forEach(step=>{
     step.style.display = allCollapsed ? "none" : "";
   });
+});
+
+// Jury modal
+const juryModal = document.getElementById("juryModal");
+const openJuryModal = document.getElementById("openJuryModal");
+const closeJuryModal = document.getElementById("closeJuryModal");
+const toggleAddJury = document.getElementById("toggleAddJury");
+const addJuryForm = document.getElementById("addJuryForm");
+
+openJuryModal?.addEventListener("click", () => {
+  juryModal?.classList.add("open");
+  juryModal?.setAttribute("aria-hidden", "false");
+});
+
+closeJuryModal?.addEventListener("click", () => {
+  juryModal?.classList.remove("open");
+  juryModal?.setAttribute("aria-hidden", "true");
+});
+
+juryModal?.addEventListener("click", (event) => {
+  if (event.target === juryModal) {
+    juryModal.classList.remove("open");
+    juryModal.setAttribute("aria-hidden", "true");
+  }
+});
+
+toggleAddJury?.addEventListener("click", () => {
+  if (!addJuryForm) return;
+  const isHidden = addJuryForm.style.display === "none" || !addJuryForm.style.display;
+  addJuryForm.style.display = isHidden ? "block" : "none";
 });
 </script>
 

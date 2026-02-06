@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <style>
+    body {font-family: Arial, Helvetica, sans-serif;background:#f7f7f7;margin:0;padding:0;}
+    .card {max-width:520px;margin:80px auto;background:#fff;border-radius:16px;padding:32px 28px;box-shadow:0 10px 30px rgba(0,0,0,.12);text-align:center;}
+    .status {display:inline-block;padding:6px 14px;border-radius:20px;font-weight:700;color:#fff;}
+    .present {background:#2a9134;}
+    .absent {background:#c0392b;}
+    h1 {margin:16px 0;font-size:22px;}
+    p {color:#444;font-size:15px;line-height:1.6;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="status {{ response }}">{{ "Jury présent" if response == "present" else "Jury absent" }}</div>
+    <h1>Merci pour votre réponse</h1>
+    <p>
+      Votre retour a été pris en compte pour la session
+      <strong>{{ session.formation|formation_label }}</strong>.
+    </p>
+    <p>
+      {{ jury.prenom }} {{ jury.nom }}
+    </p>
+  </div>
+</body>
+</html>

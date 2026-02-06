@@ -200,6 +200,8 @@ BREVO_SMTP_KEY = os.environ.get("BREVO_SMTP_KEY")
 BREVO_SMTP_SERVER = os.environ.get("BREVO_SMTP_SERVER", "smtp-relay.brevo.com")
 BREVO_SMTP_PORT = int(os.environ.get("BREVO_SMTP_PORT", "587"))
 BREVO_FROM_EMAIL = os.environ.get("BREVO_FROM_EMAIL")
+BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL")
+BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME")
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
 BREVO_SMS_SENDER = os.environ.get("BREVO_SMS_SENDER")
 
@@ -718,13 +720,34 @@ def build_jury_invitation_html(session, jury, yes_url, no_url):
 
 
 def send_jury_invitation_email(session, jury, yes_url, no_url):
-    smtp_config = get_smtp_config()
-    if not smtp_config["login"] or not smtp_config["password"]:
-        return False, "EMAIL non configuré"
     to_email = jury.get("email", "").strip()
     if not to_email:
         return False, "Email jury manquant"
     html = build_jury_invitation_html(session, jury, yes_url, no_url)
+    if BREVO_API_KEY and (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
+        sender_email = BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL
+        sender_name = BREVO_SENDER_NAME or "Intégrale Academy"
+        payload = json.dumps({
+            "sender": {"email": sender_email, "name": sender_name},
+            "to": [{"email": to_email}],
+            "subject": f"Invitation jury — Session {session.get('formation', 'Formation')}",
+            "htmlContent": html,
+        }).encode("utf-8")
+        request_obj = urllib.request.Request("https://api.brevo.com/v3/smtp/email")
+        request_obj.add_header("Content-Type", "application/json")
+        request_obj.add_header("api-key", BREVO_API_KEY)
+        try:
+            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
+                if 200 <= response.status < 300:
+                    return True, "Email envoyé"
+                body = response.read().decode("utf-8")
+                return False, f"Erreur email: {response.status} {body}"
+        except Exception as e:
+            return False, f"Erreur email: {e}"
+
+    smtp_config = get_smtp_config()
+    if not smtp_config["login"] or not smtp_config["password"]:
+        return False, "EMAIL non configuré"
     msg = MIMEText(html, "html", _charset="utf-8")
     msg["Subject"] = f"Invitation jury — Session {session.get('formation', 'Formation')}"
     msg["From"] = smtp_config["from_email"]

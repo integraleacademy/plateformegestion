@@ -220,10 +220,11 @@ def load_sessions():
                 data = json.load(f)
                 if isinstance(data, dict):
                     data.setdefault("sessions", [])
+                    data.setdefault("jurys", [])
                     return data
         except Exception:
             pass
-    return {"sessions": []}
+    return {"sessions": [], "jurys": []}
 
 def save_sessions(data):
     with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
@@ -237,6 +238,50 @@ def ensure_jury_defaults(session):
         jury.setdefault("status", "pending")
         jury.setdefault("token", str(uuid.uuid4()))
         jury.setdefault("notified_at", None)
+        jury.setdefault("reminded_at", None)
+
+def ensure_global_jury_defaults(data):
+    data.setdefault("jurys", [])
+    for jury in data["jurys"]:
+        jury.setdefault("id", str(uuid.uuid4())[:8])
+        jury.setdefault("nom", "")
+        jury.setdefault("prenom", "")
+        jury.setdefault("email", "")
+        jury.setdefault("telephone", "")
+
+def find_global_jury_by_email(data, email):
+    if not email:
+        return None
+    normalized = email.strip().lower()
+    return next((j for j in data.get("jurys", []) if j.get("email", "").strip().lower() == normalized), None)
+
+def find_global_jury_by_id(data, jury_id):
+    return next((j for j in data.get("jurys", []) if j.get("id") == jury_id), None)
+
+def sync_global_jurys(data):
+    ensure_global_jury_defaults(data)
+    for session in data.get("sessions", []):
+        for jury in session.get("jurys", []):
+            if not jury.get("email") and not jury.get("id"):
+                continue
+            existing = find_global_jury_by_email(data, jury.get("email"))
+            if existing:
+                existing.update({
+                    "nom": jury.get("nom", existing.get("nom", "")),
+                    "prenom": jury.get("prenom", existing.get("prenom", "")),
+                    "email": jury.get("email", existing.get("email", "")),
+                    "telephone": jury.get("telephone", existing.get("telephone", "")),
+                })
+                if not existing.get("id") and jury.get("id"):
+                    existing["id"] = jury.get("id")
+            elif find_global_jury_by_id(data, jury.get("id")) is None:
+                data["jurys"].append({
+                    "id": jury.get("id") or str(uuid.uuid4())[:8],
+                    "nom": jury.get("nom", ""),
+                    "prenom": jury.get("prenom", ""),
+                    "email": jury.get("email", ""),
+                    "telephone": jury.get("telephone", ""),
+                })
 
 def find_session(data, sid):
     for s in data["sessions"]:
@@ -867,6 +912,191 @@ def send_jury_sms(session, jury, yes_url, no_url):
         print("[jury sms] Twilio exception", e)
         return False, f"Erreur SMS: {e}"
 
+def build_jury_reminder_html(session, jury, yes_url, no_url):
+    formation = formation_label(session.get("formation", "Formation"))
+    date_exam = format_date(session.get("date_exam", ""))
+    full_name = f"{jury.get('prenom','').strip()} {jury.get('nom','').strip()}".strip()
+    return f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#222;">
+      <h2>Rappel : jury d'examen</h2>
+      <p>Bonjour {full_name or "membre du jury"},</p>
+      <p>
+        Petit rappel concernant votre participation au jury de la session
+        <strong>{formation}</strong> prévue le <strong>{date_exam}</strong>.
+      </p>
+      <p>Merci de confirmer votre présence :</p>
+      <p>
+        <a href="{yes_url}" style="background:#2a9134;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;margin-right:8px;">✅ Présent</a>
+        <a href="{no_url}" style="background:#c0392b;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">❌ Absent</a>
+      </p>
+      <p>Merci pour votre retour.</p>
+    </div>
+    """
+
+def send_jury_reminder_email(session, jury, yes_url, no_url):
+    to_email = jury.get("email", "").strip()
+    if not to_email:
+        print("[jury reminder email] Email jury manquant")
+        return False, "Email jury manquant"
+    html = build_jury_reminder_html(session, jury, yes_url, no_url)
+    if BREVO_API_KEY and (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
+        print("[jury reminder email] Envoi via Brevo API")
+        sender_email = BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL
+        sender_name = BREVO_SENDER_NAME or "Intégrale Academy"
+        payload = json.dumps({
+            "sender": {"email": sender_email, "name": sender_name},
+            "to": [{"email": to_email}],
+            "subject": f"Rappel jury — Session {session.get('formation', 'Formation')}",
+            "htmlContent": html,
+        }).encode("utf-8")
+        request_obj = urllib.request.Request("https://api.brevo.com/v3/smtp/email")
+        request_obj.add_header("Content-Type", "application/json")
+        request_obj.add_header("api-key", BREVO_API_KEY)
+        try:
+            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
+                if 200 <= response.status < 300:
+                    print("[jury reminder email] Brevo API OK", response.status)
+                    return True, "Email rappel envoyé"
+                body = response.read().decode("utf-8")
+                print("[jury reminder email] Brevo API erreur", response.status, body)
+                return False, f"Erreur email: {response.status} {body}"
+        except Exception as e:
+            print("[jury reminder email] Brevo API exception", e)
+            return False, f"Erreur email: {e}"
+    if BREVO_API_KEY and not (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
+        print("[jury reminder email] Brevo API configurée mais expéditeur manquant")
+
+    smtp_config = get_smtp_config()
+    if not smtp_config["login"] or not smtp_config["password"]:
+        print("[jury reminder email] SMTP non configuré", {
+            "server": smtp_config["server"],
+            "login_set": bool(smtp_config["login"]),
+            "password_set": bool(smtp_config["password"]),
+            "from_set": bool(smtp_config["from_email"]),
+        })
+        return False, "EMAIL non configuré"
+    msg = MIMEText(html, "html", _charset="utf-8")
+    msg["Subject"] = f"Rappel jury — Session {session.get('formation', 'Formation')}"
+    msg["From"] = smtp_config["from_email"]
+    msg["To"] = to_email
+    try:
+        print("[jury reminder email] Envoi via SMTP", {
+            "server": smtp_config["server"],
+            "port": smtp_config["port"],
+            "from": smtp_config["from_email"],
+            "to": to_email,
+        })
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
+            server.starttls()
+            server.login(smtp_config["login"], smtp_config["password"])
+            server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
+        print("[jury reminder email] SMTP OK")
+        return True, "Email rappel envoyé"
+    except Exception as e:
+        print("[jury reminder email] SMTP exception", e)
+        return False, f"Erreur email: {e}"
+
+def send_jury_reminder_sms(session, jury, yes_url, no_url):
+    to_number = jury.get("telephone", "").strip()
+    if not to_number:
+        print("[jury reminder sms] Téléphone jury manquant")
+        return False, "Téléphone jury manquant"
+    normalized_number = normalize_phone_number(to_number)
+    if not normalized_number:
+        print("[jury reminder sms] Téléphone jury invalide", to_number)
+        return False, "Téléphone jury au format international requis (ex: +336...)"
+    formation = formation_label(session.get("formation", "—"))
+    date_exam = format_date(session.get("date_exam", "—"))
+    message = (
+        f"Rappel jury {formation} du {date_exam}. "
+        f"Présent: {yes_url} / Absent: {no_url}"
+    )
+
+    if BREVO_API_KEY and BREVO_SMS_SENDER:
+        print("[jury reminder sms] Envoi via Brevo API")
+        payload = json.dumps({
+            "sender": BREVO_SMS_SENDER,
+            "recipient": normalized_number,
+            "content": message,
+            "type": "transactional",
+        }).encode("utf-8")
+        request_obj = urllib.request.Request("https://api.brevo.com/v3/transactionalSMS/sms")
+        request_obj.add_header("Content-Type", "application/json")
+        request_obj.add_header("api-key", BREVO_API_KEY)
+        try:
+            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
+                if 200 <= response.status < 300:
+                    print("[jury reminder sms] Brevo API OK", response.status)
+                    return True, "SMS rappel envoyé"
+                body = response.read().decode("utf-8")
+                print("[jury reminder sms] Brevo API erreur", response.status, body)
+                return False, f"Erreur SMS: {response.status} {body}"
+        except Exception as e:
+            print("[jury reminder sms] Brevo API exception", e)
+            return False, f"Erreur SMS: {e}"
+    elif BREVO_API_KEY and not BREVO_SMS_SENDER:
+        print("[jury reminder sms] Brevo API configurée mais sender manquant")
+        return False, "SMS non configuré: BREVO_SMS_SENDER manquant"
+
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER")
+    if not account_sid or not auth_token or not from_number:
+        print("[jury reminder sms] Twilio non configuré", {
+            "account_sid_set": bool(account_sid),
+            "auth_token_set": bool(auth_token),
+            "from_number_set": bool(from_number),
+        })
+        return False, "SMS non configuré"
+    payload = urllib.parse.urlencode({
+        "From": from_number,
+        "To": normalized_number,
+        "Body": message
+    }).encode("utf-8")
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+    request_obj = urllib.request.Request(url, data=payload, method="POST")
+    auth_header = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("utf-8")
+    request_obj.add_header("Authorization", f"Basic {auth_header}")
+    try:
+        print("[jury reminder sms] Envoi via Twilio", {"from": from_number, "to": normalized_number})
+        with urllib.request.urlopen(request_obj, timeout=10) as response:
+            if 200 <= response.status < 300:
+                print("[jury reminder sms] Twilio OK", response.status)
+                return True, "SMS rappel envoyé"
+            print("[jury reminder sms] Twilio erreur", response.status)
+            return False, f"Erreur SMS: {response.status}"
+    except Exception as e:
+        print("[jury reminder sms] Twilio exception", e)
+        return False, f"Erreur SMS: {e}"
+
+def send_jury_reminders(data, base_url):
+    today = datetime.now().date()
+    reminded = []
+    for session in data.get("sessions", []):
+        if session.get("archived"):
+            continue
+        ensure_jury_defaults(session)
+        date_exam = parse_date(session.get("date_exam"))
+        if not date_exam:
+            continue
+        if (date_exam.date() - today).days != 5:
+            continue
+        for jury in session.get("jurys", []):
+            if jury.get("status") in ("present", "absent"):
+                continue
+            if jury.get("reminded_at"):
+                continue
+            token = jury.get("token") or str(uuid.uuid4())
+            jury["token"] = token
+            yes_url = f"{base_url}{url_for('jury_response', sid=session['id'], jid=jury['id'], response='present')}?token={token}"
+            no_url = f"{base_url}{url_for('jury_response', sid=session['id'], jid=jury['id'], response='absent')}?token={token}"
+            email_ok, _ = send_jury_reminder_email(session, jury, yes_url, no_url)
+            sms_ok, _ = send_jury_reminder_sms(session, jury, yes_url, no_url)
+            if email_ok or sms_ok:
+                jury["reminded_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                reminded.append(f"{jury.get('prenom','')} {jury.get('nom','')}")
+    return reminded
+
 # ------------------------------------------------------------
 # 🔐 Authentification simple pour la préfecture (HTTP Basic)
 # ------------------------------------------------------------
@@ -1043,6 +1273,8 @@ def session_detail(sid):
         abort(404)
 
     ensure_jury_defaults(session)
+    ensure_global_jury_defaults(data)
+    sync_global_jurys(data)
     sync_steps(session)
     save_sessions(data)
 
@@ -1063,6 +1295,8 @@ def session_detail(sid):
         "session_detail.html",
         title=f"{session['formation']} — Détail",
         s=session,
+        global_jurys=data.get("jurys", []),
+        session_jurys_by_id={j.get("id"): j for j in session.get("jurys", [])},
         statuses=statuses,
         order=order,
         now=datetime.now,
@@ -1078,20 +1312,48 @@ def add_jury(sid):
     if not session:
         abort(404)
     ensure_jury_defaults(session)
-    jury = {
-        "id": str(uuid.uuid4())[:8],
-        "nom": request.form.get("nom", "").strip(),
-        "prenom": request.form.get("prenom", "").strip(),
-        "email": request.form.get("email", "").strip(),
-        "telephone": request.form.get("telephone", "").strip(),
+    ensure_global_jury_defaults(data)
+    sync_global_jurys(data)
+    nom = request.form.get("nom", "").strip()
+    prenom = request.form.get("prenom", "").strip()
+    email = request.form.get("email", "").strip()
+    telephone = request.form.get("telephone", "").strip()
+    if not nom or not prenom:
+        flash("Nom et prénom du jury requis.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+    existing_global = find_global_jury_by_email(data, email)
+    if existing_global:
+        existing_global.update({
+            "nom": nom or existing_global.get("nom", ""),
+            "prenom": prenom or existing_global.get("prenom", ""),
+            "email": email or existing_global.get("email", ""),
+            "telephone": telephone or existing_global.get("telephone", ""),
+        })
+        jury_id = existing_global["id"]
+    else:
+        jury_id = str(uuid.uuid4())[:8]
+        data["jurys"].append({
+            "id": jury_id,
+            "nom": nom,
+            "prenom": prenom,
+            "email": email,
+            "telephone": telephone,
+        })
+    if any(j.get("id") == jury_id for j in session["jurys"]):
+        flash("Ce jury est déjà associé à la session.", "info")
+        save_sessions(data)
+        return redirect(url_for("session_detail", sid=sid))
+    session["jurys"].append({
+        "id": jury_id,
+        "nom": nom,
+        "prenom": prenom,
+        "email": email,
+        "telephone": telephone,
         "status": "pending",
         "token": str(uuid.uuid4()),
         "notified_at": None,
-    }
-    if not jury["nom"] or not jury["prenom"]:
-        flash("Nom et prénom du jury requis.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-    session["jurys"].append(jury)
+        "reminded_at": None,
+    })
     save_sessions(data)
     flash("Jury ajouté.", "success")
     return redirect(url_for("session_detail", sid=sid))
@@ -1105,6 +1367,8 @@ def notify_jury(sid):
     if not session:
         abort(404)
     ensure_jury_defaults(session)
+    ensure_global_jury_defaults(data)
+    sync_global_jurys(data)
     selected_ids = request.form.getlist("jury_ids")
     logger.info("[jury notify] Déclenchement", extra={"sid": sid, "selected_ids": selected_ids})
     if not selected_ids:
@@ -1115,8 +1379,29 @@ def notify_jury(sid):
     results = []
     any_sent = False
     now_txt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    for jury in session["jurys"]:
-        if jury.get("id") not in selected_ids:
+    session_jurys_by_id = {j.get("id"): j for j in session.get("jurys", [])}
+    for jury_id in selected_ids:
+        jury = session_jurys_by_id.get(jury_id)
+        if not jury:
+            global_jury = find_global_jury_by_id(data, jury_id)
+            if not global_jury:
+                results.append(f"Jury introuvable ({jury_id}).")
+                continue
+            jury = {
+                "id": global_jury.get("id"),
+                "nom": global_jury.get("nom", ""),
+                "prenom": global_jury.get("prenom", ""),
+                "email": global_jury.get("email", ""),
+                "telephone": global_jury.get("telephone", ""),
+                "status": "pending",
+                "token": str(uuid.uuid4()),
+                "notified_at": None,
+                "reminded_at": None,
+            }
+            session["jurys"].append(jury)
+            session_jurys_by_id[jury_id] = jury
+        if jury.get("status") in ("present", "absent"):
+            results.append(f"{jury.get('prenom','')} {jury.get('nom','')}: déjà répondu")
             continue
         logger.info(
             "[jury notify] Tentative",
@@ -1185,12 +1470,16 @@ def jury_response(sid, jid, response):
     jury = next((j for j in session["jurys"] if j.get("id") == jid), None)
     if not jury or jury.get("token") != token:
         abort(403)
-    jury["status"] = response
-    save_sessions(data)
+    already_responded = jury.get("status") in ("present", "absent")
+    previous_status = jury.get("status")
+    if not already_responded:
+        jury["status"] = response
+        save_sessions(data)
     return render_template(
         "jury_response.html",
         title="Réponse jury",
-        response=response,
+        response=previous_status if already_responded else response,
+        already_responded=already_responded,
         jury=jury,
         session=session
     )
@@ -1371,8 +1660,12 @@ def cron_check():
     data = load_sessions()
     for session in data["sessions"]:
         auto_archive_if_all_done(session)
+    reminded = send_jury_reminders(data, request.url_root.rstrip("/"))
     save_sessions(data)
-    return "Cron check terminé", 200
+    message = "Cron check terminé"
+    if reminded:
+        message = f"{message} | Rappels jury envoyés: {', '.join(reminded)}"
+    return message, 200
 
 @app.route("/cron-daily-summary")
 def cron_daily_summary():

@@ -17,11 +17,19 @@
 <body>
   <div class="card">
     <div class="status {{ response }}">{{ "Jury présent" if response == "present" else "Jury absent" }}</div>
-    <h1>Merci pour votre réponse</h1>
-    <p>
-      Votre retour a été pris en compte pour la session
-      <strong>{{ session.formation|formation_label }}</strong>.
-    </p>
+    {% if already_responded %}
+      <h1>Vous avez déjà répondu</h1>
+      <p>
+        Votre réponse a déjà été enregistrée pour la session
+        <strong>{{ session.formation|formation_label }}</strong>.
+      </p>
+    {% else %}
+      <h1>Merci pour votre réponse</h1>
+      <p>
+        Votre retour a été pris en compte pour la session
+        <strong>{{ session.formation|formation_label }}</strong>.
+      </p>
+    {% endif %}
     <p>
       {{ jury.prenom }} {{ jury.nom }}
     </p>

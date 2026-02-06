@@ -555,93 +555,24 @@ header.topbar .clock.small {
 
     <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}">
       <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
-      {% if s.jurys %}
+      {% if global_jurys %}
         <div class="jury-checklist">
-          {% for jury in s.jurys %}
+          {% for jury in global_jurys %}
+            {% set session_jury = session_jurys_by_id.get(jury.id) %}
             <label>
               <input type="checkbox" name="jury_ids" value="{{ jury.id }}">
               {{ jury.prenom }} {{ jury.nom }} — {{ jury.email or "email manquant" }}
-            </label>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="muted">Aucun jury disponible. Ajoutez-en un ci-dessous.</p>
-      {% endif %}
-      <button type="submit" class="btn gold">NOTIFIER</button>
-    </form>
-
-    <hr style="margin:20px 0;">
-
-    <button type="button" class="btn" id="toggleAddJury">➕ Ajouter un nouveau jury</button>
-    <form method="post" action="{{ url_for('add_jury', sid=s.id) }}" id="addJuryForm" style="display:none;">
-      <div class="jury-form-grid">
-        <input type="text" name="nom" placeholder="Nom" required>
-        <input type="text" name="prenom" placeholder="Prénom" required>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="text" name="telephone" placeholder="Téléphone" required>
-      </div>
-      <div style="margin-top:12px;">
-        <button type="submit" class="btn">Ajouter</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<section class="jury-panel">
-  <div class="jury-header">
-    <h2 style="margin:0;">Jury session</h2>
-    {% if s.jury_notification_status == "notified" %}
-      <span class="jury-label notified">Jury notifié</span>
-    {% else %}
-      <span class="jury-label pending">Jury à notifier</span>
-    {% endif %}
-  </div>
-
-  {% if s.jurys %}
-    <ul class="jury-list">
-      {% for jury in s.jurys %}
-        <li class="jury-item">
-          <div>
-            <div class="jury-name">{{ jury.prenom }} {{ jury.nom }}</div>
-            <div class="muted" style="font-size:12px;">
-              {{ jury.email }}{% if jury.telephone %} • {{ jury.telephone }}{% endif %}
-            </div>
-          </div>
-          <div class="jury-actions">
-            {% if jury.status == "present" %}
-              <span class="jury-status present">jury présent</span>
-            {% elif jury.status == "absent" %}
-              <span class="jury-status absent">jury absent</span>
-            {% else %}
-              <span class="jury-status pending">en attente de réponse</span>
-            {% endif %}
-            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}" onsubmit="return confirm('Supprimer ce jury ?');">
-              <button type="submit" class="btn small danger">Supprimer</button>
-            </form>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted" style="margin-top:12px;">Aucun jury enregistré pour cette session.</p>
-  {% endif %}
-</section>
-
-<div class="modal" id="juryModal" aria-hidden="true">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 style="margin:0;">📣 Notifier jury examen</h3>
-      <button class="modal-close" type="button" id="closeJuryModal">✕</button>
-    </div>
-
-    <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}">
-      <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
-      {% if s.jurys %}
-        <div class="jury-checklist">
-          {% for jury in s.jurys %}
-            <label>
-              <input type="checkbox" name="jury_ids" value="{{ jury.id }}">
-              {{ jury.prenom }} {{ jury.nom }} — {{ jury.email or "email manquant" }}
+              {% if session_jury %}
+                {% if session_jury.status == "present" %}
+                  <span class="jury-status present" style="margin-left:6px;">déjà répondu (présent)</span>
+                {% elif session_jury.status == "absent" %}
+                  <span class="jury-status absent" style="margin-left:6px;">déjà répondu (absent)</span>
+                {% else %}
+                  <span class="jury-status pending" style="margin-left:6px;">déjà ajouté</span>
+                {% endif %}
+              {% else %}
+                <span class="jury-status pending" style="margin-left:6px;">disponible</span>
+              {% endif %}
             </label>
           {% endfor %}
         </div>

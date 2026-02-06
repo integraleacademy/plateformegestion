@@ -255,9 +255,13 @@
           {% if s.jury_notification_status != "notified" %}
             <span class="jury-pill to-notify">Jury à notifier</span>
           {% else %}
-            <span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>
+            {% if present_count == 0 %}
+              <span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>
+            {% endif %}
             <span class="jury-pill present">{{ present_count }} présent{% if present_count > 1 %}s{% endif %}</span>
-            <span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>
+            {% if present_count < 2 %}
+              <span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>
+            {% endif %}
           {% endif %}
         </div>
         <div class="session-badge">Active</div>

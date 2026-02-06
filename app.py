@@ -195,6 +195,14 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 
+BREVO_SMTP_LOGIN = os.environ.get("BREVO_SMTP_LOGIN")
+BREVO_SMTP_KEY = os.environ.get("BREVO_SMTP_KEY")
+BREVO_SMTP_SERVER = os.environ.get("BREVO_SMTP_SERVER", "smtp-relay.brevo.com")
+BREVO_SMTP_PORT = int(os.environ.get("BREVO_SMTP_PORT", "587"))
+BREVO_FROM_EMAIL = os.environ.get("BREVO_FROM_EMAIL")
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
+BREVO_SMS_SENDER = os.environ.get("BREVO_SMS_SENDER")
+
 # -----------------------
 # Utils persistance
 # -----------------------
@@ -616,8 +624,26 @@ def generate_daily_overdue_email(sessions):
     """
     return html
 
+def get_smtp_config():
+    if BREVO_SMTP_LOGIN and BREVO_SMTP_KEY:
+        return {
+            "server": BREVO_SMTP_SERVER,
+            "port": BREVO_SMTP_PORT,
+            "login": BREVO_SMTP_LOGIN,
+            "password": BREVO_SMTP_KEY,
+            "from_email": BREVO_FROM_EMAIL or FROM_EMAIL or BREVO_SMTP_LOGIN,
+        }
+    return {
+        "server": SMTP_SERVER,
+        "port": SMTP_PORT,
+        "login": FROM_EMAIL,
+        "password": EMAIL_PASSWORD,
+        "from_email": FROM_EMAIL,
+    }
+
 def send_daily_overdue_summary():
-    if not FROM_EMAIL or not EMAIL_PASSWORD:
+    smtp_config = get_smtp_config()
+    if not smtp_config["login"] or not smtp_config["password"]:
         print("⚠️ EMAIL non configuré")
         return
     data = load_sessions()
@@ -625,13 +651,13 @@ def send_daily_overdue_summary():
     html = generate_daily_overdue_email(sessions)
     msg = MIMEText(html, "html", _charset="utf-8")
     msg["Subject"] = "⚠️ Récapitulatif des retards — Intégrale Academy"
-    msg["From"] = FROM_EMAIL
+    msg["From"] = smtp_config["from_email"]
     msg["To"] = "clement@integraleacademy.com"
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
             server.starttls()
-            server.login(FROM_EMAIL, EMAIL_PASSWORD)
-            server.sendmail(FROM_EMAIL, ["clement@integraleacademy.com"], msg.as_string())
+            server.login(smtp_config["login"], smtp_config["password"])
+            server.sendmail(smtp_config["from_email"], ["clement@integraleacademy.com"], msg.as_string())
         print("✅ Mail quotidien envoyé avec succès")
     except Exception as e:
         print("❌ Erreur envoi mail quotidien :", e)
@@ -667,7 +693,8 @@ def build_jury_invitation_html(session, jury, yes_url, no_url):
 
 
 def send_jury_invitation_email(session, jury, yes_url, no_url):
-    if not FROM_EMAIL or not EMAIL_PASSWORD:
+    smtp_config = get_smtp_config()
+    if not smtp_config["login"] or not smtp_config["password"]:
         return False, "EMAIL non configuré"
     to_email = jury.get("email", "").strip()
     if not to_email:
@@ -675,25 +702,20 @@ def send_jury_invitation_email(session, jury, yes_url, no_url):
     html = build_jury_invitation_html(session, jury, yes_url, no_url)
     msg = MIMEText(html, "html", _charset="utf-8")
     msg["Subject"] = f"Invitation jury — Session {session.get('formation', 'Formation')}"
-    msg["From"] = FROM_EMAIL
+    msg["From"] = smtp_config["from_email"]
     msg["To"] = to_email
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
             server.starttls()
-            server.login(FROM_EMAIL, EMAIL_PASSWORD)
-            server.sendmail(FROM_EMAIL, [to_email], msg.as_string())
+            server.login(smtp_config["login"], smtp_config["password"])
+            server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
         return True, "Email envoyé"
     except Exception as e:
         return False, f"Erreur email: {e}"
 
 
 def send_jury_sms(session, jury, yes_url, no_url):
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_number = os.environ.get("TWILIO_FROM_NUMBER")
     to_number = jury.get("telephone", "").strip()
-    if not account_sid or not auth_token or not from_number:
-        return False, "SMS non configuré"
     if not to_number:
         return False, "Téléphone jury manquant"
     formation = session.get("formation", "—")
@@ -708,6 +730,30 @@ def send_jury_sms(session, jury, yes_url, no_url):
         "Clément VAILLANT\n"
         "Intégrale Academy"
     )
+
+    if BREVO_API_KEY and BREVO_SMS_SENDER:
+        payload = json.dumps({
+            "sender": BREVO_SMS_SENDER,
+            "recipient": to_number,
+            "content": message,
+            "type": "transactional",
+        }).encode("utf-8")
+        request_obj = urllib.request.Request("https://api.brevo.com/v3/transactionalSMS/sms")
+        request_obj.add_header("Content-Type", "application/json")
+        request_obj.add_header("api-key", BREVO_API_KEY)
+        try:
+            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
+                if 200 <= response.status < 300:
+                    return True, "SMS envoyé"
+                return False, f"Erreur SMS: {response.status}"
+        except Exception as e:
+            return False, f"Erreur SMS: {e}"
+
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER")
+    if not account_sid or not auth_token or not from_number:
+        return False, "SMS non configuré"
     payload = urllib.parse.urlencode({
         "From": from_number,
         "To": to_number,
@@ -968,6 +1014,7 @@ def notify_jury(sid):
         return redirect(url_for("session_detail", sid=sid))
     base_url = request.url_root.rstrip("/")
     results = []
+    any_sent = False
     now_txt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for jury in session["jurys"]:
         if jury.get("id") not in selected_ids:
@@ -976,12 +1023,15 @@ def notify_jury(sid):
         jury["token"] = token
         yes_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='present')}?token={token}"
         no_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='absent')}?token={token}"
-        _, email_msg = send_jury_invitation_email(session, jury, yes_url, no_url)
-        _, sms_msg = send_jury_sms(session, jury, yes_url, no_url)
+        email_ok, email_msg = send_jury_invitation_email(session, jury, yes_url, no_url)
+        sms_ok, sms_msg = send_jury_sms(session, jury, yes_url, no_url)
         results.append(f"{email_msg} / {sms_msg}")
+        if email_ok or sms_ok:
+            any_sent = True
         jury["status"] = "pending"
-        jury["notified_at"] = now_txt
-    session["jury_notification_status"] = "notified"
+        jury["notified_at"] = now_txt if email_ok or sms_ok else jury.get("notified_at")
+    if any_sent:
+        session["jury_notification_status"] = "notified"
     save_sessions(data)
     if results:
         flash("Notifications envoyées. " + " | ".join(results), "success")

@@ -20,7 +20,7 @@
     <h1>Merci pour votre réponse</h1>
     <p>
       Votre retour a été pris en compte pour la session
-      <strong>{{ session.formation }}</strong>.
+      <strong>{{ session.formation|formation_label }}</strong>.
     </p>
     <p>
       {{ jury.prenom }} {{ jury.nom }}

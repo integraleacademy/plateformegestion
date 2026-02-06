@@ -320,7 +320,7 @@ header.topbar .clock.small {
     <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
 
     <div class="brand-text">
-      <h1>{{ s.formation }} — Fiche session</h1>
+      <h1>{{ s.formation|formation_label }} — Fiche session</h1>
       <div class="clock small">
         Du {{ s.date_debut|datefr if s.date_debut else '—' }}
         au {{ s.date_fin|datefr if s.date_fin else '—' }} •
@@ -377,11 +377,9 @@ header.topbar .clock.small {
             {% else %}
               <span class="jury-status pending">en attente de réponse</span>
             {% endif %}
-            {% if jury.status == "absent" %}
-              <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}" onsubmit="return confirm('Supprimer ce jury ?');">
-                <button type="submit" class="btn small danger">Supprimer</button>
-              </form>
-            {% endif %}
+            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}" onsubmit="return confirm('Supprimer ce jury ?');">
+              <button type="submit" class="btn small danger">Supprimer</button>
+            </form>
           </div>
         </li>
       {% endfor %}

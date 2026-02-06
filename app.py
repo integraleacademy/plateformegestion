@@ -437,6 +437,18 @@ FORMATION_COLORS = {
     "GENERAL": "#d4ac0d",
 }
 
+FORMATION_LABELS = {
+    "APS": "Agent de Prévention et de Sécurité",
+    "A3P": "Agent de Protection Rapprochée (A3P)",
+    "SSIAP": "Service de Sécurité Incendie et d’Assistance à Personnes (SSIAP)",
+    "DIRIGEANT": "Dirigeant",
+    "GENERAL": "Général",
+}
+
+def formation_label(value):
+    return FORMATION_LABELS.get(value, value)
+app.jinja_env.filters['formation_label'] = formation_label
+
 def default_steps_for(formation):
     if formation in ("APS", "A3P"):
         steps = APS_A3P_STEPS
@@ -556,6 +568,18 @@ def _late_phrase(dl: datetime) -> str:
     days = max(days, 0)
     return f"Retard de {days} jour{'s' if days>1 else ''} ({dl.strftime('%d-%m-%Y')})"
 
+def normalize_phone_number(value: str):
+    if not value:
+        return None
+    cleaned = value.replace(" ", "").replace(".", "").replace("-", "").replace("(", "").replace(")", "")
+    if cleaned.startswith("00"):
+        cleaned = "+" + cleaned[2:]
+    elif cleaned.startswith("0"):
+        cleaned = "+33" + cleaned[1:]
+    if not cleaned.startswith("+"):
+        return None
+    return cleaned
+
 def generate_daily_overdue_email(sessions):
     now_txt = datetime.now().strftime("%d-%m-%Y %H:%M")
     logo_path = os.path.join("static", "img", "logo-integrale.png")
@@ -664,7 +688,7 @@ def send_daily_overdue_summary():
 
 
 def build_jury_invitation_html(session, jury, yes_url, no_url):
-    formation = session.get("formation", "—")
+    formation = formation_label(session.get("formation", "—"))
     date_exam = format_date(session.get("date_exam", "—"))
     full_name = f"{jury.get('prenom','').strip()} {jury.get('nom','').strip()}".strip()
     return f"""
@@ -718,7 +742,10 @@ def send_jury_sms(session, jury, yes_url, no_url):
     to_number = jury.get("telephone", "").strip()
     if not to_number:
         return False, "Téléphone jury manquant"
-    formation = session.get("formation", "—")
+    normalized_number = normalize_phone_number(to_number)
+    if not normalized_number:
+        return False, "Téléphone jury au format international requis (ex: +336...)"
+    formation = formation_label(session.get("formation", "—"))
     date_exam = format_date(session.get("date_exam", "—"))
     message = (
         "Bonjour,\n\n"
@@ -734,7 +761,7 @@ def send_jury_sms(session, jury, yes_url, no_url):
     if BREVO_API_KEY and BREVO_SMS_SENDER:
         payload = json.dumps({
             "sender": BREVO_SMS_SENDER,
-            "recipient": to_number,
+            "recipient": normalized_number,
             "content": message,
             "type": "transactional",
         }).encode("utf-8")
@@ -745,7 +772,8 @@ def send_jury_sms(session, jury, yes_url, no_url):
             with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
                 if 200 <= response.status < 300:
                     return True, "SMS envoyé"
-                return False, f"Erreur SMS: {response.status}"
+                body = response.read().decode("utf-8")
+                return False, f"Erreur SMS: {response.status} {body}"
         except Exception as e:
             return False, f"Erreur SMS: {e}"
 
@@ -756,7 +784,7 @@ def send_jury_sms(session, jury, yes_url, no_url):
         return False, "SMS non configuré"
     payload = urllib.parse.urlencode({
         "From": from_number,
-        "To": to_number,
+        "To": normalized_number,
         "Body": message
     }).encode("utf-8")
     url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"

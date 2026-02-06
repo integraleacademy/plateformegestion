@@ -722,9 +722,11 @@ def build_jury_invitation_html(session, jury, yes_url, no_url):
 def send_jury_invitation_email(session, jury, yes_url, no_url):
     to_email = jury.get("email", "").strip()
     if not to_email:
+        print("[jury email] Email jury manquant")
         return False, "Email jury manquant"
     html = build_jury_invitation_html(session, jury, yes_url, no_url)
     if BREVO_API_KEY and (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
+        print("[jury email] Envoi via Brevo API")
         sender_email = BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL
         sender_name = BREVO_SENDER_NAME or "Intégrale Academy"
         payload = json.dumps({
@@ -739,35 +741,56 @@ def send_jury_invitation_email(session, jury, yes_url, no_url):
         try:
             with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
                 if 200 <= response.status < 300:
+                    print("[jury email] Brevo API OK", response.status)
                     return True, "Email envoyé"
                 body = response.read().decode("utf-8")
+                print("[jury email] Brevo API erreur", response.status, body)
                 return False, f"Erreur email: {response.status} {body}"
         except Exception as e:
+            print("[jury email] Brevo API exception", e)
             return False, f"Erreur email: {e}"
+    if BREVO_API_KEY and not (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
+        print("[jury email] Brevo API configurée mais expéditeur manquant")
 
     smtp_config = get_smtp_config()
     if not smtp_config["login"] or not smtp_config["password"]:
+        print("[jury email] SMTP non configuré", {
+            "server": smtp_config["server"],
+            "login_set": bool(smtp_config["login"]),
+            "password_set": bool(smtp_config["password"]),
+            "from_set": bool(smtp_config["from_email"]),
+        })
         return False, "EMAIL non configuré"
     msg = MIMEText(html, "html", _charset="utf-8")
     msg["Subject"] = f"Invitation jury — Session {session.get('formation', 'Formation')}"
     msg["From"] = smtp_config["from_email"]
     msg["To"] = to_email
     try:
+        print("[jury email] Envoi via SMTP", {
+            "server": smtp_config["server"],
+            "port": smtp_config["port"],
+            "from": smtp_config["from_email"],
+            "to": to_email,
+        })
         with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
             server.starttls()
             server.login(smtp_config["login"], smtp_config["password"])
             server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
+        print("[jury email] SMTP OK")
         return True, "Email envoyé"
     except Exception as e:
+        print("[jury email] SMTP exception", e)
         return False, f"Erreur email: {e}"
 
 
 def send_jury_sms(session, jury, yes_url, no_url):
     to_number = jury.get("telephone", "").strip()
     if not to_number:
+        print("[jury sms] Téléphone jury manquant")
         return False, "Téléphone jury manquant"
     normalized_number = normalize_phone_number(to_number)
     if not normalized_number:
+        print("[jury sms] Téléphone jury invalide", to_number)
         return False, "Téléphone jury au format international requis (ex: +336...)"
     formation = formation_label(session.get("formation", "—"))
     date_exam = format_date(session.get("date_exam", "—"))
@@ -783,6 +806,7 @@ def send_jury_sms(session, jury, yes_url, no_url):
     )
 
     if BREVO_API_KEY and BREVO_SMS_SENDER:
+        print("[jury sms] Envoi via Brevo API")
         payload = json.dumps({
             "sender": BREVO_SMS_SENDER,
             "recipient": normalized_number,
@@ -795,18 +819,27 @@ def send_jury_sms(session, jury, yes_url, no_url):
         try:
             with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
                 if 200 <= response.status < 300:
+                    print("[jury sms] Brevo API OK", response.status)
                     return True, "SMS envoyé"
                 body = response.read().decode("utf-8")
+                print("[jury sms] Brevo API erreur", response.status, body)
                 return False, f"Erreur SMS: {response.status} {body}"
         except Exception as e:
+            print("[jury sms] Brevo API exception", e)
             return False, f"Erreur SMS: {e}"
     elif BREVO_API_KEY and not BREVO_SMS_SENDER:
+        print("[jury sms] Brevo API configurée mais sender manquant")
         return False, "SMS non configuré: BREVO_SMS_SENDER manquant"
 
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     from_number = os.environ.get("TWILIO_FROM_NUMBER")
     if not account_sid or not auth_token or not from_number:
+        print("[jury sms] Twilio non configuré", {
+            "account_sid_set": bool(account_sid),
+            "auth_token_set": bool(auth_token),
+            "from_number_set": bool(from_number),
+        })
         return False, "SMS non configuré"
     payload = urllib.parse.urlencode({
         "From": from_number,
@@ -818,11 +851,15 @@ def send_jury_sms(session, jury, yes_url, no_url):
     auth_header = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("utf-8")
     request_obj.add_header("Authorization", f"Basic {auth_header}")
     try:
+        print("[jury sms] Envoi via Twilio", {"from": from_number, "to": normalized_number})
         with urllib.request.urlopen(request_obj, timeout=10) as response:
             if 200 <= response.status < 300:
+                print("[jury sms] Twilio OK", response.status)
                 return True, "SMS envoyé"
+            print("[jury sms] Twilio erreur", response.status)
             return False, f"Erreur SMS: {response.status}"
     except Exception as e:
+        print("[jury sms] Twilio exception", e)
         return False, f"Erreur SMS: {e}"
 
 # ------------------------------------------------------------

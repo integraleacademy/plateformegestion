@@ -87,6 +87,27 @@
       flex-wrap:wrap;
       gap:12px;
     }
+    .flash-messages {
+      display:grid;
+      gap:10px;
+      margin:12px 0 22px;
+    }
+    .flash {
+      padding:12px 14px;
+      border-radius:10px;
+      font-weight:600;
+      border:1px solid transparent;
+    }
+    .flash.success {
+      background:#e9f7ef;
+      border-color:#2a9134;
+      color:#1e6e2c;
+    }
+    .flash.error {
+      background:#fdecea;
+      border-color:#c0392b;
+      color:#992d22;
+    }
 
     .jury-panel {
       background:#fff;
@@ -464,6 +485,16 @@ header.topbar .clock.small {
 <!-- ======================================================================= -->
 <!--                            ACTIONS (boutons)                            -->
 <!-- ======================================================================= -->
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-messages">
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
 
 <div class="actions-bar">
   <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">

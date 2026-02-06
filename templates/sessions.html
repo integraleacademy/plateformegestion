@@ -103,6 +103,25 @@
     .session-card:hover {transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.15);}
     .session-title {font-size:22px;font-weight:700;color:var(--accent,#2a9134);text-align:center;margin-bottom:8px;}
     .session-sub {text-align:center;font-size:14px;color:#555;}
+    .jury-status-line {
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:8px;
+      font-size:12px;
+      font-weight:600;
+    }
+    .jury-pill {
+      padding:4px 10px;
+      border-radius:16px;
+      background:#eee;
+      color:#222;
+    }
+    .jury-pill.pending {background:#e74c3c;color:#fff;}
+    .jury-pill.present {background:#2a9134;color:#fff;}
+    .jury-pill.absent {background:#c0392b;color:#fff;}
+    .jury-pill.to-notify {background:#f39c12;color:#111;}
     .session-badge {display:inline-block;background:#2a9134;color:#fff;font-size:12px;
       padding:4px 10px;border-radius:20px;margin-top:10px;}
     .archived .session-badge {background:#999;}
@@ -229,6 +248,18 @@
         {% else %}
           <div class="countdown" style="color:#999;">✔️ Déjà commencée</div>
         {% endif %}
+        {% set pending_count = s.jurys|selectattr('status', 'equalto', 'pending')|list|length %}
+        {% set present_count = s.jurys|selectattr('status', 'equalto', 'present')|list|length %}
+        {% set absent_count = s.jurys|selectattr('status', 'equalto', 'absent')|list|length %}
+        <div class="jury-status-line">
+          {% if s.jury_notification_status != "notified" %}
+            <span class="jury-pill to-notify">Jury à notifier</span>
+          {% else %}
+            <span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>
+            <span class="jury-pill present">{{ present_count }} présent{% if present_count > 1 %}s{% endif %}</span>
+            <span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>
+          {% endif %}
+        </div>
         <div class="session-badge">Active</div>
       </a>
     {% endfor %}

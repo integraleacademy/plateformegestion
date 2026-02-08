@@ -385,7 +385,7 @@ def process_price_adaptator_followups():
     today = datetime.now().date()
     updated = False
     for prospect in data.get("prospects", []):
-        if prospect.get("sent"):
+        if prospect.get("sent") or prospect.get("manual_sent"):
             continue
         followup_date = get_price_adaptator_followup_date(data.get("dates"), prospect.get("formation"))
         if not followup_date or followup_date > today:
@@ -1436,6 +1436,8 @@ def price_adaptator_send():
     prospect["last_attempt_at"] = datetime.now().isoformat()
     prospect["last_error"] = result["email_error"] or result["sms_error"]
     prospect["proposed_price"] = result["price"]
+    prospect["manual_sent"] = True
+    prospect["manualSentAt"] = datetime.now().isoformat()
     if result["email_sent"] or result["sms_sent"]:
         prospect["sent"] = True
         prospect["sentAt"] = datetime.now().isoformat()

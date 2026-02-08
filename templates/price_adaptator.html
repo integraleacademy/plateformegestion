@@ -144,6 +144,30 @@
       margin: 4px 0 0;
     }
 
+    .status-preview {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: #1d4ed8;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .status-preview:hover {
+      color: #1e40af;
+    }
+
+    .preview-body {
+      margin-top: 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      padding: 16px;
+      max-height: 60vh;
+      overflow: auto;
+    }
+
     .proposal-details {
       background: #f8f5ef;
       border-radius: 12px;
@@ -509,6 +533,20 @@
     </div>
   </div>
 
+  <div class="modal" id="preview-modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>Prévisualisation du mail envoyé</h3>
+          <p class="modal-subtitle" id="preview-subtitle">—</p>
+        </div>
+        <button class="btn" type="button" data-close>Fermer</button>
+      </div>
+      <div><strong>Objet :</strong> <span id="preview-subject">—</span></div>
+      <div class="preview-body" id="preview-body"></div>
+    </div>
+  </div>
+
   <script>
     const DEFAULT_DISCOUNT = 30;
     const DATA_ENDPOINT = "{{ url_for('price_adaptator_data') }}";
@@ -519,6 +557,7 @@
     const DATES_ENDPOINT = "{{ url_for('price_adaptator_save_dates') }}";
     const SEND_ENDPOINT = "{{ url_for('price_adaptator_send') }}";
     const SAVE_PROPOSAL_ENDPOINT = "{{ url_for('price_adaptator_save_proposal', prospect_id='__id__') }}";
+    const PREVIEW_ENDPOINT = "{{ url_for('price_adaptator_preview', prospect_id='__id__') }}";
     const formationPrices = {
       APS: 1650,
       A3P: 4200,
@@ -535,6 +574,7 @@
     const addModal = document.getElementById("add-modal");
     const proposalModal = document.getElementById("proposal-modal");
     const datesModal = document.getElementById("dates-modal");
+    const previewModal = document.getElementById("preview-modal");
     const addForm = document.getElementById("add-form");
     const datesForm = document.getElementById("dates-form");
     const proposalSubtitle = document.getElementById("proposal-subtitle");
@@ -543,6 +583,9 @@
     const proposalAcceptButton = document.getElementById("proposal-accept");
     const proposalSaveButton = document.getElementById("proposal-save");
     const proposalModifyButton = document.getElementById("proposal-modify");
+    const previewSubtitle = document.getElementById("preview-subtitle");
+    const previewSubject = document.getElementById("preview-subject");
+    const previewBody = document.getElementById("preview-body");
     const importButton = document.getElementById("open-import");
     const importFileInput = document.getElementById("import-file");
     const searchInput = document.getElementById("prospect-search");
@@ -723,7 +766,9 @@
         const displayPrenom = normalizeFirstName(prospect.prenom);
         const { proposedPrice, isModified } = buildProposal(prospect);
         const statusClass = prospect.sent ? "status-pill" : "status-pill pending";
-        const statusLabel = prospect.sent ? "Voir le mail envoyé" : "En attente";
+        const statusLabel = prospect.sent
+          ? `<button class="status-preview" type="button" data-preview="${prospect.id}">Voir le mail envoyé</button>`
+          : "En attente";
         const statusDate = prospect.sentAt
           ? `<div class="status-date">${new Date(prospect.sentAt).toLocaleString("fr-FR")}</div>`
           : "";
@@ -793,6 +838,28 @@
       proposalPriceInput.value = proposedPrice;
       resetProposalActions();
       openModal(proposalModal);
+    };
+
+    const openPreviewModal = async (prospectId) => {
+      previewSubtitle.textContent = "Chargement...";
+      previewSubject.textContent = "—";
+      previewBody.innerHTML = "";
+      openModal(previewModal);
+      try {
+        const response = await fetch(PREVIEW_ENDPOINT.replace("__id__", prospectId));
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || "Erreur inconnue");
+        }
+        previewSubtitle.textContent = payload.sent_at
+          ? `Envoyé le ${new Date(payload.sent_at).toLocaleString("fr-FR")}`
+          : "Aucun envoi enregistré";
+        previewSubject.textContent = payload.subject || "—";
+        previewBody.innerHTML = payload.html || "";
+      } catch (error) {
+        previewSubtitle.textContent = "Impossible de charger le mail.";
+        previewBody.textContent = error.message || "Erreur inconnue.";
+      }
     };
 
     const sendProposal = (price) => {
@@ -1163,6 +1230,12 @@
           .catch((error) => {
             alert(error.message);
           });
+        return;
+      }
+
+      const previewButton = event.target.closest("button[data-preview]");
+      if (previewButton) {
+        openPreviewModal(previewButton.dataset.preview);
         return;
       }
 

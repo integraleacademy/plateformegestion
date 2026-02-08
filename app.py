@@ -1216,7 +1216,7 @@ def price_adaptator_send():
     </div>
     """
 
-    subject = "Proposition tarif dernière minute"
+    subject = "Proposition tarif dernière minute {formation_full}"
 
     email_sent = False
     email_error = None

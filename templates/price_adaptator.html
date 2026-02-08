@@ -727,7 +727,7 @@
         const statusDate = prospect.sentAt
           ? `<div class="status-date">${new Date(prospect.sentAt).toLocaleString("fr-FR")}</div>`
           : "";
-        const followUpDate = getFollowUpDate(prospect.formation);
+        const followUpDate = prospect.sent ? "" : getFollowUpDate(prospect.formation);
         const row = document.createElement("tr");
         row.innerHTML = `
           <td data-label="Nom">${displayNom}</td>

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .page-header h2 {
+      margin: 0;
+    }
+
+    .helper {
+      color: #666;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .table-wrap {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid rgba(0,0,0,.08);
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #777;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+
+    tbody td {
+      padding: 12px 4px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(244, 196, 90, 0.2);
+      font-weight: 600;
+      font-size: 12px;
+      color: #8a5d00;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: #777;
+    }
+
+    .modal-subtitle {
+      font-size: 14px;
+      color: #555;
+      margin: 4px 0 0;
+    }
+
+    .proposal-details {
+      background: #f8f5ef;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .proposal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .proposal-actions .btn {
+      min-width: 220px;
+    }
+
+    .proposal-actions .btn.primary {
+      background: #2ecc71;
+      border-color: #27ae60;
+      color: #fff;
+    }
+
+    .proposal-actions .btn.secondary {
+      background: #f4c45a;
+      border-color: #e5b348;
+      color: #000;
+    }
+
+    .proposal-edit {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .proposal-edit input {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.15);
+      font-weight: 600;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(46, 204, 113, 0.15);
+      color: #1e8449;
+    }
+
+    .status-pill.pending {
+      background: rgba(149, 165, 166, 0.2);
+      color: #566573;
+    }
+
+    .status-date {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .dates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .dates-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .dates-grid input {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.15);
+    }
+
+    @media (max-width: 720px) {
+      thead {
+        display: none;
+      }
+
+      tbody tr {
+        display: block;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(0,0,0,.08);
+      }
+
+      tbody td {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+      }
+
+      tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #666;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
+      <div>
+        <a href="{{ url_for('index') }}" class="back">← Retour</a>
+        <h1>Price adaptator</h1>
+        <div class="desc">Gestion des prospects et propositions de tarif dernière minute</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h2>Prospects</h2>
+        <div class="helper">Ajoutez un prospect puis générez une proposition personnalisée en un clic.</div>
+      </div>
+      <div class="actions-bar">
+        <button class="btn" type="button" id="open-dates-modal">📅 Dates des formations</button>
+        <button class="btn edit" type="button" id="open-add-modal">➕ Ajouter un prospect</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th>CPF</th>
+            <th>Email</th>
+            <th>Téléphone</th>
+            <th>Formation</th>
+            <th>Statut</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="prospects-body"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state">Aucun prospect enregistré pour le moment.</div>
+    </div>
+  </main>
+
+  <div class="modal" id="add-modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>Ajouter un prospect</h3>
+          <p class="modal-subtitle">Renseignez les informations du futur stagiaire.</p>
+        </div>
+        <button class="btn" type="button" data-close>Fermer</button>
+      </div>
+      <form id="add-form">
+        <div class="form-grid">
+          <label>Nom
+            <input type="text" name="nom" required />
+          </label>
+          <label>Prénom
+            <input type="text" name="prenom" required />
+          </label>
+          <label>Montant du CPF (€)
+            <input type="number" name="cpf" min="0" step="1" required />
+          </label>
+          <label>Email
+            <input type="email" name="email" required />
+          </label>
+          <label>Téléphone
+            <input type="tel" name="telephone" required />
+          </label>
+          <label>Formation
+            <select name="formation" required>
+              <option value="">Choisir</option>
+              <option value="APS">APS</option>
+              <option value="A3P">A3P</option>
+              <option value="Dirigeant">Dirigeant</option>
+            </select>
+          </label>
+          <div class="form-actions">
+            <button class="btn edit" type="submit">Enregistrer</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="dates-modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>Dates des prochaines formations</h3>
+          <p class="modal-subtitle">Ces dates seront utilisées dans les emails et SMS.</p>
+        </div>
+        <button class="btn" type="button" data-close>Fermer</button>
+      </div>
+      <form id="dates-form">
+        <div class="dates-grid">
+          <label>APS - Date de début
+            <input type="date" name="APS_start" />
+          </label>
+          <label>APS - Date de fin
+            <input type="date" name="APS_end" />
+          </label>
+          <label>A3P - Date de début
+            <input type="date" name="A3P_start" />
+          </label>
+          <label>A3P - Date de fin
+            <input type="date" name="A3P_end" />
+          </label>
+          <label>Dirigeant - Date de début
+            <input type="date" name="Dirigeant_start" />
+          </label>
+          <label>Dirigeant - Date de fin
+            <input type="date" name="Dirigeant_end" />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn edit" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="proposal-modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>Proposition tarif dernière minute</h3>
+          <p class="modal-subtitle" id="proposal-subtitle">—</p>
+        </div>
+        <button class="btn" type="button" data-close>Fermer</button>
+      </div>
+      <div class="proposal-details" id="proposal-details"></div>
+      <div class="proposal-edit">
+        <label for="proposal-price">Tarif dernière minute proposé (€)</label>
+        <input type="number" id="proposal-price" min="0" step="1" />
+      </div>
+      <div class="proposal-actions">
+        <button class="btn primary" type="button" id="proposal-accept">Cette proposition me convient</button>
+        <button class="btn secondary" type="button" id="proposal-modify">Modifier la proposition</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "price_adaptator_prospects";
+    const DATES_KEY = "price_adaptator_dates";
+    const formationPrices = {
+      APS: 1650,
+      A3P: 4200,
+      Dirigeant: 4300,
+    };
+    const formationLabels = {
+      APS: "Agent de prévention et de sécurité (APS)",
+      A3P: "Agent de protection physique des personnes (A3P)",
+      Dirigeant: "Dirigeant d'entreprise de sécurité privée (DESP)",
+    };
+
+    const prospectsBody = document.getElementById("prospects-body");
+    const emptyState = document.getElementById("empty-state");
+    const addModal = document.getElementById("add-modal");
+    const proposalModal = document.getElementById("proposal-modal");
+    const datesModal = document.getElementById("dates-modal");
+    const addForm = document.getElementById("add-form");
+    const datesForm = document.getElementById("dates-form");
+    const proposalSubtitle = document.getElementById("proposal-subtitle");
+    const proposalDetails = document.getElementById("proposal-details");
+    const proposalPriceInput = document.getElementById("proposal-price");
+    const proposalAcceptButton = document.getElementById("proposal-accept");
+    const proposalModifyButton = document.getElementById("proposal-modify");
+
+    let prospects = [];
+    let activeProspect = null;
+    let formationDates = {};
+
+    const formatCurrency = (value) => new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(value);
+
+    const loadProspects = () => {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      prospects = raw ? JSON.parse(raw) : [];
+    };
+
+    const saveProspects = () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prospects));
+    };
+
+    const loadDates = () => {
+      const raw = localStorage.getItem(DATES_KEY);
+      formationDates = raw ? JSON.parse(raw) : {};
+    };
+
+    const saveDates = () => {
+      localStorage.setItem(DATES_KEY, JSON.stringify(formationDates));
+    };
+
+    const openModal = (modal) => {
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeModal = (modal) => {
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    };
+
+    const formatDateLabel = (value) => {
+      if (!value) {
+        return "";
+      }
+      const parts = value.split("-");
+      if (parts.length !== 3) {
+        return value;
+      }
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+
+    const renderTable = () => {
+      prospectsBody.innerHTML = "";
+      emptyState.style.display = prospects.length ? "none" : "block";
+
+      prospects.forEach((prospect) => {
+        const statusClass = prospect.sent ? "status-pill" : "status-pill pending";
+        const statusLabel = prospect.sent ? "Proposition envoyée" : "En attente";
+        const statusDate = prospect.sentAt
+          ? `<div class="status-date">${new Date(prospect.sentAt).toLocaleString("fr-FR")}</div>`
+          : "";
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td data-label="Nom">${prospect.nom}</td>
+          <td data-label="Prénom">${prospect.prenom}</td>
+          <td data-label="CPF">${formatCurrency(prospect.cpf)}</td>
+          <td data-label="Email">${prospect.email}</td>
+          <td data-label="Téléphone">${prospect.telephone}</td>
+          <td data-label="Formation"><span class="badge">${prospect.formation}</span></td>
+          <td data-label="Statut">
+            <div class="${statusClass}">${statusLabel}</div>
+            ${statusDate}
+          </td>
+          <td data-label="Action">
+            <button class="btn edit" type="button" data-propose="${prospect.id}">Faire une proposition</button>
+          </td>
+        `;
+        prospectsBody.appendChild(row);
+      });
+    };
+
+    const resetProposalActions = () => {
+      proposalPriceInput.disabled = true;
+      proposalModifyButton.textContent = "Modifier la proposition";
+      proposalModifyButton.dataset.mode = "edit";
+    };
+
+    const buildProposal = (prospect) => {
+      const basePrice = formationPrices[prospect.formation] || 0;
+      const discountedPrice = Math.round(basePrice * 0.7);
+      const remaining = Math.max(discountedPrice - prospect.cpf, 0);
+      return { basePrice, discountedPrice, remaining };
+    };
+
+    const openProposalModal = (prospect) => {
+      activeProspect = prospect;
+      const { basePrice, discountedPrice, remaining } = buildProposal(prospect);
+      const dateRange = formationDates[prospect.formation];
+      const dateText = dateRange
+        ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
+        : "dates à définir";
+      proposalSubtitle.textContent = `${prospect.prenom} ${prospect.nom} • CPF: ${formatCurrency(prospect.cpf)}`;
+      proposalDetails.innerHTML = `
+        <strong>Formation :</strong> ${formationLabels[prospect.formation] || prospect.formation} (${formatCurrency(basePrice)})<br>
+        <strong>Remise dernière minute :</strong> 30% minimum appliquée → ${formatCurrency(discountedPrice)}<br>
+        <strong>Reste à charge après CPF :</strong> ${formatCurrency(remaining)}<br>
+        <strong>Prochaine session :</strong> ${dateText}
+      `;
+      proposalPriceInput.value = discountedPrice;
+      resetProposalActions();
+      openModal(proposalModal);
+    };
+
+    const sendProposal = (price) => {
+      if (!activeProspect) {
+        return;
+      }
+
+      const formationName = formationLabels[activeProspect.formation] || activeProspect.formation;
+      const dateRange = formationDates[activeProspect.formation];
+      const dateText = dateRange
+        ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
+        : "dates à définir";
+      const payload = {
+        email: activeProspect.email,
+        phone: activeProspect.telephone,
+        prenom: activeProspect.prenom,
+        formation: activeProspect.formation,
+        formation_full: formationName,
+        date_text: dateText,
+        price,
+      };
+
+      proposalAcceptButton.disabled = true;
+      proposalModifyButton.disabled = true;
+      fetch("{{ url_for('price_adaptator_send') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Erreur d'envoi");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          activeProspect.sent = true;
+          activeProspect.sentAt = new Date().toISOString();
+          activeProspect.proposedPrice = price;
+          saveProspects();
+          renderTable();
+          if (data.sms_error && !data.sms_sent) {
+            alert(`Email envoyé. SMS non envoyé: ${data.sms_error}`);
+          } else {
+            alert("Proposition envoyée par email/SMS.");
+          }
+          closeModal(proposalModal);
+        })
+        .catch((error) => {
+          alert(`Erreur d'envoi: ${error.message}`);
+        })
+        .finally(() => {
+          proposalAcceptButton.disabled = false;
+          proposalModifyButton.disabled = false;
+        });
+    };
+
+    document.getElementById("open-add-modal").addEventListener("click", () => {
+      addForm.reset();
+      openModal(addModal);
+    });
+
+    document.getElementById("open-dates-modal").addEventListener("click", () => {
+      datesForm.reset();
+      Object.entries(formationDates).forEach(([formation, range]) => {
+        if (!range) {
+          return;
+        }
+        const startInput = datesForm.querySelector(`input[name=\"${formation}_start\"]`);
+        const endInput = datesForm.querySelector(`input[name=\"${formation}_end\"]`);
+        if (startInput) {
+          startInput.value = range.start || "";
+        }
+        if (endInput) {
+          endInput.value = range.end || "";
+        }
+      });
+      openModal(datesModal);
+    });
+
+    addModal.addEventListener("click", (event) => {
+      if (event.target === addModal || event.target.hasAttribute("data-close")) {
+        closeModal(addModal);
+      }
+    });
+
+    datesModal.addEventListener("click", (event) => {
+      if (event.target === datesModal || event.target.hasAttribute("data-close")) {
+        closeModal(datesModal);
+      }
+    });
+
+    proposalModal.addEventListener("click", (event) => {
+      if (event.target === proposalModal || event.target.hasAttribute("data-close")) {
+        closeModal(proposalModal);
+      }
+    });
+
+    addForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const formData = new FormData(addForm);
+      const cpfValue = Number(formData.get("cpf"));
+      if (Number.isNaN(cpfValue) || cpfValue < 0) {
+        alert("Merci de renseigner un montant CPF valide.");
+        return;
+      }
+
+      const prospect = {
+        id: crypto.randomUUID(),
+        nom: formData.get("nom").trim(),
+        prenom: formData.get("prenom").trim(),
+        cpf: cpfValue,
+        email: formData.get("email").trim(),
+        telephone: formData.get("telephone").trim(),
+        formation: formData.get("formation"),
+        sent: false,
+        sentAt: null,
+      };
+
+      prospects.unshift(prospect);
+      saveProspects();
+      renderTable();
+      closeModal(addModal);
+    });
+
+    datesForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const formData = new FormData(datesForm);
+      formationDates = {
+        APS: {
+          start: formData.get("APS_start"),
+          end: formData.get("APS_end"),
+        },
+        A3P: {
+          start: formData.get("A3P_start"),
+          end: formData.get("A3P_end"),
+        },
+        Dirigeant: {
+          start: formData.get("Dirigeant_start"),
+          end: formData.get("Dirigeant_end"),
+        },
+      };
+      saveDates();
+      closeModal(datesModal);
+    });
+
+    prospectsBody.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-propose]");
+      if (!button) {
+        return;
+      }
+      const prospect = prospects.find((item) => item.id === button.dataset.propose);
+      if (prospect) {
+        openProposalModal(prospect);
+      }
+    });
+
+    proposalAcceptButton.addEventListener("click", () => {
+      const price = Number(proposalPriceInput.value) || 0;
+      sendProposal(price);
+    });
+
+    proposalModifyButton.addEventListener("click", () => {
+      if (proposalModifyButton.dataset.mode === "edit") {
+        proposalPriceInput.disabled = false;
+        proposalPriceInput.focus();
+        proposalModifyButton.textContent = "Envoyer la proposition";
+        proposalModifyButton.dataset.mode = "send";
+        return;
+      }
+
+      const price = Number(proposalPriceInput.value) || 0;
+      sendProposal(price);
+    });
+
+    loadProspects();
+    loadDates();
+    renderTable();
+  </script>
+</body>
+</html>

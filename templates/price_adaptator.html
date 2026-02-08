@@ -69,7 +69,8 @@
     }
 
     .search-input {
-      min-width: 240px;
+      min-width: 320px;
+      width: 320px;
       padding: 8px 12px;
       border-radius: 10px;
       border: 1px solid rgba(0, 0, 0, 0.15);
@@ -369,6 +370,7 @@
             <th>Nom</th>
             <th>Prénom</th>
             <th>CPF</th>
+            <th>Tarif proposé</th>
             <th>Email</th>
             <th>Téléphone</th>
             <th>Formation</th>
@@ -551,6 +553,15 @@
       maximumFractionDigits: 0,
     }).format(value);
 
+    const normalizeLastName = (value) => (value || "").trim().toLocaleUpperCase("fr-FR");
+
+    const normalizeFirstName = (value) => {
+      const cleaned = (value || "").trim().replace(/\s+/g, " ");
+      return cleaned
+        .toLocaleLowerCase("fr-FR")
+        .replace(/(^\p{L}|\s\p{L}|-\p{L})/gu, (match) => match.toLocaleUpperCase("fr-FR"));
+    };
+
     const loadRemoteData = async () => {
       const response = await fetch(DATA_ENDPOINT);
       if (!response.ok) {
@@ -657,7 +668,11 @@
         if (!normalizedSearch) {
           return true;
         }
-        const fields = [prospect.nom, prospect.prenom, prospect.email]
+        const fields = [
+          normalizeLastName(prospect.nom),
+          normalizeFirstName(prospect.prenom),
+          prospect.email,
+        ]
           .filter(Boolean)
           .map((value) => value.toLowerCase());
         return fields.some((value) => value.includes(normalizedSearch));
@@ -687,6 +702,9 @@
       }
 
       filteredProspects.forEach((prospect) => {
+        const displayNom = normalizeLastName(prospect.nom);
+        const displayPrenom = normalizeFirstName(prospect.prenom);
+        const { proposedPrice } = buildProposal(prospect);
         const statusClass = prospect.sent ? "status-pill" : "status-pill pending";
         const statusLabel = prospect.sent ? "Proposition envoyée" : "En attente";
         const statusDate = prospect.sentAt
@@ -695,9 +713,10 @@
         const followUpDate = getFollowUpDate(prospect.formation);
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td data-label="Nom">${prospect.nom}</td>
-          <td data-label="Prénom">${prospect.prenom}</td>
+          <td data-label="Nom">${displayNom}</td>
+          <td data-label="Prénom">${displayPrenom}</td>
           <td data-label="CPF">${formatCurrency(prospect.cpf)}</td>
+          <td data-label="Tarif proposé">${formatCurrency(proposedPrice)}</td>
           <td data-label="Email">${prospect.email}</td>
           <td data-label="Téléphone">${prospect.telephone}</td>
           <td data-label="Formation"><span class="badge">${prospect.formation}</span></td>
@@ -727,25 +746,31 @@
       const basePrice = formationPrices[prospect.formation] || 0;
       const discountValue = normalizeDiscount(formationDates[prospect.formation]?.discount);
       const discountedPrice = getDiscountedPrice(prospect.formation, discountValue);
-      const remaining = Math.max(discountedPrice - prospect.cpf, 0);
-      return { basePrice, discountedPrice, remaining, discountValue };
+      const proposedPrice = Number.isFinite(prospect.proposed_price) ? prospect.proposed_price : discountedPrice;
+      const remaining = Math.max(proposedPrice - prospect.cpf, 0);
+      const effectiveDiscount = basePrice
+        ? Math.min(Math.max(Math.round((1 - proposedPrice / basePrice) * 100), 0), 100)
+        : discountValue;
+      return { basePrice, discountedPrice, remaining, discountValue, proposedPrice, effectiveDiscount };
     };
 
     const openProposalModal = (prospect) => {
       activeProspect = prospect;
-      const { basePrice, discountedPrice, remaining, discountValue } = buildProposal(prospect);
+      const { basePrice, proposedPrice, remaining, effectiveDiscount } = buildProposal(prospect);
       const dateRange = formationDates[prospect.formation];
       const dateText = dateRange
         ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
         : "dates à définir";
-      proposalSubtitle.textContent = `${prospect.prenom} ${prospect.nom} • CPF: ${formatCurrency(prospect.cpf)}`;
+      const displayNom = normalizeLastName(prospect.nom);
+      const displayPrenom = normalizeFirstName(prospect.prenom);
+      proposalSubtitle.textContent = `${displayPrenom} ${displayNom} • CPF: ${formatCurrency(prospect.cpf)}`;
       proposalDetails.innerHTML = `
         <strong>Formation :</strong> ${formationLabels[prospect.formation] || prospect.formation} (${formatCurrency(basePrice)})<br>
-        <strong>Remise dernière minute :</strong> ${discountValue}% appliquée → ${formatCurrency(discountedPrice)}<br>
+        <strong>Remise dernière minute :</strong> ${effectiveDiscount}% appliquée → ${formatCurrency(proposedPrice)}<br>
         <strong>Reste à charge après CPF :</strong> ${formatCurrency(remaining)}<br>
         <strong>Prochaine session :</strong> ${dateText}
       `;
-      proposalPriceInput.value = discountedPrice;
+      proposalPriceInput.value = proposedPrice;
       resetProposalActions();
       openModal(proposalModal);
     };
@@ -967,8 +992,8 @@
       }
 
       const prospect = {
-        nom: formData.get("nom").trim(),
-        prenom: formData.get("prenom").trim(),
+        nom: normalizeLastName(formData.get("nom")),
+        prenom: normalizeFirstName(formData.get("prenom")),
         cpf: cpfValue,
         email: formData.get("email").trim(),
         telephone: formData.get("telephone").trim(),

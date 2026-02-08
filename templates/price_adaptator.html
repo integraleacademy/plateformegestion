@@ -254,6 +254,8 @@
       <div class="actions-bar">
         <button class="btn" type="button" id="open-dates-modal">📅 Dates des formations</button>
         <button class="btn edit" type="button" id="open-add-modal">➕ Ajouter un prospect</button>
+        <button class="btn secondary" type="button" id="open-import">📥 Importer Excel</button>
+        <input type="file" id="import-file" accept=".xlsx" hidden />
       </div>
     </div>
 
@@ -400,6 +402,7 @@
     const DEFAULT_DISCOUNT = 30;
     const DATA_ENDPOINT = "{{ url_for('price_adaptator_data') }}";
     const PROSPECTS_ENDPOINT = "{{ url_for('price_adaptator_add_prospect') }}";
+    const IMPORT_ENDPOINT = "{{ url_for('price_adaptator_import') }}";
     const DATES_ENDPOINT = "{{ url_for('price_adaptator_save_dates') }}";
     const SEND_ENDPOINT = "{{ url_for('price_adaptator_send') }}";
     const formationPrices = {
@@ -425,6 +428,8 @@
     const proposalPriceInput = document.getElementById("proposal-price");
     const proposalAcceptButton = document.getElementById("proposal-accept");
     const proposalModifyButton = document.getElementById("proposal-modify");
+    const importButton = document.getElementById("open-import");
+    const importFileInput = document.getElementById("import-file");
 
     let prospects = [];
     let activeProspect = null;
@@ -656,6 +661,47 @@
     document.getElementById("open-add-modal").addEventListener("click", () => {
       addForm.reset();
       openModal(addModal);
+    });
+
+    importButton.addEventListener("click", () => {
+      if (importFileInput) {
+        importFileInput.value = "";
+        importFileInput.click();
+      }
+    });
+
+    importFileInput.addEventListener("change", () => {
+      const file = importFileInput.files?.[0];
+      if (!file) {
+        return;
+      }
+      const formData = new FormData();
+      formData.append("file", file);
+      importButton.disabled = true;
+      fetch(IMPORT_ENDPOINT, {
+        method: "POST",
+        body: formData,
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Erreur d'import");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          prospects = data.prospects || prospects;
+          renderTable();
+          const errors = (data.errors || []).slice(0, 5);
+          const errorMessage = errors.length ? `\nErreurs:\n- ${errors.join("\n- ")}` : "";
+          alert(`Import terminé : ${data.added || 0} ajouté(s), ${data.skipped || 0} déjà existant(s).${errorMessage}`);
+        })
+        .catch((error) => {
+          alert(error.message);
+        })
+        .finally(() => {
+          importButton.disabled = false;
+        });
     });
 
     document.getElementById("open-dates-modal").addEventListener("click", () => {

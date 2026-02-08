@@ -186,6 +186,11 @@ PRICE_ADAPTATOR_FORMATION_LABELS = {
     "A3P": "Agent de protection physique des personnes (A3P)",
     "Dirigeant": "Dirigeant d'entreprise de sécurité privée (DESP)",
 }
+PRICE_ADAPTATOR_ALLOWED_FORMATIONS = {
+    "APS": "APS",
+    "A3P": "A3P",
+    "DIRIGEANT": "Dirigeant",
+}
 
 # -----------------------
 # 📅 Planning PDF (par session)
@@ -268,6 +273,13 @@ def normalize_price_adaptator_discount(value):
     except (TypeError, ValueError):
         return PRICE_ADAPTATOR_DEFAULT_DISCOUNT
     return max(0, min(parsed, 100))
+
+
+def normalize_price_adaptator_formation(value):
+    if value is None:
+        return None
+    cleaned = str(value).strip().upper()
+    return PRICE_ADAPTATOR_ALLOWED_FORMATIONS.get(cleaned)
 
 def get_price_adaptator_followup_date(dates, formation):
     date_range = (dates or {}).get(formation, {})
@@ -1392,6 +1404,122 @@ def price_adaptator_add_prospect():
     data["prospects"].insert(0, prospect)
     save_price_adaptator_data(data)
     return {"ok": True, "prospects": data["prospects"]}
+
+
+@app.route("/price-adaptator/import", methods=["POST"])
+def price_adaptator_import():
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        return {"ok": False, "error": "Fichier Excel manquant"}, 400
+
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return {"ok": False, "error": "La bibliothèque openpyxl est manquante"}, 500
+
+    try:
+        workbook = load_workbook(filename=BytesIO(upload.read()), data_only=True)
+    except Exception:
+        return {"ok": False, "error": "Impossible de lire le fichier Excel"}, 400
+
+    sheet = workbook.active
+    data = load_price_adaptator_data()
+    prospects = data.get("prospects", [])
+
+    existing_emails = {p.get("email", "").strip().lower() for p in prospects if p.get("email")}
+    existing_phones = set()
+    existing_names = set()
+    for prospect in prospects:
+        normalized_phone = normalize_phone_number((prospect.get("telephone") or "").strip())
+        if normalized_phone:
+            existing_phones.add(normalized_phone)
+        nom = (prospect.get("nom") or "").strip().lower()
+        prenom = (prospect.get("prenom") or "").strip().lower()
+        formation = (prospect.get("formation") or "").strip()
+        if nom and prenom and formation:
+            existing_names.add((nom, prenom, formation))
+
+    added_prospects = []
+    seen_emails = set()
+    seen_phones = set()
+    seen_names = set()
+    skipped = 0
+    errors = []
+
+    for idx, row in enumerate(sheet.iter_rows(values_only=True), start=1):
+        values = list(row[:6]) if row else []
+        values += [None] * (6 - len(values))
+        formation_raw, nom, prenom, cpf, email, telephone = values
+        if not any([formation_raw, nom, prenom, cpf, email, telephone]):
+            continue
+
+        formation = normalize_price_adaptator_formation(formation_raw)
+        if not formation:
+            errors.append(f"Ligne {idx}: formation invalide")
+            continue
+
+        nom_value = str(nom).strip() if nom is not None else ""
+        prenom_value = str(prenom).strip() if prenom is not None else ""
+        if not nom_value or not prenom_value:
+            errors.append(f"Ligne {idx}: nom/prénom manquants")
+            continue
+
+        try:
+            cpf_value = float(cpf)
+            if cpf_value < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            errors.append(f"Ligne {idx}: montant CPF invalide")
+            continue
+
+        email_value = str(email).strip() if email is not None else ""
+        email_key = email_value.lower() if email_value else ""
+        telephone_value = str(telephone).strip() if telephone is not None else ""
+        phone_key = normalize_phone_number(telephone_value) or ""
+
+        name_key = (nom_value.lower(), prenom_value.lower(), formation)
+
+        if (
+            (email_key and (email_key in existing_emails or email_key in seen_emails))
+            or (phone_key and (phone_key in existing_phones or phone_key in seen_phones))
+            or (name_key in existing_names or name_key in seen_names)
+        ):
+            skipped += 1
+            continue
+
+        prospect = {
+            "id": str(uuid.uuid4()),
+            "nom": nom_value,
+            "prenom": prenom_value,
+            "cpf": cpf_value,
+            "email": email_value,
+            "telephone": telephone_value,
+            "formation": formation,
+            "sent": False,
+            "sentAt": None,
+            "proposed_price": None,
+            "last_error": None,
+            "last_attempt_at": None,
+            "created_at": datetime.now().isoformat(),
+        }
+        added_prospects.append(prospect)
+        if email_key:
+            seen_emails.add(email_key)
+        if phone_key:
+            seen_phones.add(phone_key)
+        seen_names.add(name_key)
+
+    if added_prospects:
+        data["prospects"] = added_prospects[::-1] + prospects
+        save_price_adaptator_data(data)
+
+    return {
+        "ok": True,
+        "added": len(added_prospects),
+        "skipped": skipped,
+        "errors": errors,
+        "prospects": data.get("prospects", prospects),
+    }
 
 
 @app.route("/price-adaptator/dates", methods=["POST"])

@@ -131,6 +131,48 @@
       font-weight: 600;
     }
 
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(46, 204, 113, 0.15);
+      color: #1e8449;
+    }
+
+    .status-pill.pending {
+      background: rgba(149, 165, 166, 0.2);
+      color: #566573;
+    }
+
+    .status-date {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .dates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .dates-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .dates-grid input {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.15);
+    }
+
     @media (max-width: 720px) {
       thead {
         display: none;
@@ -175,7 +217,10 @@
         <h2>Prospects</h2>
         <div class="helper">Ajoutez un prospect puis générez une proposition personnalisée en un clic.</div>
       </div>
-      <button class="btn edit" type="button" id="open-add-modal">➕ Ajouter un prospect</button>
+      <div class="actions-bar">
+        <button class="btn" type="button" id="open-dates-modal">📅 Dates des formations</button>
+        <button class="btn edit" type="button" id="open-add-modal">➕ Ajouter un prospect</button>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -188,6 +233,7 @@
             <th>Email</th>
             <th>Téléphone</th>
             <th>Formation</th>
+            <th>Statut</th>
             <th></th>
           </tr>
         </thead>
@@ -239,6 +285,43 @@
     </div>
   </div>
 
+  <div class="modal" id="dates-modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>Dates des prochaines formations</h3>
+          <p class="modal-subtitle">Ces dates seront utilisées dans les emails et SMS.</p>
+        </div>
+        <button class="btn" type="button" data-close>Fermer</button>
+      </div>
+      <form id="dates-form">
+        <div class="dates-grid">
+          <label>APS - Date de début
+            <input type="date" name="APS_start" />
+          </label>
+          <label>APS - Date de fin
+            <input type="date" name="APS_end" />
+          </label>
+          <label>A3P - Date de début
+            <input type="date" name="A3P_start" />
+          </label>
+          <label>A3P - Date de fin
+            <input type="date" name="A3P_end" />
+          </label>
+          <label>Dirigeant - Date de début
+            <input type="date" name="Dirigeant_start" />
+          </label>
+          <label>Dirigeant - Date de fin
+            <input type="date" name="Dirigeant_end" />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn edit" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal" id="proposal-modal" aria-hidden="true">
     <div class="modal-content">
       <div class="modal-header">
@@ -262,17 +345,25 @@
 
   <script>
     const STORAGE_KEY = "price_adaptator_prospects";
+    const DATES_KEY = "price_adaptator_dates";
     const formationPrices = {
       APS: 1650,
       A3P: 4200,
       Dirigeant: 4300,
+    };
+    const formationLabels = {
+      APS: "APS",
+      A3P: "A3P",
+      Dirigeant: "DIRIGEANT D'ENTREPRISE DE SECURITE (DESP)",
     };
 
     const prospectsBody = document.getElementById("prospects-body");
     const emptyState = document.getElementById("empty-state");
     const addModal = document.getElementById("add-modal");
     const proposalModal = document.getElementById("proposal-modal");
+    const datesModal = document.getElementById("dates-modal");
     const addForm = document.getElementById("add-form");
+    const datesForm = document.getElementById("dates-form");
     const proposalSubtitle = document.getElementById("proposal-subtitle");
     const proposalDetails = document.getElementById("proposal-details");
     const proposalPriceInput = document.getElementById("proposal-price");
@@ -281,6 +372,7 @@
 
     let prospects = [];
     let activeProspect = null;
+    let formationDates = {};
 
     const formatCurrency = (value) => new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -295,6 +387,15 @@
 
     const saveProspects = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prospects));
+    };
+
+    const loadDates = () => {
+      const raw = localStorage.getItem(DATES_KEY);
+      formationDates = raw ? JSON.parse(raw) : {};
+    };
+
+    const saveDates = () => {
+      localStorage.setItem(DATES_KEY, JSON.stringify(formationDates));
     };
 
     const openModal = (modal) => {
@@ -312,6 +413,11 @@
       emptyState.style.display = prospects.length ? "none" : "block";
 
       prospects.forEach((prospect) => {
+        const statusClass = prospect.sent ? "status-pill" : "status-pill pending";
+        const statusLabel = prospect.sent ? "Proposition envoyée" : "En attente";
+        const statusDate = prospect.sentAt
+          ? `<div class="status-date">${new Date(prospect.sentAt).toLocaleString("fr-FR")}</div>`
+          : "";
         const row = document.createElement("tr");
         row.innerHTML = `
           <td data-label="Nom">${prospect.nom}</td>
@@ -320,6 +426,10 @@
           <td data-label="Email">${prospect.email}</td>
           <td data-label="Téléphone">${prospect.telephone}</td>
           <td data-label="Formation"><span class="badge">${prospect.formation}</span></td>
+          <td data-label="Statut">
+            <div class="${statusClass}">${statusLabel}</div>
+            ${statusDate}
+          </td>
           <td data-label="Action">
             <button class="btn edit" type="button" data-propose="${prospect.id}">Faire une proposition</button>
           </td>
@@ -344,11 +454,14 @@
     const openProposalModal = (prospect) => {
       activeProspect = prospect;
       const { basePrice, discountedPrice, remaining } = buildProposal(prospect);
+      const dateRange = formationDates[prospect.formation];
+      const dateText = dateRange ? `${dateRange.start} au ${dateRange.end}` : "dates à définir";
       proposalSubtitle.textContent = `${prospect.prenom} ${prospect.nom} • CPF: ${formatCurrency(prospect.cpf)}`;
       proposalDetails.innerHTML = `
-        <strong>Formation :</strong> ${prospect.formation} (${formatCurrency(basePrice)})<br>
+        <strong>Formation :</strong> ${formationLabels[prospect.formation] || prospect.formation} (${formatCurrency(basePrice)})<br>
         <strong>Remise dernière minute :</strong> 30% minimum appliquée → ${formatCurrency(discountedPrice)}<br>
-        <strong>Reste à charge après CPF :</strong> ${formatCurrency(remaining)}
+        <strong>Reste à charge après CPF :</strong> ${formatCurrency(remaining)}<br>
+        <strong>Prochaine session :</strong> ${dateText}
       `;
       proposalPriceInput.value = remaining;
       resetProposalActions();
@@ -360,9 +473,17 @@
         return;
       }
 
-      const message = `Bonjour ${activeProspect.prenom} ${activeProspect.nom},\n\n` +
-        `Nous vous proposons un tarif dernière minute de ${formatCurrency(price)} pour la formation ${activeProspect.formation}.\n` +
-        `Pour vous inscrire, merci de nous contacter au 04 22 47 07 68.\n\nÀ bientôt !`;
+      const formationName = formationLabels[activeProspect.formation] || activeProspect.formation;
+      const dateRange = formationDates[activeProspect.formation];
+      const dateText = dateRange ? `${dateRange.start} au ${dateRange.end}` : "dates à définir";
+      const message = `Bonjour ${activeProspect.prenom},\n\n` +
+        `Je me permets de revenir vers vous concernant notre formation ${formationName}.\n\n` +
+        `Nous vous proposons un tarif dernière minute de ${formatCurrency(price)} pour notre prochaine formation qui se déroulera du ${dateText}.\n\n` +
+        `Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir nous contacter au 04 22 47 07 68.\n` +
+        `À très bientôt !\n` +
+        `Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite une bonne journée,\n\n` +
+        `Bien cordialement,\n\n` +
+        `Clément VAILLANT`;
 
       if (activeProspect.email) {
         const mailto = `mailto:${activeProspect.email}?subject=${encodeURIComponent("Proposition tarif dernière minute")}&body=${encodeURIComponent(message)}`;
@@ -374,6 +495,11 @@
         window.open(sms, "_blank", "noopener");
       }
 
+      activeProspect.sent = true;
+      activeProspect.sentAt = new Date().toISOString();
+      activeProspect.proposedPrice = price;
+      saveProspects();
+      renderTable();
       alert("Proposition envoyée par email/SMS (si disponible).");
       closeModal(proposalModal);
     };
@@ -383,9 +509,33 @@
       openModal(addModal);
     });
 
+    document.getElementById("open-dates-modal").addEventListener("click", () => {
+      datesForm.reset();
+      Object.entries(formationDates).forEach(([formation, range]) => {
+        if (!range) {
+          return;
+        }
+        const startInput = datesForm.querySelector(`input[name=\"${formation}_start\"]`);
+        const endInput = datesForm.querySelector(`input[name=\"${formation}_end\"]`);
+        if (startInput) {
+          startInput.value = range.start || "";
+        }
+        if (endInput) {
+          endInput.value = range.end || "";
+        }
+      });
+      openModal(datesModal);
+    });
+
     addModal.addEventListener("click", (event) => {
       if (event.target === addModal || event.target.hasAttribute("data-close")) {
         closeModal(addModal);
+      }
+    });
+
+    datesModal.addEventListener("click", (event) => {
+      if (event.target === datesModal || event.target.hasAttribute("data-close")) {
+        closeModal(datesModal);
       }
     });
 
@@ -412,12 +562,35 @@
         email: formData.get("email").trim(),
         telephone: formData.get("telephone").trim(),
         formation: formData.get("formation"),
+        sent: false,
+        sentAt: null,
       };
 
       prospects.unshift(prospect);
       saveProspects();
       renderTable();
       closeModal(addModal);
+    });
+
+    datesForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const formData = new FormData(datesForm);
+      formationDates = {
+        APS: {
+          start: formData.get("APS_start"),
+          end: formData.get("APS_end"),
+        },
+        A3P: {
+          start: formData.get("A3P_start"),
+          end: formData.get("A3P_end"),
+        },
+        Dirigeant: {
+          start: formData.get("Dirigeant_start"),
+          end: formData.get("Dirigeant_end"),
+        },
+      };
+      saveDates();
+      closeModal(datesModal);
     });
 
     prospectsBody.addEventListener("click", (event) => {
@@ -450,6 +623,7 @@
     });
 
     loadProspects();
+    loadDates();
     renderTable();
   </script>
 </body>

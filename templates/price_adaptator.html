@@ -197,6 +197,12 @@
       padding: 6px 12px;
     }
 
+    .discount-price {
+      font-size: 13px;
+      color: #6b6b6b;
+      font-weight: 600;
+    }
+
     @media (max-width: 720px) {
       thead {
         display: none;
@@ -331,6 +337,7 @@
             </label>
             <input type="hidden" name="APS_discount" />
             <button class="btn discount-button" type="button" data-discount="APS">Remise : —</button>
+            <div class="discount-price" data-discount-price="APS"></div>
           </div>
           <div class="dates-card">
             <h4>A3P</h4>
@@ -342,6 +349,7 @@
             </label>
             <input type="hidden" name="A3P_discount" />
             <button class="btn discount-button" type="button" data-discount="A3P">Remise : —</button>
+            <div class="discount-price" data-discount-price="A3P"></div>
           </div>
           <div class="dates-card">
             <h4>Dirigeant</h4>
@@ -353,6 +361,7 @@
             </label>
             <input type="hidden" name="Dirigeant_discount" />
             <button class="btn discount-button" type="button" data-discount="Dirigeant">Remise : —</button>
+            <div class="discount-price" data-discount-price="Dirigeant"></div>
           </div>
         </div>
         <div class="form-actions">
@@ -475,9 +484,23 @@
       return Math.min(Math.max(parsed, 0), 100);
     };
 
+    const getDiscountedPrice = (formation, discountValue) => {
+      const basePrice = formationPrices[formation] || 0;
+      return Math.round(basePrice * (1 - discountValue / 100));
+    };
+
     const updateDiscountButton = (button, value) => {
       const label = Number.isFinite(value) ? `${value}%` : "—";
       button.textContent = `Remise : ${label}`;
+    };
+
+    const updateDiscountPrice = (formation, discountValue) => {
+      const price = getDiscountedPrice(formation, discountValue);
+      const label = `Prix remisé : ${formatCurrency(price)}`;
+      const priceNode = datesForm.querySelector(`[data-discount-price=\"${formation}\"]`);
+      if (priceNode) {
+        priceNode.textContent = label;
+      }
     };
 
     const getFollowUpDate = (formation) => {
@@ -539,7 +562,7 @@
     const buildProposal = (prospect) => {
       const basePrice = formationPrices[prospect.formation] || 0;
       const discountValue = normalizeDiscount(formationDates[prospect.formation]?.discount);
-      const discountedPrice = Math.round(basePrice * (1 - discountValue / 100));
+      const discountedPrice = getDiscountedPrice(prospect.formation, discountValue);
       const remaining = Math.max(discountedPrice - prospect.cpf, 0);
       return { basePrice, discountedPrice, remaining, discountValue };
     };
@@ -645,6 +668,7 @@
           discountInput.value = discountValue;
           if (discountButton) {
             updateDiscountButton(discountButton, discountValue);
+            updateDiscountPrice(formation, discountValue);
           }
         }
       });
@@ -655,6 +679,7 @@
           if (input && !input.value) {
             input.value = DEFAULT_DISCOUNT;
           }
+          updateDiscountPrice(button.dataset.discount, DEFAULT_DISCOUNT);
         }
       });
       openModal(datesModal);
@@ -750,6 +775,7 @@
         input.value = nextValue;
       }
       updateDiscountButton(button, nextValue);
+      updateDiscountPrice(formation, nextValue);
     });
 
     prospectsBody.addEventListener("click", (event) => {

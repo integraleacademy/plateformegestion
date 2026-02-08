@@ -293,6 +293,15 @@ def normalize_price_adaptator_formation(value):
     cleaned = str(value).strip().upper()
     return PRICE_ADAPTATOR_ALLOWED_FORMATIONS.get(cleaned)
 
+
+def apply_price_adaptator_minimum_price(prospect, price_value):
+    try:
+        cpf_value = float(prospect.get("cpf") or 0)
+    except (TypeError, ValueError):
+        cpf_value = 0.0
+    minimum_price = cpf_value + 100
+    return max(price_value, minimum_price)
+
 def get_price_adaptator_followup_date(dates, formation):
     date_range = (dates or {}).get(formation, {})
     start_value = (date_range or {}).get("start")
@@ -1591,6 +1600,31 @@ def price_adaptator_save_dates():
     return {"ok": True, "dates": data["dates"]}
 
 
+@app.route("/price-adaptator/prospects/<prospect_id>/proposal", methods=["POST"])
+def price_adaptator_save_proposal(prospect_id):
+    payload = request.get_json(silent=True) or {}
+    price = payload.get("price")
+
+    if price is None:
+        return {"ok": False, "error": "Prix manquant"}, 400
+
+    try:
+        price_value = float(price)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "Prix invalide"}, 400
+
+    data = load_price_adaptator_data()
+    prospect = next((item for item in data.get("prospects", []) if item.get("id") == prospect_id), None)
+    if not prospect:
+        return {"ok": False, "error": "Prospect introuvable"}, 404
+
+    price_value = apply_price_adaptator_minimum_price(prospect, price_value)
+    prospect["proposed_price"] = price_value
+    save_price_adaptator_data(data)
+
+    return {"ok": True, "prospects": data.get("prospects", [])}
+
+
 @app.route("/price-adaptator/send", methods=["POST"])
 def price_adaptator_send():
     payload = request.get_json(silent=True) or {}
@@ -1610,6 +1644,7 @@ def price_adaptator_send():
     if not prospect:
         return {"ok": False, "error": "Prospect introuvable"}, 404
 
+    price_value = apply_price_adaptator_minimum_price(prospect, price_value)
     result = attempt_price_adaptator_send(prospect, data.get("dates"), price_override=price_value)
     prospect["last_attempt_at"] = datetime.now().isoformat()
     prospect["last_error"] = result["email_error"] or result["sms_error"]

@@ -176,6 +176,11 @@
       color: #000;
     }
 
+    .proposed-price.modified {
+      color: #1e8449;
+      font-weight: 700;
+    }
+
     .btn.danger {
       background: #ff6b6b;
       border-color: #e74c3c;
@@ -498,6 +503,7 @@
       </div>
       <div class="proposal-actions">
         <button class="btn primary" type="button" id="proposal-accept">Cette proposition me convient</button>
+        <button class="btn" type="button" id="proposal-save">Enregistrer la proposition</button>
         <button class="btn secondary" type="button" id="proposal-modify">Modifier la proposition</button>
       </div>
     </div>
@@ -512,6 +518,7 @@
     const CLEAR_ENDPOINT = "{{ url_for('price_adaptator_clear_prospects') }}";
     const DATES_ENDPOINT = "{{ url_for('price_adaptator_save_dates') }}";
     const SEND_ENDPOINT = "{{ url_for('price_adaptator_send') }}";
+    const SAVE_PROPOSAL_ENDPOINT = "{{ url_for('price_adaptator_save_proposal', prospect_id='__id__') }}";
     const formationPrices = {
       APS: 1650,
       A3P: 4200,
@@ -534,6 +541,7 @@
     const proposalDetails = document.getElementById("proposal-details");
     const proposalPriceInput = document.getElementById("proposal-price");
     const proposalAcceptButton = document.getElementById("proposal-accept");
+    const proposalSaveButton = document.getElementById("proposal-save");
     const proposalModifyButton = document.getElementById("proposal-modify");
     const importButton = document.getElementById("open-import");
     const importFileInput = document.getElementById("import-file");
@@ -552,6 +560,15 @@
       currency: "EUR",
       maximumFractionDigits: 0,
     }).format(value);
+
+    const applyMinimumPrice = (prospect, value) => {
+      const cpfValue = Number(prospect?.cpf) || 0;
+      const minPrice = cpfValue + 100;
+      if (!Number.isFinite(value)) {
+        return minPrice;
+      }
+      return Math.max(Math.round(value), minPrice);
+    };
 
     const normalizeLastName = (value) => (value || "").trim().toLocaleUpperCase("fr-FR");
 
@@ -704,7 +721,7 @@
       filteredProspects.forEach((prospect) => {
         const displayNom = normalizeLastName(prospect.nom);
         const displayPrenom = normalizeFirstName(prospect.prenom);
-        const { proposedPrice } = buildProposal(prospect);
+        const { proposedPrice, isModified } = buildProposal(prospect);
         const statusClass = prospect.sent ? "status-pill" : "status-pill pending";
         const statusLabel = prospect.sent ? "Proposition envoyée" : "En attente";
         const statusDate = prospect.sentAt
@@ -716,7 +733,7 @@
           <td data-label="Nom">${displayNom}</td>
           <td data-label="Prénom">${displayPrenom}</td>
           <td data-label="CPF">${formatCurrency(prospect.cpf)}</td>
-          <td data-label="Tarif proposé">${formatCurrency(proposedPrice)}</td>
+          <td data-label="Tarif proposé" class="proposed-price${isModified ? " modified" : ""}">${formatCurrency(proposedPrice)}</td>
           <td data-label="Email">${prospect.email}</td>
           <td data-label="Téléphone">${prospect.telephone}</td>
           <td data-label="Formation"><span class="badge">${prospect.formation}</span></td>
@@ -740,18 +757,21 @@
       proposalPriceInput.disabled = true;
       proposalModifyButton.textContent = "Modifier la proposition";
       proposalModifyButton.dataset.mode = "edit";
+      proposalSaveButton.disabled = true;
     };
 
     const buildProposal = (prospect) => {
       const basePrice = formationPrices[prospect.formation] || 0;
       const discountValue = normalizeDiscount(formationDates[prospect.formation]?.discount);
       const discountedPrice = getDiscountedPrice(prospect.formation, discountValue);
-      const proposedPrice = Number.isFinite(prospect.proposed_price) ? prospect.proposed_price : discountedPrice;
+      const rawProposedPrice = Number.isFinite(prospect.proposed_price) ? prospect.proposed_price : discountedPrice;
+      const proposedPrice = applyMinimumPrice(prospect, rawProposedPrice);
       const remaining = Math.max(proposedPrice - prospect.cpf, 0);
       const effectiveDiscount = basePrice
         ? Math.min(Math.max(Math.round((1 - proposedPrice / basePrice) * 100), 0), 100)
         : discountValue;
-      return { basePrice, discountedPrice, remaining, discountValue, proposedPrice, effectiveDiscount };
+      const isModified = Math.round(proposedPrice) !== Math.round(discountedPrice);
+      return { basePrice, discountedPrice, remaining, discountValue, proposedPrice, effectiveDiscount, isModified };
     };
 
     const openProposalModal = (prospect) => {
@@ -781,6 +801,10 @@
       }
 
       const { basePrice, discountValue } = buildProposal(activeProspect);
+      const adjustedPrice = applyMinimumPrice(activeProspect, price);
+      if (adjustedPrice !== price) {
+        proposalPriceInput.value = adjustedPrice;
+      }
       const formationName = formationLabels[activeProspect.formation] || activeProspect.formation;
       const dateRange = formationDates[activeProspect.formation];
       const dateText = dateRange
@@ -793,7 +817,7 @@
         formation: activeProspect.formation,
         formation_full: formationName,
         date_text: dateText,
-        price,
+        price: adjustedPrice,
         base_price: basePrice,
         discount_value: discountValue,
       };
@@ -827,6 +851,42 @@
         })
         .finally(() => {
           proposalAcceptButton.disabled = false;
+          proposalModifyButton.disabled = false;
+        });
+    };
+
+    const saveProposal = (price) => {
+      if (!activeProspect) {
+        return;
+      }
+      const adjustedPrice = applyMinimumPrice(activeProspect, price);
+      if (adjustedPrice !== price) {
+        proposalPriceInput.value = adjustedPrice;
+      }
+      proposalSaveButton.disabled = true;
+      proposalModifyButton.disabled = true;
+      fetch(SAVE_PROPOSAL_ENDPOINT.replace("__id__", activeProspect.id), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price: adjustedPrice }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Erreur d'enregistrement");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          prospects = data.prospects || prospects;
+          renderTable();
+          alert("Proposition enregistrée.");
+        })
+        .catch((error) => {
+          alert(`Erreur d'enregistrement: ${error.message}`);
+        })
+        .finally(() => {
+          proposalSaveButton.disabled = false;
           proposalModifyButton.disabled = false;
         });
     };
@@ -1127,11 +1187,17 @@
         proposalPriceInput.focus();
         proposalModifyButton.textContent = "Envoyer la proposition";
         proposalModifyButton.dataset.mode = "send";
+        proposalSaveButton.disabled = false;
         return;
       }
 
       const price = Number(proposalPriceInput.value) || 0;
       sendProposal(price);
+    });
+
+    proposalSaveButton.addEventListener("click", () => {
+      const price = Number(proposalPriceInput.value) || 0;
+      saveProposal(price);
     });
 
     loadRemoteData()

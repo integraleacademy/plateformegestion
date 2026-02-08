@@ -274,6 +274,18 @@ def normalize_price_adaptator_discount(value):
         return PRICE_ADAPTATOR_DEFAULT_DISCOUNT
     return max(0, min(parsed, 100))
 
+def normalize_price_adaptator_nom(value):
+    if value is None:
+        return ""
+    return str(value).strip().upper()
+
+
+def normalize_price_adaptator_prenom(value):
+    if value is None:
+        return ""
+    cleaned = " ".join(str(value).strip().split())
+    return cleaned.lower().title()
+
 
 def normalize_price_adaptator_formation(value):
     if value is None:
@@ -318,10 +330,13 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
     discount_value = normalize_price_adaptator_discount((dates or {}).get(formation, {}).get("discount"))
     discounted_price = round(base_price * (1 - discount_value / 100))
     price_value = price_override if price_override is not None else discounted_price
+    if base_price and price_value is not None:
+        computed_discount = round((1 - price_value / base_price) * 100)
+        discount_value = max(0, min(computed_discount, 100))
     price_label = f"{price_value:,.0f} €".replace(",", " ")
     base_price_label = f"{base_price:,.0f} €".replace(",", " ") if base_price else None
     date_text = format_price_adaptator_date_range((dates or {}).get(formation))
-    prenom = (prospect.get("prenom") or "").strip().capitalize()
+    prenom = normalize_price_adaptator_prenom(prospect.get("prenom"))
     logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
     html = f"""
     <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;padding:24px;">
@@ -402,8 +417,9 @@ def process_price_adaptator_followups():
         followup_date = get_price_adaptator_followup_date(data.get("dates"), prospect.get("formation"))
         if not followup_date or followup_date > today:
             continue
+        price_override = prospect.get("proposed_price")
         with app.app_context():
-            result = attempt_price_adaptator_send(prospect, data.get("dates"))
+            result = attempt_price_adaptator_send(prospect, data.get("dates"), price_override=price_override)
         prospect["last_attempt_at"] = datetime.now().isoformat()
         prospect["last_error"] = result["email_error"] or result["sms_error"]
         prospect["proposed_price"] = result["price"]
@@ -1368,12 +1384,12 @@ def price_adaptator_data():
 @app.route("/price-adaptator/prospects", methods=["POST"])
 def price_adaptator_add_prospect():
     payload = request.get_json(silent=True) or {}
-    nom = payload.get("nom", "").strip()
-    prenom = payload.get("prenom", "").strip()
+    nom = normalize_price_adaptator_nom(payload.get("nom"))
+    prenom = normalize_price_adaptator_prenom(payload.get("prenom"))
     cpf = payload.get("cpf")
-    email = payload.get("email", "").strip()
-    telephone = payload.get("telephone", "").strip()
-    formation = payload.get("formation", "").strip()
+    email = (payload.get("email", "") or "").strip()
+    telephone = (payload.get("telephone", "") or "").strip()
+    formation = (payload.get("formation", "") or "").strip()
 
     if not (nom and prenom and formation):
         return {"ok": False, "error": "Données prospect incomplètes"}, 400
@@ -1453,8 +1469,8 @@ def price_adaptator_import():
         normalized_phone = normalize_phone_number((prospect.get("telephone") or "").strip())
         if normalized_phone:
             existing_phones.add(normalized_phone)
-        nom = (prospect.get("nom") or "").strip().lower()
-        prenom = (prospect.get("prenom") or "").strip().lower()
+        nom = normalize_price_adaptator_nom(prospect.get("nom")).lower()
+        prenom = normalize_price_adaptator_prenom(prospect.get("prenom")).lower()
         formation = (prospect.get("formation") or "").strip()
         if nom and prenom and formation:
             existing_names.add((nom, prenom, formation))
@@ -1488,8 +1504,8 @@ def price_adaptator_import():
             errors.append(f"Ligne {idx}: formation invalide")
             continue
 
-        nom_value = str(nom).strip() if nom is not None else ""
-        prenom_value = str(prenom).strip() if prenom is not None else ""
+        nom_value = normalize_price_adaptator_nom(nom)
+        prenom_value = normalize_price_adaptator_prenom(prenom)
         if not nom_value or not prenom_value:
             errors.append(f"Ligne {idx}: nom/prénom manquants")
             continue

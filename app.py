@@ -1180,6 +1180,7 @@ def price_adaptator_send():
 
     logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
     price_label = f"{price_value:,.0f} €".replace(",", " ")
+    prenom = prenom.capitalize()
 
     html = f"""
     <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;padding:24px;">
@@ -1194,18 +1195,21 @@ def price_adaptator_send():
             <p>Bonjour {prenom},</p>
             <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
             <p>
-              Suite à des désistements, nous vous proposons un tarif dernière minute de <strong>{price_label}</strong>
-              pour notre prochaine formation qui se déroulera du <strong>{date_text}</strong>.
+              Bonne nouvelle : nous pouvons vous proposer un <strong>tarif exceptionnel de dernière minute</strong> à
+              <strong>{price_label}</strong> pour notre prochaine session qui se déroulera du
+              <strong>{date_text}</strong>.
             </p>
             <p>
               Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir
               nous contacter au <strong>04 22 47 07 68</strong>.
             </p>
+            <p>Cette offre est limitée, profitez-en dès maintenant.</p>
+            <p>À très bientôt !</p>
             <p>
               Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite
               une bonne journée,
             </p>
-            <p>A très bientôt !</p>
+            <p>Bien cordialement,</p>
             <p><strong>Clément VAILLANT</strong></p>
           </td>
         </tr>
@@ -1224,9 +1228,8 @@ def price_adaptator_send():
     sms_error = None
     if phone:
         sms_message = (
-            f"Bonjour {prenom}, nous vous proposons un tarif dernière minute de {price_label} "
-            f"pour la formation {formation_full} (du {date_text}). "
-            "Pour vous inscrire, contactez-nous au 04 22 47 07 68. "
+            f"Bonjour {prenom}, tarif exceptionnel dernière minute à {price_label} pour la formation "
+            f"{formation_full} (du {date_text}). Offre limitée: contactez-nous au 04 22 47 07 68. "
             "Cordialement, Clément VAILLANT"
         )
         sms_sent, sms_error = send_price_adaptator_sms(phone, sms_message)

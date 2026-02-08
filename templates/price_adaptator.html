@@ -591,6 +591,7 @@
         return;
       }
 
+      const { basePrice, discountValue } = buildProposal(activeProspect);
       const formationName = formationLabels[activeProspect.formation] || activeProspect.formation;
       const dateRange = formationDates[activeProspect.formation];
       const dateText = dateRange
@@ -604,6 +605,8 @@
         formation_full: formationName,
         date_text: dateText,
         price,
+        base_price: basePrice,
+        discount_value: discountValue,
       };
 
       proposalAcceptButton.disabled = true;

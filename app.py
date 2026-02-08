@@ -1169,6 +1169,8 @@ def price_adaptator_send():
     formation_full = payload.get("formation_full", "").strip() or formation
     date_text = payload.get("date_text", "").strip() or "dates à définir"
     price = payload.get("price")
+    base_price = payload.get("base_price")
+    discount_value = payload.get("discount_value")
 
     if price is None:
         return {"ok": False, "error": "Prix manquant"}, 400
@@ -1178,8 +1180,21 @@ def price_adaptator_send():
     except (TypeError, ValueError):
         return {"ok": False, "error": "Prix invalide"}, 400
 
+    try:
+        base_price_value = float(base_price) if base_price is not None else None
+    except (TypeError, ValueError):
+        base_price_value = None
+
+    try:
+        discount_value_float = float(discount_value) if discount_value is not None else None
+    except (TypeError, ValueError):
+        discount_value_float = None
+
     logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
     price_label = f"{price_value:,.0f} €".replace(",", " ")
+    base_price_label = (
+        f"{base_price_value:,.0f} €".replace(",", " ") if base_price_value is not None else None
+    )
     prenom = prenom.capitalize()
 
     html = f"""
@@ -1196,7 +1211,7 @@ def price_adaptator_send():
             <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
             <p>
               Bonne nouvelle : Suite à des désistements, nous pouvons vous proposer un <strong>tarif exceptionnel de dernière minute</strong> à
-              <strong>{price_label}</strong> pour notre prochaine session qui se déroulera du
+              <strong>{price_label}</strong>{f" au lieu de {base_price_label} (prix initial de la formation), soit une remise de {discount_value_float:.0f} %" if base_price_label and discount_value_float is not None else ""} pour notre prochaine session qui se déroulera du
               <strong>{date_text}</strong>.
             </p>
             <p>

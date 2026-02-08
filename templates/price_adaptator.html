@@ -1109,6 +1109,12 @@
       }
     });
 
+    previewModal.addEventListener("click", (event) => {
+      if (event.target === previewModal || event.target.hasAttribute("data-close")) {
+        closeModal(previewModal);
+      }
+    });
+
     addForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const formData = new FormData(addForm);

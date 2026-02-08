@@ -333,7 +333,7 @@
       </div>
       <div class="proposal-details" id="proposal-details"></div>
       <div class="proposal-edit">
-        <label for="proposal-price">Tarif proposé (reste à charge en €)</label>
+        <label for="proposal-price">Tarif dernière minute proposé (€)</label>
         <input type="number" id="proposal-price" min="0" step="1" />
       </div>
       <div class="proposal-actions">
@@ -408,6 +408,17 @@
       modal.setAttribute("aria-hidden", "true");
     };
 
+    const formatDateLabel = (value) => {
+      if (!value) {
+        return "";
+      }
+      const parts = value.split("-");
+      if (parts.length !== 3) {
+        return value;
+      }
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+
     const renderTable = () => {
       prospectsBody.innerHTML = "";
       emptyState.style.display = prospects.length ? "none" : "block";
@@ -455,7 +466,9 @@
       activeProspect = prospect;
       const { basePrice, discountedPrice, remaining } = buildProposal(prospect);
       const dateRange = formationDates[prospect.formation];
-      const dateText = dateRange ? `${dateRange.start} au ${dateRange.end}` : "dates à définir";
+      const dateText = dateRange
+        ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
+        : "dates à définir";
       proposalSubtitle.textContent = `${prospect.prenom} ${prospect.nom} • CPF: ${formatCurrency(prospect.cpf)}`;
       proposalDetails.innerHTML = `
         <strong>Formation :</strong> ${formationLabels[prospect.formation] || prospect.formation} (${formatCurrency(basePrice)})<br>
@@ -463,7 +476,7 @@
         <strong>Reste à charge après CPF :</strong> ${formatCurrency(remaining)}<br>
         <strong>Prochaine session :</strong> ${dateText}
       `;
-      proposalPriceInput.value = remaining;
+      proposalPriceInput.value = discountedPrice;
       resetProposalActions();
       openModal(proposalModal);
     };
@@ -475,7 +488,9 @@
 
       const formationName = formationLabels[activeProspect.formation] || activeProspect.formation;
       const dateRange = formationDates[activeProspect.formation];
-      const dateText = dateRange ? `${dateRange.start} au ${dateRange.end}` : "dates à définir";
+      const dateText = dateRange
+        ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
+        : "dates à définir";
       const message = `Bonjour ${activeProspect.prenom},\n\n` +
         `Je me permets de revenir vers vous concernant notre formation ${formationName}.\n\n` +
         `Nous vous proposons un tarif dernière minute de ${formatCurrency(price)} pour notre prochaine formation qui se déroulera du ${dateText}.\n\n` +

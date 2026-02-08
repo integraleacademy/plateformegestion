@@ -1159,6 +1159,88 @@ def price_adaptator():
     return render_template("price_adaptator.html", title="Price adaptator")
 
 
+@app.route("/price-adaptator/send", methods=["POST"])
+def price_adaptator_send():
+    payload = request.get_json(silent=True) or {}
+    email = payload.get("email", "").strip()
+    phone = payload.get("phone", "").strip()
+    prenom = payload.get("prenom", "").strip()
+    formation = payload.get("formation", "").strip()
+    formation_full = payload.get("formation_full", "").strip() or formation
+    date_text = payload.get("date_text", "").strip() or "dates à définir"
+    price = payload.get("price")
+
+    if price is None:
+        return {"ok": False, "error": "Prix manquant"}, 400
+
+    try:
+        price_value = float(price)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "Prix invalide"}, 400
+
+    logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
+    price_label = f"{price_value:,.0f} €".replace(",", " ")
+
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;padding:24px;">
+      <table style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;">
+        <tr>
+          <td style="background:#111;padding:20px;text-align:center;">
+            <img src="{logo_url}" alt="Intégrale Academy" style="max-width:140px;">
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px;color:#222;line-height:1.6;">
+            <p>Bonjour {prenom},</p>
+            <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
+            <p>
+              Nous vous proposons un tarif dernière minute de <strong>{price_label}</strong>
+              pour notre prochaine formation qui se déroulera du <strong>{date_text}</strong>.
+            </p>
+            <p>
+              Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir
+              nous contacter au <strong>04 22 47 07 68</strong>.
+            </p>
+            <p>À très bientôt !</p>
+            <p>
+              Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite
+              une bonne journée,
+            </p>
+            <p>Bien cordialement,</p>
+            <p><strong>Clément VAILLANT</strong></p>
+          </td>
+        </tr>
+      </table>
+    </div>
+    """
+
+    subject = "Proposition tarif dernière minute"
+
+    email_sent = False
+    email_error = None
+    if email:
+        email_sent, email_error = send_price_adaptator_email(email, subject, html)
+
+    sms_sent = False
+    sms_error = None
+    if phone:
+        sms_message = (
+            f"Bonjour {prenom}, nous vous proposons un tarif dernière minute de {price_label} "
+            f"pour la formation {formation_full} (du {date_text}). "
+            "Pour vous inscrire, contactez-nous au 04 22 47 07 68. "
+            "Cordialement, Clément VAILLANT"
+        )
+        sms_sent, sms_error = send_price_adaptator_sms(phone, sms_message)
+
+    return {
+        "ok": True,
+        "email_sent": email_sent,
+        "sms_sent": sms_sent,
+        "email_error": email_error,
+        "sms_error": sms_error,
+    }
+
+
 @app.route("/sessions")
 def sessions_home():
     data = load_sessions()
@@ -1774,6 +1856,54 @@ def send_email(to, subject, body):
         print(f"✅ Mail envoyé à {to}")
     except Exception as e:
         print("❌ Erreur envoi mail dotation :", e)
+
+
+def send_price_adaptator_email(to, subject, html):
+    smtp_config = get_smtp_config()
+    if not smtp_config["login"] or not smtp_config["password"]:
+        return False, "SMTP non configuré"
+    msg = MIMEText(html, "html", "utf-8")
+    msg["From"] = smtp_config["from_email"]
+    msg["To"] = to
+    msg["Subject"] = subject
+    try:
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
+            server.starttls()
+            server.login(smtp_config["login"], smtp_config["password"])
+            server.sendmail(smtp_config["from_email"], [to], msg.as_string())
+        return True, None
+    except Exception as e:
+        print("❌ Erreur envoi mail price adaptator :", e)
+        return False, str(e)
+
+
+def send_price_adaptator_sms(phone, message):
+    sms_api_url = os.environ.get("SMS_API_URL")
+    sms_api_token = os.environ.get("SMS_API_TOKEN")
+    sms_sender = os.environ.get("SMS_SENDER", "Integrale")
+    if not sms_api_url or not sms_api_token:
+        return False, "SMS non configuré"
+    payload = json.dumps({
+        "to": phone,
+        "message": message,
+        "sender": sms_sender,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        sms_api_url,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {sms_api_token}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if 200 <= response.status < 300:
+                return True, None
+            return False, f"SMS erreur {response.status}"
+    except Exception as e:
+        print("❌ Erreur envoi SMS price adaptator :", e)
+        return False, str(e)
 
 
 @app.route("/dotations")

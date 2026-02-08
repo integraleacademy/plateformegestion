@@ -491,32 +491,50 @@
       const dateText = dateRange
         ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
         : "dates à définir";
-      const message = `Bonjour ${activeProspect.prenom},\n\n` +
-        `Je me permets de revenir vers vous concernant notre formation ${formationName}.\n\n` +
-        `Nous vous proposons un tarif dernière minute de ${formatCurrency(price)} pour notre prochaine formation qui se déroulera du ${dateText}.\n\n` +
-        `Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir nous contacter au 04 22 47 07 68.\n` +
-        `À très bientôt !\n` +
-        `Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite une bonne journée,\n\n` +
-        `Bien cordialement,\n\n` +
-        `Clément VAILLANT`;
+      const payload = {
+        email: activeProspect.email,
+        phone: activeProspect.telephone,
+        prenom: activeProspect.prenom,
+        formation: activeProspect.formation,
+        formation_full: formationName,
+        date_text: dateText,
+        price,
+      };
 
-      if (activeProspect.email) {
-        const mailto = `mailto:${activeProspect.email}?subject=${encodeURIComponent("Proposition tarif dernière minute")}&body=${encodeURIComponent(message)}`;
-        window.open(mailto, "_blank", "noopener");
-      }
-
-      if (activeProspect.telephone) {
-        const sms = `sms:${activeProspect.telephone}?body=${encodeURIComponent(message)}`;
-        window.open(sms, "_blank", "noopener");
-      }
-
-      activeProspect.sent = true;
-      activeProspect.sentAt = new Date().toISOString();
-      activeProspect.proposedPrice = price;
-      saveProspects();
-      renderTable();
-      alert("Proposition envoyée par email/SMS (si disponible).");
-      closeModal(proposalModal);
+      proposalAcceptButton.disabled = true;
+      proposalModifyButton.disabled = true;
+      fetch("{{ url_for('price_adaptator_send') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Erreur d'envoi");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          activeProspect.sent = true;
+          activeProspect.sentAt = new Date().toISOString();
+          activeProspect.proposedPrice = price;
+          saveProspects();
+          renderTable();
+          if (data.sms_error && !data.sms_sent) {
+            alert(`Email envoyé. SMS non envoyé: ${data.sms_error}`);
+          } else {
+            alert("Proposition envoyée par email/SMS.");
+          }
+          closeModal(proposalModal);
+        })
+        .catch((error) => {
+          alert(`Erreur d'envoi: ${error.message}`);
+        })
+        .finally(() => {
+          proposalAcceptButton.disabled = false;
+          proposalModifyButton.disabled = false;
+        });
     };
 
     document.getElementById("open-add-modal").addEventListener("click", () => {

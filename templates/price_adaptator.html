@@ -723,7 +723,7 @@
         const displayPrenom = normalizeFirstName(prospect.prenom);
         const { proposedPrice, isModified } = buildProposal(prospect);
         const statusClass = prospect.sent ? "status-pill" : "status-pill pending";
-        const statusLabel = prospect.sent ? "Proposition envoyée" : "En attente";
+        const statusLabel = prospect.sent ? "Voir le mail envoyé" : "En attente";
         const statusDate = prospect.sentAt
           ? `<div class="status-date">${new Date(prospect.sentAt).toLocaleString("fr-FR")}</div>`
           : "";

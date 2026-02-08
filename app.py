@@ -2290,12 +2290,17 @@ def send_price_adaptator_email(to, subject, html):
     msg = MIMEText(html, "html", "utf-8")
     msg["From"] = smtp_config["from_email"]
     msg["To"] = to
+    msg["Cc"] = "clement@integraleacademy.com"
     msg["Subject"] = subject
     try:
         with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
             server.starttls()
             server.login(smtp_config["login"], smtp_config["password"])
-            server.sendmail(smtp_config["from_email"], [to], msg.as_string())
+            server.sendmail(
+                smtp_config["from_email"],
+                [to, "clement@integraleacademy.com"],
+                msg.as_string(),
+            )
         return True, None
     except Exception as e:
         print("❌ Erreur envoi mail price adaptator :", e)

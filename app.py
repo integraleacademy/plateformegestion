@@ -1154,6 +1154,11 @@ def general_tools():
     return render_template("general_tools.html", title="Outils généraux")
 
 
+@app.route("/price-adaptator")
+def price_adaptator():
+    return render_template("price_adaptator.html", title="Price adaptator")
+
+
 @app.route("/sessions")
 def sessions_home():
     data = load_sessions()

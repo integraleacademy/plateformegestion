@@ -160,6 +160,24 @@
       gap: 12px;
     }
 
+    .dates-card {
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #fffdf8;
+    }
+
+    .dates-card h4 {
+      margin: 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+    }
+
     .dates-grid label {
       display: flex;
       flex-direction: column;
@@ -171,6 +189,18 @@
       padding: 10px;
       border-radius: 12px;
       border: 1px solid rgba(0,0,0,.15);
+    }
+
+    .discount-button {
+      align-self: flex-start;
+      font-size: 13px;
+      padding: 6px 12px;
+    }
+
+    .discount-price {
+      font-size: 13px;
+      color: #6b6b6b;
+      font-weight: 600;
     }
 
     @media (max-width: 720px) {
@@ -297,24 +327,42 @@
       </div>
       <form id="dates-form">
         <div class="dates-grid">
-          <label>APS - Date de début
-            <input type="date" name="APS_start" />
-          </label>
-          <label>APS - Date de fin
-            <input type="date" name="APS_end" />
-          </label>
-          <label>A3P - Date de début
-            <input type="date" name="A3P_start" />
-          </label>
-          <label>A3P - Date de fin
-            <input type="date" name="A3P_end" />
-          </label>
-          <label>Dirigeant - Date de début
-            <input type="date" name="Dirigeant_start" />
-          </label>
-          <label>Dirigeant - Date de fin
-            <input type="date" name="Dirigeant_end" />
-          </label>
+          <div class="dates-card">
+            <h4>APS</h4>
+            <label>Date de début
+              <input type="date" name="APS_start" />
+            </label>
+            <label>Date de fin
+              <input type="date" name="APS_end" />
+            </label>
+            <input type="hidden" name="APS_discount" />
+            <button class="btn discount-button" type="button" data-discount="APS">Remise : —</button>
+            <div class="discount-price" data-discount-price="APS"></div>
+          </div>
+          <div class="dates-card">
+            <h4>A3P</h4>
+            <label>Date de début
+              <input type="date" name="A3P_start" />
+            </label>
+            <label>Date de fin
+              <input type="date" name="A3P_end" />
+            </label>
+            <input type="hidden" name="A3P_discount" />
+            <button class="btn discount-button" type="button" data-discount="A3P">Remise : —</button>
+            <div class="discount-price" data-discount-price="A3P"></div>
+          </div>
+          <div class="dates-card">
+            <h4>Dirigeant</h4>
+            <label>Date de début
+              <input type="date" name="Dirigeant_start" />
+            </label>
+            <label>Date de fin
+              <input type="date" name="Dirigeant_end" />
+            </label>
+            <input type="hidden" name="Dirigeant_discount" />
+            <button class="btn discount-button" type="button" data-discount="Dirigeant">Remise : —</button>
+            <div class="discount-price" data-discount-price="Dirigeant"></div>
+          </div>
         </div>
         <div class="form-actions">
           <button class="btn edit" type="submit">Enregistrer</button>
@@ -347,6 +395,7 @@
   <script>
     const STORAGE_KEY = "price_adaptator_prospects";
     const DATES_KEY = "price_adaptator_dates";
+    const DEFAULT_DISCOUNT = 30;
     const formationPrices = {
       APS: 1650,
       A3P: 4200,
@@ -427,6 +476,33 @@
       return `${day}/${month}/${year}`;
     };
 
+    const normalizeDiscount = (value) => {
+      const parsed = Number(value);
+      if (Number.isNaN(parsed)) {
+        return DEFAULT_DISCOUNT;
+      }
+      return Math.min(Math.max(parsed, 0), 100);
+    };
+
+    const getDiscountedPrice = (formation, discountValue) => {
+      const basePrice = formationPrices[formation] || 0;
+      return Math.round(basePrice * (1 - discountValue / 100));
+    };
+
+    const updateDiscountButton = (button, value) => {
+      const label = Number.isFinite(value) ? `${value}%` : "—";
+      button.textContent = `Remise : ${label}`;
+    };
+
+    const updateDiscountPrice = (formation, discountValue) => {
+      const price = getDiscountedPrice(formation, discountValue);
+      const label = `Prix remisé : ${formatCurrency(price)}`;
+      const priceNode = datesForm.querySelector(`[data-discount-price=\"${formation}\"]`);
+      if (priceNode) {
+        priceNode.textContent = label;
+      }
+    };
+
     const getFollowUpDate = (formation) => {
       const dateRange = formationDates[formation];
       if (!dateRange || !dateRange.start) {
@@ -485,14 +561,15 @@
 
     const buildProposal = (prospect) => {
       const basePrice = formationPrices[prospect.formation] || 0;
-      const discountedPrice = Math.round(basePrice * 0.7);
+      const discountValue = normalizeDiscount(formationDates[prospect.formation]?.discount);
+      const discountedPrice = getDiscountedPrice(prospect.formation, discountValue);
       const remaining = Math.max(discountedPrice - prospect.cpf, 0);
-      return { basePrice, discountedPrice, remaining };
+      return { basePrice, discountedPrice, remaining, discountValue };
     };
 
     const openProposalModal = (prospect) => {
       activeProspect = prospect;
-      const { basePrice, discountedPrice, remaining } = buildProposal(prospect);
+      const { basePrice, discountedPrice, remaining, discountValue } = buildProposal(prospect);
       const dateRange = formationDates[prospect.formation];
       const dateText = dateRange
         ? `${formatDateLabel(dateRange.start)} au ${formatDateLabel(dateRange.end)}`
@@ -500,7 +577,7 @@
       proposalSubtitle.textContent = `${prospect.prenom} ${prospect.nom} • CPF: ${formatCurrency(prospect.cpf)}`;
       proposalDetails.innerHTML = `
         <strong>Formation :</strong> ${formationLabels[prospect.formation] || prospect.formation} (${formatCurrency(basePrice)})<br>
-        <strong>Remise dernière minute :</strong> 30% minimum appliquée → ${formatCurrency(discountedPrice)}<br>
+        <strong>Remise dernière minute :</strong> ${discountValue}% appliquée → ${formatCurrency(discountedPrice)}<br>
         <strong>Reste à charge après CPF :</strong> ${formatCurrency(remaining)}<br>
         <strong>Prochaine session :</strong> ${dateText}
       `;
@@ -578,11 +655,31 @@
         }
         const startInput = datesForm.querySelector(`input[name=\"${formation}_start\"]`);
         const endInput = datesForm.querySelector(`input[name=\"${formation}_end\"]`);
+        const discountInput = datesForm.querySelector(`input[name=\"${formation}_discount\"]`);
+        const discountButton = datesForm.querySelector(`button[data-discount=\"${formation}\"]`);
         if (startInput) {
           startInput.value = range.start || "";
         }
         if (endInput) {
           endInput.value = range.end || "";
+        }
+        if (discountInput) {
+          const discountValue = normalizeDiscount(range.discount);
+          discountInput.value = discountValue;
+          if (discountButton) {
+            updateDiscountButton(discountButton, discountValue);
+            updateDiscountPrice(formation, discountValue);
+          }
+        }
+      });
+      datesForm.querySelectorAll("button[data-discount]").forEach((button) => {
+        if (!button.textContent.includes("%")) {
+          updateDiscountButton(button, DEFAULT_DISCOUNT);
+          const input = datesForm.querySelector(`input[name=\"${button.dataset.discount}_discount\"]`);
+          if (input && !input.value) {
+            input.value = DEFAULT_DISCOUNT;
+          }
+          updateDiscountPrice(button.dataset.discount, DEFAULT_DISCOUNT);
         }
       });
       openModal(datesModal);
@@ -640,18 +737,45 @@
         APS: {
           start: formData.get("APS_start"),
           end: formData.get("APS_end"),
+          discount: normalizeDiscount(formData.get("APS_discount")),
         },
         A3P: {
           start: formData.get("A3P_start"),
           end: formData.get("A3P_end"),
+          discount: normalizeDiscount(formData.get("A3P_discount")),
         },
         Dirigeant: {
           start: formData.get("Dirigeant_start"),
           end: formData.get("Dirigeant_end"),
+          discount: normalizeDiscount(formData.get("Dirigeant_discount")),
         },
       };
       saveDates();
       closeModal(datesModal);
+    });
+
+    datesForm.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-discount]");
+      if (!button) {
+        return;
+      }
+      const formation = button.dataset.discount;
+      const input = datesForm.querySelector(`input[name=\"${formation}_discount\"]`);
+      const currentValue = normalizeDiscount(input?.value);
+      const raw = prompt("Indiquez le pourcentage de remise à appliquer.", currentValue);
+      if (raw === null) {
+        return;
+      }
+      const nextValue = Number(raw);
+      if (Number.isNaN(nextValue) || nextValue < 0 || nextValue > 100) {
+        alert("Merci de saisir un pourcentage entre 0 et 100.");
+        return;
+      }
+      if (input) {
+        input.value = nextValue;
+      }
+      updateDiscountButton(button, nextValue);
+      updateDiscountPrice(formation, nextValue);
     });
 
     prospectsBody.addEventListener("click", (event) => {

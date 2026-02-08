@@ -1406,6 +1406,18 @@ def price_adaptator_add_prospect():
     return {"ok": True, "prospects": data["prospects"]}
 
 
+@app.route("/price-adaptator/prospects/<prospect_id>", methods=["DELETE"])
+def price_adaptator_delete_prospect(prospect_id):
+    data = load_price_adaptator_data()
+    prospects = data.get("prospects", [])
+    updated = [prospect for prospect in prospects if prospect.get("id") != prospect_id]
+    if len(updated) == len(prospects):
+        return {"ok": False, "error": "Prospect introuvable"}, 404
+    data["prospects"] = updated
+    save_price_adaptator_data(data)
+    return {"ok": True, "prospects": data["prospects"]}
+
+
 @app.route("/price-adaptator/import", methods=["POST"])
 def price_adaptator_import():
     upload = request.files.get("file")
@@ -1446,6 +1458,16 @@ def price_adaptator_import():
     skipped = 0
     errors = []
 
+    def normalize_import_phone(raw_value):
+        if raw_value is None:
+            return ""
+        value = str(raw_value).strip()
+        if not value:
+            return ""
+        if value.startswith("+") or value.startswith("00") or value.startswith("0"):
+            return value
+        return f"0{value}"
+
     for idx, row in enumerate(sheet.iter_rows(values_only=True), start=1):
         values = list(row[:6]) if row else []
         values += [None] * (6 - len(values))
@@ -1464,17 +1486,20 @@ def price_adaptator_import():
             errors.append(f"Ligne {idx}: nom/prénom manquants")
             continue
 
-        try:
-            cpf_value = float(cpf)
-            if cpf_value < 0:
-                raise ValueError
-        except (TypeError, ValueError):
-            errors.append(f"Ligne {idx}: montant CPF invalide")
-            continue
+        if cpf is None or (isinstance(cpf, str) and not cpf.strip()):
+            cpf_value = 0.0
+        else:
+            try:
+                cpf_value = float(cpf)
+                if cpf_value < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                errors.append(f"Ligne {idx}: montant CPF invalide")
+                continue
 
         email_value = str(email).strip() if email is not None else ""
         email_key = email_value.lower() if email_value else ""
-        telephone_value = str(telephone).strip() if telephone is not None else ""
+        telephone_value = normalize_import_phone(telephone)
         phone_key = normalize_phone_number(telephone_value) or ""
 
         name_key = (nom_value.lower(), prenom_value.lower(), formation)
@@ -1485,6 +1510,7 @@ def price_adaptator_import():
             or (name_key in existing_names or name_key in seen_names)
         ):
             skipped += 1
+            errors.append(f"Ligne {idx}: prospect déjà existant")
             continue
 
         prospect = {

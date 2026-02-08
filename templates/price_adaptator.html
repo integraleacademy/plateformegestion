@@ -121,6 +121,19 @@
       color: #000;
     }
 
+    .btn.danger {
+      background: #ff6b6b;
+      border-color: #e74c3c;
+      color: #fff;
+    }
+
+    .row-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
     .proposal-edit {
       display: flex;
       flex-direction: column;
@@ -403,6 +416,7 @@
     const DATA_ENDPOINT = "{{ url_for('price_adaptator_data') }}";
     const PROSPECTS_ENDPOINT = "{{ url_for('price_adaptator_add_prospect') }}";
     const IMPORT_ENDPOINT = "{{ url_for('price_adaptator_import') }}";
+    const DELETE_ENDPOINT = "{{ url_for('price_adaptator_delete_prospect', prospect_id='__id__') }}";
     const DATES_ENDPOINT = "{{ url_for('price_adaptator_save_dates') }}";
     const SEND_ENDPOINT = "{{ url_for('price_adaptator_send') }}";
     const formationPrices = {
@@ -562,7 +576,10 @@
             ${statusDate}
           </td>
           <td data-label="Action">
-            <button class="btn edit" type="button" data-propose="${prospect.id}">Faire une proposition</button>
+            <div class="row-actions">
+              <button class="btn edit" type="button" data-propose="${prospect.id}">Faire une proposition</button>
+              <button class="btn danger" type="button" data-delete="${prospect.id}">Supprimer</button>
+            </div>
           </td>
         `;
         prospectsBody.appendChild(row);
@@ -692,9 +709,9 @@
         .then((data) => {
           prospects = data.prospects || prospects;
           renderTable();
-          const errors = (data.errors || []).slice(0, 5);
+          const errors = data.errors || [];
           const errorMessage = errors.length ? `\nErreurs:\n- ${errors.join("\n- ")}` : "";
-          alert(`Import terminé : ${data.added || 0} ajouté(s), ${data.skipped || 0} déjà existant(s).${errorMessage}`);
+          alert(`Import terminé : ${data.added || 0} ajouté(s), ${data.skipped || 0} non importé(s).${errorMessage}`);
         })
         .catch((error) => {
           alert(error.message);
@@ -855,11 +872,40 @@
     });
 
     prospectsBody.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-propose]");
-      if (!button) {
+      const deleteButton = event.target.closest("button[data-delete]");
+      if (deleteButton) {
+        const prospectId = deleteButton.dataset.delete;
+        if (!prospectId) {
+          return;
+        }
+        const prospect = prospects.find((item) => item.id === prospectId);
+        const nameLabel = prospect ? `${prospect.prenom} ${prospect.nom}` : "ce prospect";
+        if (!confirm(`Supprimer ${nameLabel} ?`)) {
+          return;
+        }
+        fetch(DELETE_ENDPOINT.replace("__id__", prospectId), { method: "DELETE" })
+          .then(async (response) => {
+            if (!response.ok) {
+              const data = await response.json().catch(() => ({}));
+              throw new Error(data.error || "Suppression impossible");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            prospects = data.prospects || prospects.filter((item) => item.id !== prospectId);
+            renderTable();
+          })
+          .catch((error) => {
+            alert(error.message);
+          });
         return;
       }
-      const prospect = prospects.find((item) => item.id === button.dataset.propose);
+
+      const proposeButton = event.target.closest("button[data-propose]");
+      if (!proposeButton) {
+        return;
+      }
+      const prospect = prospects.find((item) => item.id === proposeButton.dataset.propose);
       if (prospect) {
         openProposalModal(prospect);
       }

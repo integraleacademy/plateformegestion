@@ -1887,35 +1887,43 @@ def send_price_adaptator_email(to, subject, html):
 
 
 def send_price_adaptator_sms(phone, message):
-    sms_api_url = os.environ.get("SMS_API_URL")
-    sms_api_token = os.environ.get("SMS_API_TOKEN")
-    sms_sender = os.environ.get("SMS_SENDER", "Integrale")
     normalized_phone = normalize_phone_number(phone)
     if not normalized_phone:
         return False, "Téléphone au format international requis (ex: +336...)"
-    if not sms_api_url or not sms_api_token:
-        return False, "SMS non configuré"
-    payload = json.dumps({
-        "to": normalized_phone,
-        "message": message,
-        "sender": sms_sender,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        sms_api_url,
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {sms_api_token}",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            if 200 <= response.status < 300:
-                return True, None
-            return False, f"SMS erreur {response.status}"
-    except Exception as e:
-        print("❌ Erreur envoi SMS price adaptator :", e)
-        return False, str(e)
+
+    # ✅ Utilise Brevo comme pour les SMS jury
+    if BREVO_API_KEY and BREVO_SMS_SENDER:
+        print("[price sms] Envoi via Brevo API", {"to": normalized_phone, "sender": BREVO_SMS_SENDER})
+
+        payload = json.dumps({
+            "sender": BREVO_SMS_SENDER,
+            "recipient": normalized_phone,
+            "content": message,
+            "type": "transactional",
+        }).encode("utf-8")
+
+        req = urllib.request.Request("https://api.brevo.com/v3/transactionalSMS/sms")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("api-key", BREVO_API_KEY)
+
+        try:
+            with urllib.request.urlopen(req, data=payload, timeout=10) as resp:
+                body = resp.read().decode("utf-8", errors="replace")
+                print("[price sms] Brevo response", resp.status, body)
+                if 200 <= resp.status < 300:
+                    return True, None
+                return False, f"Brevo SMS erreur {resp.status}: {body}"
+
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            print("[price sms] Brevo HTTPError", e.code, body)
+            return False, f"Brevo HTTP {e.code}: {body}"
+
+        except Exception as e:
+            print("[price sms] Brevo exception", repr(e))
+            return False, str(e)
+
+    return False, "SMS non configuré (BREVO_API_KEY / BREVO_SMS_SENDER manquants)"
 
 
 @app.route("/dotations")

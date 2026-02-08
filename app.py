@@ -1194,19 +1194,18 @@ def price_adaptator_send():
             <p>Bonjour {prenom},</p>
             <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
             <p>
-              Nous vous proposons un tarif dernière minute de <strong>{price_label}</strong>
+              Suite à des désistements, nous vous proposons un tarif dernière minute de <strong>{price_label}</strong>
               pour notre prochaine formation qui se déroulera du <strong>{date_text}</strong>.
             </p>
             <p>
               Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir
               nous contacter au <strong>04 22 47 07 68</strong>.
             </p>
-            <p>À très bientôt !</p>
             <p>
               Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite
               une bonne journée,
             </p>
-            <p>Bien cordialement,</p>
+            <p>A très bientôt !</p>
             <p><strong>Clément VAILLANT</strong></p>
           </td>
         </tr>

@@ -393,9 +393,11 @@
   </div>
 
   <script>
-    const STORAGE_KEY = "price_adaptator_prospects";
-    const DATES_KEY = "price_adaptator_dates";
     const DEFAULT_DISCOUNT = 30;
+    const DATA_ENDPOINT = "{{ url_for('price_adaptator_data') }}";
+    const PROSPECTS_ENDPOINT = "{{ url_for('price_adaptator_add_prospect') }}";
+    const DATES_ENDPOINT = "{{ url_for('price_adaptator_save_dates') }}";
+    const SEND_ENDPOINT = "{{ url_for('price_adaptator_send') }}";
     const formationPrices = {
       APS: 1650,
       A3P: 4200,
@@ -430,22 +432,27 @@
       maximumFractionDigits: 0,
     }).format(value);
 
-    const loadProspects = () => {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      prospects = raw ? JSON.parse(raw) : [];
+    const loadRemoteData = async () => {
+      const response = await fetch(DATA_ENDPOINT);
+      if (!response.ok) {
+        throw new Error("Impossible de charger les prospects.");
+      }
+      const data = await response.json();
+      prospects = data.prospects || [];
+      formationDates = data.dates || {};
     };
 
-    const saveProspects = () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prospects));
-    };
-
-    const loadDates = () => {
-      const raw = localStorage.getItem(DATES_KEY);
-      formationDates = raw ? JSON.parse(raw) : {};
-    };
-
-    const saveDates = () => {
-      localStorage.setItem(DATES_KEY, JSON.stringify(formationDates));
+    const saveDates = async () => {
+      const response = await fetch(DATES_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dates: formationDates }),
+      });
+      if (!response.ok) {
+        throw new Error("Impossible d'enregistrer les dates.");
+      }
+      const data = await response.json();
+      formationDates = data.dates || {};
     };
 
     const openModal = (modal) => {
@@ -611,10 +618,10 @@
 
       proposalAcceptButton.disabled = true;
       proposalModifyButton.disabled = true;
-      fetch("{{ url_for('price_adaptator_send') }}", {
+      fetch(SEND_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, prospect_id: activeProspect.id }),
       })
         .then(async (response) => {
           if (!response.ok) {
@@ -624,10 +631,7 @@
           return response.json();
         })
         .then((data) => {
-          activeProspect.sent = true;
-          activeProspect.sentAt = new Date().toISOString();
-          activeProspect.proposedPrice = price;
-          saveProspects();
+          prospects = data.prospects || prospects;
           renderTable();
           if (data.sms_error && !data.sms_sent) {
             alert(`Email envoyé. SMS non envoyé: ${data.sms_error}`);
@@ -716,21 +720,34 @@
       }
 
       const prospect = {
-        id: crypto.randomUUID(),
         nom: formData.get("nom").trim(),
         prenom: formData.get("prenom").trim(),
         cpf: cpfValue,
         email: formData.get("email").trim(),
         telephone: formData.get("telephone").trim(),
         formation: formData.get("formation"),
-        sent: false,
-        sentAt: null,
       };
 
-      prospects.unshift(prospect);
-      saveProspects();
-      renderTable();
-      closeModal(addModal);
+      fetch(PROSPECTS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prospect),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Erreur d'enregistrement");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          prospects = data.prospects || prospects;
+          renderTable();
+          closeModal(addModal);
+        })
+        .catch((error) => {
+          alert(error.message);
+        });
     });
 
     datesForm.addEventListener("submit", (event) => {
@@ -753,8 +770,14 @@
           discount: normalizeDiscount(formData.get("Dirigeant_discount")),
         },
       };
-      saveDates();
-      closeModal(datesModal);
+      saveDates()
+        .then(() => {
+          renderTable();
+          closeModal(datesModal);
+        })
+        .catch((error) => {
+          alert(error.message);
+        });
     });
 
     datesForm.addEventListener("click", (event) => {
@@ -810,9 +833,11 @@
       sendProposal(price);
     });
 
-    loadProspects();
-    loadDates();
-    renderTable();
+    loadRemoteData()
+      .then(renderTable)
+      .catch((error) => {
+        alert(error.message);
+      });
   </script>
 </body>
 </html>

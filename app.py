@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from email.mime.text import MIMEText
 import logging
+import threading
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -171,6 +172,20 @@ app.jinja_env.globals['get_status_label'] = get_status_label
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
 os.makedirs(DATA_DIR, exist_ok=True)
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
+PRICE_ADAPTATOR_FILE = os.path.join(DATA_DIR, "price_adaptator.json")
+
+PRICE_ADAPTATOR_DEFAULT_DISCOUNT = 30
+PRICE_ADAPTATOR_FOLLOWUP_DAYS = 21
+PRICE_ADAPTATOR_FORMATION_PRICES = {
+    "APS": 1650,
+    "A3P": 4200,
+    "Dirigeant": 4300,
+}
+PRICE_ADAPTATOR_FORMATION_LABELS = {
+    "APS": "Agent de prévention et de sécurité (APS)",
+    "A3P": "Agent de protection physique des personnes (A3P)",
+    "Dirigeant": "Dirigeant d'entreprise de sécurité privée (DESP)",
+}
 
 # -----------------------
 # 📅 Planning PDF (par session)
@@ -229,6 +244,179 @@ def load_sessions():
 def save_sessions(data):
     with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def load_price_adaptator_data():
+    if os.path.exists(PRICE_ADAPTATOR_FILE):
+        try:
+            with open(PRICE_ADAPTATOR_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    data.setdefault("prospects", [])
+                    data.setdefault("dates", {})
+                    return data
+        except Exception:
+            pass
+    return {"prospects": [], "dates": {}}
+
+def save_price_adaptator_data(data):
+    with open(PRICE_ADAPTATOR_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def normalize_price_adaptator_discount(value):
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return PRICE_ADAPTATOR_DEFAULT_DISCOUNT
+    return max(0, min(parsed, 100))
+
+def get_price_adaptator_followup_date(dates, formation):
+    date_range = (dates or {}).get(formation, {})
+    start_value = (date_range or {}).get("start")
+    if not start_value:
+        return None
+    try:
+        start_date = datetime.strptime(start_value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    return start_date - timedelta(days=PRICE_ADAPTATOR_FOLLOWUP_DAYS)
+
+def format_price_adaptator_date_range(date_range):
+    if not date_range:
+        return "dates à définir"
+    start_value = date_range.get("start")
+    end_value = date_range.get("end")
+    try:
+        start_label = datetime.strptime(start_value, "%Y-%m-%d").strftime("%d/%m/%Y") if start_value else None
+    except ValueError:
+        start_label = None
+    try:
+        end_label = datetime.strptime(end_value, "%Y-%m-%d").strftime("%d/%m/%Y") if end_value else None
+    except ValueError:
+        end_label = None
+    if start_label and end_label:
+        return f"{start_label} au {end_label}"
+    if start_label:
+        return start_label
+    return "dates à définir"
+
+def build_price_adaptator_message(prospect, dates, price_override=None):
+    formation = prospect.get("formation", "")
+    formation_full = PRICE_ADAPTATOR_FORMATION_LABELS.get(formation, formation)
+    base_price = PRICE_ADAPTATOR_FORMATION_PRICES.get(formation, 0)
+    discount_value = normalize_price_adaptator_discount((dates or {}).get(formation, {}).get("discount"))
+    discounted_price = round(base_price * (1 - discount_value / 100))
+    price_value = price_override if price_override is not None else discounted_price
+    price_label = f"{price_value:,.0f} €".replace(",", " ")
+    base_price_label = f"{base_price:,.0f} €".replace(",", " ") if base_price else None
+    date_text = format_price_adaptator_date_range((dates or {}).get(formation))
+    prenom = (prospect.get("prenom") or "").strip().capitalize()
+    logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;padding:24px;">
+      <table style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;">
+        <tr>
+          <td style="background:#111;padding:20px;text-align:center;">
+            <img src="{logo_url}" alt="Intégrale Academy" style="max-width:140px;">
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px;color:#222;line-height:1.6;">
+            <p>Bonjour {prenom},</p>
+            <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
+            <p>
+              Bonne nouvelle : Suite à des désistements, nous pouvons vous proposer un <strong>tarif exceptionnel de dernière minute</strong> à
+              <strong>{price_label}</strong>{f" au lieu de {base_price_label} (prix initial de la formation), soit une remise de {discount_value:.0f} %" if base_price_label else ""} pour notre prochaine session qui se déroulera du
+              <strong>{date_text}</strong>.
+            </p>
+            <p>
+              Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir
+              nous contacter au <strong>04 22 47 07 68</strong>.
+            </p>
+            <p>Cette offre est limitée, profitez-en dès maintenant.</p>
+            <p>
+              Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite
+              une bonne journée,
+            </p>
+            <p>A très bientôt ! </p>
+            <p><strong>Clément VAILLANT</strong></p>
+          </td>
+        </tr>
+      </table>
+    </div>
+    """
+    subject = f"Proposition tarif dernière minute {formation_full}"
+    sms_message = (
+        f"Bonjour {prenom}, tarif exceptionnel dernière minute à {price_label} pour la formation "
+        f"{formation_full} (du {date_text}). Offre limitée: contactez-nous au 04 22 47 07 68. "
+        "Cordialement, Clément VAILLANT"
+    )
+    return {
+        "subject": subject,
+        "html": html,
+        "sms": sms_message,
+        "price": price_value,
+        "base_price": base_price,
+        "discount_value": discount_value,
+        "date_text": date_text,
+    }
+
+def attempt_price_adaptator_send(prospect, dates, price_override=None):
+    message = build_price_adaptator_message(prospect, dates, price_override=price_override)
+    email_sent = False
+    email_error = None
+    sms_sent = False
+    sms_error = None
+    email = (prospect.get("email") or "").strip()
+    phone = (prospect.get("telephone") or "").strip()
+    if email:
+        email_sent, email_error = send_price_adaptator_email(email, message["subject"], message["html"])
+    if phone:
+        sms_sent, sms_error = send_price_adaptator_sms(phone, message["sms"])
+    return {
+        "email_sent": email_sent,
+        "sms_sent": sms_sent,
+        "email_error": email_error,
+        "sms_error": sms_error,
+        "price": message["price"],
+    }
+
+def process_price_adaptator_followups():
+    data = load_price_adaptator_data()
+    today = datetime.now().date()
+    updated = False
+    for prospect in data.get("prospects", []):
+        if prospect.get("sent"):
+            continue
+        followup_date = get_price_adaptator_followup_date(data.get("dates"), prospect.get("formation"))
+        if not followup_date or followup_date > today:
+            continue
+        with app.app_context():
+            result = attempt_price_adaptator_send(prospect, data.get("dates"))
+        prospect["last_attempt_at"] = datetime.now().isoformat()
+        prospect["last_error"] = result["email_error"] or result["sms_error"]
+        prospect["proposed_price"] = result["price"]
+        if result["email_sent"] or result["sms_sent"]:
+            prospect["sent"] = True
+            prospect["sentAt"] = datetime.now().isoformat()
+        updated = True
+    if updated:
+        save_price_adaptator_data(data)
+
+def price_adaptator_scheduler_loop():
+    while True:
+        try:
+            process_price_adaptator_followups()
+        except Exception as exc:
+            logging.exception("[price-adaptator] Scheduler error: %s", exc)
+        time.sleep(60 * 30)
+
+def start_price_adaptator_scheduler():
+    if os.environ.get("DISABLE_PRICE_ADAPTATOR_SCHEDULER", "").lower() == "true":
+        return
+    if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        return
+    thread = threading.Thread(target=price_adaptator_scheduler_loop, daemon=True)
+    thread.start()
 
 def ensure_jury_defaults(session):
     session.setdefault("jurys", [])
@@ -1159,18 +1347,77 @@ def price_adaptator():
     return render_template("price_adaptator.html", title="Price adaptator")
 
 
+@app.route("/price-adaptator/data")
+def price_adaptator_data():
+    data = load_price_adaptator_data()
+    return {"prospects": data.get("prospects", []), "dates": data.get("dates", {})}
+
+
+@app.route("/price-adaptator/prospects", methods=["POST"])
+def price_adaptator_add_prospect():
+    payload = request.get_json(silent=True) or {}
+    nom = payload.get("nom", "").strip()
+    prenom = payload.get("prenom", "").strip()
+    cpf = payload.get("cpf")
+    email = payload.get("email", "").strip()
+    telephone = payload.get("telephone", "").strip()
+    formation = payload.get("formation", "").strip()
+
+    if not (nom and prenom and formation):
+        return {"ok": False, "error": "Données prospect incomplètes"}, 400
+
+    try:
+        cpf_value = float(cpf)
+        if cpf_value < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "Montant CPF invalide"}, 400
+
+    data = load_price_adaptator_data()
+    prospect = {
+        "id": str(uuid.uuid4()),
+        "nom": nom,
+        "prenom": prenom,
+        "cpf": cpf_value,
+        "email": email,
+        "telephone": telephone,
+        "formation": formation,
+        "sent": False,
+        "sentAt": None,
+        "proposed_price": None,
+        "last_error": None,
+        "last_attempt_at": None,
+        "created_at": datetime.now().isoformat(),
+    }
+    data["prospects"].insert(0, prospect)
+    save_price_adaptator_data(data)
+    return {"ok": True, "prospects": data["prospects"]}
+
+
+@app.route("/price-adaptator/dates", methods=["POST"])
+def price_adaptator_save_dates():
+    payload = request.get_json(silent=True) or {}
+    dates = payload.get("dates", {})
+    data = load_price_adaptator_data()
+    cleaned = {}
+    for formation, range_data in (dates or {}).items():
+        if not isinstance(range_data, dict):
+            continue
+        cleaned[formation] = {
+            "start": range_data.get("start"),
+            "end": range_data.get("end"),
+            "discount": normalize_price_adaptator_discount(range_data.get("discount")),
+        }
+    data["dates"] = cleaned
+    save_price_adaptator_data(data)
+    return {"ok": True, "dates": data["dates"]}
+
+
 @app.route("/price-adaptator/send", methods=["POST"])
 def price_adaptator_send():
     payload = request.get_json(silent=True) or {}
-    email = payload.get("email", "").strip()
-    phone = payload.get("phone", "").strip()
-    prenom = payload.get("prenom", "").strip()
-    formation = payload.get("formation", "").strip()
-    formation_full = payload.get("formation_full", "").strip() or formation
-    date_text = payload.get("date_text", "").strip() or "dates à définir"
     price = payload.get("price")
-    base_price = payload.get("base_price")
-    discount_value = payload.get("discount_value")
+    prospect_id = payload.get("prospect_id")
 
     if price is None:
         return {"ok": False, "error": "Prix manquant"}, 400
@@ -1180,88 +1427,27 @@ def price_adaptator_send():
     except (TypeError, ValueError):
         return {"ok": False, "error": "Prix invalide"}, 400
 
-    try:
-        base_price_value = float(base_price) if base_price is not None else None
-    except (TypeError, ValueError):
-        base_price_value = None
+    data = load_price_adaptator_data()
+    prospect = next((item for item in data.get("prospects", []) if item.get("id") == prospect_id), None)
+    if not prospect:
+        return {"ok": False, "error": "Prospect introuvable"}, 404
 
-    try:
-        discount_value_float = float(discount_value) if discount_value is not None else None
-    except (TypeError, ValueError):
-        discount_value_float = None
-
-    logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
-    price_label = f"{price_value:,.0f} €".replace(",", " ")
-    base_price_label = (
-        f"{base_price_value:,.0f} €".replace(",", " ") if base_price_value is not None else None
-    )
-    prenom = prenom.capitalize()
-
-    html = f"""
-    <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;padding:24px;">
-      <table style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;">
-        <tr>
-          <td style="background:#111;padding:20px;text-align:center;">
-            <img src="{logo_url}" alt="Intégrale Academy" style="max-width:140px;">
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:24px;color:#222;line-height:1.6;">
-            <p>Bonjour {prenom},</p>
-            <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
-            <p>
-              Bonne nouvelle : Suite à des désistements, nous pouvons vous proposer un <strong>tarif exceptionnel de dernière minute</strong> à
-              <strong>{price_label}</strong>{f" au lieu de {base_price_label} (prix initial de la formation), soit une remise de {discount_value_float:.0f} %" if base_price_label and discount_value_float is not None else ""} pour notre prochaine session qui se déroulera du
-              <strong>{date_text}</strong>.
-            </p>
-            <p>
-              Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir
-              nous contacter au <strong>04 22 47 07 68</strong>.
-            </p>
-            <p>Cette offre est limitée, profitez-en dès maintenant.</p>
-            <p>
-              Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite
-              une bonne journée,
-            </p>
-            <p>A très bientôt ! </p>
-            <p><strong>Clément VAILLANT</strong></p>
-          </td>
-        </tr>
-      </table>
-    </div>
-    """
-
-    subject = "Proposition tarif dernière minute {formation_full}"
-
-    email_sent = False
-    email_error = None
-    if email:
-        email_sent, email_error = send_price_adaptator_email(email, subject, html)
-
-    sms_sent = False
-    sms_error = None
-    if phone:
-        sms_message = (
-            f"Bonjour {prenom}, tarif exceptionnel dernière minute à {price_label} pour la formation "
-            f"{formation_full} (du {date_text}). Offre limitée: contactez-nous au 04 22 47 07 68. "
-            "Cordialement, Clément VAILLANT"
-        )
-
-        print("[price] phone reçu =", repr(phone))
-        print("[price] normalize =", normalize_phone_number(phone))
-        print("[price] env SMS_API_URL set =", bool(os.environ.get("SMS_API_URL")))
-        print("[price] env SMS_API_TOKEN set =", bool(os.environ.get("SMS_API_TOKEN")))
-        print("[price] env BREVO_API_KEY set =", bool(os.environ.get("BREVO_API_KEY")))
-        print("[price] env BREVO_SMS_SENDER set =", bool(os.environ.get("BREVO_SMS_SENDER")))
-
-        sms_sent, sms_error = send_price_adaptator_sms(phone, sms_message)
+    result = attempt_price_adaptator_send(prospect, data.get("dates"), price_override=price_value)
+    prospect["last_attempt_at"] = datetime.now().isoformat()
+    prospect["last_error"] = result["email_error"] or result["sms_error"]
+    prospect["proposed_price"] = result["price"]
+    if result["email_sent"] or result["sms_sent"]:
+        prospect["sent"] = True
+        prospect["sentAt"] = datetime.now().isoformat()
+    save_price_adaptator_data(data)
 
     return {
         "ok": True,
-        "email_sent": email_sent,
-        "sms_sent": sms_sent,
-        "email_error": email_error,
-        "sms_error": sms_error,
+        "email_sent": result["email_sent"],
+        "sms_sent": result["sms_sent"],
+        "email_error": result["email_error"],
+        "sms_error": result["sms_error"],
+        "prospects": data.get("prospects", []),
     }
 
 
@@ -3171,6 +3357,7 @@ def distributeur_reassort_valider(ligne_id, produit_id):
 
     return redirect(url_for("distributeur_reassort"))
 
+start_price_adaptator_scheduler()
 
 
 

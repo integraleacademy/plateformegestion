@@ -1882,10 +1882,13 @@ def send_price_adaptator_sms(phone, message):
     sms_api_url = os.environ.get("SMS_API_URL")
     sms_api_token = os.environ.get("SMS_API_TOKEN")
     sms_sender = os.environ.get("SMS_SENDER", "Integrale")
+    normalized_phone = normalize_phone_number(phone)
+    if not normalized_phone:
+        return False, "Téléphone au format international requis (ex: +336...)"
     if not sms_api_url or not sms_api_token:
         return False, "SMS non configuré"
     payload = json.dumps({
-        "to": phone,
+        "to": normalized_phone,
         "message": message,
         "sender": sms_sender,
     }).encode("utf-8")

@@ -1231,6 +1231,14 @@ def price_adaptator_send():
             f"{formation_full} (du {date_text}). Offre limitée: contactez-nous au 04 22 47 07 68. "
             "Cordialement, Clément VAILLANT"
         )
+
+        print("[price] phone reçu =", repr(phone))
+        print("[price] normalize =", normalize_phone_number(phone))
+        print("[price] env SMS_API_URL set =", bool(os.environ.get("SMS_API_URL")))
+        print("[price] env SMS_API_TOKEN set =", bool(os.environ.get("SMS_API_TOKEN")))
+        print("[price] env BREVO_API_KEY set =", bool(os.environ.get("BREVO_API_KEY")))
+        print("[price] env BREVO_SMS_SENDER set =", bool(os.environ.get("BREVO_SMS_SENDER")))
+
         sms_sent, sms_error = send_price_adaptator_sms(phone, sms_message)
 
     return {

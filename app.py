@@ -1418,6 +1418,14 @@ def price_adaptator_delete_prospect(prospect_id):
     return {"ok": True, "prospects": data["prospects"]}
 
 
+@app.route("/price-adaptator/prospects", methods=["DELETE"])
+def price_adaptator_clear_prospects():
+    data = load_price_adaptator_data()
+    data["prospects"] = []
+    save_price_adaptator_data(data)
+    return {"ok": True, "prospects": data["prospects"]}
+
+
 @app.route("/price-adaptator/import", methods=["POST"])
 def price_adaptator_import():
     upload = request.files.get("file")

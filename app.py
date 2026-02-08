@@ -1666,6 +1666,26 @@ def price_adaptator_send():
     }
 
 
+@app.route("/price-adaptator/prospects/<prospect_id>/preview")
+def price_adaptator_preview(prospect_id):
+    data = load_price_adaptator_data()
+    prospect = next((item for item in data.get("prospects", []) if item.get("id") == prospect_id), None)
+    if not prospect:
+        return {"ok": False, "error": "Prospect introuvable"}, 404
+
+    price_override = prospect.get("proposed_price")
+    if price_override is not None:
+        price_override = apply_price_adaptator_minimum_price(prospect, price_override)
+
+    message = build_price_adaptator_message(prospect, data.get("dates"), price_override=price_override)
+    return {
+        "ok": True,
+        "subject": message["subject"],
+        "html": message["html"],
+        "sent_at": prospect.get("sentAt"),
+    }
+
+
 @app.route("/sessions")
 def sessions_home():
     data = load_sessions()

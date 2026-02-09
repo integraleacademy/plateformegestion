@@ -129,9 +129,16 @@
     }
 
     .top-cpf-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-weight: 700;
       font-size: 14px;
       color: #0f172a;
+    }
+
+    .top-cpf-sent {
+      font-size: 14px;
     }
 
     .top-cpf-meta {
@@ -911,8 +918,11 @@
         const displayNom = normalizeLastName(prospect.nom);
         const displayPrenom = normalizeFirstName(prospect.prenom);
         const formationLabel = formationLabels[prospect.formation] || prospect.formation || "—";
+        const sentIndicator = prospect.sent
+          ? `<span class="top-cpf-sent" aria-label="Proposition envoyée">✅</span>`
+          : "";
         card.innerHTML = `
-          <div class="top-cpf-name">${displayPrenom} ${displayNom}</div>
+          <div class="top-cpf-name">${displayPrenom} ${displayNom} ${sentIndicator}</div>
           <div class="top-cpf-meta">
             <span>CPF : ${formatCurrency(prospect.cpf)}</span>
             <span>${formationLabel}</span>

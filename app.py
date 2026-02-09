@@ -360,9 +360,17 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
             text-align: left !important;
             padding-top: 0 !important;
           }}
+          .email-container {{
+            max-width: 100% !important;
+            width: 100% !important;
+          }}
+          .email-body {{
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+          }}
         }}
       </style>
-      <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9ef;box-shadow:0 12px 30px rgba(16,24,40,0.08);">
+      <table role="presentation" cellspacing="0" cellpadding="0" class="email-container" style="width:100%;max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9ef;box-shadow:0 12px 30px rgba(16,24,40,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px;text-align:center;">
             <img src="{logo_url}" alt="Intégrale Academy" style="max-width:150px;height:auto;">
@@ -370,10 +378,16 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
           </td>
         </tr>
         <tr>
-          <td style="padding:28px 32px 10px;color:#1f2937;line-height:1.7;">
+          <td class="email-body" style="padding:28px 32px 10px;color:#1f2937;line-height:1.7;">
             <p style="margin:0 0 16px;font-size:16px;">Bonjour {prenom},</p>
             <p style="margin:0 0 16px;font-size:16px;">
-              Je reviens vers vous concernant notre formation <strong>{formation_full}</strong>.
+              Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.
+            </p>
+            <p style="margin:0 0 16px;font-size:16px;">
+              Bonne nouvelle : Suite à des désistements, nous pouvons vous proposer un tarif exceptionnel de dernière
+              minute à <strong>{price_label}</strong> au lieu de <strong>{base_price_label or "prix initial"}</strong> (prix initial de
+              la formation), soit une remise de <strong>{discount_value:.0f} %</strong> pour notre prochaine session
+              qui se déroulera du <strong>{date_text}</strong>.
             </p>
             <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#f9fafb;border-radius:12px;border:1px solid #eef2f6;margin:16px 0;">
               <tr>
@@ -391,10 +405,14 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
               </tr>
             </table>
             <p style="margin:0 0 16px;font-size:16px;">
-              Pour bénéficier de ce tarif et finaliser votre inscription, contactez-nous directement au
+              Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir nous contacter au
               <strong>04 22 47 07 68</strong>.
             </p>
             <p style="margin:0 0 20px;font-size:16px;">Cette offre est limitée, profitez-en dès maintenant.</p>
+            <p style="margin:0 0 8px;font-size:16px;">
+              Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite une bonne journée,
+            </p>
+            <p style="margin:0 0 0;font-size:16px;">A très bientôt !</p>
           </td>
         </tr>
         <tr>

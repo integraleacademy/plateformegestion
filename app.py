@@ -435,6 +435,7 @@ def process_price_adaptator_followups():
         if result["email_sent"] or result["sms_sent"]:
             prospect["sent"] = True
             prospect["sentAt"] = datetime.now().isoformat()
+            prospect["last_sent_price"] = result["price"]
         updated = True
     if updated:
         save_price_adaptator_data(data)
@@ -1654,6 +1655,7 @@ def price_adaptator_send():
     if result["email_sent"] or result["sms_sent"]:
         prospect["sent"] = True
         prospect["sentAt"] = datetime.now().isoformat()
+        prospect["last_sent_price"] = result["price"]
     save_price_adaptator_data(data)
 
     return {
@@ -1673,7 +1675,9 @@ def price_adaptator_preview(prospect_id):
     if not prospect:
         return {"ok": False, "error": "Prospect introuvable"}, 404
 
-    price_override = prospect.get("proposed_price")
+    price_override = prospect.get("last_sent_price")
+    if price_override is None:
+        price_override = prospect.get("proposed_price")
     if price_override is not None:
         price_override = apply_price_adaptator_minimum_price(prospect, price_override)
 

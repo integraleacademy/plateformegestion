@@ -83,6 +83,70 @@
       margin-top: 6px;
     }
 
+    .top-cpf {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .top-cpf-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .top-cpf-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .top-cpf-subtitle {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .top-cpf-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .top-cpf-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .top-cpf-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: #0f172a;
+    }
+
+    .top-cpf-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 13px;
+      color: #475569;
+    }
+
+    .top-cpf-empty {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
     .table-wrap {
       background: #fff;
       border-radius: 16px;
@@ -374,6 +438,14 @@
       </div>
     </div>
 
+    <section class="top-cpf" aria-live="polite">
+      <div class="top-cpf-header">
+        <h3>Top CPF</h3>
+        <span class="top-cpf-subtitle">Les montants CPF les plus élevés</span>
+      </div>
+      <div class="top-cpf-list" id="top-cpf-list"></div>
+    </section>
+
     <div class="table-wrap">
       <div class="filters-toolbar">
         <div class="filters-group" id="formation-filters">
@@ -591,6 +663,7 @@
     const searchInput = document.getElementById("prospect-search");
     const formationFilters = document.getElementById("formation-filters");
     const clearProspectsButton = document.getElementById("clear-prospects");
+    const topCpfList = document.getElementById("top-cpf-list");
 
     let prospects = [];
     let activeProspect = null;
@@ -761,6 +834,8 @@
         clearProspectsButton.disabled = !hasProspects;
       }
 
+      renderTopCpf();
+
       filteredProspects.forEach((prospect) => {
         const displayNom = normalizeLastName(prospect.nom);
         const displayPrenom = normalizeFirstName(prospect.prenom);
@@ -795,6 +870,46 @@
           </td>
         `;
         prospectsBody.appendChild(row);
+      });
+    };
+
+    const renderTopCpf = () => {
+      if (!topCpfList) {
+        return;
+      }
+      topCpfList.innerHTML = "";
+      const sorted = [...prospects].sort((a, b) => {
+        const cpfA = Number(a?.cpf) || 0;
+        const cpfB = Number(b?.cpf) || 0;
+        if (cpfB !== cpfA) {
+          return cpfB - cpfA;
+        }
+        const nameA = `${normalizeLastName(a?.nom)} ${normalizeFirstName(a?.prenom)}`.trim();
+        const nameB = `${normalizeLastName(b?.nom)} ${normalizeFirstName(b?.prenom)}`.trim();
+        return nameA.localeCompare(nameB, "fr");
+      });
+      const topProspects = sorted.slice(0, 3);
+      if (!topProspects.length) {
+        const empty = document.createElement("div");
+        empty.className = "top-cpf-empty";
+        empty.textContent = "Aucun prospect pour le moment.";
+        topCpfList.appendChild(empty);
+        return;
+      }
+      topProspects.forEach((prospect) => {
+        const card = document.createElement("div");
+        card.className = "top-cpf-card";
+        const displayNom = normalizeLastName(prospect.nom);
+        const displayPrenom = normalizeFirstName(prospect.prenom);
+        const formationLabel = formationLabels[prospect.formation] || prospect.formation || "—";
+        card.innerHTML = `
+          <div class="top-cpf-name">${displayPrenom} ${displayNom}</div>
+          <div class="top-cpf-meta">
+            <span>CPF : ${formatCurrency(prospect.cpf)}</span>
+            <span>${formationLabel}</span>
+          </div>
+        `;
+        topCpfList.appendChild(card);
       });
     };
 

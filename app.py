@@ -349,6 +349,19 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
     logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
     html = f"""
     <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:#f2f4f7;padding:24px;">
+      <style>
+        @media screen and (max-width: 600px) {{
+          .stack-column {{
+            display: block !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }}
+          .stack-column-right {{
+            text-align: left !important;
+            padding-top: 0 !important;
+          }}
+        }}
+      </style>
       <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9ef;box-shadow:0 12px 30px rgba(16,24,40,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px;text-align:center;">
@@ -364,14 +377,14 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
             </p>
             <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#f9fafb;border-radius:12px;border:1px solid #eef2f6;margin:16px 0;">
               <tr>
-                <td style="padding:18px 20px;">
+                <td class="stack-column" style="padding:18px 20px;">
                   <div style="font-size:14px;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;margin-bottom:8px;">Tarif exceptionnel</div>
                   <div style="font-size:28px;font-weight:700;color:#111827;">{price_label}</div>
                   <div style="font-size:14px;color:#6b7280;margin-top:4px;">
                     {f"Au lieu de {base_price_label} • remise de {discount_value:.0f} %" if base_price_label else "Offre dernière minute limitée"}
                   </div>
                 </td>
-                <td style="padding:18px 20px;text-align:right;">
+                <td class="stack-column stack-column-right" style="padding:18px 20px;text-align:right;">
                   <div style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;">Prochaine session</div>
                   <div style="font-size:16px;font-weight:600;color:#111827;">{date_text}</div>
                 </td>

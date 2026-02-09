@@ -824,7 +824,16 @@
 
     const renderTable = () => {
       prospectsBody.innerHTML = "";
-      const filteredProspects = getFilteredProspects();
+      const filteredProspects = getFilteredProspects().sort((a, b) => {
+        const cpfA = Number(a?.cpf) || 0;
+        const cpfB = Number(b?.cpf) || 0;
+        if (cpfB !== cpfA) {
+          return cpfB - cpfA;
+        }
+        const nameA = `${normalizeLastName(a?.nom)} ${normalizeFirstName(a?.prenom)}`.trim();
+        const nameB = `${normalizeLastName(b?.nom)} ${normalizeFirstName(b?.prenom)}`.trim();
+        return nameA.localeCompare(nameB, "fr");
+      });
       const hasProspects = prospects.length > 0;
       emptyState.style.display = filteredProspects.length ? "none" : "block";
       emptyState.textContent = hasProspects

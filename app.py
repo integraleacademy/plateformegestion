@@ -576,7 +576,7 @@ def sync_steps(session):
     """
     formation = session.get("formation")
 
-    if formation in ("APS", "A3P"):
+    if formation in ("APS", "A3P", "DIRIGEANT"):
         rules = APS_A3P_STEPS
     elif formation == "SSIAP":
         rules = SSIAP_STEPS
@@ -608,7 +608,14 @@ def sync_steps(session):
 
 
     # Récupère la liste actuelle des règles depuis le code
-    rules = APS_A3P_STEPS if formation in ("APS", "A3P") else SSIAP_STEPS
+    if formation in ("APS", "A3P", "DIRIGEANT"):
+        rules = APS_A3P_STEPS
+    elif formation == "SSIAP":
+        rules = SSIAP_STEPS
+    elif formation == "GENERAL":
+        rules = GENERAL_STEPS
+    else:
+        return
     existing_names = [s["name"] for s in session.get("steps", [])]
 
     # Pour chaque étape officielle, si elle n’existe pas encore dans la session → on l’ajoute
@@ -783,7 +790,7 @@ def formation_label(value):
 app.jinja_env.filters['formation_label'] = formation_label
 
 def default_steps_for(formation):
-    if formation in ("APS", "A3P"):
+    if formation in ("APS", "A3P", "DIRIGEANT"):
         steps = APS_A3P_STEPS
     elif formation == "SSIAP":
         steps = SSIAP_STEPS
@@ -798,7 +805,7 @@ def default_steps_for(formation):
 # Statuts / échéances
 # -----------------------
 def _rule_for(formation, step_index):
-    if formation in ("APS", "A3P"):
+    if formation in ("APS", "A3P", "DIRIGEANT"):
         rules = APS_A3P_STEPS
     elif formation == "SSIAP":
         rules = SSIAP_STEPS

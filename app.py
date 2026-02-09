@@ -1585,6 +1585,13 @@ def price_adaptator_import():
             except (TypeError, ValueError):
                 errors.append(f"Ligne {idx}: montant CPF invalide")
                 continue
+        formation_price = PRICE_ADAPTATOR_FORMATION_PRICES.get(formation)
+        if formation_price is not None and cpf_value > formation_price:
+            skipped += 1
+            errors.append(
+                f"Ligne {idx}: montant CPF supérieur au montant de la formation"
+            )
+            continue
 
         email_value = str(email).strip() if email is not None else ""
         email_key = email_value.lower() if email_value else ""

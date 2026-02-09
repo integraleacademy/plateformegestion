@@ -1238,6 +1238,11 @@
         alert("Merci de renseigner un montant CPF valide.");
         return;
       }
+      const selectedFormation = formData.get("formation");
+      const formationPrice = formationPrices?.[selectedFormation];
+      if (Number.isFinite(formationPrice) && cpfValue > formationPrice) {
+        alert("Attention le montant du CPF est supérieur au montant de la formation");
+      }
 
       const prospect = {
         nom: normalizeLastName(formData.get("nom")),
@@ -1245,7 +1250,7 @@
         cpf: cpfValue,
         email: formData.get("email").trim(),
         telephone: formData.get("telephone").trim(),
-        formation: formData.get("formation"),
+        formation: selectedFormation,
       };
 
       fetch(PROSPECTS_ENDPOINT, {

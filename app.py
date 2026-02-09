@@ -382,9 +382,9 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
     """
     subject = f"Proposition tarif dernière minute {formation_full}"
     sms_message = (
-        f"Bonjour {prenom}, tarif exceptionnel dernière minute à {price_label} pour la formation "
+        f"Bonjour {prenom}, Tarif exceptionnel dernière minute à {price_label} pour la formation "
         f"{formation_full} (du {date_text}). Offre limitée: contactez-nous au 04 22 47 07 68. "
-        "Cordialement, Clément VAILLANT"
+        "Cordialement, Clément VAILLANT - Intégrale Academy"
     )
     return {
         "subject": subject,

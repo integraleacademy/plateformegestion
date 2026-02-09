@@ -348,33 +348,57 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
     prenom = normalize_price_adaptator_prenom(prospect.get("prenom"))
     logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
     html = f"""
-    <div style="font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;padding:24px;">
-      <table style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;">
+    <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:#f2f4f7;padding:24px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9ef;box-shadow:0 12px 30px rgba(16,24,40,0.08);">
         <tr>
-          <td style="background:#111;padding:20px;text-align:center;">
-            <img src="{logo_url}" alt="Intégrale Academy" style="max-width:140px;">
+          <td style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px;text-align:center;">
+            <img src="{logo_url}" alt="Intégrale Academy" style="max-width:150px;height:auto;">
+            <div style="margin-top:12px;color:#e5e7eb;font-size:14px;letter-spacing:0.4px;text-transform:uppercase;">Offre dernière minute</div>
           </td>
         </tr>
         <tr>
-          <td style="padding:24px;color:#222;line-height:1.6;">
-            <p>Bonjour {prenom},</p>
-            <p>Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.</p>
-            <p>
-              Bonne nouvelle : Suite à des désistements, nous pouvons vous proposer un <strong>tarif exceptionnel de dernière minute</strong> à
-              <strong>{price_label}</strong>{f" au lieu de {base_price_label} (prix initial de la formation), soit une remise de {discount_value:.0f} %" if base_price_label else ""} pour notre prochaine session qui se déroulera du
-              <strong>{date_text}</strong>.
+          <td style="padding:28px 32px 10px;color:#1f2937;line-height:1.7;">
+            <p style="margin:0 0 16px;font-size:16px;">Bonjour {prenom},</p>
+            <p style="margin:0 0 16px;font-size:16px;">
+              Je reviens vers vous concernant notre formation <strong>{formation_full}</strong>.
             </p>
-            <p>
-              Pour bénéficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir
-              nous contacter au <strong>04 22 47 07 68</strong>.
+            <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#f9fafb;border-radius:12px;border:1px solid #eef2f6;margin:16px 0;">
+              <tr>
+                <td style="padding:18px 20px;">
+                  <div style="font-size:14px;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;margin-bottom:8px;">Tarif exceptionnel</div>
+                  <div style="font-size:28px;font-weight:700;color:#111827;">{price_label}</div>
+                  <div style="font-size:14px;color:#6b7280;margin-top:4px;">
+                    {f"Au lieu de {base_price_label} • remise de {discount_value:.0f} %" if base_price_label else "Offre dernière minute limitée"}
+                  </div>
+                </td>
+                <td style="padding:18px 20px;text-align:right;">
+                  <div style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;">Prochaine session</div>
+                  <div style="font-size:16px;font-weight:600;color:#111827;">{date_text}</div>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 16px;font-size:16px;">
+              Pour bénéficier de ce tarif et finaliser votre inscription, contactez-nous directement au
+              <strong>04 22 47 07 68</strong>.
             </p>
-            <p>Cette offre est limitée, profitez-en dès maintenant.</p>
-            <p>
-              Je reste à votre disposition pour tous renseignements complémentaires et je vous souhaite
-              une bonne journée,
-            </p>
-            <p>A très bientôt ! </p>
-            <p><strong>Clément VAILLANT</strong></p>
+            <p style="margin:0 0 20px;font-size:16px;">Cette offre est limitée, profitez-en dès maintenant.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 28px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#111827;border-radius:12px;">
+              <tr>
+                <td style="padding:16px 20px;color:#ffffff;font-size:15px;">
+                  <div style="font-weight:600;">Clément VAILLANT</div>
+                  <div style="font-size:13px;color:#d1d5db;">Intégrale Academy</div>
+                </td>
+                <td style="padding:16px 20px;text-align:right;">
+                  <span style="display:inline-block;background:#f9fafb;color:#111827;font-weight:600;padding:10px 16px;border-radius:999px;font-size:13px;">
+                    04 22 47 07 68
+                  </span>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
       </table>

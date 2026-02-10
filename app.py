@@ -107,6 +107,10 @@ def protect_all_routes():
     if path.startswith("/static/"):
         return None
 
+    # ✅ autoriser les webhooks (Salesforce, etc.)
+    if path.startswith("/webhooks/"):
+        return None
+
     # ✅ autoriser lien public formateur (upload avec token)
     if path.startswith("/formateurs/") and "/upload" in path:
         return None
@@ -132,6 +136,7 @@ def protect_all_routes():
         return redirect(url_for("login", next=path))
 
     return None
+
 
 
 
@@ -3671,6 +3676,92 @@ def distributeur_reassort_valider(ligne_id, produit_id):
     return redirect(url_for("distributeur_reassort"))
 
 start_price_adaptator_scheduler()
+
+import xml.etree.ElementTree as ET
+from flask import Response, request
+from datetime import datetime
+
+def _first_text(elem, tag_name):
+    if elem is None:
+        return None
+    for child in list(elem):
+        if child.tag.endswith(tag_name):
+            return (child.text or "").strip()
+    return None
+
+@app.post("/webhooks/salesforce/lead-outbound")
+def salesforce_lead_outbound():
+    # sécurité optionnelle
+    secret_expected = os.environ.get("SF_OUTBOUND_SECRET")
+    if secret_expected and request.args.get("key") != secret_expected:
+        return Response("Unauthorized", status=401)
+
+    raw = request.data.decode("utf-8", errors="ignore")
+    if not raw.strip():
+        return Response("Empty body", status=400)
+
+    try:
+        root = ET.fromstring(raw)
+    except Exception as e:
+        return Response(f"Bad XML: {e}", status=400)
+
+    # On récupère TON format de stockage (dict)
+    data = load_price_adaptator_data()
+
+    now_iso = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    added = 0
+
+    for notif in root.iter():
+        if not notif.tag.endswith("notifications"):
+            continue
+
+        sobject = None
+        for e in notif.iter():
+            if e.tag.endswith("sObject"):
+                sobject = e
+                break
+        if sobject is None:
+            continue
+
+        # mapping Outbound -> ton modèle prospect
+        prospect = {
+            "id": str(uuid.uuid4()),
+            "nom": normalize_price_adaptator_nom(_first_text(sobject, "LastName")),
+            "prenom": normalize_price_adaptator_prenom(_first_text(sobject, "FirstName")),
+            "cpf": float(_first_text(sobject, "Montant_CPF__c") or 0),
+            "email": (_first_text(sobject, "Email") or "").strip(),
+            "telephone": (_first_text(sobject, "Phone") or "").strip(),
+            "formation": normalize_price_adaptator_formation(_first_text(sobject, "Type_de_formation__c")),
+            "sent": False,
+            "sentAt": None,
+            "proposed_price": None,
+            "last_error": None,
+            "last_attempt_at": None,
+            "created_at": datetime.now().isoformat(),
+            "salesforce": {
+                "lead_id": _first_text(sobject, "Id"),
+                "received_at": now_iso
+            }
+        }
+
+        # on n’ajoute que si formation ok + nom/prénom ok
+        if prospect["nom"] and prospect["prenom"] and prospect["formation"]:
+            data["prospects"].insert(0, prospect)
+            added += 1
+
+    save_price_adaptator_data(data)
+
+    soap_response = """<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+  <soapenv:Body>
+    <notificationsResponse xmlns="http://soap.sforce.com/2005/09/outbound">
+      <Ack>true</Ack>
+    </notificationsResponse>
+  </soapenv:Body>
+</soapenv:Envelope>
+"""
+    return Response(soap_response, status=200, content_type="text/xml; charset=utf-8")
+
 
 
 

@@ -351,7 +351,13 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
     base_price_label = f"{base_price:,.0f} €".replace(",", " ") if base_price else None
     date_text = format_price_adaptator_date_range((dates or {}).get(formation))
     prenom = normalize_price_adaptator_prenom(prospect.get("prenom"))
-    logo_url = url_for("static", filename="img/logo-integrale.png", _external=True)
+    logo_path = os.path.join("static", "img", "logo-integrale.png")
+    logo_src = url_for("static", filename="img/logo-integrale.png", _external=True)
+    try:
+        with open(logo_path, "rb") as logo_file:
+            logo_src = "data:image/png;base64," + base64.b64encode(logo_file.read()).decode("utf-8")
+    except OSError:
+        pass
     html = f"""
     <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:#f2f4f7;padding:24px;">
       <style>
@@ -378,7 +384,7 @@ def build_price_adaptator_message(prospect, dates, price_override=None):
       <table role="presentation" cellspacing="0" cellpadding="0" class="email-container" style="width:100%;max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9ef;box-shadow:0 12px 30px rgba(16,24,40,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px;text-align:center;">
-            <img src="{logo_url}" alt="Intégrale Academy" style="max-width:150px;height:auto;">
+            <img src="{logo_src}" alt="Intégrale Academy" style="max-width:150px;height:auto;">
             <div style="margin-top:12px;color:#e5e7eb;font-size:14px;letter-spacing:0.4px;text-transform:uppercase;">Offre dernière minute</div>
           </td>
         </tr>

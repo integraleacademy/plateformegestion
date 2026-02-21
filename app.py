@@ -515,7 +515,7 @@ def price_adaptator_scheduler_loop():
         time.sleep(60 * 30)
 
 def start_price_adaptator_scheduler():
-    if os.environ.get("DISABLE_PRICE_ADAPTATOR_SCHEDULER", "").lower() == "true":
+    if os.environ.get("ENABLE_PRICE_ADAPTATOR_AUTOSEND", "").lower() != "true":
         return
     if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         return

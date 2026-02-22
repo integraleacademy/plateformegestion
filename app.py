@@ -1039,6 +1039,94 @@ def send_daily_overdue_summary():
         print("❌ Erreur envoi mail quotidien :", e)
 
 
+def _list_formateur_expired_documents(formateurs):
+    today = datetime.now().date()
+    expired_docs = []
+
+    for formateur in formateurs:
+        nom = (formateur.get("nom") or "").upper().strip()
+        prenom = (formateur.get("prenom") or "").strip()
+        full_name = f"{prenom} {nom}".strip()
+
+        for doc in formateur.get("documents", []):
+            exp_str = (doc.get("expiration") or "").strip()
+            if not exp_str:
+                continue
+
+            exp_dt = parse_date(exp_str)
+            if not exp_dt or exp_dt.date() > today:
+                continue
+
+            # Une seule alerte par document et par date d'expiration
+            if doc.get("expiration_alert_sent_for") == exp_str:
+                continue
+
+            expired_docs.append({
+                "formateur_id": formateur.get("id"),
+                "formateur_nom": full_name,
+                "label": doc.get("label", "Document"),
+                "expiration": exp_str,
+                "doc": doc,
+            })
+
+    return expired_docs
+
+
+def send_formateur_expiration_alerts():
+    smtp_config = get_smtp_config()
+    if not smtp_config["login"] or not smtp_config["password"]:
+        print("⚠️ SMTP non configuré pour les alertes formateurs")
+        return 0
+
+    formateurs = load_formateurs()
+    expired_docs = _list_formateur_expired_documents(formateurs)
+    if not expired_docs:
+        return 0
+
+    html_items = ""
+    for item in expired_docs:
+        html_items += (
+            f"<li><b>{item['formateur_nom'] or 'Formateur sans nom'}</b> — "
+            f"{item['label']} (expiration : {format_date(item['expiration'])})</li>"
+        )
+
+    now_txt = datetime.now().strftime("%d-%m-%Y %H:%M")
+    html = f"""
+    <div style=\"font-family:Arial,Helvetica,sans-serif;color:#222;line-height:1.5;\">
+      <h2 style=\"margin-bottom:8px;\">⚠️ Documents formateurs expirés</h2>
+      <p style=\"margin-top:0;\">Détection automatique du {now_txt}.</p>
+      <p>Les documents suivants sont arrivés à expiration :</p>
+      <ul>{html_items}</ul>
+    </div>
+    """
+
+    msg = MIMEText(html, "html", _charset="utf-8")
+    msg["Subject"] = "⚠️ Alerte expiration documents formateurs"
+    msg["From"] = smtp_config["from_email"]
+    msg["To"] = "clement@integraleacademy.com"
+
+    try:
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
+            server.starttls()
+            server.login(smtp_config["login"], smtp_config["password"])
+            server.sendmail(
+                smtp_config["from_email"],
+                ["clement@integraleacademy.com"],
+                msg.as_string(),
+            )
+
+        for item in expired_docs:
+            item["doc"]["expiration_alert_sent_for"] = item["expiration"]
+            item["doc"]["expiration_alert_sent_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        save_formateurs(formateurs)
+
+        print(f"✅ Alertes expiration formateurs envoyées ({len(expired_docs)} document(s))")
+        return len(expired_docs)
+    except Exception as e:
+        print("❌ Erreur envoi alertes expiration formateurs :", e)
+        return 0
+
+
 def build_jury_invitation_html(session, jury, yes_url, no_url):
     formation = formation_label(session.get("formation", "—"))
     date_exam = format_date(session.get("date_exam", "—"))
@@ -2277,10 +2365,13 @@ def cron_check():
     for session in data["sessions"]:
         auto_archive_if_all_done(session)
     reminded = send_jury_reminders(data, request.url_root.rstrip("/"))
+    expired_alerts = send_formateur_expiration_alerts()
     save_sessions(data)
     message = "Cron check terminé"
     if reminded:
         message = f"{message} | Rappels jury envoyés: {', '.join(reminded)}"
+    if expired_alerts:
+        message = f"{message} | Alertes expiration formateurs: {expired_alerts}"
     return message, 200
 
 @app.route("/cron-daily-summary")

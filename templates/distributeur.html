@@ -287,6 +287,10 @@
       background:#22c55e;
       color:#02140a;
     }
+    .top-action-btn.appro{
+      background:#f59e0b;
+      color:#451a03;
+    }
     .top-action-btn.remplissage{
       background:#0f172a;
       color:#f8fafc;
@@ -417,6 +421,9 @@
 
   <div class="top-actions">
     <button type="button" class="top-action-btn remplissage" id="open-remplissage">🧮 Remplissage</button>
+    <a href="{{ url_for('distributeur_approvisionnement') }}" class="top-action-btn appro">
+        🛒 Approvisionnement
+    </a>
     <a href="{{ url_for('distributeur_reassort') }}" class="top-action-btn reassort">
         🧃 Voir le réassort
     </a>

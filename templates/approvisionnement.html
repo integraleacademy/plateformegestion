@@ -14,9 +14,31 @@
     .btn-reset,.btn-print{border:none;color:#fff;padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer}
     .btn-reset{background:#dc2626}
     .btn-print{background:#2563eb}
-    .products{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 20px}
-    .product-btn{border:none;background:#0f172a;color:#f8fafc;padding:10px 12px;border-radius:10px;cursor:pointer}
-    .product-btn:hover{background:#1e293b}
+    .products{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0 24px}
+    .product-btn{
+      border:none;
+      background:linear-gradient(135deg,#0f172a,#1d4ed8);
+      color:#f8fafc;
+      padding:14px 18px;
+      border-radius:14px;
+      cursor:pointer;
+      font-size:17px;
+      font-weight:700;
+      line-height:1.2;
+      box-shadow:0 8px 18px rgba(15,23,42,.22);
+      transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .product-btn:hover{
+      transform:translateY(-2px);
+      box-shadow:0 12px 20px rgba(15,23,42,.28);
+      filter:brightness(1.08);
+    }
+    .product-btn:active{transform:translateY(0);box-shadow:0 5px 12px rgba(15,23,42,.2)}
+    .manual-add{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+    .manual-input{flex:1 1 260px;min-width:220px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
+    .manual-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+    .manual-btn{border:none;background:#0f766e;color:#fff;padding:11px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+    .manual-btn:hover{background:#115e59}
     .list-box{background:#fff;border-radius:12px;padding:14px;box-shadow:0 8px 20px rgba(15,23,42,.08)}
     .course-list{margin:10px 0 0;padding-left:20px}
     .empty{color:#64748b}
@@ -46,6 +68,11 @@
       {% endfor %}
     </div>
 
+    <div class="manual-add">
+      <input id="manual-product-input" class="manual-input" type="text" placeholder="Ajouter un produit manuellement">
+      <button id="manual-add-btn" class="manual-btn" type="button">Ajouter</button>
+    </div>
+
     <div class="list-box">
       <strong>Liste de courses</strong>
       <ul id="course-list" class="course-list"></ul>
@@ -57,6 +84,7 @@
     const STORAGE_KEY = 'distributeur_approvisionnement_liste_courses';
     const courseList = document.getElementById('course-list');
     const emptyState = document.getElementById('empty-state');
+    const manualInput = document.getElementById('manual-product-input');
 
     function loadCourses() {
       try {
@@ -87,16 +115,33 @@
     }
 
     function addCourse(itemText) {
+      const cleaned = (itemText || '').trim();
+      if (!cleaned) return;
       const items = loadCourses();
-      items.push(itemText);
+      items.push(cleaned);
       saveCourses(items);
       renderCourses(items);
+    }
+
+    function addManualCourse() {
+      addCourse(manualInput.value);
+      manualInput.value = '';
+      manualInput.focus();
     }
 
     document.querySelectorAll('.product-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         addCourse(btn.dataset.nom + ' (Étage ' + btn.dataset.ligne + ')');
       });
+    });
+
+    document.getElementById('manual-add-btn').addEventListener('click', addManualCourse);
+
+    manualInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addManualCourse();
+      }
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => {

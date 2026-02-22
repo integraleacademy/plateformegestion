@@ -3754,7 +3754,32 @@ def distributeur_reassort():
                     "q_actuelle": q_actuelle,
                 })
 
+    # Priorité visuelle: afficher d'abord les étages 4 puis 5 dans la liste de réassort.
+    etage_priority = {4: 0, 5: 1}
+    items.sort(key=lambda item: (etage_priority.get(item["ligne_id"], 2), item["ligne_id"], item["nom"].lower()))
+
     return render_template("reassort.html", items=items)
+
+
+@app.route("/distributeur/approvisionnement")
+def distributeur_approvisionnement():
+    data = load_distributeur()
+
+    produits = []
+    for ligne in data["lignes"]:
+        for p in ligne["produits"]:
+            nom = (p.get("nom") or "").strip()
+            if not nom:
+                continue
+            produits.append({
+                "id": p["id"],
+                "ligne_id": ligne["id"],
+                "nom": nom,
+            })
+
+    produits.sort(key=lambda item: (item["nom"].lower(), item["ligne_id"]))
+
+    return render_template("approvisionnement.html", produits=produits)
 
 @app.route("/reassort/valider/<int:ligne_id>/<produit_id>", methods=["POST"])
 def distributeur_reassort_valider(ligne_id, produit_id):

@@ -82,6 +82,21 @@
     color:#fde68a;
   }
 
+  .right-actions{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .qty-big{
+    font-size:34px;
+    font-weight:800;
+    line-height:1;
+    color:#fde68a;
+    min-width:42px;
+    text-align:right;
+  }
+
   .ok-btn{
     border:none;
     background:#22c55e;
@@ -132,10 +147,13 @@
         <div class="reassort">Réassort à faire : {{ item.reassort }}</div>
       </div>
 
-      <form method="post"
-            action="{{ url_for('distributeur_reassort_valider', ligne_id=item.ligne_id, produit_id=item.produit_id) }}">
-        <button class="ok-btn">OK ✅</button>
-      </form>
+      <div class="right-actions">
+        <div class="qty-big">{{ item.reassort }}</div>
+        <form method="post"
+              action="{{ url_for('distributeur_reassort_valider', ligne_id=item.ligne_id, produit_id=item.produit_id) }}">
+          <button class="ok-btn">OK ✅</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
 

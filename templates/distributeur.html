@@ -679,7 +679,7 @@ function initRemplissageFlow() {
     cibleEl.textContent = vals.cible;
     actuelleEl.textContent = vals.actuelle;
     reassortEl.textContent = vals.reassort;
-    inputEl.value = vals.actuelle;
+    inputEl.value = "";
     prevBtn.style.visibility = index === 0 ? "hidden" : "visible";
     nextBtn.textContent = index === cards.length - 1 ? "Terminer ✓" : "Suivant →";
     setTimeout(() => inputEl.focus(), 0);

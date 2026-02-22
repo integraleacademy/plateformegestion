@@ -3777,7 +3777,7 @@ def distributeur_approvisionnement():
                 "nom": nom,
             })
 
-    produits.sort(key=lambda item: (item["nom"].lower(), item["ligne_id"]))
+    produits.sort(key=lambda item: (item["ligne_id"], item["nom"].lower()))
 
     return render_template("approvisionnement.html", produits=produits)
 

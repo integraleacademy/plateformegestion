@@ -265,6 +265,143 @@
       letter-spacing:.08em;
       opacity:.7;
     }
+
+    .top-actions{
+      margin-bottom:20px;
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .top-action-btn{
+      border:none;
+      padding:10px 16px;
+      border-radius:8px;
+      font-weight:600;
+      text-decoration:none;
+      box-shadow:0 4px 8px rgba(0,0,0,0.15);
+      cursor:pointer;
+      font-size:14px;
+    }
+    .top-action-btn.reassort{
+      background:#22c55e;
+      color:#02140a;
+    }
+    .top-action-btn.remplissage{
+      background:#0f172a;
+      color:#f8fafc;
+    }
+
+    .remplissage-overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(2,6,23,.95);
+      z-index:1200;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .remplissage-overlay.active{
+      display:flex;
+    }
+    .remplissage-modal{
+      width:min(720px, 100%);
+      border-radius:18px;
+      background:#0f172a;
+      color:#f8fafc;
+      border:1px solid #1e293b;
+      box-shadow:0 20px 40px rgba(0,0,0,.45);
+      padding:24px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+    .remplissage-top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+    }
+    .remplissage-step{
+      font-size:12px;
+      text-transform:uppercase;
+      color:#94a3b8;
+      letter-spacing:.08em;
+    }
+    .remplissage-product{
+      font-size:30px;
+      font-weight:700;
+      margin:6px 0 4px;
+    }
+    .remplissage-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(120px, 1fr));
+      gap:12px;
+    }
+    .remplissage-box{
+      border:1px solid #1e293b;
+      border-radius:10px;
+      padding:10px;
+      background:#020617;
+    }
+    .remplissage-box small{
+      display:block;
+      color:#94a3b8;
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      font-size:10px;
+    }
+    .remplissage-box strong{
+      font-size:22px;
+    }
+    .remplissage-input-wrap{
+      border:1px solid #1e293b;
+      border-radius:10px;
+      background:#020617;
+      padding:12px;
+    }
+    .remplissage-input-wrap label{
+      display:block;
+      margin-bottom:8px;
+      color:#cbd5e1;
+      font-size:13px;
+    }
+    .remplissage-input-wrap input{
+      width:100%;
+      border-radius:8px;
+      border:1px solid #334155;
+      background:#020617;
+      color:#f8fafc;
+      font-size:24px;
+      font-weight:700;
+      padding:10px 12px;
+      text-align:right;
+      box-sizing:border-box;
+    }
+    .remplissage-actions{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:4px;
+    }
+    .remplissage-actions button{
+      border:none;
+      border-radius:999px;
+      padding:10px 16px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .remplissage-close{ background:#334155; color:#f8fafc; }
+    .remplissage-prev{ background:#1d4ed8; color:#eff6ff; }
+    .remplissage-next{ background:#22c55e; color:#02140a; }
+
+    @media (max-width: 640px){
+      .remplissage-product{ font-size:24px; }
+      .remplissage-grid{ grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
@@ -278,10 +415,9 @@
     Chaque ligne représente un étage du distributeur. Chaque “case” correspond à un produit (boisson, snack, etc.).
   </div>
 
-  <div style="margin-bottom:20px; text-align:right;">
-    <a href="{{ url_for('distributeur_reassort') }}"
-       style="background:#22c55e;padding:10px 16px;border-radius:8px;color:#02140a;
-              font-weight:600;text-decoration:none;box-shadow:0 4px 8px rgba(0,0,0,0.15);">
+  <div class="top-actions">
+    <button type="button" class="top-action-btn remplissage" id="open-remplissage">🧮 Remplissage</button>
+    <a href="{{ url_for('distributeur_reassort') }}" class="top-action-btn reassort">
         🧃 Voir le réassort
     </a>
   </div>
@@ -387,6 +523,35 @@
   {% endfor %}
 </div>
 
+<div class="remplissage-overlay" id="remplissage-overlay" aria-hidden="true">
+  <div class="remplissage-modal">
+    <div class="remplissage-top">
+      <div>
+        <div class="remplissage-step" id="remplissage-step">Produit 1 / 1</div>
+        <div class="remplissage-product" id="remplissage-product-name">Produit</div>
+      </div>
+      <button type="button" class="remplissage-close" id="remplissage-close">Fermer ✕</button>
+    </div>
+
+    <div class="remplissage-grid">
+      <div class="remplissage-box"><small>Étage</small><strong id="remplissage-ligne">-</strong></div>
+      <div class="remplissage-box"><small>Quantité cible</small><strong id="remplissage-cible">0</strong></div>
+      <div class="remplissage-box"><small>Actuelle enregistrée</small><strong id="remplissage-actuelle">0</strong></div>
+      <div class="remplissage-box"><small>À remettre</small><strong id="remplissage-reassort">0</strong></div>
+    </div>
+
+    <div class="remplissage-input-wrap">
+      <label for="remplissage-input">Combien y en a-t-il actuellement dans la case ?</label>
+      <input id="remplissage-input" type="number" min="0" step="1">
+    </div>
+
+    <div class="remplissage-actions">
+      <button type="button" class="remplissage-prev" id="remplissage-prev">← Précédent</button>
+      <button type="button" class="remplissage-next" id="remplissage-next">Suivant →</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Affichage du toast
 function showToastAutoSave() {
@@ -441,6 +606,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     });
   });
+
+  initRemplissageFlow();
 });
 
 </script>
@@ -461,6 +628,109 @@ function resetActuelle(btn){
 
   // Sauvegarde automatiquement
   autoSave(inputActuelle);
+}
+</script>
+
+<script>
+function initRemplissageFlow() {
+  const cards = [...document.querySelectorAll(".bloc-ligne .card-produit")];
+  const overlay = document.getElementById("remplissage-overlay");
+  const openBtn = document.getElementById("open-remplissage");
+  const closeBtn = document.getElementById("remplissage-close");
+  const prevBtn = document.getElementById("remplissage-prev");
+  const nextBtn = document.getElementById("remplissage-next");
+  const stepEl = document.getElementById("remplissage-step");
+  const nameEl = document.getElementById("remplissage-product-name");
+  const ligneEl = document.getElementById("remplissage-ligne");
+  const cibleEl = document.getElementById("remplissage-cible");
+  const actuelleEl = document.getElementById("remplissage-actuelle");
+  const reassortEl = document.getElementById("remplissage-reassort");
+  const inputEl = document.getElementById("remplissage-input");
+
+  if (!overlay || !openBtn || cards.length === 0) {
+    if (openBtn) openBtn.disabled = true;
+    return;
+  }
+
+  let index = 0;
+
+  const getValues = (card) => {
+    const nom = card.querySelector("input[name='nom']")?.value?.trim() || "Produit sans nom";
+    const cible = parseFloat(card.querySelector("input[name='qte_cible']")?.value) || 0;
+    const actuelle = parseFloat(card.querySelector("input[name='qte_actuelle']")?.value) || 0;
+    const reassort = Math.max(0, cible - actuelle);
+    const badgeLigne = card.closest(".bloc-ligne")?.querySelector(".badge-ligne")?.textContent?.trim() || "-";
+    return { nom, cible, actuelle, reassort, badgeLigne };
+  };
+
+  const renderCard = () => {
+    const card = cards[index];
+    const vals = getValues(card);
+    stepEl.textContent = `Produit ${index + 1} / ${cards.length}`;
+    nameEl.textContent = vals.nom;
+    ligneEl.textContent = vals.badgeLigne;
+    cibleEl.textContent = vals.cible;
+    actuelleEl.textContent = vals.actuelle;
+    reassortEl.textContent = vals.reassort;
+    inputEl.value = vals.actuelle;
+    prevBtn.style.visibility = index === 0 ? "hidden" : "visible";
+    nextBtn.textContent = index === cards.length - 1 ? "Terminer ✓" : "Suivant →";
+    setTimeout(() => inputEl.focus(), 0);
+  };
+
+  const saveCurrentInput = () => {
+    const card = cards[index];
+    const currentInput = card.querySelector("input[name='qte_actuelle']");
+    if (!currentInput) return;
+    currentInput.value = inputEl.value === "" ? "0" : inputEl.value;
+    updateLiveCalcul(card);
+    autoSave(currentInput);
+
+    const vals = getValues(card);
+    actuelleEl.textContent = vals.actuelle;
+    reassortEl.textContent = vals.reassort;
+  };
+
+  const open = () => {
+    index = 0;
+    overlay.classList.add("active");
+    overlay.setAttribute("aria-hidden", "false");
+    renderCard();
+  };
+
+  const close = () => {
+    overlay.classList.remove("active");
+    overlay.setAttribute("aria-hidden", "true");
+  };
+
+  openBtn.addEventListener("click", open);
+  closeBtn.addEventListener("click", close);
+  prevBtn.addEventListener("click", () => {
+    saveCurrentInput();
+    if (index > 0) index -= 1;
+    renderCard();
+  });
+  nextBtn.addEventListener("click", () => {
+    saveCurrentInput();
+    if (index < cards.length - 1) {
+      index += 1;
+      renderCard();
+    } else {
+      close();
+    }
+  });
+
+  inputEl.addEventListener("input", () => {
+    const card = cards[index];
+    const cible = parseFloat(card.querySelector("input[name='qte_cible']")?.value) || 0;
+    const typedValue = parseFloat(inputEl.value) || 0;
+    actuelleEl.textContent = typedValue;
+    reassortEl.textContent = Math.max(0, cible - typedValue);
+  });
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) close();
+  });
 }
 </script>
 

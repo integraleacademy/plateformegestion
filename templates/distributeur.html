@@ -278,7 +278,12 @@
     Chaque ligne représente un étage du distributeur. Chaque “case” correspond à un produit (boisson, snack, etc.).
   </div>
 
-  <div style="margin-bottom:20px; text-align:right;">
+  <div style="margin-bottom:20px; text-align:right; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+    <a href="{{ url_for('distributeur_approvisionnement') }}"
+       style="background:#0f172a;padding:10px 16px;border-radius:8px;color:#f8fafc;
+              font-weight:600;text-decoration:none;box-shadow:0 4px 8px rgba(0,0,0,0.15);">
+        🛒 Approvisionnement
+    </a>
     <a href="{{ url_for('distributeur_reassort') }}"
        style="background:#22c55e;padding:10px 16px;border-radius:8px;color:#02140a;
               font-weight:600;text-decoration:none;box-shadow:0 4px 8px rgba(0,0,0,0.15);">

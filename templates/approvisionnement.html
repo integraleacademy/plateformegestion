@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Approvisionnement — Distributeur</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;margin:0;color:#0f172a}
+    .wrap{max-width:980px;margin:24px auto;padding:0 16px 28px}
+    h1{margin:0 0 8px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .back{color:#334155;text-decoration:none;font-weight:700}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn-reset{border:none;background:#dc2626;color:#fff;padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer}
+    .products{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 20px}
+    .product-btn{border:none;background:#0f172a;color:#f8fafc;padding:10px 12px;border-radius:10px;cursor:pointer}
+    .product-btn:hover{background:#1e293b}
+    .list-box{background:#fff;border-radius:12px;padding:14px;box-shadow:0 8px 20px rgba(15,23,42,.08)}
+    .course-list{margin:10px 0 0;padding-left:20px}
+    .empty{color:#64748b}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <a class="back" href="{{ url_for('distributeur_home') }}">← Retour distributeur</a>
+        <h1>🛒 Approvisionnement</h1>
+        <div>Cliquer sur un produit pour l'ajouter à la liste de courses.</div>
+      </div>
+      <div class="controls">
+        <button id="reset-btn" class="btn-reset" type="button">Remise à zero</button>
+      </div>
+    </div>
+
+    <div class="products">
+      {% for produit in produits %}
+        <button class="product-btn" type="button" data-nom="{{ produit.nom }}" data-ligne="{{ produit.ligne_id }}">
+          {{ produit.nom }} (Étage {{ produit.ligne_id }})
+        </button>
+      {% else %}
+        <div class="empty">Aucun produit nommé n'est disponible.</div>
+      {% endfor %}
+    </div>
+
+    <div class="list-box">
+      <strong>Liste de courses</strong>
+      <ul id="course-list" class="course-list"></ul>
+      <div id="empty-state" class="empty">Aucun produit sélectionné.</div>
+    </div>
+  </div>
+
+  <script>
+    const courseList = document.getElementById('course-list');
+    const emptyState = document.getElementById('empty-state');
+
+    function refreshEmptyState() {
+      emptyState.style.display = courseList.children.length ? 'none' : 'block';
+    }
+
+    document.querySelectorAll('.product-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = document.createElement('li');
+        item.textContent = btn.dataset.nom + ' (Étage ' + btn.dataset.ligne + ')';
+        courseList.appendChild(item);
+        refreshEmptyState();
+      });
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      courseList.innerHTML = '';
+      refreshEmptyState();
+    });
+
+    refreshEmptyState();
+  </script>
+</body>
+</html>

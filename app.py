@@ -3760,6 +3760,27 @@ def distributeur_reassort():
 
     return render_template("reassort.html", items=items)
 
+
+@app.route("/distributeur/approvisionnement")
+def distributeur_approvisionnement():
+    data = load_distributeur()
+
+    produits = []
+    for ligne in data["lignes"]:
+        for p in ligne["produits"]:
+            nom = (p.get("nom") or "").strip()
+            if not nom:
+                continue
+            produits.append({
+                "id": p["id"],
+                "ligne_id": ligne["id"],
+                "nom": nom,
+            })
+
+    produits.sort(key=lambda item: (item["nom"].lower(), item["ligne_id"]))
+
+    return render_template("approvisionnement.html", produits=produits)
+
 @app.route("/reassort/valider/<int:ligne_id>/<produit_id>", methods=["POST"])
 def distributeur_reassort_valider(ligne_id, produit_id):
     data = load_distributeur()

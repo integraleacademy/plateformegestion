@@ -11,7 +11,9 @@
     .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
     .back{color:#334155;text-decoration:none;font-weight:700}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .btn-reset{border:none;background:#dc2626;color:#fff;padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer}
+    .btn-reset,.btn-print{border:none;color:#fff;padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer}
+    .btn-reset{background:#dc2626}
+    .btn-print{background:#2563eb}
     .products{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 20px}
     .product-btn{border:none;background:#0f172a;color:#f8fafc;padding:10px 12px;border-radius:10px;cursor:pointer}
     .product-btn:hover{background:#1e293b}
@@ -29,6 +31,7 @@
         <div>Cliquer sur un produit pour l'ajouter à la liste de courses.</div>
       </div>
       <div class="controls">
+        <button id="print-btn" class="btn-print" type="button">Imprimer</button>
         <button id="reset-btn" class="btn-reset" type="button">Remise à zero</button>
       </div>
     </div>
@@ -51,28 +54,95 @@
   </div>
 
   <script>
+    const STORAGE_KEY = 'distributeur_approvisionnement_liste_courses';
     const courseList = document.getElementById('course-list');
     const emptyState = document.getElementById('empty-state');
 
-    function refreshEmptyState() {
-      emptyState.style.display = courseList.children.length ? 'none' : 'block';
+    function loadCourses() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = JSON.parse(raw || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveCourses(items) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function renderCourses(items) {
+      courseList.innerHTML = '';
+      items.forEach((text) => {
+        const item = document.createElement('li');
+        item.textContent = text;
+        courseList.appendChild(item);
+      });
+      emptyState.style.display = items.length ? 'none' : 'block';
+    }
+
+    function getCoursesFromDom() {
+      return Array.from(courseList.querySelectorAll('li')).map((li) => li.textContent || '').filter(Boolean);
+    }
+
+    function addCourse(itemText) {
+      const items = loadCourses();
+      items.push(itemText);
+      saveCourses(items);
+      renderCourses(items);
     }
 
     document.querySelectorAll('.product-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const item = document.createElement('li');
-        item.textContent = btn.dataset.nom + ' (Étage ' + btn.dataset.ligne + ')';
-        courseList.appendChild(item);
-        refreshEmptyState();
+        addCourse(btn.dataset.nom + ' (Étage ' + btn.dataset.ligne + ')');
       });
     });
 
     document.getElementById('reset-btn').addEventListener('click', () => {
-      courseList.innerHTML = '';
-      refreshEmptyState();
+      saveCourses([]);
+      renderCourses([]);
     });
 
-    refreshEmptyState();
+    document.getElementById('print-btn').addEventListener('click', () => {
+      const items = getCoursesFromDom();
+      const itemsHtml = items.length
+        ? items.map((item) => '<li>' + item.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</li>').join('')
+        : '<li>Aucun produit sélectionné.</li>';
+      const now = new Date();
+      const dateText = now.toLocaleString('fr-FR');
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
+
+      printWindow.document.write(`<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Liste de courses — Approvisionnement</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 30px; color: #111827; }
+    h1 { margin-bottom: 8px; }
+    .meta { color: #4b5563; margin-bottom: 18px; }
+    ul { margin: 0; padding-left: 22px; font-size: 16px; }
+    li { margin-bottom: 8px; }
+    @media print {
+      button { display: none; }
+      body { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Liste de courses — Distributeur</h1>
+  <div class="meta">Généré le ${dateText}</div>
+  <ul>${itemsHtml}</ul>
+  <button onclick="window.print()" style="margin-top:20px;padding:8px 12px;cursor:pointer;">Lancer l'impression</button>
+</body>
+</html>`);
+      printWindow.document.close();
+    });
+
+    renderCourses(loadCourses());
   </script>
 </body>
 </html>

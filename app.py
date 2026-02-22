@@ -3754,6 +3754,10 @@ def distributeur_reassort():
                     "q_actuelle": q_actuelle,
                 })
 
+    # Priorité visuelle: afficher d'abord les étages 4 puis 5 dans la liste de réassort.
+    etage_priority = {4: 0, 5: 1}
+    items.sort(key=lambda item: (etage_priority.get(item["ligne_id"], 2), item["ligne_id"], item["nom"].lower()))
+
     return render_template("reassort.html", items=items)
 
 @app.route("/reassort/valider/<int:ligne_id>/<produit_id>", methods=["POST"])

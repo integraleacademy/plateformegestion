@@ -3627,15 +3627,7 @@ DISTRIBUTEUR_FILE = os.path.join(DATA_DIR, "distributeur.json")
 
 def load_distributeur():
     """Charge le distributeur depuis le fichier JSON, ou crée une structure par défaut."""
-    if os.path.exists(DISTRIBUTEUR_FILE):
-        try:
-            with open(DISTRIBUTEUR_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-
-    # Structure par défaut (5 lignes vides)
-    return {
+    default_data = {
         "lignes": [
             {"id": 1, "produits": []},
             {"id": 2, "produits": []},
@@ -3644,6 +3636,32 @@ def load_distributeur():
             {"id": 5, "produits": []}
         ]
     }
+
+    if os.path.exists(DISTRIBUTEUR_FILE):
+        try:
+            with open(DISTRIBUTEUR_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and isinstance(data.get("lignes"), list):
+                    return data
+        except Exception:
+            app.logger.exception("Impossible de lire %s", DISTRIBUTEUR_FILE)
+
+            # Tentative de récupération: certains fichiers ont du texte parasite
+            # autour d'un JSON valide (copier/coller, merge, etc.).
+            try:
+                with open(DISTRIBUTEUR_FILE, "r", encoding="utf-8") as f:
+                    content = f.read()
+                start = content.find("{")
+                end = content.rfind("}")
+                if start != -1 and end != -1 and end > start:
+                    recovered = json.loads(content[start:end + 1])
+                    if isinstance(recovered, dict) and isinstance(recovered.get("lignes"), list):
+                        app.logger.warning("Récupération partielle de %s après corruption JSON", DISTRIBUTEUR_FILE)
+                        return recovered
+            except Exception:
+                app.logger.exception("Récupération impossible pour %s", DISTRIBUTEUR_FILE)
+
+    return default_data
 
 def save_distributeur(data):
     """Sauvegarde complète du distributeur."""

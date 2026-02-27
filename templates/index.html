@@ -153,17 +153,17 @@
     <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
   </a>
 
-  <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
+  <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
     <div class="emoji">📤</div>
     <div class="title">Dépôt dossiers CNAPS</div>
     <div class="desc">Demandes CNAPS à traiter</div>
     <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
   </a>
 
-  <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
+  <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
     <div class="emoji">👮‍♂️</div>
     <div class="title">Suivi des demandes CNAPS</div>
-    <div class="desc">Instruction des dossiers</div>
+    <div class="desc">Demandes à faire & documents à contrôler</div>
     <div id="notif-suivi" class="notif empty">👮‍♂️ Chargement...</div>
   </a>
 
@@ -399,17 +399,19 @@ async function updateDotations() {
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
-        const r = await fetch("https://cnapsv5-1.onrender.com/data.json");
+        const r = await fetch("https://cnapsv3.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const demandes = Array.isArray(d) ? d : d.demandes || [];
-        const total = demandes.length;
+        const demandesAFaire = Number(d.demande_a_faire || 0);
+        const documentsAControler = Number(d.documents_a_controler || 0);
+        const comptesACreer = Number(d.comptes_cnaps_a_creer || 0);
+        const total = demandesAFaire + documentsAControler + comptesACreer;
         if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
+          box.innerHTML = `📩 ${total} élément${total>1?"s":""} CNAPS à traiter`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande CNAPS en attente";
+          box.innerHTML = "✅ Aucune action CNAPS en attente";
         }
       } catch {
         box.className = "notif error";
@@ -424,13 +426,17 @@ async function updateDotations() {
         const r = await fetch("https://cnapsv3.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const c = d.instruction || 0;
-        if (c > 0) {
+        const demandesAFaire = Number(d.demande_a_faire || 0);
+        const documentsAControler = Number(d.documents_a_controler || 0);
+        const comptesACreer = Number(d.comptes_cnaps_a_creer || 0);
+        const total = demandesAFaire + documentsAControler + comptesACreer;
+
+        if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `👮‍♂️ ${c} dossier${c>1?"s":""} instruction en cours`;
+          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier en instruction";
+          box.innerHTML = "✅ Aucun document à contrôler, aucune demande ni compte CNAPS à créer";
         }
       } catch {
         box.className = "notif error";

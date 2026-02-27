@@ -445,18 +445,33 @@ async function updateDotations() {
       return keys.some((k) => Object.prototype.hasOwnProperty.call(data || {}, k));
     }
 
+    function extractCnapsPayload(root) {
+      return (root && root.summary && typeof root.summary === "object") ? root.summary : root;
+    }
+
+    async function fetchCnapsPayload() {
+      const summaryUrl = `https://cnapsv3.onrender.com/summary.json?ts=${Date.now()}`;
+      try {
+        const r = await fetch(summaryUrl, { cache: "no-store" });
+        if (!r.ok) throw 0;
+        return extractCnapsPayload(await r.json());
+      } catch {
+        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
+        if (!r.ok) throw 0;
+        return extractCnapsPayload(await r.json());
+      }
+    }
+
     // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
-        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
-        if (!r.ok) throw 0;
-        const d = await r.json();
-        const hasDetails = hasDetailedCnapsCounters(d);
-        const demandesAFaire = cnapsCount(d, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
-        const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
-        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
-        const instruction = cnapsCount(d, ["instruction"]);
+        const data = await fetchCnapsPayload();
+        const hasDetails = hasDetailedCnapsCounters(data);
+        const demandesAFaire = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
+        const documentsAControler = cnapsCount(data, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
+        const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const instruction = cnapsCount(data, ["instruction"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;
 
         if (!hasDetails) {
@@ -481,14 +496,12 @@ async function updateDotations() {
     async function updateSuivi() {
       const box = document.getElementById("notif-suivi");
       try {
-        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
-        if (!r.ok) throw 0;
-        const d = await r.json();
-        const hasDetails = hasDetailedCnapsCounters(d);
-        const demandesAFaire = cnapsCount(d, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
-        const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
-        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
-        const instruction = cnapsCount(d, ["instruction", "instruction_count"], ["has_instruction"]);
+        const data = await fetchCnapsPayload();
+        const hasDetails = hasDetailedCnapsCounters(data);
+        const demandesAFaire = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
+        const documentsAControler = cnapsCount(data, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
+        const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const instruction = cnapsCount(data, ["instruction", "instruction_count"], ["has_instruction"]);
         const total = demandesAFaire + documentsAControler + comptesACreer + instruction;
 
         if (!hasDetails) {

@@ -395,16 +395,30 @@ async function updateDotations() {
 
 
 
+    function cnapsCount(data, keys, flagKeys = []) {
+      for (const key of keys) {
+        const v = data?.[key];
+        const n = Number(v);
+        if (Number.isFinite(n) && n >= 0) return n;
+      }
+
+      for (const key of flagKeys) {
+        if (data?.[key] === true) return 1;
+      }
+
+      return 0;
+    }
+
     // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
-        const r = await fetch("https://cnapsv3.onrender.com/data.json");
+        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
         if (!r.ok) throw 0;
         const d = await r.json();
-        const demandesAFaire = Number(d.demande_a_faire || 0);
-        const documentsAControler = Number(d.documents_a_controler || 0);
-        const comptesACreer = Number(d.comptes_cnaps_a_creer || 0);
+        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
+        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;
         if (total > 0) {
           box.className = "notif wait";
@@ -423,12 +437,12 @@ async function updateDotations() {
     async function updateSuivi() {
       const box = document.getElementById("notif-suivi");
       try {
-        const r = await fetch("https://cnapsv3.onrender.com/data.json");
+        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
         if (!r.ok) throw 0;
         const d = await r.json();
-        const demandesAFaire = Number(d.demande_a_faire || 0);
-        const documentsAControler = Number(d.documents_a_controler || 0);
-        const comptesACreer = Number(d.comptes_cnaps_a_creer || 0);
+        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
+        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;
 
         if (total > 0) {

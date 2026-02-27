@@ -396,13 +396,19 @@ async function updateDotations() {
 
 
     function cnapsCount(data, keys, flagKeys = []) {
+      const values = [];
+
       for (const key of keys) {
         const v = data?.[key];
         if (v === null || v === undefined) continue;
         if (typeof v === "string" && v.trim() === "") continue;
 
         const n = Number(v);
-        if (Number.isFinite(n) && n >= 0) return n;
+        if (Number.isFinite(n) && n >= 0) values.push(n);
+      }
+
+      if (values.length > 0) {
+        return Math.max(...values);
       }
 
       for (const key of flagKeys) {
@@ -413,13 +419,26 @@ async function updateDotations() {
       return 0;
     }
 
+    const CNAPS_DEMANDES_KEYS = [
+      "a_traiter",
+      "a_traiter_count",
+      "demande_a_faire",
+      "demande_a_faire_count",
+      "demandes_a_faire",
+      "demandes_a_faire_count",
+      "demande_a_faire_total",
+      "demandes_a_faire_total",
+    ];
+
+    const CNAPS_DEMANDES_FLAGS = ["has_demande_a_faire", "has_demandes_a_faire"];
+
     function hasDetailedCnapsCounters(data) {
       const keys = [
-        "demande_a_faire",
+        ...CNAPS_DEMANDES_KEYS,
         "documents_a_controler",
         "comptes_cnaps_a_creer",
         "dossiers_documents_a_controler",
-        "has_demande_a_faire",
+        ...CNAPS_DEMANDES_FLAGS,
         "has_documents_a_controler",
         "has_compte_cnaps_a_creer",
       ];
@@ -434,7 +453,7 @@ async function updateDotations() {
         if (!r.ok) throw 0;
         const d = await r.json();
         const hasDetails = hasDetailedCnapsCounters(d);
-        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demande_a_faire_count", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const demandesAFaire = cnapsCount(d, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
         const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const instruction = cnapsCount(d, ["instruction"]);
@@ -466,7 +485,7 @@ async function updateDotations() {
         if (!r.ok) throw 0;
         const d = await r.json();
         const hasDetails = hasDetailedCnapsCounters(d);
-        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demande_a_faire_count", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const demandesAFaire = cnapsCount(d, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
         const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const instruction = cnapsCount(d, ["instruction", "instruction_count"], ["has_instruction"]);

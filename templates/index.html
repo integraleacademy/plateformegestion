@@ -396,13 +396,19 @@ async function updateDotations() {
 
 
     function cnapsCount(data, keys, flagKeys = []) {
+      const values = [];
+
       for (const key of keys) {
         const v = data?.[key];
         if (v === null || v === undefined) continue;
         if (typeof v === "string" && v.trim() === "") continue;
 
         const n = Number(v);
-        if (Number.isFinite(n) && n >= 0) return n;
+        if (Number.isFinite(n) && n >= 0) values.push(n);
+      }
+
+      if (values.length > 0) {
+        return Math.max(...values);
       }
 
       for (const key of flagKeys) {

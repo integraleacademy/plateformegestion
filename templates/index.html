@@ -153,17 +153,17 @@
     <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
   </a>
 
-  <a class="card" href="https://cnapsv5-1.onrender.com/admin" target="_blank" rel="noopener">
+  <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
     <div class="emoji">📤</div>
     <div class="title">Dépôt dossiers CNAPS</div>
     <div class="desc">Demandes CNAPS à traiter</div>
     <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
   </a>
 
-  <a class="card" href="https://cnapsv3.onrender.com/" target="_blank" rel="noopener">
+  <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
     <div class="emoji">👮‍♂️</div>
     <div class="title">Suivi des demandes CNAPS</div>
-    <div class="desc">Instruction des dossiers</div>
+    <div class="desc">Demandes à faire & documents à contrôler</div>
     <div id="notif-suivi" class="notif empty">👮‍♂️ Chargement...</div>
   </a>
 
@@ -395,21 +395,37 @@ async function updateDotations() {
 
 
 
+    function cnapsCount(data, keys, flagKeys = []) {
+      for (const key of keys) {
+        const v = data?.[key];
+        const n = Number(v);
+        if (Number.isFinite(n) && n >= 0) return n;
+      }
+
+      for (const key of flagKeys) {
+        if (data?.[key] === true) return 1;
+      }
+
+      return 0;
+    }
+
     // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
       try {
-        const r = await fetch("https://cnapsv5-1.onrender.com/data.json");
+        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
         if (!r.ok) throw 0;
         const d = await r.json();
-        const demandes = Array.isArray(d) ? d : d.demandes || [];
-        const total = demandes.length;
+        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
+        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const total = demandesAFaire + documentsAControler + comptesACreer;
         if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
+          box.innerHTML = `📩 ${total} élément${total>1?"s":""} CNAPS à traiter`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande CNAPS en attente";
+          box.innerHTML = "✅ Aucune action CNAPS en attente";
         }
       } catch {
         box.className = "notif error";
@@ -421,16 +437,20 @@ async function updateDotations() {
     async function updateSuivi() {
       const box = document.getElementById("notif-suivi");
       try {
-        const r = await fetch("https://cnapsv3.onrender.com/data.json");
+        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
         if (!r.ok) throw 0;
         const d = await r.json();
-        const c = d.instruction || 0;
-        if (c > 0) {
+        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
+        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const total = demandesAFaire + documentsAControler + comptesACreer;
+
+        if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `👮‍♂️ ${c} dossier${c>1?"s":""} instruction en cours`;
+          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun dossier en instruction";
+          box.innerHTML = "✅ Aucun document à contrôler, aucune demande ni compte CNAPS à créer";
         }
       } catch {
         box.className = "notif error";

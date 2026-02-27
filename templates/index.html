@@ -402,13 +402,16 @@ async function updateDotations() {
         const r = await fetch("https://cnapsv3.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const total = Number(d.demande_a_faire || 0) + Number(d.documents_a_controler || 0);
+        const demandesAFaire = Number(d.demande_a_faire || 0);
+        const documentsAControler = Number(d.documents_a_controler || 0);
+        const comptesACreer = Number(d.comptes_cnaps_a_creer || 0);
+        const total = demandesAFaire + documentsAControler + comptesACreer;
         if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📩 ${total} demande${total>1?"s":""} CNAPS en attente`;
+          box.innerHTML = `📩 ${total} élément${total>1?"s":""} CNAPS à traiter`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande CNAPS en attente";
+          box.innerHTML = "✅ Aucune action CNAPS en attente";
         }
       } catch {
         box.className = "notif error";
@@ -425,14 +428,15 @@ async function updateDotations() {
         const d = await r.json();
         const demandesAFaire = Number(d.demande_a_faire || 0);
         const documentsAControler = Number(d.documents_a_controler || 0);
-        const total = demandesAFaire + documentsAControler;
+        const comptesACreer = Number(d.comptes_cnaps_a_creer || 0);
+        const total = demandesAFaire + documentsAControler + comptesACreer;
 
         if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire`;
+          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun document à contrôler ni demande à faire";
+          box.innerHTML = "✅ Aucun document à contrôler, aucune demande ni compte CNAPS à créer";
         }
       } catch {
         box.className = "notif error";

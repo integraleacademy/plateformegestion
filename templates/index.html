@@ -398,12 +398,16 @@ async function updateDotations() {
     function cnapsCount(data, keys, flagKeys = []) {
       for (const key of keys) {
         const v = data?.[key];
+        if (v === null || v === undefined) continue;
+        if (typeof v === "string" && v.trim() === "") continue;
+
         const n = Number(v);
         if (Number.isFinite(n) && n >= 0) return n;
       }
 
       for (const key of flagKeys) {
-        if (data?.[key] === true) return 1;
+        const flag = data?.[key];
+        if (flag === true || flag === 1 || flag === "1" || flag === "true") return 1;
       }
 
       return 0;
@@ -430,9 +434,9 @@ async function updateDotations() {
         if (!r.ok) throw 0;
         const d = await r.json();
         const hasDetails = hasDetailedCnapsCounters(d);
-        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demande_a_faire_count", "demandes_a_faire"], ["has_demande_a_faire"]);
         const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
-        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const instruction = cnapsCount(d, ["instruction"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;
 
@@ -462,23 +466,23 @@ async function updateDotations() {
         if (!r.ok) throw 0;
         const d = await r.json();
         const hasDetails = hasDetailedCnapsCounters(d);
-        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
+        const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demande_a_faire_count", "demandes_a_faire"], ["has_demande_a_faire"]);
         const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
-        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
-        const instruction = cnapsCount(d, ["instruction"]);
-        const total = demandesAFaire + documentsAControler + comptesACreer;
+        const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const instruction = cnapsCount(d, ["instruction", "instruction_count"], ["has_instruction"]);
+        const total = demandesAFaire + documentsAControler + comptesACreer + instruction;
 
         if (!hasDetails) {
-          box.className = instruction > 0 ? "notif wait" : "notif alert";
-          box.innerHTML = instruction > 0
+          box.className = total > 0 ? "notif wait" : "notif alert";
+          box.innerHTML = total > 0
             ? `👮‍♂️ ${instruction} dossier${instruction>1?"s":""} en instruction (détail CNAPS indisponible)`
             : "⚠️ Compteurs CNAPS indisponibles sur data.json";
         } else if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer`;
+          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer • ${instruction} dossier${instruction>1?"s":""} en instruction`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun document à contrôler, aucune demande ni compte CNAPS à créer";
+          box.innerHTML = "✅ Aucun document à contrôler, aucune demande, aucun compte CNAPS à créer ni dossier en instruction";
         }
       } catch {
         box.className = "notif error";

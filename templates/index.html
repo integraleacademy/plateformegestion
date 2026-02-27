@@ -409,6 +409,19 @@ async function updateDotations() {
       return 0;
     }
 
+    function hasDetailedCnapsCounters(data) {
+      const keys = [
+        "demande_a_faire",
+        "documents_a_controler",
+        "comptes_cnaps_a_creer",
+        "dossiers_documents_a_controler",
+        "has_demande_a_faire",
+        "has_documents_a_controler",
+        "has_compte_cnaps_a_creer",
+      ];
+      return keys.some((k) => Object.prototype.hasOwnProperty.call(data || {}, k));
+    }
+
     // --- CNAPS Dépôt ---
     async function updateCnaps() {
       const box = document.getElementById("notif-cnaps");
@@ -416,11 +429,19 @@ async function updateDotations() {
         const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
         if (!r.ok) throw 0;
         const d = await r.json();
+        const hasDetails = hasDetailedCnapsCounters(d);
         const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
         const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const instruction = cnapsCount(d, ["instruction"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;
-        if (total > 0) {
+
+        if (!hasDetails) {
+          box.className = instruction > 0 ? "notif wait" : "notif alert";
+          box.innerHTML = instruction > 0
+            ? `📩 ${instruction} dossier${instruction>1?"s":""} en instruction (détail CNAPS indisponible)`
+            : "⚠️ Détail CNAPS indisponible sur data.json";
+        } else if (total > 0) {
           box.className = "notif wait";
           box.innerHTML = `📩 ${total} élément${total>1?"s":""} CNAPS à traiter`;
         } else {
@@ -440,12 +461,19 @@ async function updateDotations() {
         const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
         if (!r.ok) throw 0;
         const d = await r.json();
+        const hasDetails = hasDetailedCnapsCounters(d);
         const demandesAFaire = cnapsCount(d, ["demande_a_faire", "demandes_a_faire"], ["has_demande_a_faire"]);
         const documentsAControler = cnapsCount(d, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(d, ["comptes_cnaps_a_creer", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
+        const instruction = cnapsCount(d, ["instruction"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;
 
-        if (total > 0) {
+        if (!hasDetails) {
+          box.className = instruction > 0 ? "notif wait" : "notif alert";
+          box.innerHTML = instruction > 0
+            ? `👮‍♂️ ${instruction} dossier${instruction>1?"s":""} en instruction (détail CNAPS indisponible)`
+            : "⚠️ Compteurs CNAPS indisponibles sur data.json";
+        } else if (total > 0) {
           box.className = "notif wait";
           box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer`;
         } else {

@@ -540,9 +540,12 @@ async function updateDotations() {
         const hasDetails = hasDetailedCnapsCounters(data);
         const hasExplicitNouveauCounter = hasAnyCnapsKey(data, CNAPS_NOUVEAU_KEYS);
         const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer", "compte", "comptes", "compte_count", "recap_compte"], ["has_compte_cnaps_a_creer"]);
+        const hasExplicitDemandeCounter = hasAnyCnapsKey(data, [...CNAPS_DEMANDES_KEYS, ...CNAPS_DEMANDES_FLAGS]);
         const demandesAFaireBase = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
         const hasDemandeATraiter = ((data?.__debug_demande_fields?.statut_cnaps || '').toString().trim().toUpperCase() === 'A TRAITER');
-        const demandesAFaire = hasDemandeATraiter ? Math.max(demandesAFaireBase, 1) : demandesAFaireBase;
+        const demandesAFaire = (!hasExplicitDemandeCounter && hasDemandeATraiter)
+          ? Math.max(demandesAFaireBase, 1)
+          : demandesAFaireBase;
         const nouveauxDossiersBase = cnapsCount(data, CNAPS_NOUVEAU_KEYS, ["has_nouveau", "has_nouveau_dossier"]);
         const nouveauxDossiers = (!hasExplicitNouveauCounter && nouveauxDossiersBase === 0)
           ? (demandesAFaire + comptesACreer)
@@ -574,9 +577,12 @@ async function updateDotations() {
       try {
         const data = await fetchCnapsPayload();
         const hasDetails = hasDetailedCnapsCounters(data);
+        const hasExplicitDemandeCounter = hasAnyCnapsKey(data, [...CNAPS_DEMANDES_KEYS, ...CNAPS_DEMANDES_FLAGS]);
         const demandesAFaireBase = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
         const hasDemandeATraiter = ((data?.__debug_demande_fields?.statut_cnaps || '').toString().trim().toUpperCase() === 'A TRAITER');
-        const demandesAFaire = hasDemandeATraiter ? Math.max(demandesAFaireBase, 1) : demandesAFaireBase;
+        const demandesAFaire = (!hasExplicitDemandeCounter && hasDemandeATraiter)
+          ? Math.max(demandesAFaireBase, 1)
+          : demandesAFaireBase;
         const documentsAControler = cnapsCount(data, ["documents_a_controler", "documents_a_controler_count", "documents", "documents_count", "recap_documents"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer", "compte", "comptes", "compte_count", "recap_compte"], ["has_compte_cnaps_a_creer"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;

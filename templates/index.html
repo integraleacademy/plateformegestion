@@ -156,14 +156,14 @@
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
     <div class="emoji">📤</div>
     <div class="title">Dépôt dossiers CNAPS</div>
-    <div class="desc">Demandes CNAPS à traiter</div>
+    <div class="desc">Nouveau dossier</div>
     <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
   </a>
 
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
     <div class="emoji">👮‍♂️</div>
     <div class="title">Suivi des demandes CNAPS</div>
-    <div class="desc">Demandes à faire & documents à contrôler</div>
+    <div class="desc">Demande à faire • Documents à contrôler • Compte à créer</div>
     <div id="notif-suivi" class="notif empty">👮‍♂️ Chargement...</div>
   </a>
 
@@ -472,7 +472,7 @@ async function updateDotations() {
         const documentsAControler = cnapsCount(data, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const instruction = cnapsCount(data, ["instruction"]);
-        const total = demandesAFaire + documentsAControler + comptesACreer;
+        const total = demandesAFaire;
 
         if (!hasDetails) {
           box.className = instruction > 0 ? "notif wait" : "notif alert";
@@ -481,10 +481,10 @@ async function updateDotations() {
             : "⚠️ Détail CNAPS indisponible sur data.json";
         } else if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📩 ${total} élément${total>1?"s":""} CNAPS à traiter`;
+          box.innerHTML = `📩 ${total} nouveau${total>1?"x":""} dossier${total>1?"s":""}`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucune action CNAPS en attente";
+          box.innerHTML = "✅ Aucun nouveau dossier";
         }
       } catch {
         box.className = "notif error";
@@ -502,19 +502,19 @@ async function updateDotations() {
         const documentsAControler = cnapsCount(data, ["documents_a_controler", "documents_a_controler_count"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer"], ["has_compte_cnaps_a_creer"]);
         const instruction = cnapsCount(data, ["instruction", "instruction_count"], ["has_instruction"]);
-        const total = demandesAFaire + documentsAControler + comptesACreer + instruction;
+        const total = demandesAFaire + documentsAControler + comptesACreer;
 
         if (!hasDetails) {
           box.className = total > 0 ? "notif wait" : "notif alert";
           box.innerHTML = total > 0
-            ? `👮‍♂️ ${instruction} dossier${instruction>1?"s":""} en instruction (détail CNAPS indisponible)`
+            ? `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} à créer`
             : "⚠️ Compteurs CNAPS indisponibles sur data.json";
         } else if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} CNAPS à créer • ${instruction} dossier${instruction>1?"s":""} en instruction`;
+          box.innerHTML = `👮‍♂️ ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${comptesACreer} compte${comptesACreer>1?"s":""} à créer`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun document à contrôler, aucune demande, aucun compte CNAPS à créer ni dossier en instruction";
+          box.innerHTML = "✅ Aucune demande à faire, aucun document à contrôler et aucun compte à créer";
         }
       } catch {
         box.className = "notif error";

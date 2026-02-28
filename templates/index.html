@@ -181,25 +181,11 @@
   <div id="notif-bts" class="notif empty">🏫 Chargement...</div>
 </a>
 
-  <a class="card" href="https://vtc-qh20.onrender.com/admin" target="_blank" rel="noopener">
-    <div class="emoji">🚖</div>
-    <div class="title">Examens VTC</div>
-    <div class="desc">Inscriptions à l'examen</div>
-    <div id="notif-vtc" class="notif empty">🚖 Chargement...</div>
-  </a>
-
   <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
     <div class="emoji">📝</div>
     <div class="title">Contrats d'apprentissage</div>
     <div class="desc">Suivi des dossiers</div>
     <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
-  </a>
-
-  <a class="card" href="https://factures-jx8r.onrender.com/login" target="_blank" rel="noopener">
-    <div class="emoji">💼</div>
-    <div class="title">Gestion des factures</div>
-    <div class="desc">Portail de facturation</div>
-    <div id="notif-factures" class="notif empty">💼 Chargement...</div>
   </a>
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin-devis" target="_blank" rel="noopener">
@@ -669,48 +655,6 @@ async function updateBTS() {
 }
 
 
-    // --- VTC ---
-async function updateVtc() {
-  const box = document.getElementById("notif-vtc");
-
-  try {
-    const r = await fetch("https://vtc-qh20.onrender.com/summary.json");
-    if (!r.ok) throw 0;
-
-    const d = await r.json();
-
-    const a = d.a_inscrire || 0;
-    const l = d.livres_a_envoyer || 0;
-
-    let texte = "";
-
-    if (a === 0 && l === 0) {
-      box.className = "notif ok";
-      box.innerHTML = "🚖 Tout est OK";
-      return;
-    }
-
-    // au moins un des deux compteurs est > 0
-    box.className = "notif wait";
-
-    if (a > 0) {
-      texte += `🚖 ${a} dossier${a>1?"s":""} à inscrire`;
-    }
-
-    if (l > 0) {
-      if (texte !== "") texte += " — ";
-      texte += `📕 ${l} livre${l>1?"s":""} à envoyer`;
-    }
-
-    box.innerHTML = texte;
-
-  } catch {
-    box.className = "notif error";
-    box.innerHTML = "🔒 Erreur VTC";
-  }
-}
-
-
     // --- CONTRATS ---
     async function updateContrats() {
       const box = document.getElementById("notif-contrats");
@@ -730,27 +674,6 @@ async function updateVtc() {
       } catch {
         box.className = "notif error";
         box.innerHTML = "🔒 Erreur Contrats";
-      }
-    }
-
-    // --- FACTURES ---
-    async function updateFactures() {
-      const box = document.getElementById("notif-factures");
-      try {
-        const r = await fetch("https://factures-jx8r.onrender.com/data.json");
-        if (!r.ok) throw 0;
-        const d = await r.json();
-        const c = d.count || 0;
-        if (c > 0) {
-          box.className = "notif wait";
-          box.innerHTML = `💼 ${c} facture${c>1?"s":""} à régler`;
-        } else {
-          box.className = "notif ok";
-          box.innerHTML = "✅ Aucune facture en attente";
-        }
-      } catch {
-        box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Factures";
       }
     }
 
@@ -906,9 +829,7 @@ async function updateDevis() {
   updateCnaps();
   updateSuivi();
   updateStagiaires();
-  updateVtc();
   updateContrats();
-  updateFactures();
   updateSessions();
   updateDotations();
   updateBTS(); 

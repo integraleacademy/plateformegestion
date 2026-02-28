@@ -449,17 +449,57 @@ async function updateDotations() {
       return (root && root.summary && typeof root.summary === "object") ? root.summary : root;
     }
 
-    async function fetchCnapsPayload() {
-      const summaryUrl = `https://cnapsv3.onrender.com/summary.json?ts=${Date.now()}`;
-      try {
-        const r = await fetch(summaryUrl, { cache: "no-store" });
-        if (!r.ok) throw 0;
-        return extractCnapsPayload(await r.json());
-      } catch {
-        const r = await fetch("https://cnapsv3.onrender.com/data.json", { cache: "no-store" });
-        if (!r.ok) throw 0;
-        return extractCnapsPayload(await r.json());
+    async function fetchCnapsJson(url) {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw 0;
+      return extractCnapsPayload(await response.json());
+    }
+
+    function mergeCnapsPayload(primary, fallback) {
+      const merged = { ...(fallback || {}), ...(primary || {}) };
+      const keysToPreferWhenPresent = [
+        ...CNAPS_DEMANDES_KEYS,
+        "documents_a_controler",
+        "documents_a_controler_count",
+        "dossiers_documents_a_controler",
+        "comptes_cnaps_a_creer",
+        "comptes_cnaps_a_creer_count",
+        "instruction",
+        "instruction_count",
+        ...CNAPS_DEMANDES_FLAGS,
+        "has_documents_a_controler",
+        "has_compte_cnaps_a_creer",
+      ];
+
+      for (const key of keysToPreferWhenPresent) {
+        if (Object.prototype.hasOwnProperty.call(primary || {}, key)) {
+          merged[key] = primary[key];
+        }
       }
+
+      return merged;
+    }
+
+    async function fetchCnapsPayload() {
+      const dataUrl = `https://cnapsv3.onrender.com/data.json?ts=${Date.now()}`;
+      const summaryUrl = `https://cnapsv3.onrender.com/summary.json?ts=${Date.now()}`;
+
+      const [dataResult, summaryResult] = await Promise.allSettled([
+        fetchCnapsJson(dataUrl),
+        fetchCnapsJson(summaryUrl),
+      ]);
+
+      const dataPayload = dataResult.status === "fulfilled" ? dataResult.value : null;
+      const summaryPayload = summaryResult.status === "fulfilled" ? summaryResult.value : null;
+
+      if (dataPayload && summaryPayload) {
+        return mergeCnapsPayload(dataPayload, summaryPayload);
+      }
+
+      if (dataPayload) return dataPayload;
+      if (summaryPayload) return summaryPayload;
+
+      throw 0;
     }
 
     // --- CNAPS Dépôt ---

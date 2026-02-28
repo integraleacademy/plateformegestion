@@ -959,6 +959,10 @@ def generate_daily_overdue_email(sessions):
 
     found_any = False
     for s in sessions:
+        # On ignore les sessions archivées dans le mail quotidien
+        # pour éviter d'afficher d'anciennes formations en doublon.
+        if s.get("archived"):
+            continue
         overdue = snapshot_overdue(s)
         if not overdue:
             continue

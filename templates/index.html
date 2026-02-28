@@ -443,6 +443,10 @@ async function updateDotations() {
 
     const CNAPS_DEMANDES_FLAGS = ["has_demande_a_faire", "has_demandes_a_faire"];
 
+    function hasAnyCnapsKey(data, keys) {
+      return keys.some((k) => Object.prototype.hasOwnProperty.call(data || {}, k));
+    }
+
     function hasDetailedCnapsCounters(data) {
       const keys = [
         ...CNAPS_NOUVEAU_KEYS,
@@ -459,7 +463,7 @@ async function updateDotations() {
         "has_documents_a_controler",
         "has_compte_cnaps_a_creer",
       ];
-      return keys.some((k) => Object.prototype.hasOwnProperty.call(data || {}, k));
+      return hasAnyCnapsKey(data, keys);
     }
 
     function extractCnapsPayload(root) {
@@ -534,8 +538,15 @@ async function updateDotations() {
       try {
         const data = await fetchCnapsPayload();
         const hasDetails = hasDetailedCnapsCounters(data);
-        const nouveauxDossiers = cnapsCount(data, CNAPS_NOUVEAU_KEYS, ["has_nouveau", "has_nouveau_dossier"]);
-        const demandesAFaire = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
+        const hasExplicitNouveauCounter = hasAnyCnapsKey(data, CNAPS_NOUVEAU_KEYS);
+        const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer", "compte", "comptes", "compte_count", "recap_compte"], ["has_compte_cnaps_a_creer"]);
+        const demandesAFaireBase = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
+        const hasDemandeATraiter = ((data?.__debug_demande_fields?.statut_cnaps || '').toString().trim().toUpperCase() === 'A TRAITER');
+        const demandesAFaire = hasDemandeATraiter ? Math.max(demandesAFaireBase, 1) : demandesAFaireBase;
+        const nouveauxDossiersBase = cnapsCount(data, CNAPS_NOUVEAU_KEYS, ["has_nouveau", "has_nouveau_dossier"]);
+        const nouveauxDossiers = (!hasExplicitNouveauCounter && nouveauxDossiersBase === 0)
+          ? (demandesAFaire + comptesACreer)
+          : nouveauxDossiersBase;
         const instruction = cnapsCount(data, ["instruction"]);
         const total = nouveauxDossiers;
 
@@ -563,7 +574,9 @@ async function updateDotations() {
       try {
         const data = await fetchCnapsPayload();
         const hasDetails = hasDetailedCnapsCounters(data);
-        const demandesAFaire = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
+        const demandesAFaireBase = cnapsCount(data, CNAPS_DEMANDES_KEYS, CNAPS_DEMANDES_FLAGS);
+        const hasDemandeATraiter = ((data?.__debug_demande_fields?.statut_cnaps || '').toString().trim().toUpperCase() === 'A TRAITER');
+        const demandesAFaire = hasDemandeATraiter ? Math.max(demandesAFaireBase, 1) : demandesAFaireBase;
         const documentsAControler = cnapsCount(data, ["documents_a_controler", "documents_a_controler_count", "documents", "documents_count", "recap_documents"], ["has_documents_a_controler"]);
         const comptesACreer = cnapsCount(data, ["comptes_cnaps_a_creer", "comptes_cnaps_a_creer_count", "comptes_a_creer", "compte", "comptes", "compte_count", "recap_compte"], ["has_compte_cnaps_a_creer"]);
         const total = demandesAFaire + documentsAControler + comptesACreer;

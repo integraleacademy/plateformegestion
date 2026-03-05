@@ -686,7 +686,9 @@
 
     const applyMinimumPrice = (prospect, value) => {
       const cpfValue = Number(prospect?.cpf) || 0;
-      const minPrice = cpfValue + 100;
+      const basePrice = formationPrices[prospect?.formation] || 0;
+      const effectiveCpf = basePrice ? Math.min(cpfValue, basePrice) : cpfValue;
+      const minPrice = effectiveCpf + 100;
       if (!Number.isFinite(value)) {
         return minPrice;
       }

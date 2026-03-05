@@ -684,15 +684,11 @@
       maximumFractionDigits: 0,
     }).format(value);
 
-    const applyMinimumPrice = (prospect, value) => {
-      const cpfValue = Number(prospect?.cpf) || 0;
-      const basePrice = formationPrices[prospect?.formation] || 0;
-      const effectiveCpf = basePrice ? Math.min(cpfValue, basePrice) : cpfValue;
-      const minPrice = effectiveCpf + 100;
+    const normalizeProposedPrice = (value) => {
       if (!Number.isFinite(value)) {
-        return minPrice;
+        return 0;
       }
-      return Math.max(Math.round(value), minPrice);
+      return Math.max(Math.round(value), 0);
     };
 
     const normalizeLastName = (value) => (value || "").trim().toLocaleUpperCase("fr-FR");
@@ -946,7 +942,7 @@
       const discountValue = normalizeDiscount(formationDates[prospect.formation]?.discount);
       const discountedPrice = getDiscountedPrice(prospect.formation, discountValue);
       const rawProposedPrice = Number.isFinite(prospect.proposed_price) ? prospect.proposed_price : discountedPrice;
-      const proposedPrice = applyMinimumPrice(prospect, rawProposedPrice);
+      const proposedPrice = normalizeProposedPrice(rawProposedPrice);
       const remaining = Math.max(proposedPrice - prospect.cpf, 0);
       const effectiveDiscount = basePrice
         ? Math.min(Math.max(Math.round((1 - proposedPrice / basePrice) * 100), 0), 100)
@@ -1004,7 +1000,7 @@
       }
 
       const { basePrice, discountValue } = buildProposal(activeProspect);
-      const adjustedPrice = applyMinimumPrice(activeProspect, price);
+      const adjustedPrice = normalizeProposedPrice(price);
       if (adjustedPrice !== price) {
         proposalPriceInput.value = adjustedPrice;
       }
@@ -1062,7 +1058,7 @@
       if (!activeProspect) {
         return;
       }
-      const adjustedPrice = applyMinimumPrice(activeProspect, price);
+      const adjustedPrice = normalizeProposedPrice(price);
       if (adjustedPrice !== price) {
         proposalPriceInput.value = adjustedPrice;
       }

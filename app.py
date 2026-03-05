@@ -299,16 +299,11 @@ def normalize_price_adaptator_formation(value):
     return PRICE_ADAPTATOR_ALLOWED_FORMATIONS.get(cleaned)
 
 
-def apply_price_adaptator_minimum_price(prospect, price_value):
+def normalize_price_adaptator_proposed_price(price_value):
     try:
-        cpf_value = float(prospect.get("cpf") or 0)
+        return max(float(price_value), 0.0)
     except (TypeError, ValueError):
-        cpf_value = 0.0
-    formation = prospect.get("formation")
-    formation_price = PRICE_ADAPTATOR_FORMATION_PRICES.get(formation)
-    effective_cpf = min(cpf_value, formation_price) if formation_price is not None else cpf_value
-    minimum_price = effective_cpf + 100
-    return max(price_value, minimum_price)
+        return 0.0
 
 def get_price_adaptator_followup_date(dates, formation):
     date_range = (dates or {}).get(formation, {})
@@ -1794,7 +1789,7 @@ def price_adaptator_save_proposal(prospect_id):
     if not prospect:
         return {"ok": False, "error": "Prospect introuvable"}, 404
 
-    price_value = apply_price_adaptator_minimum_price(prospect, price_value)
+    price_value = normalize_price_adaptator_proposed_price(price_value)
     prospect["proposed_price"] = price_value
     save_price_adaptator_data(data)
 
@@ -1820,7 +1815,7 @@ def price_adaptator_send():
     if not prospect:
         return {"ok": False, "error": "Prospect introuvable"}, 404
 
-    price_value = apply_price_adaptator_minimum_price(prospect, price_value)
+    price_value = normalize_price_adaptator_proposed_price(price_value)
     result = attempt_price_adaptator_send(prospect, data.get("dates"), price_override=price_value)
     prospect["last_attempt_at"] = datetime.now().isoformat()
     prospect["last_error"] = result["email_error"] or result["sms_error"]
@@ -1854,7 +1849,7 @@ def price_adaptator_preview(prospect_id):
     if price_override is None:
         price_override = prospect.get("proposed_price")
     if price_override is not None:
-        price_override = apply_price_adaptator_minimum_price(prospect, price_override)
+        price_override = normalize_price_adaptator_proposed_price(price_override)
 
     message = build_price_adaptator_message(prospect, data.get("dates"), price_override=price_override)
     return {

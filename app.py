@@ -304,7 +304,10 @@ def apply_price_adaptator_minimum_price(prospect, price_value):
         cpf_value = float(prospect.get("cpf") or 0)
     except (TypeError, ValueError):
         cpf_value = 0.0
-    minimum_price = cpf_value + 100
+    formation = prospect.get("formation")
+    formation_price = PRICE_ADAPTATOR_FORMATION_PRICES.get(formation)
+    effective_cpf = min(cpf_value, formation_price) if formation_price is not None else cpf_value
+    minimum_price = effective_cpf + 100
     return max(price_value, minimum_price)
 
 def get_price_adaptator_followup_date(dates, formation):

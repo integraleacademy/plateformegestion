@@ -269,6 +269,25 @@
     {% endfor %}
   </div>
   {% endif %}
+
+  {% if sorted_archived %}
+  <h2 class="section-title">🗃️ Sessions archivées / terminées</h2>
+  <div class="sessions-grid">
+    {% for s in sorted_archived %}
+      <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
+        <div class="session-title">{{ s.formation }}</div>
+        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
+        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
+        {% if s.archived %}
+          <div class="countdown" style="color:#777;">📦 Session archivée</div>
+        {% else %}
+          <div class="countdown" style="color:#777;">✅ Session terminée</div>
+        {% endif %}
+        <div class="session-badge">Archivée</div>
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
 </main>
 
 <!-- === MODAL NOUVELLE SESSION === -->

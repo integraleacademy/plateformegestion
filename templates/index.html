@@ -797,12 +797,44 @@ async function updateDevis() {
   const box = document.getElementById("notif-devis");
   if (!box) return;
 
+  const mandatLabelOriginal = "⏳ Prélèvement non validé";
+  const mandatLabelRenomme = "⏳ Notifications Prélèvement non validé";
+  const mandatWhatToDo = "ℹ️ QUOI FAIRE ? La personne est inscrite en formation mais elle n'a pas encore validé le mandat de prélèvement que nous lui avons envoyé. Il faut l'appeler pour lui rappeler de valider le prélèvement afin que nous puissions confirmer l'inscription";
+
+  const normalizeDetailLabel = (label) => {
+    if ((label || "").trim() === mandatLabelOriginal) {
+      return mandatLabelRenomme;
+    }
+    return label;
+  };
+
+  const extractDetails = (payload) => {
+    const entries = Array.isArray(payload?.details)
+      ? payload.details
+      : Array.isArray(payload?.relances)
+        ? payload.relances
+        : [];
+
+    return entries
+      .map((entry) => {
+        const rawLabel = typeof entry === "string" ? entry : (entry?.label || entry?.name || "");
+        const label = normalizeDetailLabel(rawLabel);
+        const count = Number(typeof entry === "string" ? 0 : (entry?.count ?? entry?.total ?? 0));
+        const whatToDo = (label === mandatLabelRenomme)
+          ? mandatWhatToDo
+          : (typeof entry === "string" ? "" : (entry?.what_to_do || entry?.quoi_faire || ""));
+        return { label, count, whatToDo };
+      })
+      .filter((entry) => entry.label);
+  };
+
   try {
     const r = await fetch("https://assistance-alw9.onrender.com/devis_data.json");
     if (!r.ok) throw 0;
 
     const d = await r.json();
     const n = d.a_envoyer || 0;
+    const details = extractDetails(d);
 
     if (n > 0) {
       box.className = "notif wait";
@@ -812,9 +844,22 @@ async function updateDevis() {
       box.innerHTML = "✅ Aucun devis en attente";
     }
 
+    if (details.length > 0) {
+      const tooltip = details
+        .map((entry) => {
+          const countLabel = entry.count > 0 ? ` (${entry.count})` : "";
+          return `${entry.label}${countLabel}${entry.whatToDo ? `\n${entry.whatToDo}` : ""}`;
+        })
+        .join("\n\n");
+      box.setAttribute("data-tooltip", tooltip);
+    } else {
+      box.removeAttribute("data-tooltip");
+    }
+
   } catch {
     box.className = "notif error";
     box.innerHTML = "🔒 Erreur devis";
+    box.removeAttribute("data-tooltip");
   }
 }
 

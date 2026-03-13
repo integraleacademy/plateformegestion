@@ -1868,8 +1868,20 @@ def sessions_home():
         sync_steps(s)
     save_sessions(data)
 
-    active = [s for s in data["sessions"] if not s.get("archived")]
-    archived = [s for s in data["sessions"] if s.get("archived")]
+    today = datetime.now().date()
+    active = []
+    archived = []
+
+    for s in data["sessions"]:
+        end_date = parse_date(s.get("date_fin"))
+        is_finished = bool(end_date and end_date.date() < today)
+        s["is_finished"] = is_finished
+
+        if s.get("archived") or is_finished:
+            archived.append(s)
+        else:
+            active.append(s)
+
     for s in data["sessions"]:
         s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
 
@@ -1885,7 +1897,6 @@ def sessions_home():
                 print(f" - {step['name']}: {st} / deadline=N/A")
 
     # --------- 🧠 On calcule le récap en PYTHON ---------
-    today = datetime.now().date()
     recap_map = {}   # { formation: {"late_steps":[(text,days)], "today_steps":[text]} }
     total_late = 0
 

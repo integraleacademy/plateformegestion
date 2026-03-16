@@ -579,12 +579,7 @@ def find_session(data, sid):
             return s
     return None
 
-def sync_steps(session):
-    """Reconstruit les étapes selon le modèle officiel (ordre + ajout + évite doublons),
-    tout en conservant done/done_at/custom_date des étapes existantes.
-    """
-    formation = session.get("formation")
-
+def steps_rules_for_formation(formation):
     if formation in ("APS", "A3P", "DIRIGEANT"):
         rules = APS_A3P_STEPS
     elif formation == "SSIAP":
@@ -592,6 +587,19 @@ def sync_steps(session):
     elif formation == "GENERAL":
         rules = GENERAL_STEPS
     else:
+        return []
+
+    return [rule for rule in rules if "formations" not in rule or formation in rule["formations"]]
+
+
+def sync_steps(session):
+    """Reconstruit les étapes selon le modèle officiel (ordre + ajout + évite doublons),
+    tout en conservant done/done_at/custom_date des étapes existantes.
+    """
+    formation = session.get("formation")
+
+    rules = steps_rules_for_formation(formation)
+    if not rules:
         return
 
     # sécurité si steps absent
@@ -617,13 +625,8 @@ def sync_steps(session):
 
 
     # Récupère la liste actuelle des règles depuis le code
-    if formation in ("APS", "A3P", "DIRIGEANT"):
-        rules = APS_A3P_STEPS
-    elif formation == "SSIAP":
-        rules = SSIAP_STEPS
-    elif formation == "GENERAL":
-        rules = GENERAL_STEPS
-    else:
+    rules = steps_rules_for_formation(formation)
+    if not rules:
         return
     existing_names = [s["name"] for s in session.get("steps", [])]
 
@@ -647,6 +650,8 @@ APS_A3P_STEPS = [
     {"name":"Nomination jury examen", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Planification YPAREO", "relative_to":"start", "offset_type":"before", "days":10},
     {"name":"Envoyer lien à compléter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
+    {"name":"Ajout des stagiaires sur DRACAR", "relative_to":"start", "offset_type":"before", "days":7},
+    {"name":"Ajout des formateurs sur DRACAR", "relative_to":"start", "offset_type":"before", "days":7},
     {"name":"Contrat envoyé au formateur", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Contrat formateur imprimé", "relative_to":"start", "offset_type":"before", "days":5},
     {"name":"Saisie des candidats ADEF", "relative_to":"start", "offset_type":"before", "days":5},
@@ -658,7 +663,7 @@ APS_A3P_STEPS = [
     # AVANT EXAM
     {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
     {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
-    {"name":"Impression des dossiers d’examen", "relative_to":"exam", "offset_type":"before", "days":5},
+    {"name":"Impression dossier fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
     {"name":"Impression évaluation de fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
     # JOUR EXAM
     {"name":"Session examen clôturée", "relative_to":"exam", "offset_type":"after", "days":0},
@@ -675,9 +680,9 @@ APS_A3P_STEPS = [
     {"name": "Signature fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
     {"name":"Fin de formation EDOF", "relative_to":"exam", "offset_type":"after", "days":1},
     {"name": "Signature registre entretien SST", "relative_to": "start", "offset_type": "after", "days": 15},
-    {"name": "Distribution des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1},
-    {"name": "Récupérer paiement logement", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name":"Préparation planning de ménage", "relative_to":"start", "offset_type":"before", "days":2},
+    {"name": "Distribution des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1, "formations": ["A3P"]},
+    {"name": "Récupérer paiement logement", "relative_to": "start", "offset_type": "after", "days": 0, "formations": ["A3P"]},
+    {"name":"Préparation planning de ménage", "relative_to":"start", "offset_type":"before", "days":2, "formations": ["A3P"]},
     {"name":"Créer groupe Whatsapp", "relative_to":"start", "offset_type":"before", "days":7},
 ]
 
@@ -799,14 +804,7 @@ def formation_label(value):
 app.jinja_env.filters['formation_label'] = formation_label
 
 def default_steps_for(formation):
-    if formation in ("APS", "A3P", "DIRIGEANT"):
-        steps = APS_A3P_STEPS
-    elif formation == "SSIAP":
-        steps = SSIAP_STEPS
-    elif formation == "GENERAL":        # ✅ ajoute ceci
-        steps = GENERAL_STEPS
-    else:
-        steps = []
+    steps = steps_rules_for_formation(formation)
     return [{"name": s["name"], "done": False, "done_at": None} for s in steps]
 
 
@@ -814,14 +812,7 @@ def default_steps_for(formation):
 # Statuts / échéances
 # -----------------------
 def _rule_for(formation, step_index):
-    if formation in ("APS", "A3P", "DIRIGEANT"):
-        rules = APS_A3P_STEPS
-    elif formation == "SSIAP":
-        rules = SSIAP_STEPS
-    elif formation == "GENERAL":
-        rules = GENERAL_STEPS
-    else:
-        return None
+    rules = steps_rules_for_formation(formation)
 
     # ✅ Protection anti IndexError
     if step_index < 0 or step_index >= len(rules):

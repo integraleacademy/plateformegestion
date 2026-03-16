@@ -37,6 +37,37 @@
       font-size:20px;margin:25px 0 15px;color:#222;border-left:4px solid #2a9134;padding-left:10px;
       display:flex;align-items:center;gap:8px;
     }
+    .section-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-top:25px;
+    }
+    .section-header .section-title {margin:0;}
+    .toggle-archived-btn {
+      border:none;
+      border-radius:999px;
+      padding:8px 14px;
+      background:#efefef;
+      color:#333;
+      font-weight:600;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      transition:background .2s ease, transform .2s ease;
+    }
+    .toggle-archived-btn:hover {
+      background:#e3e3e3;
+      transform:translateY(-1px);
+    }
+    .archived-content {
+      margin-top:12px;
+    }
+    .archived-content[hidden] {
+      display:none;
+    }
 
     /* Bloc récapitulatif */
     .recap {
@@ -271,21 +302,30 @@
   {% endif %}
 
   {% if sorted_archived %}
-  <h2 class="section-title">🗃️ Sessions archivées / terminées</h2>
-  <div class="sessions-grid">
-    {% for s in sorted_archived %}
-      <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
-        <div class="session-title">{{ s.formation }}</div>
-        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
-        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
-        {% if s.archived %}
-          <div class="countdown" style="color:#777;">📦 Session archivée</div>
-        {% else %}
-          <div class="countdown" style="color:#777;">✅ Session terminée</div>
-        {% endif %}
-        <div class="session-badge">Archivée</div>
-      </a>
-    {% endfor %}
+  <div class="section-header">
+    <h2 class="section-title">🗃️ Sessions archivées / terminées</h2>
+    <button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions">
+      <span id="toggleArchivedIcon">▶️</span>
+      <span id="toggleArchivedText">Afficher</span>
+    </button>
+  </div>
+
+  <div class="archived-content" id="archivedSessions" hidden>
+    <div class="sessions-grid">
+      {% for s in sorted_archived %}
+        <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
+          <div class="session-title">{{ s.formation }}</div>
+          <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
+          <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
+          {% if s.archived %}
+            <div class="countdown" style="color:#777;">📦 Session archivée</div>
+          {% else %}
+            <div class="countdown" style="color:#777;">✅ Session terminée</div>
+          {% endif %}
+          <div class="session-badge">Archivée</div>
+        </a>
+      {% endfor %}
+    </div>
   </div>
   {% endif %}
 </main>
@@ -334,6 +374,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const openBtn = document.getElementById("openModal");
   const closeBtn = document.getElementById("closeModal");
   const modal = document.getElementById("sessionModal");
+  const toggleArchivedBtn = document.getElementById("toggleArchived");
+  const archivedSessions = document.getElementById("archivedSessions");
+  const toggleArchivedText = document.getElementById("toggleArchivedText");
+  const toggleArchivedIcon = document.getElementById("toggleArchivedIcon");
 
   if (openBtn && modal) {
     openBtn.addEventListener("click", () => modal.style.display = "flex");
@@ -347,6 +391,22 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") modal.style.display = "none";
   });
+
+  if (toggleArchivedBtn && archivedSessions && toggleArchivedText && toggleArchivedIcon) {
+    toggleArchivedBtn.addEventListener("click", () => {
+      const shouldOpen = archivedSessions.hasAttribute("hidden");
+
+      if (shouldOpen) {
+        archivedSessions.removeAttribute("hidden");
+      } else {
+        archivedSessions.setAttribute("hidden", "");
+      }
+
+      toggleArchivedBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      toggleArchivedText.textContent = shouldOpen ? "Masquer" : "Afficher";
+      toggleArchivedIcon.textContent = shouldOpen ? "🔽" : "▶️";
+    });
+  }
 });
 </script>
 </body>

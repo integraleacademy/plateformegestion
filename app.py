@@ -2304,6 +2304,27 @@ def update_step_date(sid):
     return redirect(url_for("session_detail", sid=sid))
 
 
+@app.route("/sessions/<sid>/rename", methods=["POST"])
+def rename_session(sid):
+    data = load_sessions()
+    session = find_session(data, sid)
+    if not session:
+        return {"ok": False, "error": "Session introuvable"}, 404
+
+    payload = request.get_json(silent=True) or {}
+    raw_name = payload.get("name", request.form.get("name", ""))
+    name = (raw_name or "").strip()
+
+    if not name:
+        return {"ok": False, "error": "Le nom ne peut pas être vide."}, 400
+    if len(name) > 80:
+        return {"ok": False, "error": "Le nom est trop long (80 caractères max)."}, 400
+
+    session["display_name"] = name
+    save_sessions(data)
+    return {"ok": True, "name": name}
+
+
 @app.route("/sessions/<sid>/delete", methods=["POST"])
 def delete_session(sid):
     data = load_sessions()

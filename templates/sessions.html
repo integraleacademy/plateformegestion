@@ -442,6 +442,80 @@ document.addEventListener("DOMContentLoaded", () => {
       toggleArchivedIcon.textContent = shouldOpen ? "🔽" : "▶️";
     });
   }
+
+  const titleInputs = document.querySelectorAll(".session-title-input[data-session-id]");
+
+  const setStatus = (sessionId, message, isError = false) => {
+    const statusEl = document.querySelector(`[data-session-status="${sessionId}"]`);
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.toggle("error", isError);
+  };
+
+  const persistSessionName = async (input) => {
+    const sessionId = input.dataset.sessionId;
+    const nextValue = input.value.trim();
+    const previousValue = input.dataset.lastSavedValue || "";
+
+    if (!sessionId || nextValue === previousValue) return;
+
+    if (!nextValue) {
+      input.value = previousValue;
+      setStatus(sessionId, "Le nom ne peut pas être vide.", true);
+      return;
+    }
+
+    setStatus(sessionId, "Enregistrement...");
+
+    try {
+      const response = await fetch(`/sessions/${sessionId}/rename`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: nextValue }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Erreur inconnue");
+      }
+
+      input.dataset.lastSavedValue = payload.name;
+      input.value = payload.name;
+      setStatus(sessionId, "✓ Enregistré");
+      setTimeout(() => setStatus(sessionId, ""), 1800);
+    } catch (error) {
+      input.value = previousValue;
+      setStatus(sessionId, error.message || "Erreur lors de l'enregistrement.", true);
+    }
+  };
+
+  titleInputs.forEach((input) => {
+    input.dataset.lastSavedValue = input.value.trim();
+
+    input.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        persistSessionName(input);
+        input.blur();
+      }
+      if (event.key === "Escape") {
+        input.value = input.dataset.lastSavedValue || "";
+        input.blur();
+      }
+      event.stopPropagation();
+    });
+
+    input.addEventListener("blur", () => {
+      persistSessionName(input);
+    });
+  });
 });
 </script>
 </body>

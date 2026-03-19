@@ -34,8 +34,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SHORTCUTS_FILE = os.path.join(BASE_DIR, "data", "shortcuts.json")
-SHORTCUT_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads", "shortcuts")
+DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
+os.makedirs(DATA_DIR, exist_ok=True)
+SHORTCUTS_DATA_DIR = os.path.join(DATA_DIR, "shortcuts")
+SHORTCUTS_FILE = os.path.join(SHORTCUTS_DATA_DIR, "shortcuts.json")
+SHORTCUT_UPLOAD_DIR = os.path.join(SHORTCUTS_DATA_DIR, "images")
+LEGACY_SHORTCUTS_FILE = os.path.join(BASE_DIR, "data", "shortcuts.json")
+LEGACY_SHORTCUT_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads", "shortcuts")
 ALLOWED_SHORTCUT_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 logger = logging.getLogger("jury-notify")
@@ -57,13 +62,63 @@ app.config.update(
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
+def shortcut_image_url(filename):
+    return url_for("shortcut_image", filename=filename)
+
+
+def normalize_shortcut_image(shortcut):
+    image = shortcut.get("image") or ""
+    filename = os.path.basename(urllib.parse.urlparse(image).path)
+    if filename:
+        shortcut["image"] = shortcut_image_url(filename)
+    return shortcut
+
+
+def migrate_legacy_shortcuts_storage():
+    migrated = False
+
+    if os.path.exists(LEGACY_SHORTCUT_UPLOAD_DIR):
+        for entry in os.scandir(LEGACY_SHORTCUT_UPLOAD_DIR):
+            if not entry.is_file():
+                continue
+
+            destination = os.path.join(SHORTCUT_UPLOAD_DIR, entry.name)
+            if os.path.exists(destination):
+                continue
+
+            with open(entry.path, "rb") as source_file, open(destination, "wb") as destination_file:
+                destination_file.write(source_file.read())
+            migrated = True
+
+    if os.path.exists(LEGACY_SHORTCUTS_FILE):
+        try:
+            with open(LEGACY_SHORTCUTS_FILE, "r", encoding="utf-8") as f:
+                legacy_shortcuts = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            legacy_shortcuts = []
+
+        if isinstance(legacy_shortcuts, list):
+            normalized_shortcuts = []
+            for shortcut in legacy_shortcuts:
+                if not isinstance(shortcut, dict):
+                    continue
+                normalized_shortcuts.append(normalize_shortcut_image(shortcut))
+
+            if normalized_shortcuts:
+                with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(normalized_shortcuts, f, ensure_ascii=False, indent=2)
+                migrated = True
+
+    return migrated
+
 
 def ensure_shortcuts_storage():
-    os.makedirs(os.path.dirname(SHORTCUTS_FILE), exist_ok=True)
+    os.makedirs(SHORTCUTS_DATA_DIR, exist_ok=True)
     os.makedirs(SHORTCUT_UPLOAD_DIR, exist_ok=True)
     if not os.path.exists(SHORTCUTS_FILE):
-        with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
-            json.dump([], f, ensure_ascii=False, indent=2)
+        if not migrate_legacy_shortcuts_storage():
+            with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f, ensure_ascii=False, indent=2)
 
 
 def load_shortcuts():
@@ -81,6 +136,10 @@ def load_shortcuts():
             continue
         if not shortcut.get("id"):
             shortcut["id"] = uuid.uuid4().hex
+            updated = True
+        existing_image = shortcut.get("image")
+        normalize_shortcut_image(shortcut)
+        if shortcut.get("image") != existing_image:
             updated = True
 
     if updated:
@@ -221,8 +280,6 @@ app.jinja_env.globals['get_status_label'] = get_status_label
 
 
 # --- Persistance ---
-DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
-os.makedirs(DATA_DIR, exist_ok=True)
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 PRICE_ADAPTATOR_FILE = os.path.join(DATA_DIR, "price_adaptator.json")
 
@@ -1582,6 +1639,11 @@ def shortcuts_data():
     return jsonify(load_shortcuts())
 
 
+@app.route("/shortcut-images/<path:filename>")
+def shortcut_image(filename):
+    return send_from_directory(SHORTCUT_UPLOAD_DIR, filename)
+
+
 @app.route("/shortcuts", methods=["POST"])
 def create_shortcut():
     name = (request.form.get("name") or "").strip()
@@ -1611,7 +1673,7 @@ def create_shortcut():
         "id": uuid.uuid4().hex,
         "name": name,
         "url": url,
-        "image": url_for("static", filename=f"uploads/shortcuts/{filename}")
+        "image": shortcut_image_url(filename)
     }
     shortcuts.append(shortcut)
     save_shortcuts(shortcuts)
@@ -1621,10 +1683,19 @@ def create_shortcut():
 @app.route("/shortcuts/<shortcut_id>", methods=["DELETE"])
 def delete_shortcut(shortcut_id):
     shortcuts = load_shortcuts()
+    shortcut_to_delete = next((shortcut for shortcut in shortcuts if shortcut.get("id") == shortcut_id), None)
     remaining = [shortcut for shortcut in shortcuts if shortcut.get("id") != shortcut_id]
 
     if len(remaining) == len(shortcuts):
         return jsonify({"ok": False, "error": "Raccourci introuvable."}), 404
+
+    if shortcut_to_delete:
+        image_path = shortcut_to_delete.get("image") or ""
+        filename = os.path.basename(urllib.parse.urlparse(image_path).path)
+        if filename:
+            stored_image_path = os.path.join(SHORTCUT_UPLOAD_DIR, filename)
+            if os.path.exists(stored_image_path):
+                os.remove(stored_image_path)
 
     save_shortcuts(remaining)
     return jsonify({"ok": True})

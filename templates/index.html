@@ -168,10 +168,15 @@
 
     .shortcut-panel-header {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       margin-bottom: 14px;
       flex-shrink: 0;
+    }
+
+    .shortcut-panel-heading {
+      min-width: 0;
     }
 
     .shortcut-panel-title {
@@ -180,29 +185,44 @@
       line-height: 1.15;
     }
 
-    .shortcut-panel-subtitle {
-      margin: 0;
-      color: rgba(255,255,255,.76);
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
     .shortcut-add-btn {
       border: none;
-      border-radius: 14px;
-      padding: 12px 14px;
-      font-size: 15px;
-      font-weight: 700;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1;
       cursor: pointer;
       color: #161616;
       background: linear-gradient(135deg, #f4c45a 0%, #ffd98c 100%);
       box-shadow: 0 12px 24px rgba(244,196,90,.25);
       transition: transform .2s ease, box-shadow .2s ease;
+      animation: shortcutAddPulse 2.4s ease-in-out infinite;
     }
 
     .shortcut-add-btn:hover {
-      transform: translateY(-2px);
+      transform: translateY(-2px) scale(1.06) rotate(90deg);
       box-shadow: 0 14px 30px rgba(244,196,90,.32);
+      animation-play-state: paused;
+    }
+
+    .shortcut-add-btn:focus-visible {
+      outline: 3px solid rgba(244,196,90,.35);
+      outline-offset: 3px;
+    }
+
+    @keyframes shortcutAddPulse {
+      0%, 100% {
+        transform: scale(1) rotate(0deg);
+      }
+      50% {
+        transform: scale(1.08) rotate(90deg);
+      }
     }
 
     .shortcut-list {
@@ -225,6 +245,7 @@
     }
 
     .shortcut-item {
+      position: relative;
       display: grid;
       grid-template-columns: 64px minmax(0, 1fr) auto;
       align-items: center;
@@ -233,6 +254,7 @@
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 18px;
       padding: 10px 12px;
+      padding-right: 48px;
       backdrop-filter: blur(8px);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
     }
@@ -290,6 +312,36 @@
       background: #f4c45a;
       color: #161616;
       border-color: #f4c45a;
+    }
+
+    .shortcut-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,.12);
+      color: rgba(255,255,255,.82);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      transition: background .2s ease, color .2s ease, transform .2s ease;
+    }
+
+    .shortcut-delete-btn:hover {
+      background: rgba(255,255,255,.2);
+      color: #ffd98c;
+      transform: scale(1.08);
+    }
+
+    .shortcut-delete-btn:focus-visible {
+      outline: 2px solid rgba(244,196,90,.5);
+      outline-offset: 2px;
     }
 
     .shortcut-empty {
@@ -461,6 +513,17 @@
       }
     }
 
+    @media (max-width: 640px) {
+      .shortcut-panel-header {
+        align-items: flex-start;
+      }
+
+      .shortcut-add-btn {
+        width: 46px;
+        height: 46px;
+      }
+    }
+
     @media (max-width: 520px) {
       .shortcut-item {
         grid-template-columns: 1fr;
@@ -500,15 +563,17 @@
     <div class="dashboard-layout">
       <aside class="shortcut-panel">
         <div class="shortcut-panel-header">
-          <h2 class="shortcut-panel-title">Raccourcis utiles</h2>
-          <p class="shortcut-panel-subtitle">Ajoutez vos sites favoris pour les retrouver rapidement pendant votre journée.</p>
-          <button type="button" class="shortcut-add-btn" id="open-shortcut-modal">Ajouter un raccourci</button>
+          <div class="shortcut-panel-heading">
+            <h2 class="shortcut-panel-title">Raccourcis utiles</h2>
+          </div>
+          <button type="button" class="shortcut-add-btn" id="open-shortcut-modal" aria-label="Ajouter un raccourci" title="Ajouter un raccourci">+</button>
         </div>
 
         <div class="shortcut-list" id="shortcut-list">
           {% if shortcuts %}
             {% for shortcut in shortcuts %}
-              <div class="shortcut-item">
+              <div class="shortcut-item" data-shortcut-id="{{ shortcut.id }}">
+                <button type="button" class="shortcut-delete-btn" data-shortcut-delete="{{ shortcut.id }}" aria-label="Supprimer {{ shortcut.name }}" title="Supprimer">×</button>
                 <div class="shortcut-media">
                   <img src="{{ shortcut.image }}" alt="{{ shortcut.name }}" class="shortcut-avatar">
                 </div>
@@ -728,7 +793,8 @@
 
     function shortcutCardTemplate(shortcut) {
       return `
-        <div class="shortcut-item">
+        <div class="shortcut-item" data-shortcut-id="${escapeHtml(shortcut.id)}">
+          <button type="button" class="shortcut-delete-btn" data-shortcut-delete="${escapeHtml(shortcut.id)}" aria-label="Supprimer ${escapeHtml(shortcut.name)}" title="Supprimer">×</button>
           <div class="shortcut-media">
             <img src="${escapeHtml(shortcut.image)}" alt="${escapeHtml(shortcut.name)}" class="shortcut-avatar">
           </div>
@@ -826,6 +892,41 @@
         shortcutFormError.textContent = error.message || "Une erreur est survenue.";
         saveShortcutBtn.disabled = false;
         saveShortcutBtn.textContent = "Enregistrer";
+      }
+    });
+
+    shortcutList?.addEventListener("click", async (event) => {
+      const deleteButton = event.target.closest("[data-shortcut-delete]");
+      if (!deleteButton) {
+        return;
+      }
+
+      const shortcutId = deleteButton.getAttribute("data-shortcut-delete");
+      if (!shortcutId) {
+        return;
+      }
+
+      deleteButton.disabled = true;
+
+      try {
+        const response = await fetch(`/shortcuts/${encodeURIComponent(shortcutId)}`, {
+          method: "DELETE",
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || "Impossible de supprimer le raccourci.");
+        }
+
+        const shortcutIndex = initialShortcuts.findIndex((shortcut) => `${shortcut.id}` === `${shortcutId}`);
+        if (shortcutIndex >= 0) {
+          initialShortcuts.splice(shortcutIndex, 1);
+        }
+
+        renderShortcuts(initialShortcuts);
+      } catch (error) {
+        deleteButton.disabled = false;
+        window.alert(error.message || "Une erreur est survenue.");
       }
     });
 

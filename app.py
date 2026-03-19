@@ -71,9 +71,22 @@ def load_shortcuts():
     try:
         with open(SHORTCUTS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data if isinstance(data, list) else []
+            shortcuts = data if isinstance(data, list) else []
     except (FileNotFoundError, json.JSONDecodeError):
         return []
+
+    updated = False
+    for shortcut in shortcuts:
+        if not isinstance(shortcut, dict):
+            continue
+        if not shortcut.get("id"):
+            shortcut["id"] = uuid.uuid4().hex
+            updated = True
+
+    if updated:
+        save_shortcuts(shortcuts)
+
+    return shortcuts
 
 
 def save_shortcuts(shortcuts):
@@ -1603,6 +1616,18 @@ def create_shortcut():
     shortcuts.append(shortcut)
     save_shortcuts(shortcuts)
     return jsonify({"ok": True, "shortcut": shortcut}), 201
+
+
+@app.route("/shortcuts/<shortcut_id>", methods=["DELETE"])
+def delete_shortcut(shortcut_id):
+    shortcuts = load_shortcuts()
+    remaining = [shortcut for shortcut in shortcuts if shortcut.get("id") != shortcut_id]
+
+    if len(remaining) == len(shortcuts):
+        return jsonify({"ok": False, "error": "Raccourci introuvable."}), 404
+
+    save_shortcuts(remaining)
+    return jsonify({"ok": True})
 
 
 @app.route("/general-tools")

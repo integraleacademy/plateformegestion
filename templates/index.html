@@ -247,7 +247,7 @@
     .shortcut-item {
       position: relative;
       display: grid;
-      grid-template-columns: 64px minmax(0, 1fr) auto;
+      grid-template-columns: 64px minmax(0, 1fr);
       align-items: center;
       gap: 12px;
       background: rgba(255,255,255,.08);
@@ -257,6 +257,14 @@
       padding-right: 48px;
       backdrop-filter: blur(8px);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+
+    .shortcut-content {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
     }
 
     .shortcut-media {
@@ -286,10 +294,12 @@
     }
 
     .shortcut-name {
+      width: 100%;
       font-weight: 700;
       font-size: 15px;
       line-height: 1.3;
       word-break: break-word;
+      overflow-wrap: anywhere;
       min-width: 0;
     }
 
@@ -535,6 +545,10 @@
         height: 72px;
       }
 
+      .shortcut-content {
+        align-items: center;
+      }
+
       .shortcut-name {
         font-size: 16px;
       }
@@ -577,8 +591,10 @@
                 <div class="shortcut-media">
                   <img src="{{ shortcut.image }}" alt="{{ shortcut.name }}" class="shortcut-avatar">
                 </div>
-                <div class="shortcut-name">{{ shortcut.name }}</div>
-                <a class="shortcut-link" href="{{ shortcut.url }}" target="_blank" rel="noopener">Accéder</a>
+                <div class="shortcut-content">
+                  <div class="shortcut-name">{{ shortcut.name }}</div>
+                  <a class="shortcut-link" href="{{ shortcut.url }}" target="_blank" rel="noopener">Accéder</a>
+                </div>
               </div>
             {% endfor %}
           {% else %}
@@ -798,8 +814,10 @@
           <div class="shortcut-media">
             <img src="${escapeHtml(shortcut.image)}" alt="${escapeHtml(shortcut.name)}" class="shortcut-avatar">
           </div>
-          <div class="shortcut-name">${escapeHtml(shortcut.name)}</div>
-          <a class="shortcut-link" href="${escapeHtml(shortcut.url)}" target="_blank" rel="noopener">Accéder</a>
+          <div class="shortcut-content">
+            <div class="shortcut-name">${escapeHtml(shortcut.name)}</div>
+            <a class="shortcut-link" href="${escapeHtml(shortcut.url)}" target="_blank" rel="noopener">Accéder</a>
+          </div>
         </div>
       `;
     }

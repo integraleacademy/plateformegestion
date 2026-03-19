@@ -124,7 +124,290 @@
 }
 
 
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
 
+    .shortcut-panel {
+      position: sticky;
+      top: 110px;
+      background: linear-gradient(180deg, #171717 0%, #232323 100%);
+      color: #fff;
+      border-radius: 24px;
+      padding: 22px 18px;
+      box-shadow: 0 16px 38px rgba(0,0,0,.16);
+      overflow: hidden;
+    }
+
+    .shortcut-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at top right, rgba(244,196,90,.26), transparent 35%);
+    }
+
+    .shortcut-panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .shortcut-panel-header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .shortcut-panel-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .shortcut-panel-subtitle {
+      margin: 0;
+      color: rgba(255,255,255,.76);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .shortcut-add-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #161616;
+      background: linear-gradient(135deg, #f4c45a 0%, #ffd98c 100%);
+      box-shadow: 0 12px 24px rgba(244,196,90,.25);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .shortcut-add-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(244,196,90,.32);
+    }
+
+    .shortcut-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .shortcut-item {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      padding: 16px 14px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+
+    .shortcut-avatar {
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      margin: 0 auto 12px;
+      border: 4px solid rgba(244,196,90,.24);
+      background: #fff;
+      box-shadow: 0 10px 25px rgba(0,0,0,.2);
+    }
+
+    .shortcut-name {
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+
+    .shortcut-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(244,196,90,.16);
+      color: #f9d88a;
+      border: 1px solid rgba(244,196,90,.22);
+      font-weight: 700;
+      transition: all .2s ease;
+    }
+
+    .shortcut-link:hover {
+      background: #f4c45a;
+      color: #161616;
+      border-color: #f4c45a;
+    }
+
+    .shortcut-empty {
+      margin: 0;
+      padding: 18px 14px;
+      text-align: center;
+      border-radius: 18px;
+      color: rgba(255,255,255,.74);
+      background: rgba(255,255,255,.06);
+      border: 1px dashed rgba(255,255,255,.16);
+      line-height: 1.5;
+    }
+
+    .main-content {
+      min-width: 0;
+    }
+
+    .shortcut-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 30;
+    }
+
+    .shortcut-modal.open {
+      display: flex;
+    }
+
+    .shortcut-modal-card {
+      width: min(520px, 100%);
+      background: #fff;
+      border-radius: 26px;
+      padding: 24px;
+      box-shadow: 0 22px 60px rgba(0,0,0,.22);
+    }
+
+    .shortcut-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .shortcut-modal-head h3 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      color: #1d1d1d;
+    }
+
+    .shortcut-modal-head p {
+      margin: 0;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .shortcut-close-btn {
+      border: none;
+      background: #f4f1ea;
+      color: #4b4b4b;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .shortcut-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .shortcut-form label {
+      display: grid;
+      gap: 7px;
+      font-weight: 600;
+      color: #2b2b2b;
+    }
+
+    .shortcut-form input {
+      width: 100%;
+      border: 1px solid rgba(0,0,0,.14);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .shortcut-form input:focus {
+      outline: none;
+      border-color: #f4c45a;
+      box-shadow: 0 0 0 4px rgba(244,196,90,.18);
+    }
+
+    .shortcut-image-preview {
+      display: none;
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 4px auto 0;
+      border: 4px solid rgba(244,196,90,.25);
+      background: #fff;
+    }
+
+    .shortcut-image-preview.visible {
+      display: block;
+    }
+
+    .shortcut-form-error {
+      min-height: 22px;
+      margin: 0;
+      color: #c0392b;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .shortcut-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .shortcut-secondary-btn,
+    .shortcut-primary-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .shortcut-secondary-btn {
+      background: #f2f2f2;
+      color: #424242;
+    }
+
+    .shortcut-primary-btn {
+      background: #161616;
+      color: #fff;
+    }
+
+    .shortcut-primary-btn:disabled {
+      opacity: .65;
+      cursor: wait;
+    }
+
+    @media (max-width: 980px){
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .shortcut-panel {
+        position: static;
+      }
+    }
 
 
   </style>
@@ -142,9 +425,30 @@
   </header>
 
   <main class="container">
+    <div class="dashboard-layout">
+      <aside class="shortcut-panel">
+        <div class="shortcut-panel-header">
+          <h2 class="shortcut-panel-title">Raccourcis utiles</h2>
+          <p class="shortcut-panel-subtitle">Ajoutez vos sites favoris pour les retrouver rapidement pendant votre journée.</p>
+          <button type="button" class="shortcut-add-btn" id="open-shortcut-modal">Ajouter un raccourci</button>
+        </div>
 
+        <div class="shortcut-list" id="shortcut-list">
+          {% if shortcuts %}
+            {% for shortcut in shortcuts %}
+              <div class="shortcut-item">
+                <img src="{{ shortcut.image }}" alt="{{ shortcut.name }}" class="shortcut-avatar">
+                <div class="shortcut-name">{{ shortcut.name }}</div>
+                <a class="shortcut-link" href="{{ shortcut.url }}" target="_blank" rel="noopener">Accéder</a>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="shortcut-empty" id="shortcut-empty">Aucun raccourci pour le moment. Ajoutez vos outils web les plus utilisés.</p>
+          {% endif %}
+        </div>
+      </aside>
 
-
+      <section class="main-content">
 <div class="grid">
   <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
     <div class="emoji">🛟</div>
@@ -282,6 +586,45 @@
     <div class="desc">Standard téléphonique</div>
   </a>
 </div>
+      </section>
+    </div>
+
+    <div class="shortcut-modal" id="shortcut-modal" aria-hidden="true">
+      <div class="shortcut-modal-card">
+        <div class="shortcut-modal-head">
+          <div>
+            <h3>Ajouter un raccourci</h3>
+            <p>Renseignez le nom, le lien HTTP/HTTPS et l'image du raccourci.</p>
+          </div>
+          <button type="button" class="shortcut-close-btn" id="close-shortcut-modal" aria-label="Fermer">×</button>
+        </div>
+
+        <form id="shortcut-form" class="shortcut-form">
+          <label>
+            Nom du raccourci
+            <input type="text" name="name" placeholder="Ex. Espace RH" required>
+          </label>
+
+          <label>
+            Lien HTTP
+            <input type="url" name="url" placeholder="https://example.com" required>
+          </label>
+
+          <label>
+            Image
+            <input type="file" name="image" accept="image/*" required>
+          </label>
+
+          <img src="" alt="Aperçu du raccourci" class="shortcut-image-preview" id="shortcut-image-preview">
+          <p class="shortcut-form-error" id="shortcut-form-error"></p>
+
+          <div class="shortcut-form-actions">
+            <button type="button" class="shortcut-secondary-btn" id="cancel-shortcut-modal">Annuler</button>
+            <button type="submit" class="shortcut-primary-btn" id="save-shortcut-btn">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
   </main>
 
@@ -289,6 +632,128 @@
 
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
+    const initialShortcuts = {{ shortcuts|tojson }};
+    const shortcutList = document.getElementById("shortcut-list");
+    const shortcutModal = document.getElementById("shortcut-modal");
+    const openShortcutModalBtn = document.getElementById("open-shortcut-modal");
+    const closeShortcutModalBtn = document.getElementById("close-shortcut-modal");
+    const cancelShortcutModalBtn = document.getElementById("cancel-shortcut-modal");
+    const shortcutForm = document.getElementById("shortcut-form");
+    const shortcutFormError = document.getElementById("shortcut-form-error");
+    const shortcutImagePreview = document.getElementById("shortcut-image-preview");
+    const saveShortcutBtn = document.getElementById("save-shortcut-btn");
+
+    function escapeHtml(value) {
+      return `${value || ""}`
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function shortcutCardTemplate(shortcut) {
+      return `
+        <div class="shortcut-item">
+          <img src="${escapeHtml(shortcut.image)}" alt="${escapeHtml(shortcut.name)}" class="shortcut-avatar">
+          <div class="shortcut-name">${escapeHtml(shortcut.name)}</div>
+          <a class="shortcut-link" href="${escapeHtml(shortcut.url)}" target="_blank" rel="noopener">Accéder</a>
+        </div>
+      `;
+    }
+
+    function renderShortcuts(shortcuts) {
+      if (!shortcutList) return;
+
+      if (!shortcuts || shortcuts.length === 0) {
+        shortcutList.innerHTML = `<p class="shortcut-empty" id="shortcut-empty">Aucun raccourci pour le moment. Ajoutez vos outils web les plus utilisés.</p>`;
+        return;
+      }
+
+      shortcutList.innerHTML = shortcuts.map(shortcutCardTemplate).join("");
+    }
+
+    function openShortcutModal() {
+      shortcutModal.classList.add("open");
+      shortcutModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeShortcutModal() {
+      shortcutModal.classList.remove("open");
+      shortcutModal.setAttribute("aria-hidden", "true");
+      shortcutForm.reset();
+      shortcutFormError.textContent = "";
+      shortcutImagePreview.src = "";
+      shortcutImagePreview.classList.remove("visible");
+      saveShortcutBtn.disabled = false;
+      saveShortcutBtn.textContent = "Enregistrer";
+    }
+
+    openShortcutModalBtn?.addEventListener("click", openShortcutModal);
+    closeShortcutModalBtn?.addEventListener("click", closeShortcutModal);
+    cancelShortcutModalBtn?.addEventListener("click", closeShortcutModal);
+
+    shortcutModal?.addEventListener("click", (event) => {
+      if (event.target === shortcutModal) {
+        closeShortcutModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && shortcutModal?.classList.contains("open")) {
+        closeShortcutModal();
+      }
+    });
+
+    shortcutForm?.elements.image?.addEventListener("change", (event) => {
+      const [file] = event.target.files || [];
+      if (!file) {
+        shortcutImagePreview.src = "";
+        shortcutImagePreview.classList.remove("visible");
+        return;
+      }
+
+      const previewUrl = URL.createObjectURL(file);
+      shortcutImagePreview.src = previewUrl;
+      shortcutImagePreview.classList.add("visible");
+    });
+
+    shortcutForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      shortcutFormError.textContent = "";
+
+      const formData = new FormData(shortcutForm);
+      const url = `${formData.get("url") || ""}`.trim();
+      if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+        shortcutFormError.textContent = "Le lien doit commencer par http:// ou https://";
+        return;
+      }
+
+      saveShortcutBtn.disabled = true;
+      saveShortcutBtn.textContent = "Enregistrement...";
+
+      try {
+        const response = await fetch("/shortcuts", {
+          method: "POST",
+          body: formData,
+        });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || "Impossible d'enregistrer le raccourci.");
+        }
+
+        initialShortcuts.push(payload.shortcut);
+        renderShortcuts(initialShortcuts);
+        closeShortcutModal();
+      } catch (error) {
+        shortcutFormError.textContent = error.message || "Une erreur est survenue.";
+        saveShortcutBtn.disabled = false;
+        saveShortcutBtn.textContent = "Enregistrer";
+      }
+    });
+
+    renderShortcuts(initialShortcuts);
     const generalCard = document.getElementById("card-general");
     if (generalCard) {
       generalCard.addEventListener("click", (event) => {

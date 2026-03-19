@@ -18,7 +18,7 @@ import threading
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    abort, flash, send_file, send_from_directory, session, Response
+    abort, flash, send_file, send_from_directory, session, Response, jsonify
 )
 from werkzeug.utils import secure_filename
 
@@ -33,6 +33,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SHORTCUTS_FILE = os.path.join(BASE_DIR, "data", "shortcuts.json")
+SHORTCUT_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads", "shortcuts")
+ALLOWED_SHORTCUT_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 logger = logging.getLogger("jury-notify")
 
@@ -52,6 +56,36 @@ app.config.update(
 
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+
+
+def ensure_shortcuts_storage():
+    os.makedirs(os.path.dirname(SHORTCUTS_FILE), exist_ok=True)
+    os.makedirs(SHORTCUT_UPLOAD_DIR, exist_ok=True)
+    if not os.path.exists(SHORTCUTS_FILE):
+        with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f, ensure_ascii=False, indent=2)
+
+
+def load_shortcuts():
+    ensure_shortcuts_storage()
+    try:
+        with open(SHORTCUTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_shortcuts(shortcuts):
+    ensure_shortcuts_storage()
+    with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(shortcuts, f, ensure_ascii=False, indent=2)
+
+
+def allowed_shortcut_image(filename):
+    if "." not in filename:
+        return False
+    return filename.rsplit(".", 1)[1].lower() in ALLOWED_SHORTCUT_IMAGE_EXTENSIONS
 
 # ------------------------------------------------------------
 # 🔐 AUTHENTIFICATION ADMIN
@@ -1525,8 +1559,50 @@ def index():
     return render_template(
         "index.html",
         title="Plateforme de gestion Intégrale Academy",
-        formateurs_non_conformes=nb_non_conformes
+        formateurs_non_conformes=nb_non_conformes,
+        shortcuts=load_shortcuts()
     )
+
+
+@app.route("/shortcuts", methods=["GET"])
+def shortcuts_data():
+    return jsonify(load_shortcuts())
+
+
+@app.route("/shortcuts", methods=["POST"])
+def create_shortcut():
+    name = (request.form.get("name") or "").strip()
+    url = (request.form.get("url") or "").strip()
+    image = request.files.get("image")
+
+    if not name or not url:
+        return jsonify({"ok": False, "error": "Le nom et le lien sont obligatoires."}), 400
+
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return jsonify({"ok": False, "error": "Le lien doit commencer par http:// ou https://"}), 400
+
+    if image is None or not image.filename:
+        return jsonify({"ok": False, "error": "Veuillez importer une image."}), 400
+
+    if not allowed_shortcut_image(image.filename):
+        return jsonify({"ok": False, "error": "Format d'image non pris en charge."}), 400
+
+    ensure_shortcuts_storage()
+    original_name = secure_filename(image.filename)
+    extension = original_name.rsplit(".", 1)[1].lower()
+    filename = f"{uuid.uuid4().hex}.{extension}"
+    image.save(os.path.join(SHORTCUT_UPLOAD_DIR, filename))
+
+    shortcuts = load_shortcuts()
+    shortcut = {
+        "id": uuid.uuid4().hex,
+        "name": name,
+        "url": url,
+        "image": url_for("static", filename=f"uploads/shortcuts/{filename}")
+    }
+    shortcuts.append(shortcut)
+    save_shortcuts(shortcuts)
+    return jsonify({"ok": True, "shortcut": shortcut}), 201
 
 
 @app.route("/general-tools")

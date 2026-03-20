@@ -29,6 +29,12 @@
     </div>
 
     <div>
+      <label>NUB</label>
+      <input type="text" name="nub" value="{{ formateur.nub or '' }}" inputmode="numeric" pattern="[0-9]{7}" maxlength="7"
+             style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+
+    <div>
       <label>Email</label>
       <input type="email" name="email" value="{{ formateur.email }}"
              style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">

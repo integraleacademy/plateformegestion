@@ -25,9 +25,27 @@
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
       <a href="{{ url_for('formateurs_home') }}" style="font-size:13px;text-decoration:none;">⬅️ Retour à la liste</a>
-      <h2 style="margin:6px 0 0;">
-        👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
-      </h2>
+      <div style="margin:6px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h2 style="margin:0;">
+          👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
+        </h2>
+        <label for="formateur-nub"
+               style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#2c3e50;">
+          <span>NUB :</span>
+          <input type="text"
+                 id="formateur-nub"
+                 value="{{ formateur.nub or '' }}"
+                 inputmode="numeric"
+                 pattern="[0-9]{7}"
+                 maxlength="7"
+                 placeholder="1234567"
+                 style="width:110px;padding:7px 10px;border-radius:8px;border:1px solid #ccc;font-size:13px;">
+        </label>
+        <span id="nub-error"
+              style="display:none;font-size:12px;color:#c0392b;font-weight:600;">
+          Le NUB doit contenir exactement 7 chiffres.
+        </span>
+      </div>
   
 <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
   
@@ -328,6 +346,10 @@
   if (!container) return;
 
   const fid = container.dataset.fid;
+  const nubInput = document.getElementById("formateur-nub");
+  const nubError = document.getElementById("nub-error");
+  let nubSaveTimeout = null;
+  let lastSavedNub = nubInput ? nubInput.value : "";
 
   // 🎯 Auto-détection expiration
   function checkExpiration(row) {
@@ -375,6 +397,90 @@ function updateSelectColor(selectEl) {
   document.querySelectorAll(".status-select").forEach(sel => {
     updateSelectColor(sel);
   });
+
+  function setNubError(message) {
+    if (!nubError) return;
+    if (message) {
+      nubError.textContent = message;
+      nubError.style.display = "inline";
+      if (nubInput) nubInput.style.borderColor = "#c0392b";
+      return;
+    }
+    nubError.style.display = "none";
+    if (nubInput) nubInput.style.borderColor = "#ccc";
+  }
+
+  function sanitizeNubValue(value) {
+    return (value || "").replace(/\D/g, "").slice(0, 7);
+  }
+
+  function saveNub(force = false) {
+    if (!nubInput) return;
+
+    const sanitized = sanitizeNubValue(nubInput.value);
+    if (nubInput.value !== sanitized) {
+      nubInput.value = sanitized;
+    }
+
+    if (!sanitized) {
+      setNubError("");
+    } else if (sanitized.length !== 7) {
+      setNubError("Le NUB doit contenir exactement 7 chiffres.");
+      if (!force) return;
+    } else {
+      setNubError("");
+    }
+
+    if (!force && sanitized === lastSavedNub) {
+      return;
+    }
+
+    if (force && sanitized && sanitized.length !== 7) {
+      return;
+    }
+
+    fetch(`/formateurs/${fid}/identity/update`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        nub: sanitized
+      })
+    })
+    .then(async r => {
+      const data = await r.json();
+      if (!r.ok || !data.ok) {
+        throw new Error(data.error || "Erreur de sauvegarde du NUB");
+      }
+      lastSavedNub = data.nub || "";
+      nubInput.value = lastSavedNub;
+      setNubError("");
+      showToast();
+    })
+    .catch(err => {
+      setNubError(err.message || "Erreur de sauvegarde du NUB");
+      console.error("Erreur sauvegarde NUB :", err);
+    });
+  }
+
+  if (nubInput) {
+    nubInput.addEventListener("input", () => {
+      nubInput.value = sanitizeNubValue(nubInput.value);
+      if (!nubInput.value || nubInput.value.length === 7) {
+        setNubError("");
+      }
+      clearTimeout(nubSaveTimeout);
+      if (!nubInput.value || nubInput.value.length === 7) {
+        nubSaveTimeout = setTimeout(() => saveNub(), 500);
+      }
+    });
+
+    nubInput.addEventListener("blur", () => {
+      clearTimeout(nubSaveTimeout);
+      saveNub(true);
+    });
+  }
 
   function sendUpdate(row) {
     const docId = row.dataset.docId;

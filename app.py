@@ -2411,6 +2411,11 @@ def edit_formateur(fid):
     if request.method == "POST":
         formateur["nom"] = request.form.get("nom", "").strip()
         formateur["prenom"] = request.form.get("prenom", "").strip()
+        try:
+            formateur["nub"] = normalize_formateur_nub(request.form.get("nub", ""))
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return render_template("edit_formateur.html", formateur=formateur)
         formateur["email"] = request.form.get("email", "").strip()
         formateur["telephone"] = request.form.get("telephone", "").strip()
 
@@ -2991,6 +2996,15 @@ def find_formateur(formateurs, fid):
     return None
 
 
+def normalize_formateur_nub(value):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if not value.isdigit() or len(value) != 7:
+        raise ValueError("Le NUB doit contenir exactement 7 chiffres.")
+    return value
+
+
 def build_default_documents():
     docs = []
     for label in DEFAULT_DOC_LABELS:
@@ -3198,10 +3212,17 @@ def add_formateur():
     formateurs = load_formateurs()
     fid = str(uuid.uuid4())[:8]
 
+    try:
+        nub = normalize_formateur_nub(request.form.get("nub", ""))
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("formateurs_home"))
+
     formateur = {
         "id": fid,
         "nom": request.form.get("nom", "").strip(),
         "prenom": request.form.get("prenom", "").strip(),
+        "nub": nub,
         "email": request.form.get("email", "").strip(),
         "telephone": request.form.get("telephone", "").strip(),
 
@@ -3224,6 +3245,22 @@ def add_formateur():
     save_formateurs(formateurs)
     return redirect(url_for("formateur_detail", fid=fid))
 
+
+@app.route("/formateurs/<fid>/identity/update", methods=["POST"])
+def update_formateur_identity(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        return {"ok": False, "error": "Formateur introuvable"}, 404
+
+    try:
+        nub = normalize_formateur_nub(request.form.get("nub", ""))
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}, 400
+
+    formateur["nub"] = nub
+    save_formateurs(formateurs)
+    return {"ok": True, "nub": nub}
 
 
 @app.route("/formateurs/<fid>/cle/update", methods=["POST"])

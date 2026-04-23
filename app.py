@@ -2415,14 +2415,25 @@ def edit_formateur(fid):
             formateur["nub"] = normalize_formateur_nub(request.form.get("nub", ""))
         except ValueError as exc:
             flash(str(exc), "error")
-            return render_template("edit_formateur.html", formateur=formateur)
+            return render_template(
+                "edit_formateur.html",
+                formateur=formateur,
+                formateur_profile_options=FORMATEUR_PROFILE_OPTIONS
+            )
         formateur["email"] = request.form.get("email", "").strip()
         formateur["telephone"] = request.form.get("telephone", "").strip()
+        formateur["profils"] = normalize_formateur_profils(
+            request.form.getlist("profils")
+        )
 
         save_formateurs(formateurs)
         return redirect(url_for("formateurs_home"))
 
-    return render_template("edit_formateur.html", formateur=formateur)
+    return render_template(
+        "edit_formateur.html",
+        formateur=formateur,
+        formateur_profile_options=FORMATEUR_PROFILE_OPTIONS
+    )
 
 
 
@@ -2915,6 +2926,17 @@ DEFAULT_DOC_LABELS = [
     "Photo d'identité",
 ]
 
+FORMATEUR_PROFILE_OPTIONS = [
+    {"key": "APS", "label": "APS", "color": "#1f6feb"},
+    {"key": "A3P", "label": "A3P", "color": "#2da44e"},
+    {"key": "DIRIGEANT", "label": "DIRIGEANT", "color": "#e67e22"},
+    {"key": "SALARIE", "label": "Salarié", "color": "#6b7280"},
+    {"key": "PRESTATAIRE", "label": "Prestataire", "color": "#111827"},
+    {"key": "SSIAP", "label": "SSIAP", "color": "#dc2626"},
+    {"key": "SST", "label": "SST", "color": "#2da44e"},
+]
+FORMATEUR_PROFILE_KEYS = {option["key"] for option in FORMATEUR_PROFILE_OPTIONS}
+
 def load_formateurs():
     def _read_json(path):
         with open(path, "r", encoding="utf-8") as f:
@@ -3003,6 +3025,15 @@ def normalize_formateur_nub(value):
     if not value.isdigit() or len(value) != 7:
         raise ValueError("Le NUB doit contenir exactement 7 chiffres.")
     return value
+
+
+def normalize_formateur_profils(values):
+    profils = []
+    for value in values or []:
+        key = (value or "").strip().upper()
+        if key in FORMATEUR_PROFILE_KEYS and key not in profils:
+            profils.append(key)
+    return profils
 
 
 def build_default_documents():
@@ -3125,6 +3156,7 @@ def formateurs_home():
     formateurs = load_formateurs()
 
     for f in formateurs:
+        f["profils"] = normalize_formateur_profils(f.get("profils", []))
         if "cle" not in f:
             f["cle"] = {
                 "attribuee": False,
@@ -3195,6 +3227,7 @@ def formateurs_home():
         "formateurs.html",
         title="Contrôle formateurs",
         formateurs=formateurs,
+        formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
         liste_cles=liste_cles,
         liste_badges=liste_badges,
         cles_dispos=cles_dispos,
@@ -3225,6 +3258,7 @@ def add_formateur():
         "nub": nub,
         "email": request.form.get("email", "").strip(),
         "telephone": request.form.get("telephone", "").strip(),
+        "profils": normalize_formateur_profils(request.form.getlist("profils")),
 
         "cle": {
             "attribuee": False,
@@ -3243,6 +3277,19 @@ def add_formateur():
 
     formateurs.append(formateur)
     save_formateurs(formateurs)
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/profils/update", methods=["POST"])
+def update_formateur_profils(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    formateur["profils"] = normalize_formateur_profils(request.form.getlist("profils"))
+    save_formateurs(formateurs)
+    flash("Profils formateur mis à jour.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
 
 
@@ -3307,6 +3354,7 @@ def formateur_detail(fid):
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
+    formateur["profils"] = normalize_formateur_profils(formateur.get("profils", []))
 
     # mise à jour auto des statuts selon la date d'expiration
     for doc in formateur.get("documents", []):
@@ -3320,6 +3368,7 @@ def formateur_detail(fid):
         "formateur_detail.html",
         title=f"Contrôle formateur — {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
         formateur=formateur,
+        formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
         etat_cles=etat_cles,       # 👈 indispensable
         etat_badges=etat_badges    # 👈 indispensable
     )

@@ -14,6 +14,13 @@
 
   <h2 style="margin-top:0;">👨‍🏫 Contrôle des formateurs</h2>
 
+  {% set profile_labels = {} %}
+  {% set profile_colors = {} %}
+  {% for option in formateur_profile_options %}
+    {% set _ = profile_labels.update({option.key: option.label}) %}
+    {% set _ = profile_colors.update({option.key: option.color}) %}
+  {% endfor %}
+
   <!-- Formulaire ajout formateur -->
   <form method="POST" action="{{ url_for('add_formateur') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:20px;">
     <div style="flex:1 1 180px;">
@@ -35,6 +42,17 @@
     <div style="flex:1 1 180px;">
       <label>Téléphone</label>
       <input type="text" name="telephone" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+    <div style="flex:1 1 100%;">
+      <label style="display:block;margin-bottom:6px;">Profil(s)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% for option in formateur_profile_options %}
+        <label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid {{ option.color }};font-size:12px;font-weight:700;color:{{ option.color }};">
+          <input type="checkbox" name="profils" value="{{ option.key }}">
+          {{ option.label }}
+        </label>
+        {% endfor %}
+      </div>
     </div>
     <div>
       <button type="submit" style="padding:8px 14px;border:none;border-radius:8px;background:#1e8449;color:#fff;font-weight:600;cursor:pointer;">
@@ -61,6 +79,11 @@
   <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="text-decoration:none;color:#2c3e50;font-weight:600;">
     {{ f.prenom }} {{ f.nom|upper }}
   </a>
+  {% for profil in f.profils or [] %}
+    <span style="margin-left:6px;display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:white;background:{{ profile_colors.get(profil, '#6b7280') }};">
+      {{ profile_labels.get(profil, profil) }}
+    </span>
+  {% endfor %}
 
   {% if f.a_controler %}
     <span style="

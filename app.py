@@ -2403,6 +2403,7 @@ def prefecture_session(sid):
 @app.route("/formateurs/<fid>/edit", methods=["GET", "POST"])
 def edit_formateur(fid):
     formateurs = load_formateurs()
+    profils_docs_config = load_formateur_profils_docs_config()
 
     formateur = next((f for f in formateurs if f["id"] == fid), None)
     if not formateur:
@@ -2425,6 +2426,7 @@ def edit_formateur(fid):
         formateur["profils"] = normalize_formateur_profils(
             request.form.getlist("profils")
         )
+        apply_profile_document_requirements(formateur, profils_docs_config)
 
         save_formateurs(formateurs)
         return redirect(url_for("formateurs_home"))
@@ -2890,6 +2892,7 @@ def changer_statut(id):
 FORMATEURS_FILE = os.path.join(DATA_DIR, "formateurs.json")
 FORMATEURS_LOCK = FORMATEURS_FILE + ".lock"
 FORMATEUR_FILES_DIR = os.path.join(DATA_DIR, "formateurs_files")
+FORMATEUR_PROFILS_DOCS_FILE = os.path.join(DATA_DIR, "formateur_profils_docs.json")
 os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
 
 DEFAULT_DOC_LABELS = [
@@ -3036,6 +3039,64 @@ def normalize_formateur_profils(values):
     return profils
 
 
+def load_formateur_profils_docs_config():
+    default_map = {option["key"]: [] for option in FORMATEUR_PROFILE_OPTIONS}
+    if not os.path.exists(FORMATEUR_PROFILS_DOCS_FILE):
+        return default_map
+
+    try:
+        with open(FORMATEUR_PROFILS_DOCS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return default_map
+
+    if not isinstance(data, dict):
+        return default_map
+
+    cleaned = {}
+    labels_set = set(DEFAULT_DOC_LABELS)
+    for option in FORMATEUR_PROFILE_OPTIONS:
+        key = option["key"]
+        values = data.get(key, [])
+        if not isinstance(values, list):
+            values = []
+        cleaned[key] = [label for label in values if label in labels_set]
+    return cleaned
+
+
+def save_formateur_profils_docs_config(config):
+    cleaned = {}
+    labels_set = set(DEFAULT_DOC_LABELS)
+    for option in FORMATEUR_PROFILE_OPTIONS:
+        key = option["key"]
+        values = config.get(key, [])
+        if not isinstance(values, list):
+            values = []
+        cleaned[key] = [label for label in values if label in labels_set]
+
+    with open(FORMATEUR_PROFILS_DOCS_FILE, "w", encoding="utf-8") as f:
+        json.dump(cleaned, f, ensure_ascii=False, indent=2)
+
+
+def apply_profile_document_requirements(formateur, profils_docs_config):
+    profils = normalize_formateur_profils(formateur.get("profils", []))
+    formateur["profils"] = profils
+    if not profils:
+        return
+
+    required_labels = set()
+    for profil in profils:
+        required_labels.update(profils_docs_config.get(profil, []))
+
+    for doc in formateur.get("documents", []):
+        label = doc.get("label", "")
+        if label in required_labels:
+            if doc.get("status") == "non_concerne":
+                doc["status"] = "non_conforme"
+        else:
+            doc["status"] = "non_concerne"
+
+
 def build_default_documents():
     docs = []
     for label in DEFAULT_DOC_LABELS:
@@ -3154,9 +3215,11 @@ TYPES_CLES = {
 @app.route("/formateurs")
 def formateurs_home():
     formateurs = load_formateurs()
+    profils_docs_config = load_formateur_profils_docs_config()
 
     for f in formateurs:
         f["profils"] = normalize_formateur_profils(f.get("profils", []))
+        apply_profile_document_requirements(f, profils_docs_config)
         if "cle" not in f:
             f["cle"] = {
                 "attribuee": False,
@@ -3228,6 +3291,8 @@ def formateurs_home():
         title="Contrôle formateurs",
         formateurs=formateurs,
         formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
+        profils_docs_config=profils_docs_config,
+        default_doc_labels=DEFAULT_DOC_LABELS,
         liste_cles=liste_cles,
         liste_badges=liste_badges,
         cles_dispos=cles_dispos,
@@ -3243,6 +3308,7 @@ def formateurs_home():
 @app.route("/formateurs/add", methods=["POST"])
 def add_formateur():
     formateurs = load_formateurs()
+    profils_docs_config = load_formateur_profils_docs_config()
     fid = str(uuid.uuid4())[:8]
 
     try:
@@ -3276,6 +3342,7 @@ def add_formateur():
     }
 
     formateurs.append(formateur)
+    apply_profile_document_requirements(formateur, profils_docs_config)
     save_formateurs(formateurs)
     return redirect(url_for("formateur_detail", fid=fid))
 
@@ -3283,14 +3350,38 @@ def add_formateur():
 @app.route("/formateurs/<fid>/profils/update", methods=["POST"])
 def update_formateur_profils(fid):
     formateurs = load_formateurs()
+    profils_docs_config = load_formateur_profils_docs_config()
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
 
     formateur["profils"] = normalize_formateur_profils(request.form.getlist("profils"))
+    apply_profile_document_requirements(formateur, profils_docs_config)
     save_formateurs(formateurs)
     flash("Profils formateur mis à jour.", "ok")
     return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/profils-docs/update", methods=["POST"])
+def update_formateur_profils_docs():
+    config = {}
+    for option in FORMATEUR_PROFILE_OPTIONS:
+        profile_key = option["key"]
+        config[profile_key] = [
+            label.strip()
+            for label in request.form.getlist(f"docs_{profile_key}")
+            if label.strip() in DEFAULT_DOC_LABELS
+        ]
+
+    save_formateur_profils_docs_config(config)
+
+    formateurs = load_formateurs()
+    for formateur in formateurs:
+        apply_profile_document_requirements(formateur, config)
+    save_formateurs(formateurs)
+
+    flash("Règles documents par profil enregistrées.", "ok")
+    return redirect(url_for("formateurs_home"))
 
 
 @app.route("/formateurs/<fid>/identity/update", methods=["POST"])
@@ -3351,10 +3442,12 @@ def update_formateur_badge(fid):
 @app.route("/formateurs/<fid>")
 def formateur_detail(fid):
     formateurs = load_formateurs()
+    profils_docs_config = load_formateur_profils_docs_config()
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
     formateur["profils"] = normalize_formateur_profils(formateur.get("profils", []))
+    apply_profile_document_requirements(formateur, profils_docs_config)
 
     # mise à jour auto des statuts selon la date d'expiration
     for doc in formateur.get("documents", []):

@@ -61,6 +61,31 @@
     </div>
   </form>
 
+  <details style="margin:0 0 18px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;">
+    <summary style="cursor:pointer;font-weight:700;color:#2c3e50;">⚙️ Documents requis par profil (APS / A3P / ...)</summary>
+    <form method="POST" action="{{ url_for('update_formateur_profils_docs') }}" style="margin-top:14px;">
+      {% for option in formateur_profile_options %}
+      <div style="margin-bottom:14px;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:white;">
+        <div style="margin-bottom:8px;font-weight:700;color:{{ option.color }};">{{ option.label }}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          {% set selected_docs = profils_docs_config.get(option.key, []) %}
+          {% for label in default_doc_labels %}
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #d1d5db;border-radius:999px;font-size:12px;background:#fff;">
+            <input type="checkbox" name="docs_{{ option.key }}" value="{{ label }}"
+                   {% if label in selected_docs %}checked{% endif %}>
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <button type="submit" style="padding:8px 12px;border:none;border-radius:8px;background:#1e8449;color:white;font-weight:700;cursor:pointer;">
+        💾 Enregistrer les règles documents par profil
+      </button>
+    </form>
+  </details>
+
   {% if formateurs %}
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
     <thead>

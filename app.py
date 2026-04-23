@@ -2932,6 +2932,7 @@ DEFAULT_DOC_LABELS = [
 FORMATEUR_PROFILE_OPTIONS = [
     {"key": "APS", "label": "APS", "color": "#1f6feb"},
     {"key": "A3P", "label": "A3P", "color": "#2da44e"},
+    {"key": "BTS", "label": "BTS", "color": "#0ea5e9"},
     {"key": "DIRIGEANT", "label": "DIRIGEANT", "color": "#e67e22"},
     {"key": "SALARIE", "label": "Salarié", "color": "#6b7280"},
     {"key": "PRESTATAIRE", "label": "Prestataire", "color": "#111827"},

@@ -14,6 +14,8 @@
 
   <h2 style="margin-top:10px;">✏️ Modifier formateur</h2>
 
+  {% set selected_profils = formateur.profils or [] %}
+
   <form method="POST" style="margin-top:20px;display:flex;flex-direction:column;gap:15px;">
 
     <div>
@@ -44,6 +46,19 @@
       <label>Téléphone</label>
       <input type="text" name="telephone" value="{{ formateur.telephone }}"
              style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+
+    <div>
+      <label style="display:block;margin-bottom:8px;">Profil(s)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        {% for option in formateur_profile_options %}
+        <label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid {{ option.color }};font-size:12px;font-weight:700;color:{{ option.color }};">
+          <input type="checkbox" name="profils" value="{{ option.key }}"
+                 {% if option.key in selected_profils %}checked{% endif %}>
+          {{ option.label }}
+        </label>
+        {% endfor %}
+      </div>
     </div>
 
     <button type="submit"

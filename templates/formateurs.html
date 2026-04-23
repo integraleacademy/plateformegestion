@@ -21,6 +21,13 @@
     {% set _ = profile_colors.update({option.key: option.color}) %}
   {% endfor %}
 
+  {% set profile_labels = {} %}
+  {% set profile_colors = {} %}
+  {% for option in formateur_profile_options %}
+    {% set _ = profile_labels.update({option.key: option.label}) %}
+    {% set _ = profile_colors.update({option.key: option.color}) %}
+  {% endfor %}
+
   <!-- Formulaire ajout formateur -->
   <form method="POST" action="{{ url_for('add_formateur') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:20px;">
     <div style="flex:1 1 180px;">

@@ -1295,7 +1295,7 @@ async function updateBTS() {
         const r = await fetch("https://plateformegestion.onrender.com/data.json");
         if (!r.ok) throw 0;
         const d = await r.json();
-        const retards = d.retards || 0;
+        const retards = (d.retards_steps ?? d.retards ?? 0);
         if (retards > 0) {
           box.className = "notif alert";
           box.innerHTML = `⚠️ ${retards} étape${retards>1?"s":""} en retard`;

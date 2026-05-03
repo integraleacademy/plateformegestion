@@ -2610,8 +2610,10 @@ def data_sessions_json():
         details = []  # utile si tu veux diagnostiquer
 
         for s in sessions:
-            if s.get("archived"):
-                continue  # on ignore les sessions archivées
+            end_date = parse_date(s.get("date_fin"))
+            is_finished = bool(end_date and end_date.date() < today)
+            if s.get("archived") or is_finished:
+                continue  # on ignore les sessions archivées ou terminées (comme /sessions)
 
             late_steps = []
             for i, step in enumerate(s.get("steps", [])):

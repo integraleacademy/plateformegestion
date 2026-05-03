@@ -2605,7 +2605,8 @@ def data_sessions_json():
         sessions = data.get("sessions", [])
 
         today = datetime.now().date()
-        total_retards = 0
+        total_retards_steps = 0
+        total_sessions_en_retard = 0
         details = []  # utile si tu veux diagnostiquer
 
         for s in sessions:
@@ -2616,11 +2617,14 @@ def data_sessions_json():
             for i, step in enumerate(s.get("steps", [])):
                 st, dl = status_for_step(i, s)
                 if st == "late":
-                    total_retards += 1
+                    total_retards_steps += 1
                     late_steps.append({
                         "name": step.get("name"),
                         "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
                     })
+
+            if late_steps:
+                total_sessions_en_retard += 1
 
             details.append({
                 "id": s.get("id"),
@@ -2632,7 +2636,8 @@ def data_sessions_json():
             })
 
         payload = {
-            "retards": total_retards,   # 👉 c'est cette clé que l'index lit pour afficher "XX étapes en retard" / "Dans les temps"
+            "retards": total_sessions_en_retard,  # 👉 clé utilisée par l'index (compte des sessions ayant au moins 1 retard)
+            "retards_steps": total_retards_steps,  # détail: nombre total d'étapes en retard
             "sessions": details
         }
 

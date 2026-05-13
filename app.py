@@ -3163,6 +3163,36 @@ def auto_update_document_status(doc):
         doc["status"] = "non_conforme"
 
 
+def replace_formateur_attachment(fid, doc, uploaded_file):
+    """Remplace les anciennes pièces jointes d'un contrôle par le dernier fichier reçu."""
+    doc_id = doc.get("id")
+    if not doc_id or not uploaded_file or not uploaded_file.filename:
+        return None
+
+    subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
+    os.makedirs(subdir, exist_ok=True)
+
+    for attachment in doc.get("attachments", []):
+        filename = attachment.get("filename")
+        if not filename:
+            continue
+
+        old_path = os.path.join(subdir, os.path.basename(filename))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    original_name = uploaded_file.filename
+    safe_name = secure_filename(original_name) or "document"
+    stored_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{safe_name}"
+    uploaded_file.save(os.path.join(subdir, stored_name))
+
+    attachment = {
+        "filename": stored_name,
+        "original_name": original_name
+    }
+    doc["attachments"] = [attachment]
+    return attachment
+
 
 # ------------------------------------------------------------
 # 🔑🟦 ÉTAT COMPLET DES CLÉS & BADGES
@@ -3582,25 +3612,10 @@ def update_formateur_document(fid, doc_id):
     if "commentaire" in request.form:
         doc["commentaire"] = request.form.get("commentaire", "").strip()
 
-    # pièces jointes
-    files = request.files.getlist("piece_jointe")
+    # pièces jointes : on conserve uniquement le dernier fichier déposé
+    files = [f for f in request.files.getlist("piece_jointe") if f.filename]
     if files:
-        subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
-        os.makedirs(subdir, exist_ok=True)
-        attachments = doc.setdefault("attachments", [])
-
-        for f in files:
-            if not f.filename:
-                continue
-            original_name = f.filename
-            safe_name = secure_filename(original_name)
-            stored_name = f"{int(time.time())}_{safe_name}"
-            filepath = os.path.join(subdir, stored_name)
-            f.save(filepath)
-            attachments.append({
-                "filename": stored_name,
-                "original_name": original_name
-            })
+        replace_formateur_attachment(fid, doc, files[-1])
 
     auto_update_document_status(doc)
     save_formateurs(formateurs)
@@ -3861,31 +3876,24 @@ def upload_formateur_documents(fid):
         if not doc:
             abort(400)
 
-        subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
-        os.makedirs(subdir, exist_ok=True)
+        uploaded_files = [f for f in files if f.filename]
+        if not uploaded_files:
+            flash("❌ Aucun fichier n'a été sélectionné.", "error")
+            return redirect(request.url)
 
         allowed_ext = ["pdf", "png", "jpg", "jpeg"]
 
-        for f in files:
-            if not f.filename:
-                continue
-
+        for f in uploaded_files:
             # Vérification extension
             ext = f.filename.lower().rsplit(".", 1)[-1]
             if ext not in allowed_ext:
                 flash("❌ Seuls les fichiers PDF, PNG, JPG et JPEG sont acceptés.", "error")
                 return redirect(request.url)
 
-            safe = secure_filename(f.filename)
-            name = f"{int(time.time())}_{safe}"
-            f.save(os.path.join(subdir, name))
+        # On remplace l'ancien dépôt et on conserve uniquement le dernier fichier reçu.
+        replace_formateur_attachment(fid, doc, uploaded_files[-1])
 
-            doc.setdefault("attachments", []).append({
-                "filename": name,
-                "original_name": f.filename
-            })
-
-        # Après upload → conforme
+        # Après upload → à contrôler
         doc["status"] = "a_controler"
         save_formateurs(formateurs)
         flash("Document transmis avec succès.", "ok")

@@ -654,6 +654,13 @@
   <div id="notif-devis" class="notif empty">🧾 Chargement...</div>
 </a>
 
+  <a class="card" href="https://factures-jx8r.onrender.com/admin" target="_blank" rel="noopener">
+  <div class="emoji">📄</div>
+  <div class="title">Gestion des factures</div>
+  <div class="desc">Factures déposées & suivi paiement</div>
+  <div id="notif-factures" class="notif empty">📄 Chargement...</div>
+</a>
+
 
   <a class="card" href="{{ url_for('dotations_home') }}" target="_blank" rel="noopener">
     <div class="emoji">🎁</div>
@@ -1429,6 +1436,32 @@ async function updateDevis() {
   }
 }
 
+// --- FACTURES ---
+async function updateFactures() {
+  const box = document.getElementById("notif-factures");
+  if (!box) return;
+
+  try {
+    const r = await fetch("https://factures-jx8r.onrender.com/data.json");
+    if (!r.ok) throw 0;
+
+    const d = await r.json();
+    const n = d.count || 0;
+
+    if (n > 0) {
+      box.className = "notif wait";
+      box.innerHTML = `📄 ${n} facture${n>1?"s":""} déposée${n>1?"s":""}`;
+    } else {
+      box.className = "notif ok";
+      box.innerHTML = "✅ Aucune facture déposée";
+    }
+
+  } catch {
+    box.className = "notif error";
+    box.innerHTML = "🔒 Erreur factures";
+  }
+}
+
     
 
 
@@ -1447,6 +1480,7 @@ async function updateDevis() {
   updateHebergement();
   updateFormateurs();
   updateDevis();
+  updateFactures();
 
 }
 

@@ -9,6 +9,7 @@ import hashlib
 import smtplib
 import urllib.parse
 import urllib.request
+import urllib.error
 from io import BytesIO
 from datetime import datetime, timedelta
 from functools import wraps
@@ -158,6 +159,53 @@ def allowed_shortcut_image(filename):
     if "." not in filename:
         return False
     return filename.rsplit(".", 1)[1].lower() in ALLOWED_SHORTCUT_IMAGE_EXTENSIONS
+
+
+STAGIAIRES_DOCS_TO_CONTROL_URL = os.environ.get(
+    "STAGIAIRES_DOCS_TO_CONTROL_URL",
+    "https://gestionstagiaires-r5no.onrender.com/docs_to_control.json",
+)
+
+
+def fetch_json_url(url, timeout=10):
+    request_obj = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "plateformegestion/1.0 (+https://plateformegestion.onrender.com)",
+        },
+    )
+    with urllib.request.urlopen(request_obj, timeout=timeout) as response:
+        charset = response.headers.get_content_charset() or "utf-8"
+        body = response.read().decode(charset)
+        return json.loads(body)
+
+
+def count_pending_stagiaires_documents(payload):
+    if not isinstance(payload, dict):
+        return 0
+
+    for key in ("pending_count", "docs_to_control", "documents_to_control", "total", "count"):
+        value = payload.get(key)
+        if isinstance(value, (int, float)):
+            return max(int(value), 0)
+        if isinstance(value, str) and value.strip().isdigit():
+            return int(value.strip())
+
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return 0
+
+    total = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        pending_count = item.get("pending_count", 0)
+        try:
+            total += max(int(pending_count), 0)
+        except (TypeError, ValueError):
+            continue
+    return total
 
 # ------------------------------------------------------------
 # 🔐 AUTHENTIFICATION ADMIN
@@ -1637,6 +1685,21 @@ def index():
 @app.route("/shortcuts", methods=["GET"])
 def shortcuts_data():
     return jsonify(load_shortcuts())
+
+
+@app.route("/stagiaires/docs-to-control.json")
+def stagiaires_docs_to_control():
+    try:
+        payload = fetch_json_url(STAGIAIRES_DOCS_TO_CONTROL_URL)
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+        logger.warning("Impossible de récupérer les dossiers stagiaires: %s", exc)
+        return jsonify({"ok": False, "error": "Données dossiers stagiaires indisponibles"}), 502
+
+    return jsonify({
+        "ok": True,
+        "pending_count": count_pending_stagiaires_documents(payload),
+        "items": payload.get("items", []) if isinstance(payload, dict) else [],
+    })
 
 
 @app.route("/shortcut-images/<path:filename>")

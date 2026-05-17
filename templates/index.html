@@ -1220,19 +1220,13 @@ async function updateStagiaires() {
 
   try {
     const r = await fetch(
-      "https://gestionstagiaires-r5no.onrender.com/docs_to_control.json",
+      `/stagiaires/docs-to-control.json?ts=${Date.now()}`,
       { cache: "no-store" }
     );
     if (!r.ok) throw 0;
 
     const d = await r.json();
-    const items = Array.isArray(d.items) ? d.items : [];
-
-    // ✅ total de documents à contrôler
-    const docsCount = items.reduce(
-      (sum, it) => sum + Number(it.pending_count || 0),
-      0
-    );
+    const docsCount = Number(d.pending_count || 0);
 
     if (docsCount > 0) {
       box.className = "notif wait";
@@ -1243,8 +1237,8 @@ async function updateStagiaires() {
     }
 
   } catch {
-    box.className = "notif error";
-    box.innerHTML = "🔒 Erreur Dossiers stagiaires";
+    box.className = "notif alert";
+    box.innerHTML = "⚠️ Données dossiers stagiaires indisponibles";
   }
 }
 

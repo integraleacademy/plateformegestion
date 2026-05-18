@@ -2,367 +2,257 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contrôle formateur</title>
-
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
-<body>
-
+<body class="formateurs-page formateur-detail-page">
 {% set profile_labels = {} %}
 {% set profile_colors = {} %}
 {% for option in formateur_profile_options %}
   {% set _ = profile_labels.update({option.key: option.label}) %}
   {% set _ = profile_colors.update({option.key: option.color}) %}
 {% endfor %}
+{% set cle = formateur.cle|default({}) %}
+{% set badge = formateur.badge|default({}) %}
+{% set doc_stats = namespace(total=0, conformes=0, a_controler=0, non_conformes=0, non_concernes=0) %}
+{% for doc in formateur.documents or [] %}
+  {% if doc.status == 'non_concerne' %}
+    {% set doc_stats.non_concernes = doc_stats.non_concernes + 1 %}
+  {% else %}
+    {% set doc_stats.total = doc_stats.total + 1 %}
+    {% if doc.status == 'conforme' %}
+      {% set doc_stats.conformes = doc_stats.conformes + 1 %}
+    {% elif doc.status == 'a_controler' %}
+      {% set doc_stats.a_controler = doc_stats.a_controler + 1 %}
+    {% elif doc.status == 'non_conforme' %}
+      {% set doc_stats.non_conformes = doc_stats.non_conformes + 1 %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+{% set initials = ((formateur.prenom or '')[:1] ~ (formateur.nom or '')[:1])|upper %}
 
-<!-- 🔔 Message sauvegardé -->
-<div id="save-toast"
-     style="position:fixed;top:20px;left:50%;transform:translateX(-50%);
-            background:#27ae60;color:white;padding:10px 20px;border-radius:8px;
-            font-size:14px;box-shadow:0 4px 10px rgba(0,0,0,0.15);
-            display:none;z-index:999;font-weight:600;">
-  ✔️ Sauvegardé
-</div>
+<div id="save-toast" class="save-toast">✔️ Sauvegardé</div>
 
-<div id="formateur-detail"
-     data-fid="{{ formateur.id }}"
-     style="max-width:1100px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
-
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div>
-      <a href="{{ url_for('formateurs_home') }}" style="font-size:13px;text-decoration:none;">⬅️ Retour à la liste</a>
-      <div style="margin:6px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <h2 style="margin:0;">
-          👨‍🏫 {{ formateur.prenom }} {{ formateur.nom|upper }}
-        </h2>
-        {% for profil in formateur.profils or [] %}
-          <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;color:white;background:{{ profile_colors.get(profil, '#6b7280') }};">
-            {{ profile_labels.get(profil, profil) }}
-          </span>
-        {% endfor %}
-        <label for="formateur-nub"
-               style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#2c3e50;">
-          <span>NUB :</span>
-          <input type="text"
-                 id="formateur-nub"
-                 value="{{ formateur.nub or '' }}"
-                 inputmode="numeric"
-                 pattern="[0-9]{7}"
-                 maxlength="7"
-                 placeholder="1234567"
-                 style="width:110px;padding:7px 10px;border-radius:8px;border:1px solid #ccc;font-size:13px;">
-        </label>
-        <span id="nub-error"
-              style="display:none;font-size:12px;color:#c0392b;font-weight:600;">
-          Le NUB doit contenir exactement 7 chiffres.
-        </span>
+<main id="formateur-detail" class="trainer-detail-shell" data-fid="{{ formateur.id }}">
+  <section class="trainer-detail-hero">
+    <div class="trainer-detail-hero__identity">
+      <a href="{{ url_for('formateurs_home') }}" class="trainers-back">← Retour aux formateurs</a>
+      <div class="trainer-detail-brand">
+        <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Intégrale Academy" class="trainer-detail-logo">
+        <div class="trainer-detail-titleblock">
+          <p class="trainers-eyebrow">Fiche formateur</p>
+          <div class="trainer-detail-name-row">
+            <span class="trainer-detail-avatar">{{ initials or 'IA' }}</span>
+            <h1>{{ formateur.prenom }} {{ formateur.nom|upper }}</h1>
+          </div>
+          <div class="tag-row tag-row--hero">
+            {% for profil in formateur.profils or [] %}
+              <span class="profile-pill" style="--profile-color: {{ profile_colors.get(profil, '#6b7280') }};">{{ profile_labels.get(profil, profil) }}</span>
+            {% endfor %}
+            {% if doc_stats.a_controler %}<span class="status-pill status-pill--warning">{{ doc_stats.a_controler }} doc{{ 's' if doc_stats.a_controler > 1 else '' }} à contrôler</span>{% endif %}
+            {% if doc_stats.non_conformes %}<span class="status-pill status-pill--danger">{{ doc_stats.non_conformes }} non conforme{{ 's' if doc_stats.non_conformes > 1 else '' }}</span>{% endif %}
+          </div>
+          <p class="trainer-detail-contact">{{ formateur.email or "Email : —" }} <span>•</span> {{ formateur.telephone or "Téléphone : —" }}</p>
+        </div>
       </div>
-  
-<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-  
-  <!-- 📦 Export ZIP -->
-  <a href="{{ url_for('export_formateur_dossier', fid=formateur.id) }}"
-     style="padding:8px 16px;background:#27ae60;color:white;border-radius:8px;
-            font-weight:600;font-size:13px;text-decoration:none;">
-    📦 Exporter le dossier
-  </a>
+    </div>
 
-  <!-- 🖨️ Impression -->
-  <a href="{{ url_for('print_formateur_dossier', fid=formateur.id) }}"
-     target="_blank"
-     style="padding:8px 16px;background:#555;color:white;border-radius:8px;
-            font-weight:600;font-size:13px;text-decoration:none;">
-    🖨️ Imprimer le dossier
-  </a>
+    <div class="trainer-detail-metrics">
+      <div class="hero-metric hero-metric--gold">
+        <span>{{ doc_stats.conformes }}/{{ doc_stats.total }}</span>
+        <small>documents conformes</small>
+      </div>
+      <div class="hero-metric">
+        <span>{{ cle.numero or '—' }}</span>
+        <small>clé {{ cle.statut|default('non attribuée')|replace('_', ' ') }}</small>
+      </div>
+      <div class="hero-metric">
+        <span>{{ badge.numero or '—' }}</span>
+        <small>badge {{ badge.statut|default('non attribué')|replace('_', ' ') }}</small>
+      </div>
+    </div>
+  </section>
 
-  <!-- 📧 ENVOI MAIL FORMATEUR (CE QUI MANQUAIT) -->
-  <form method="POST"
-        action="{{ url_for('send_formateur_relance', fid=formateur.id) }}"
-        style="display:inline;">
-    <button type="submit"
-            style="padding:8px 16px;background:#e67e22;color:white;border:none;
-                   border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;">
-      📧 Relancer le formateur
-    </button>
-  </form>
-
-</div>
-
-
-
-      <div style="font-size:13px;color:#555;margin-top:4px;">
-        {{ formateur.email or "Email : —" }} • {{ formateur.telephone or "Téléphone : —" }}
+  <section class="trainer-detail-grid">
+    <aside class="trainers-card trainer-detail-sidecard">
+      <div class="section-heading section-heading--compact">
+        <span class="section-kicker">Identité</span>
+        <h2>Informations & profils</h2>
       </div>
 
-      <form method="POST"
-            action="{{ url_for('update_formateur_profils', fid=formateur.id) }}"
-            style="margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;max-width:760px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Qualité / profil du formateur</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <label for="formateur-nub" class="field">
+        <span>NUB</span>
+        <input type="text" id="formateur-nub" value="{{ formateur.nub or '' }}" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" placeholder="1234567">
+      </label>
+      <span id="nub-error" class="field-error">Le NUB doit contenir exactement 7 chiffres.</span>
+
+      <div class="detail-actions">
+        <a href="{{ url_for('export_formateur_dossier', fid=formateur.id) }}" class="btn-premium btn-premium--primary">Exporter le dossier</a>
+        <a href="{{ url_for('print_formateur_dossier', fid=formateur.id) }}" target="_blank" class="btn-premium btn-premium--dark">Imprimer</a>
+        <form method="POST" action="{{ url_for('send_formateur_relance', fid=formateur.id) }}">
+          <button type="submit" class="btn-premium btn-premium--orange">Relancer</button>
+        </form>
+      </div>
+
+      {% if formateur.last_relance %}
+      <div class="last-reminder">Dernière relance : {{ formateur.last_relance }}</div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('update_formateur_profils', fid=formateur.id) }}" class="profile-update-card">
+        <div class="profile-update-card__title">Qualité / profil du formateur</div>
+        <div class="profile-choice-grid">
           {% for option in formateur_profile_options %}
-          <label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid {{ option.color }};font-size:12px;font-weight:700;color:{{ option.color }};">
-            <input type="checkbox" name="profils" value="{{ option.key }}"
-                   {% if option.key in (formateur.profils or []) %}checked{% endif %}>
-            {{ option.label }}
+          <label class="profile-choice" style="--profile-color: {{ option.color }};">
+            <input type="checkbox" name="profils" value="{{ option.key }}" {% if option.key in (formateur.profils or []) %}checked{% endif %}>
+            <span>{{ option.label }}</span>
           </label>
           {% endfor %}
         </div>
-        <button type="submit"
-                style="margin-top:10px;padding:8px 12px;border:none;border-radius:8px;background:#1e8449;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">
-          💾 Enregistrer les profils
-        </button>
+        <button type="submit" class="btn-premium btn-premium--primary">Enregistrer les profils</button>
       </form>
-      {% if formateur.last_relance %}
-  <div style="margin-top:6px;font-size:13px;color:#e67e22;font-weight:600;">
-    📧 Dernière relance : {{ formateur.last_relance }}
-  </div>
+    </aside>
 
-
-
-      
-{% endif %}
-
-            <!-- 🔑 GESTION DE LA CLÉ -->
-<div id="cle-box"
-     style="margin-top:14px;padding:14px 16px;border-radius:12px;
-            background:#f8f9fa;border:1px solid #e0e0e0;
-            display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
-
-  <strong style="font-size:14px;">🔑 Clé :</strong>
-
-  <!-- Attribuée -->
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-    <input type="checkbox" id="cle-attribuee"
-           {% if formateur.cle.attribuee %}checked{% endif %}>
-    Attribuée
-  </label>
-
-  <!-- Numéro -->
-<select id="cle-numero"
-        style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-               font-size:13px;width:130px;">
-  <option value="">— Aucune —</option>
-
-  {% for num, info in etat_cles.items() %}
-    <option value="{{ num }}"
-      {% if formateur.cle.numero|string == num|string %}selected{% endif %}
-    >
-      {{ num }} – {{ info.type }}
-    </option>
-  {% endfor %}
-</select>
-
-
-
-  <!-- Statut -->
-  <select id="cle-statut"
-          style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-                 font-size:13px;">
-    <option value="non_attribuee"
-      {% if formateur.cle.statut == "non_attribuee" %}selected{% endif %}>
-      Non attribuée
-    </option>
-    <option value="attribuee"
-      {% if formateur.cle.statut == "attribuee" %}selected{% endif %}>
-      Attribuée
-    </option>
-    <option value="rendue"
-      {% if formateur.cle.statut == "rendue" %}selected{% endif %}>
-      Rendue
-    </option>
-    <option value="non_rendue"
-      {% if formateur.cle.statut == "non_rendue" %}selected{% endif %}>
-      Non rendue
-    </option>
-  </select>
-  </div> <!-- fin cle-box -->
-
-
-<!-- 🎫 BADGE BARRIÈRE -->
-<div id="badge-box"
-     style="margin-top:12px;padding:14px 16px;border-radius:12px;
-            background:#f8f9fa;border:1px solid #e0e0e0;
-            display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
-
-  <strong style="font-size:14px;">🎫 Badge barrière :</strong>
-
-  <!-- Attribué -->
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-    <input type="checkbox" id="badge-attribue"
-           {% if formateur.badge.attribue %}checked{% endif %}>
-    Attribué
-  </label>
-
-  <!-- Numéro -->
-<select id="badge-numero"
-        style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-               font-size:13px;width:130px;">
-  <option value="">— Aucun —</option>
-
-  {% for num, info in etat_badges.items() %}
-    <option value="{{ num }}"
-      {% if formateur.badge.numero|string == num|string %}selected{% endif %}
-    >
-      Badge {{ num }}
-    </option>
-  {% endfor %}
-</select>
-
-
-
-  <!-- Statut -->
-  <select id="badge-statut"
-          style="padding:6px 8px;border-radius:6px;border:1px solid #ccc;
-                 font-size:13px;">
-    <option value="non_attribue"
-      {% if formateur.badge.statut == "non_attribue" %}selected{% endif %}>
-      Non attribué
-    </option>
-    <option value="attribue"
-      {% if formateur.badge.statut == "attribue" %}selected{% endif %}>
-      Attribué
-    </option>
-    <option value="rendu"
-      {% if formateur.badge.statut == "rendu" %}selected{% endif %}>
-      Rendu
-    </option>
-    <option value="non_rendu"
-      {% if formateur.badge.statut == "non_rendu" %}selected{% endif %}>
-      Non rendu
-    </option>
-  </select>
-
-</div>
-
-
-
-  
-
-</div>
-
-    </div>
-  </div>
-
-  <hr style="margin:15px 0;">
-
-  <!-- Ajouter une nouvelle ligne -->
-  <form method="POST" action="{{ url_for('add_formateur_document', fid=formateur.id) }}" style="display:flex;gap:10px;align-items:baseline;margin-bottom:15px;flex-wrap:wrap;">
-    <div style="flex:1 1 250px;">
-      <label>Ajouter une nouvelle ligne de contrôle :</label>
-      <input type="text" name="label" placeholder="Intitulé du document..." required
-             style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <button type="submit" style="padding:7px 14px;border:none;border-radius:8px;background:#2980b9;color:#fff;font-weight:600;cursor:pointer;">
-      ➕ Ajouter une ligne
-    </button>
-  </form>
-
-  <button onclick="toggleNonConcerne()" 
-        style="margin-bottom:15px;padding:8px 12px;background:#ddd;border:none;
-               border-radius:6px;cursor:pointer;font-size:13px;">
-  👁️ Afficher / Masquer les documents non concernés
-</button>
-
-
-  <div style="max-width:900px;margin:0 auto;overflow-x:auto;">
-    <table style="border-collapse:collapse;font-size:13px;width:auto;">
-      <thead>
-        <tr style="background:#f4f6f7;">
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Élément à contrôler</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:150px;">Date d'expiration</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:160px;">Statut</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;">Commentaire</th>
-          <th style="padding:8px;border-bottom:1px solid #e5e5e5;text-align:left;width:220px;">Pièces jointes</th>
-        </tr>
-      </thead>
-
-      <tbody>
-  {% for doc in formateur.documents %}
-  <tr data-doc-id="{{ doc.id }}" class="{% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      {{ doc.label }}
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      <input
-        type="date"
-        name="expiration"
-        value="{{ doc.expiration or '' }}"
-        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      <select name="status" class="status-select"
-        data-status="{{ doc.status }}"
-        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">
-        <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
-        <option value="a_controler" {% if doc.status == "a_controler" %}selected{% endif %}>A contrôler</option>
-        <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
-        <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
-
-      </select>
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      <textarea
-        name="commentaire"
-        rows="2"
-        style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-size:12px;">{{ doc.commentaire or "" }}</textarea>
-    </td>
-
-    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;">
-      {% if doc.attachments %}
-        <div style="margin-bottom:6px;">
-          {% for att in doc.attachments %}
-            {% set ext = att.original_name.split('.')[-1]|lower %}
-            <div style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-              {% if ext in ["jpg","jpeg","png","gif","webp"] %}
-                <span>🖼️</span>
-              {% elif ext in ["pdf"] %}
-                <span>📄</span>
-              {% else %}
-                <span>📎</span>
-              {% endif %}
-
-              <a href="{{ url_for('download_formateur_attachment',
-                                  fid=formateur.id,
-                                  doc_id=doc.id,
-                                  filename=att.filename) }}"
-                 target="_blank"
-                 style="font-size:12px;text-decoration:none;color:#007bff;">
-                {{ att.original_name }}
-              </a>
-
-              <button type="button"
-                      class="delete-att"
-                      data-doc="{{ doc.id }}"
-                      data-file="{{ att.filename }}"
-                      title="Supprimer"
-                      style="border:none;background:none;color:#c0392b;
-                             cursor:pointer;font-size:13px;">
-                🗑️
-              </button>
+    <div class="trainer-detail-main">
+      <section class="detail-asset-grid">
+        <article id="cle-box" class="trainers-card asset-control-card">
+          <div class="asset-control-card__header">
+            <span class="asset-control-card__icon">🔑</span>
+            <div>
+              <span class="section-kicker">Accès</span>
+              <h2>Clé</h2>
             </div>
-          {% endfor %}
+          </div>
+          <div class="asset-control-fields">
+            <label class="toggle-field"><input type="checkbox" id="cle-attribuee" {% if cle.attribuee %}checked{% endif %}> Attribuée</label>
+            <label class="field">
+              <span>Numéro</span>
+              <select id="cle-numero" class="premium-select">
+                <option value="">— Aucune —</option>
+                {% for num, info in etat_cles.items() %}
+                  <option value="{{ num }}" {% if cle.numero|string == num|string %}selected{% endif %}>{{ num }} – {{ info.type }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field">
+              <span>Statut</span>
+              <select id="cle-statut" class="premium-select">
+                <option value="non_attribuee" {% if cle.statut == "non_attribuee" %}selected{% endif %}>Non attribuée</option>
+                <option value="attribuee" {% if cle.statut == "attribuee" %}selected{% endif %}>Attribuée</option>
+                <option value="rendue" {% if cle.statut == "rendue" %}selected{% endif %}>Rendue</option>
+                <option value="non_rendue" {% if cle.statut == "non_rendue" %}selected{% endif %}>Non rendue</option>
+              </select>
+            </label>
+          </div>
+        </article>
+
+        <article id="badge-box" class="trainers-card asset-control-card">
+          <div class="asset-control-card__header">
+            <span class="asset-control-card__icon">🎫</span>
+            <div>
+              <span class="section-kicker">Portail</span>
+              <h2>Badge barrière</h2>
+            </div>
+          </div>
+          <div class="asset-control-fields">
+            <label class="toggle-field"><input type="checkbox" id="badge-attribue" {% if badge.attribue %}checked{% endif %}> Attribué</label>
+            <label class="field">
+              <span>Numéro</span>
+              <select id="badge-numero" class="premium-select">
+                <option value="">— Aucun —</option>
+                {% for num, info in etat_badges.items() %}
+                  <option value="{{ num }}" {% if badge.numero|string == num|string %}selected{% endif %}>Badge {{ num }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field">
+              <span>Statut</span>
+              <select id="badge-statut" class="premium-select">
+                <option value="non_attribue" {% if badge.statut == "non_attribue" %}selected{% endif %}>Non attribué</option>
+                <option value="attribue" {% if badge.statut == "attribue" %}selected{% endif %}>Attribué</option>
+                <option value="rendu" {% if badge.statut == "rendu" %}selected{% endif %}>Rendu</option>
+                <option value="non_rendu" {% if badge.statut == "non_rendu" %}selected{% endif %}>Non rendu</option>
+              </select>
+            </label>
+          </div>
+        </article>
+      </section>
+
+      <section class="trainers-card documents-card">
+        <div class="section-heading section-heading--row">
+          <div>
+            <span class="section-kicker">Contrôle documentaire</span>
+            <h2>Documents & conformité</h2>
+          </div>
+          <div class="asset-stats">
+            <span>{{ doc_stats.conformes }} conformes</span>
+            <span>{{ doc_stats.a_controler }} à contrôler</span>
+            <span>{{ doc_stats.non_concernes }} non concernés</span>
+          </div>
         </div>
-      {% endif %}
 
-      <input type="file" name="piece_jointe" multiple style="font-size:11px;">
-    </td>
-  </tr>
-  {% endfor %}
-</tbody>
+        <form method="POST" action="{{ url_for('add_formateur_document', fid=formateur.id) }}" class="add-document-form">
+          <label class="field">
+            <span>Ajouter une nouvelle ligne de contrôle</span>
+            <input type="text" name="label" placeholder="Intitulé du document..." required>
+          </label>
+          <button type="submit" class="btn-premium btn-premium--blue">Ajouter une ligne</button>
+        </form>
 
-    </table>
-  </div>
+        <button onclick="toggleNonConcerne()" class="btn-premium btn-premium--soft">Afficher / masquer les documents non concernés</button>
 
-  <p style="margin-top:10px;font-size:12px;color:#666;">
-    ℹ️ Tout changement (date, statut, commentaire, pièces jointes) est enregistré automatiquement.
-  </p>
+        <div class="table-wrap documents-table-wrap">
+          <table class="premium-table documents-table">
+            <thead>
+              <tr>
+                <th>Élément à contrôler</th>
+                <th>Date d'expiration</th>
+                <th>Statut</th>
+                <th>Commentaire</th>
+                <th>Pièces jointes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for doc in formateur.documents %}
+              <tr data-doc-id="{{ doc.id }}" class="document-row {% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
+                <td><strong>{{ doc.label }}</strong></td>
+                <td><input type="date" name="expiration" value="{{ doc.expiration or '' }}" class="table-input"></td>
+                <td>
+                  <select name="status" class="status-select premium-select" data-status="{{ doc.status }}">
+                    <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
+                    <option value="a_controler" {% if doc.status == "a_controler" %}selected{% endif %}>A contrôler</option>
+                    <option value="conforme" {% if doc.status == "conforme" %}selected{% endif %}>Conforme</option>
+                    <option value="non_conforme" {% if doc.status == "non_conforme" %}selected{% endif %}>Non conforme</option>
+                  </select>
+                </td>
+                <td><textarea name="commentaire" rows="2" class="table-textarea">{{ doc.commentaire or "" }}</textarea></td>
+                <td>
+                  {% if doc.attachments %}
+                    <div class="attachment-list">
+                      {% for att in doc.attachments %}
+                        {% set ext = att.original_name.split('.')[-1]|lower %}
+                        <div class="attachment-row">
+                          {% if ext in ["jpg","jpeg","png","gif","webp"] %}<span>🖼️</span>{% elif ext in ["pdf"] %}<span>📄</span>{% else %}<span>📎</span>{% endif %}
+                          <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}" target="_blank">{{ att.original_name }}</a>
+                          <button type="button" class="delete-att" data-doc="{{ doc.id }}" data-file="{{ att.filename }}" title="Supprimer">🗑️</button>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  <input type="file" name="piece_jointe" multiple class="file-input">
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
 
-</div>
-
+        <p class="autosave-note">ℹ️ Tout changement (date, statut, commentaire, pièces jointes) est enregistré automatiquement.</p>
+      </section>
+    </div>
+  </section>
+</main>
 <script>
 (function () {
 
@@ -667,29 +557,6 @@ const badgeBox = document.getElementById("badge-box");
 const badgeAttribue = document.getElementById("badge-attribue");
 const badgeNumero = document.getElementById("badge-numero");
 const badgeStatut = document.getElementById("badge-statut");
-  // --- Mise à jour automatique du formulaire badge selon la sélection ---cest q
-if (badgeAttribue && badgeStatut && badgeNumero) {
-    badgeAttribue.addEventListener("change", () => {
-        const selection = badgeAttribue.value;
-
-        // Si "Aucun"
-        if (!selection) {
-            badgeStatut.value = "";
-            badgeNumero.value = "";
-            return;
-        }
-
-        // Si "Attribué Badge X"
-        if (selection.includes("Badge")) {
-            const parts = selection.split(" ");
-            const numero = parts[1];
-            badgeStatut.value = "attribue";
-            badgeNumero.value = numero;
-        }
-    });
-}
-
-
 function updateBadgeColor() {
   if (!badgeBox) return;
 

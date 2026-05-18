@@ -2,18 +2,12 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contrôle des formateurs</title>
-
-  <!-- CSS principal si tu l’utilises -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
-<body>
-
-<div style="max-width:1000px;margin:30px auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
-
-  <h2 style="margin-top:0;">👨‍🏫 Contrôle des formateurs</h2>
-
+<body class="formateurs-page">
   {% set profile_labels = {} %}
   {% set profile_colors = {} %}
   {% for option in formateur_profile_options %}
@@ -21,315 +15,315 @@
     {% set _ = profile_colors.update({option.key: option.color}) %}
   {% endfor %}
 
-  {% set profile_labels = {} %}
-  {% set profile_colors = {} %}
-  {% for option in formateur_profile_options %}
-    {% set _ = profile_labels.update({option.key: option.label}) %}
-    {% set _ = profile_colors.update({option.key: option.color}) %}
+  {% set stats = namespace(total=formateurs|length, conformes=0, a_controler=0, docs=0) %}
+  {% for f in formateurs %}
+    {% set conf = f.conformite %}
+    {% if conf.total %}
+      {% set stats.docs = stats.docs + conf.total %}
+      {% if conf.conformes == conf.total %}
+        {% set stats.conformes = stats.conformes + 1 %}
+      {% endif %}
+    {% endif %}
+    {% if f.a_controler %}
+      {% set stats.a_controler = stats.a_controler + 1 %}
+    {% endif %}
   {% endfor %}
 
-  <!-- Formulaire ajout formateur -->
-  <form method="POST" action="{{ url_for('add_formateur') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:20px;">
-    <div style="flex:1 1 180px;">
-      <label>Nom</label>
-      <input type="text" name="nom" required style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <div style="flex:1 1 180px;">
-      <label>Prénom</label>
-      <input type="text" name="prenom" required style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <div style="flex:1 1 140px;">
-      <label>NUB</label>
-      <input type="text" name="nub" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" placeholder="1234567" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <div style="flex:1 1 220px;">
-      <label>Email</label>
-      <input type="email" name="email" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <div style="flex:1 1 180px;">
-      <label>Téléphone</label>
-      <input type="text" name="telephone" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ddd;">
-    </div>
-    <div style="flex:1 1 100%;">
-      <label style="display:block;margin-bottom:6px;">Profil(s)</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        {% for option in formateur_profile_options %}
-        <label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid {{ option.color }};font-size:12px;font-weight:700;color:{{ option.color }};">
-          <input type="checkbox" name="profils" value="{{ option.key }}">
-          {{ option.label }}
-        </label>
-        {% endfor %}
-      </div>
-    </div>
-    <div>
-      <button type="submit" style="padding:8px 14px;border:none;border-radius:8px;background:#1e8449;color:#fff;font-weight:600;cursor:pointer;">
-        ➕ Ajouter
-      </button>
-    </div>
-  </form>
-
-  <details style="margin:0 0 18px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;">
-    <summary style="cursor:pointer;font-weight:700;color:#2c3e50;">⚙️ Documents requis par profil (APS / A3P / ...)</summary>
-    <form method="POST" action="{{ url_for('add_formateur_doc_label') }}"
-          style="margin-top:12px;padding:10px;border:1px dashed #d1d5db;border-radius:10px;background:#fff;">
-      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">Ajouter un document spécifique à la grille</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <input type="text" name="new_doc_label" required placeholder="Ex: Agrément spécial événement X"
-               style="flex:1 1 320px;padding:8px 10px;border-radius:8px;border:1px solid #cbd5e1;">
-        <button type="submit"
-                style="padding:8px 12px;border:none;border-radius:8px;background:#1f6feb;color:#fff;font-weight:700;cursor:pointer;">
-          ➕ Ajouter à la grille
-        </button>
-      </div>
-      <div style="margin-top:8px;font-size:12px;color:#4b5563;">Optionnel : cocher les profils qui doivent l’avoir dès maintenant.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
-        {% for option in formateur_profile_options %}
-        <label style="display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid {{ option.color }};border-radius:999px;font-size:12px;color:{{ option.color }};font-weight:700;">
-          <input type="checkbox" name="new_doc_profiles" value="{{ option.key }}">
-          {{ option.label }}
-        </label>
-        {% endfor %}
-      </div>
-    </form>
-
-    <form method="POST" action="{{ url_for('update_formateur_profils_docs') }}" style="margin-top:14px;">
-      {% for option in formateur_profile_options %}
-      <div style="margin-bottom:14px;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:white;">
-        <div style="margin-bottom:8px;font-weight:700;color:{{ option.color }};">{{ option.label }}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          {% set selected_docs = profils_docs_config.get(option.key, []) %}
-          {% for label in available_doc_labels %}
-          <label style="display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #d1d5db;border-radius:999px;font-size:12px;background:#fff;">
-            <input type="checkbox" name="docs_{{ option.key }}" value="{{ label }}"
-                   {% if label in selected_docs %}checked{% endif %}>
-            {{ label }}
-          </label>
-          {% endfor %}
+  <main class="trainers-shell">
+    <section class="trainers-hero">
+      <div class="trainers-hero__content">
+        <a class="trainers-back" href="{{ url_for('index') }}">← Retour au tableau de bord</a>
+        <div class="trainers-brand">
+          <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Intégrale Academy" class="trainers-logo">
+          <div>
+            <p class="trainers-eyebrow">Intégrale Academy</p>
+            <h1>Contrôle des formateurs</h1>
+            <p class="trainers-hero__subtitle">Une vue claire, premium et opérationnelle pour suivre les profils, les documents, les clés et les badges.</p>
+          </div>
         </div>
       </div>
-      {% endfor %}
 
-      <button type="submit" style="padding:8px 12px;border:none;border-radius:8px;background:#1e8449;color:white;font-weight:700;cursor:pointer;">
-        💾 Enregistrer les règles documents par profil
-      </button>
-    </form>
-  </details>
+      <div class="trainers-hero__panel">
+        <div class="hero-metric hero-metric--gold">
+          <span>{{ stats.total }}</span>
+          <small>formateur{{ 's' if stats.total > 1 else '' }}</small>
+        </div>
+        <div class="hero-metric">
+          <span>{{ stats.conformes }}</span>
+          <small>100% conforme{{ 's' if stats.conformes > 1 else '' }}</small>
+        </div>
+        <div class="hero-metric hero-metric--warning">
+          <span>{{ stats.a_controler }}</span>
+          <small>doc{{ 's' if stats.a_controler > 1 else '' }} à contrôler</small>
+        </div>
+        <div class="hero-metric">
+          <span>{{ cles_dispos|length }}</span>
+          <small>clé{{ 's' if cles_dispos|length > 1 else '' }} disponible{{ 's' if cles_dispos|length > 1 else '' }}</small>
+        </div>
+      </div>
+    </section>
 
-  {% if formateurs %}
-  <div style="margin:0 0 14px 0;padding:14px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;">
-    <label for="formateurSearch" style="display:block;margin-bottom:6px;font-weight:700;color:#2c3e50;">🔎 Rechercher un formateur</label>
-    <input
-      type="search"
-      id="formateurSearch"
-      placeholder="Tapez un nom, prénom, email, téléphone ou profil..."
-      autocomplete="off"
-      style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background:white;"
-    >
-    <div id="formateurSearchCount" style="margin-top:8px;font-size:12px;color:#64748b;" aria-live="polite"></div>
-  </div>
+    <section class="trainers-layout">
+      <aside class="trainers-card trainers-card--sticky">
+        <div class="section-heading section-heading--compact">
+          <span class="section-kicker">Ajout rapide</span>
+          <h2>Nouveau formateur</h2>
+          <p>Créez une fiche formateur et associez directement les profils nécessaires.</p>
+        </div>
 
-  <table id="formateursTable" style="width:100%;border-collapse:collapse;font-size:14px;">
-    <thead>
-      <tr style="background:#f4f6f7;">
-        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Formateur</th>
-        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Email</th>
-        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Téléphone</th>
-        <th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Conformité</th>
-        <th style="text-align:right;padding:8px;border-bottom:1px solid #eee;">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in formateurs %}
-      <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
-<td style="padding:8px;border-bottom:1px solid #f0f0f0;">
-  <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="text-decoration:none;color:#2c3e50;font-weight:600;">
-    {{ f.prenom }} {{ f.nom|upper }}
-  </a>
-  {% for profil in f.profils or [] %}
-    <span style="margin-left:6px;display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:white;background:{{ profile_colors.get(profil, '#6b7280') }};">
-      {{ profile_labels.get(profil, profil) }}
-    </span>
-  {% endfor %}
+        <form method="POST" action="{{ url_for('add_formateur') }}" class="trainer-form trainer-form--stacked">
+          <label class="field">
+            <span>Nom</span>
+            <input type="text" name="nom" required placeholder="DUPONT">
+          </label>
+          <label class="field">
+            <span>Prénom</span>
+            <input type="text" name="prenom" required placeholder="Camille">
+          </label>
+          <label class="field">
+            <span>NUB</span>
+            <input type="text" name="nub" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" placeholder="1234567">
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" name="email" placeholder="prenom.nom@email.fr">
+          </label>
+          <label class="field">
+            <span>Téléphone</span>
+            <input type="text" name="telephone" placeholder="06 00 00 00 00">
+          </label>
 
-  {% if f.a_controler %}
-    <span style="
-      margin-left:8px;
-      display:inline-block;
-      padding:3px 8px;
-      border-radius:999px;
-      font-size:12px;
-      font-weight:700;
-      background:#fff3cd;
-      color:#8a6d3b;
-      border:1px solid #ffeeba;
-      vertical-align:middle;
-    ">
-      📌 Docs à contrôler
-    </span>
-  {% endif %}
-</td>
+          <div class="field field--full">
+            <span>Profil(s)</span>
+            <div class="profile-choice-grid">
+              {% for option in formateur_profile_options %}
+              <label class="profile-choice" style="--profile-color: {{ option.color }};">
+                <input type="checkbox" name="profils" value="{{ option.key }}">
+                <span>{{ option.label }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
 
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">{{ f.email or "—" }}</td>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">{{ f.telephone or "—" }}</td>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;">
-          {% set conf = f.conformite %}
-          {% if conf.total %}
-            {{ conf.conformes }} / {{ conf.total }} conformes
+          <button type="submit" class="btn-premium btn-premium--primary">Ajouter le formateur</button>
+        </form>
+      </aside>
+
+      <div class="trainers-main">
+        <section class="trainers-card trainers-card--glass">
+          <details class="docs-config">
+            <summary>
+              <span>
+                <strong>Documents requis par profil</strong>
+                <small>Configurez la grille APS / A3P / profils personnalisés</small>
+              </span>
+            </summary>
+
+            <form method="POST" action="{{ url_for('add_formateur_doc_label') }}" class="docs-add-form">
+              <div>
+                <h3>Ajouter un document spécifique</h3>
+                <p>Optionnel : cochez les profils qui doivent l’avoir dès maintenant.</p>
+              </div>
+              <div class="docs-add-form__row">
+                <input type="text" name="new_doc_label" required placeholder="Ex : Agrément spécial événement X">
+                <button type="submit" class="btn-premium btn-premium--blue">Ajouter à la grille</button>
+              </div>
+              <div class="profile-choice-grid profile-choice-grid--compact">
+                {% for option in formateur_profile_options %}
+                <label class="profile-choice" style="--profile-color: {{ option.color }};">
+                  <input type="checkbox" name="new_doc_profiles" value="{{ option.key }}">
+                  <span>{{ option.label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </form>
+
+            <form method="POST" action="{{ url_for('update_formateur_profils_docs') }}" class="docs-rules-form">
+              {% for option in formateur_profile_options %}
+              <article class="docs-rule-card" style="--profile-color: {{ option.color }};">
+                <h3>{{ option.label }}</h3>
+                <div class="doc-chip-grid">
+                  {% set selected_docs = profils_docs_config.get(option.key, []) %}
+                  {% for label in available_doc_labels %}
+                  <label class="doc-chip">
+                    <input type="checkbox" name="docs_{{ option.key }}" value="{{ label }}" {% if label in selected_docs %}checked{% endif %}>
+                    <span>{{ label }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
+              </article>
+              {% endfor %}
+
+              <button type="submit" class="btn-premium btn-premium--primary">Enregistrer les règles documents</button>
+            </form>
+          </details>
+        </section>
+
+        <section class="trainers-card">
+          <div class="section-heading section-heading--row">
+            <div>
+              <span class="section-kicker">Suivi formateurs</span>
+              <h2>Répertoire & conformité</h2>
+            </div>
+            {% if formateurs %}
+            <div class="search-box">
+              <label for="formateurSearch">Rechercher</label>
+              <input type="search" id="formateurSearch" placeholder="Nom, email, téléphone, profil..." autocomplete="off">
+            </div>
+            {% endif %}
+          </div>
+
+          {% if formateurs %}
+          <div id="formateurSearchCount" class="search-count" aria-live="polite"></div>
+          <div class="table-wrap">
+            <table id="formateursTable" class="premium-table">
+              <thead>
+                <tr>
+                  <th>Formateur</th>
+                  <th>Email</th>
+                  <th>Téléphone</th>
+                  <th>Conformité</th>
+                  <th class="table-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in formateurs %}
+                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
+                  <td>
+                    <a href="{{ url_for('formateur_detail', fid=f.id) }}" class="trainer-name">
+                      <span class="trainer-avatar">{{ (f.prenom[:1] ~ f.nom[:1])|upper }}</span>
+                      <span>{{ f.prenom }} {{ f.nom|upper }}</span>
+                    </a>
+                    <div class="tag-row">
+                      {% for profil in f.profils or [] %}
+                        <span class="profile-pill" style="--profile-color: {{ profile_colors.get(profil, '#6b7280') }};">{{ profile_labels.get(profil, profil) }}</span>
+                      {% endfor %}
+                      {% if f.a_controler %}
+                        <span class="status-pill status-pill--warning">Docs à contrôler</span>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>{{ f.email or "—" }}</td>
+                  <td>{{ f.telephone or "—" }}</td>
+                  <td>
+                    {% set conf = f.conformite %}
+                    {% if conf.total %}
+                      {% set percent = (conf.conformes * 100 / conf.total)|round(0, 'floor')|int %}
+                      <div class="compliance">
+                        <div class="compliance__bar"><span style="width: {{ percent }}%;"></span></div>
+                        <strong>{{ conf.conformes }} / {{ conf.total }}</strong>
+                      </div>
+                    {% else %}
+                      <span class="muted-dash">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="table-actions">
+                    <a href="{{ url_for('formateur_detail', fid=f.id) }}" class="action-link">Ouvrir</a>
+                    <a href="{{ url_for('edit_formateur', fid=f.id) }}" class="action-link">Modifier</a>
+                    <form method="POST" action="{{ url_for('delete_formateur', fid=f.id) }}" class="inline-form" onsubmit="return confirm('Supprimer ce formateur ?');">
+                      <button type="submit" class="action-link action-link--danger">Supprimer</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+                <tr id="formateurNoResults" style="display:none;">
+                  <td colspan="5" class="empty-cell">Aucun formateur ne correspond à cette recherche.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           {% else %}
-            —
+            <div class="empty-state">
+              <strong>Aucun formateur enregistré pour le moment.</strong>
+              <span>Ajoutez votre premier formateur depuis le panneau de gauche.</span>
+            </div>
           {% endif %}
-        </td>
-        <td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;">
-          <a href="{{ url_for('formateur_detail', fid=f.id) }}" style="margin-right:8px;font-size:13px;">🔍 Ouvrir</a>
-          <a href="{{ url_for('edit_formateur', fid=f.id) }}" style="margin-right:8px;font-size:13px;">✏️ Modifier</a>
-          <form method="POST" action="{{ url_for('delete_formateur', fid=f.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer ce formateur ?');">
-            <button type="submit" style="border:none;background:none;color:#c0392b;font-size:13px;cursor:pointer;">🗑️ Supprimer</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-      <tr id="formateurNoResults" style="display:none;">
-        <td colspan="5" style="padding:14px;text-align:center;color:#64748b;border-bottom:1px solid #f0f0f0;">
-          Aucun formateur ne correspond à cette recherche.
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  {% else %}
-    <p style="margin-top:10px;">Aucun formateur enregistré pour le moment.</p>
-  {% endif %}
+        </section>
 
-<!-- ===== LISTE DES CLÉS & BADGES (vue détaillée) ===== -->
-<div style="margin-top:40px;padding:20px;background:#f8f9fa;border-radius:12px;">
+        <section class="trainers-card assets-card">
+          <div class="section-heading section-heading--row">
+            <div>
+              <span class="section-kicker">Logistique</span>
+              <h2>Clés, badges & organigramme</h2>
+            </div>
+            <div class="asset-stats">
+              <span>{{ cles_dispos|length }} clés libres</span>
+              <span>{{ badges_dispos|length }} badges libres</span>
+            </div>
+          </div>
 
-  <!-- === DOCUMENT ORGANIGRAMME CLÉS === -->
-<h3 style="margin-top:0;margin-bottom:15px;">📄 Plan d’organigramme</h3>
+          <div class="pdf-panel">
+            <div class="pdf-panel__title">Plan d’organigramme</div>
+            <iframe src="{{ url_for('static', filename='upload/Organigramme cle.pdf') }}" title="Plan d’organigramme des clés"></iframe>
+          </div>
 
-<iframe 
-  src="{{ url_for('static', filename='upload/Organigramme cle.pdf') }}"
-  style="width:100%;height:600px;border:1px solid #ddd;border-radius:8px;">
-</iframe>
+          <div class="assets-grid">
+            <article class="asset-table-card">
+              <h3>Clés</h3>
+              <div class="table-wrap">
+                <table class="premium-table premium-table--compact">
+                  <thead>
+                    <tr>
+                      <th>Numéro</th>
+                      <th>Type</th>
+                      <th>Attribuée à</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for num, info in etat_cles.items() %}
+                    <tr>
+                      <td><strong>#{{ num }}</strong></td>
+                      <td>
+                        <span class="key-type key-type--{{ info.type|lower|replace(' ', '-') }}">{{ info.type }}</span>
+                      </td>
+                      <td>
+                        <select onchange="assignCle({{ num }}, this.value)" class="premium-select">
+                          <option value="" {% if info.attribue_a == 'Libre' %}selected{% endif %}>Libre</option>
+                          {% for f in formateurs %}
+                            <option value="{{ f.id }}" {% if info.attribue_a == f.prenom ~ ' ' ~ f.nom|upper %}selected{% endif %}>{{ f.prenom }} {{ f.nom|upper }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </article>
 
-<hr style="margin:25px 0;">
-
-
-  <!-- 🔑 CLÉS -->
-  <h3 style="margin-top:0;margin-bottom:15px;">🔑 Clés</h3>
-
-<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:30px;">
-  <thead>
-    <tr style="background:#eef1f5;">
-      <th style="padding:8px;text-align:left;">Numéro</th>
-      <th style="padding:8px;text-align:left;">Type</th>
-      <th style="padding:8px;text-align:left;">Attribuée à</th>
-    </tr>
-  </thead>
-
-<tbody>
-{% for num, info in etat_cles.items() %}
-
-<tr>
-  <!-- Numéro -->
-  <td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">
-    {{ num }}
-  </td>
-
-  <!-- Type de clé -->
-  <td style="padding:8px;border-bottom:1px solid #eee;">
-    <span style="font-weight:700; color:
-  {% if info.type == 'PASS GENERAL' %}#f39c12
-  {% elif info.type == 'PASS PARTIEL' %}#27ae60
-  {% elif info.type == 'APPARTEMENT' %}#8e44ad
-  {% elif info.type == 'VIOLET' %}#8e44ad
-  {% else %}#8e44ad
-  {% endif %}
-">
-  {{ info.type }}
-</span>
-
-  </td>
-
-  <!-- Sélecteur attribution -->
-  <td style="padding:8px;border-bottom:1px solid #eee;">
-    <select onchange="assignCle({{ num }}, this.value)"
-            style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;">
-
-      <option value="" {% if info.attribue_a == 'Libre' %}selected{% endif %}>
-        Libre
-      </option>
-
-      {% for f in formateurs %}
-        <option value="{{ f.id }}"
-          {% if info.attribue_a == f.prenom ~ ' ' ~ f.nom|upper %}selected{% endif %}
-        >
-          {{ f.prenom }} {{ f.nom|upper }}
-        </option>
-      {% endfor %}
-
-    </select>
-  </td>
-
-</tr>
-
-{% endfor %}
-</tbody>
-
-
-</table>
-
-
-  <hr style="margin:25px 0;">
-
-  <!-- 🟦 BADGES -->
-  <h3 style="margin-bottom:15px;">🟦 Badges portail</h3>
-
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    <thead>
-      <tr style="background:#eef1f5;">
-        <th style="padding:8px;text-align:left;">Numéro</th>
-        <th style="padding:8px;text-align:left;">Attribué à</th>
-      </tr>
-    </thead>
-<tbody>
-{% for num, info in etat_badges.items() %}
-
-<tr>
-  <td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">
-    {{ num }}
-  </td>
-
-  <td style="padding:8px;border-bottom:1px solid #eee;">
-    <select onchange="assignBadge({{ num }}, this.value)"
-            style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;">
-
-      <!-- Option libre -->
-      <option value="" {% if info.attribue_a == 'Libre' %}selected{% endif %}>
-        Libre
-      </option>
-
-      <!-- Formateurs -->
-      {% for f in formateurs %}
-        <option value="{{ f.id }}"
-          {% if info.attribue_a == f.prenom ~ ' ' ~ f.nom|upper %}selected{% endif %}>
-          {{ f.prenom }} {{ f.nom|upper }}
-        </option>
-      {% endfor %}
-    </select>
-  </td>
-</tr>
-
-{% endfor %}
-</tbody>
-
-  </table>
-
-</div>
-
-
-
-
-</div>
-
+            <article class="asset-table-card">
+              <h3>Badges portail</h3>
+              <div class="table-wrap">
+                <table class="premium-table premium-table--compact">
+                  <thead>
+                    <tr>
+                      <th>Numéro</th>
+                      <th>Attribué à</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for num, info in etat_badges.items() %}
+                    <tr>
+                      <td><strong>#{{ num }}</strong></td>
+                      <td>
+                        <select onchange="assignBadge({{ num }}, this.value)" class="premium-select">
+                          <option value="" {% if info.attribue_a == 'Libre' %}selected{% endif %}>Libre</option>
+                          {% for f in formateurs %}
+                            <option value="{{ f.id }}" {% if info.attribue_a == f.prenom ~ ' ' ~ f.nom|upper %}selected{% endif %}>{{ f.prenom }} {{ f.nom|upper }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
 
   <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -412,21 +406,5 @@ function assignBadge(numero, fid) {
     });
 }
 </script>
-
-
-  
-
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-

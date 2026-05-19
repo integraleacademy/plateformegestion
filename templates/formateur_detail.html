@@ -649,10 +649,10 @@ filterButtons.forEach(btn => {
 });
 applyStatusFilter("all");
 
-const formateurPhotoInput = document.getElementById("formateur-photo-input");
-const badgePhotoInput = document.getElementById("badge-photo-input");
-const formateurPhotoPreview = document.getElementById("formateur-photo-preview");
-const badgePhotoPreview = document.getElementById("badge-photo-preview");
+var formateurPhotoInput = document.getElementById("formateur-photo-input");
+var badgePhotoInput = document.getElementById("badge-photo-input");
+var formateurPhotoPreview = document.getElementById("formateur-photo-preview");
+var badgePhotoPreview = document.getElementById("badge-photo-preview");
 
 function uploadMedia(inputEl, mediaType, previewEl) {
   if (!inputEl || !previewEl || !inputEl.files.length) return;
@@ -671,16 +671,18 @@ function uploadMedia(inputEl, mediaType, previewEl) {
     .catch(err => console.error("Erreur upload media :", err));
 }
 
-if (formateurPhotoInput) {
+if (formateurPhotoInput && !window.__formateurPhotoUploadBound) {
   formateurPhotoInput.addEventListener("change", () => uploadMedia(formateurPhotoInput, "photo", formateurPhotoPreview));
+  window.__formateurPhotoUploadBound = true;
 }
-if (badgePhotoInput) {
+if (badgePhotoInput && !window.__badgePhotoUploadBound) {
   badgePhotoInput.addEventListener("change", () => uploadMedia(badgePhotoInput, "badge_photo", badgePhotoPreview));
+  window.__badgePhotoUploadBound = true;
 }
 
-const lightbox = document.getElementById("media-lightbox");
-const lightboxImg = document.getElementById("media-lightbox-image");
-const lightboxClose = document.getElementById("media-lightbox-close");
+var lightbox = document.getElementById("media-lightbox");
+var lightboxImg = document.getElementById("media-lightbox-image");
+var lightboxClose = document.getElementById("media-lightbox-close");
 
 function openLightbox(src, alt) {
   if (!lightbox || !lightboxImg || !src) return;
@@ -696,43 +698,30 @@ function closeLightbox() {
   lightbox.setAttribute("aria-hidden", "true");
 }
 
-[formateurPhotoPreview, badgePhotoPreview].forEach(img => {
-  if (!img) return;
-  img.addEventListener("click", () => openLightbox(img.src, img.alt));
-});
-applyStatusFilter("all");
-
-const formateurPhotoInput = document.getElementById("formateur-photo-input");
-const badgePhotoInput = document.getElementById("badge-photo-input");
-const formateurPhotoPreview = document.getElementById("formateur-photo-preview");
-const badgePhotoPreview = document.getElementById("badge-photo-preview");
-
-function uploadMedia(inputEl, mediaType, previewEl) {
-  if (!inputEl || !previewEl || !inputEl.files.length) return;
-  const file = inputEl.files[0];
-  const fd = new FormData();
-  fd.append("media_type", mediaType);
-  fd.append("file", file);
-  fetch(`/formateurs/${fid}/media/upload`, { method: "POST", body: fd })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok || !data.url) throw new Error("Erreur upload");
-      previewEl.src = `${data.url}?t=${Date.now()}`;
-      previewEl.style.display = "block";
-      showToast();
-    })
-    .catch(err => console.error("Erreur upload media :", err));
+if (!window.__mediaPreviewZoomBound) {
+  [formateurPhotoPreview, badgePhotoPreview].forEach(img => {
+    if (!img) return;
+    img.addEventListener("click", () => openLightbox(img.src, img.alt));
+  });
+  window.__mediaPreviewZoomBound = true;
 }
 
-if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
-if (lightbox) {
+if (lightboxClose && !window.__mediaLightboxCloseBound) {
+  lightboxClose.addEventListener("click", closeLightbox);
+  window.__mediaLightboxCloseBound = true;
+}
+if (lightbox && !window.__mediaLightboxOverlayBound) {
   lightbox.addEventListener("click", (e) => {
     if (e.target === lightbox) closeLightbox();
   });
+  window.__mediaLightboxOverlayBound = true;
 }
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeLightbox();
-});
+if (!window.__mediaLightboxEscBound) {
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLightbox();
+  });
+  window.__mediaLightboxEscBound = true;
+}
 
 
 
@@ -744,7 +733,6 @@ document.addEventListener("keydown", (e) => {
 
 </body>
 </html>
-
 
 
 

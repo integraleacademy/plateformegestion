@@ -60,24 +60,26 @@
           </div>
           <p class="trainer-detail-contact">{{ formateur.email or "Email : —" }} <span>•</span> {{ formateur.telephone or "Téléphone : —" }}</p>
           <div class="trainer-media-row">
-            <label class="trainer-media-upload">
+            <div class="trainer-media-upload">
               <span>Photo formateur</span>
               {% if formateur.photo %}
                 <img id="formateur-photo-preview" class="media-preview media-preview--identity" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.photo) }}" alt="Photo formateur">
               {% else %}
                 <img id="formateur-photo-preview" class="media-preview media-preview--identity" alt="Photo formateur" style="display:none;">
               {% endif %}
-              <input type="file" id="formateur-photo-input" accept=".jpg,.jpeg,.png,.webp">
-            </label>
-            <label class="trainer-media-upload trainer-media-upload--badge">
+              <label for="formateur-photo-input" class="btn-premium btn-premium--soft">Changer la photo</label>
+              <input type="file" id="formateur-photo-input" accept=".jpg,.jpeg,.png,.webp" hidden>
+            </div>
+            <div class="trainer-media-upload trainer-media-upload--badge">
               <span>Photo badge (carte)</span>
               {% if formateur.badge_photo %}
                 <img id="badge-photo-preview" class="media-preview media-preview--badge" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.badge_photo) }}" alt="Photo badge">
               {% else %}
                 <img id="badge-photo-preview" class="media-preview media-preview--badge" alt="Photo badge" style="display:none;">
               {% endif %}
-              <input type="file" id="badge-photo-input" accept=".jpg,.jpeg,.png,.webp">
-            </label>
+              <label for="badge-photo-input" class="btn-premium btn-premium--soft">Changer le badge</label>
+              <input type="file" id="badge-photo-input" accept=".jpg,.jpeg,.png,.webp" hidden>
+            </div>
           </div>
         </div>
       </div>
@@ -722,13 +724,6 @@ function uploadMedia(inputEl, mediaType, previewEl) {
     .catch(err => console.error("Erreur upload media :", err));
 }
 
-if (formateurPhotoInput) {
-  formateurPhotoInput.addEventListener("change", () => uploadMedia(formateurPhotoInput, "photo", formateurPhotoPreview));
-}
-if (badgePhotoInput) {
-  badgePhotoInput.addEventListener("change", () => uploadMedia(badgePhotoInput, "badge_photo", badgePhotoPreview));
-}
-
 if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
 if (lightbox) {
   lightbox.addEventListener("click", (e) => {
@@ -749,7 +744,6 @@ document.addEventListener("keydown", (e) => {
 
 </body>
 </html>
-
 
 
 

@@ -34,6 +34,10 @@
 {% set initials = ((formateur.prenom or '')[:1] ~ (formateur.nom or '')[:1])|upper %}
 
 <div id="save-toast" class="save-toast">✔️ Sauvegardé</div>
+<div id="media-lightbox" class="media-lightbox" aria-hidden="true">
+  <button type="button" id="media-lightbox-close" class="media-lightbox__close" aria-label="Fermer">✕</button>
+  <img id="media-lightbox-image" src="" alt="Aperçu média">
+</div>
 
 <main id="formateur-detail" class="trainer-detail-shell" data-fid="{{ formateur.id }}">
   <section class="trainer-detail-hero">
@@ -59,18 +63,18 @@
             <label class="trainer-media-upload">
               <span>Photo formateur</span>
               {% if formateur.photo %}
-                <img id="formateur-photo-preview" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.photo) }}" alt="Photo formateur">
+                <img id="formateur-photo-preview" class="media-preview media-preview--identity" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.photo) }}" alt="Photo formateur">
               {% else %}
-                <img id="formateur-photo-preview" alt="Photo formateur" style="display:none;">
+                <img id="formateur-photo-preview" class="media-preview media-preview--identity" alt="Photo formateur" style="display:none;">
               {% endif %}
               <input type="file" id="formateur-photo-input" accept=".jpg,.jpeg,.png,.webp">
             </label>
             <label class="trainer-media-upload trainer-media-upload--badge">
               <span>Photo badge (carte)</span>
               {% if formateur.badge_photo %}
-                <img id="badge-photo-preview" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.badge_photo) }}" alt="Photo badge">
+                <img id="badge-photo-preview" class="media-preview media-preview--badge" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.badge_photo) }}" alt="Photo badge">
               {% else %}
-                <img id="badge-photo-preview" alt="Photo badge" style="display:none;">
+                <img id="badge-photo-preview" class="media-preview media-preview--badge" alt="Photo badge" style="display:none;">
               {% endif %}
               <input type="file" id="badge-photo-input" accept=".jpg,.jpeg,.png,.webp">
             </label>
@@ -672,6 +676,68 @@ if (badgePhotoInput) {
   badgePhotoInput.addEventListener("change", () => uploadMedia(badgePhotoInput, "badge_photo", badgePhotoPreview));
 }
 
+const lightbox = document.getElementById("media-lightbox");
+const lightboxImg = document.getElementById("media-lightbox-image");
+const lightboxClose = document.getElementById("media-lightbox-close");
+
+function openLightbox(src, alt) {
+  if (!lightbox || !lightboxImg || !src) return;
+  lightboxImg.src = src;
+  lightboxImg.alt = alt || "Aperçu média";
+  lightbox.classList.add("is-open");
+  lightbox.setAttribute("aria-hidden", "false");
+}
+
+function closeLightbox() {
+  if (!lightbox) return;
+  lightbox.classList.remove("is-open");
+  lightbox.setAttribute("aria-hidden", "true");
+}
+
+[formateurPhotoPreview, badgePhotoPreview].forEach(img => {
+  if (!img) return;
+  img.addEventListener("click", () => openLightbox(img.src, img.alt));
+});
+applyStatusFilter("all");
+
+const formateurPhotoInput = document.getElementById("formateur-photo-input");
+const badgePhotoInput = document.getElementById("badge-photo-input");
+const formateurPhotoPreview = document.getElementById("formateur-photo-preview");
+const badgePhotoPreview = document.getElementById("badge-photo-preview");
+
+function uploadMedia(inputEl, mediaType, previewEl) {
+  if (!inputEl || !previewEl || !inputEl.files.length) return;
+  const file = inputEl.files[0];
+  const fd = new FormData();
+  fd.append("media_type", mediaType);
+  fd.append("file", file);
+  fetch(`/formateurs/${fid}/media/upload`, { method: "POST", body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok || !data.url) throw new Error("Erreur upload");
+      previewEl.src = `${data.url}?t=${Date.now()}`;
+      previewEl.style.display = "block";
+      showToast();
+    })
+    .catch(err => console.error("Erreur upload media :", err));
+}
+
+if (formateurPhotoInput) {
+  formateurPhotoInput.addEventListener("change", () => uploadMedia(formateurPhotoInput, "photo", formateurPhotoPreview));
+}
+if (badgePhotoInput) {
+  badgePhotoInput.addEventListener("change", () => uploadMedia(badgePhotoInput, "badge_photo", badgePhotoPreview));
+}
+
+if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
+if (lightbox) {
+  lightbox.addEventListener("click", (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeLightbox();
+});
 
 
 
@@ -683,7 +749,6 @@ if (badgePhotoInput) {
 
 </body>
 </html>
-
 
 
 

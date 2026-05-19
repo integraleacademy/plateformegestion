@@ -864,18 +864,62 @@ a{color:inherit;text-decoration:none}
   font-size: 12px;
 }
 
-.trainer-media-upload img {
-  width: 92px;
-  height: 92px;
+.trainer-media-upload .media-preview {
+  cursor: zoom-in;
   object-fit: cover;
   border-radius: 10px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.1);
 }
 
-.trainer-media-upload--badge img {
-  width: 140px;
-  height: 88px;
+.trainer-media-upload .media-preview--identity {
+  width: 88px;
+  height: 116px;
+}
+
+.trainer-media-upload .media-preview--badge {
+  width: 220px;
+  height: 138px;
+}
+
+.media-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.media-lightbox.is-open {
+  display: flex;
+}
+
+.media-lightbox img {
+  max-width: min(90vw, 960px);
+  max-height: 86vh;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.5);
+  background: #111;
+  object-fit: contain;
+}
+
+.media-lightbox__close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  border: 0;
+  border-radius: 999px;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: #111;
+  background: #fff;
+  cursor: pointer;
 }
 
 .pdf-panel {

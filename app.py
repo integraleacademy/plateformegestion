@@ -3339,6 +3339,7 @@ TYPES_CLES = {
 
 @app.route("/formateurs")
 def formateurs_home():
+    filtre_docs = request.args.get("filtre") == "docs_a_controler"
     formateurs = load_formateurs()
     profils_docs_config = load_formateur_profils_docs_config()
     available_doc_labels = get_all_formateur_document_labels(formateurs, profils_docs_config)
@@ -3379,6 +3380,8 @@ def formateurs_home():
         f["conformite"] = {"conformes": conformes, "total": total}
         f["a_controler"] = a_controler
 
+    if filtre_docs:
+        formateurs = [f for f in formateurs if f.get("a_controler")]
 
     # ===== EXTRACTION DES CLÉS & BADGES =====
     liste_cles = []
@@ -3423,6 +3426,7 @@ def formateurs_home():
         liste_badges=liste_badges,
         cles_dispos=cles_dispos,
         badges_dispos=badges_dispos,
+        filtre_docs=filtre_docs,
         etat_cles=etat_cles,       # 👈 ajouté
         etat_badges=etat_badges   # 👈 ajouté
     )

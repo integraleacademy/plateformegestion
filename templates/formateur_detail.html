@@ -34,6 +34,10 @@
 {% set initials = ((formateur.prenom or '')[:1] ~ (formateur.nom or '')[:1])|upper %}
 
 <div id="save-toast" class="save-toast">✔️ Sauvegardé</div>
+<div id="media-lightbox" class="media-lightbox" aria-hidden="true">
+  <button type="button" id="media-lightbox-close" class="media-lightbox__close" aria-label="Fermer">✕</button>
+  <img id="media-lightbox-image" src="" alt="Aperçu média">
+</div>
 
 <main id="formateur-detail" class="trainer-detail-shell" data-fid="{{ formateur.id }}">
   <section class="trainer-detail-hero">
@@ -55,6 +59,28 @@
             {% if doc_stats.non_conformes %}<span class="status-pill status-pill--danger">{{ doc_stats.non_conformes }} non conforme{{ 's' if doc_stats.non_conformes > 1 else '' }}</span>{% endif %}
           </div>
           <p class="trainer-detail-contact">{{ formateur.email or "Email : —" }} <span>•</span> {{ formateur.telephone or "Téléphone : —" }}</p>
+          <div class="trainer-media-row">
+            <div class="trainer-media-upload">
+              <span>Photo formateur</span>
+              {% if formateur.photo %}
+                <img id="formateur-photo-preview" class="media-preview media-preview--identity" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.photo) }}" alt="Photo formateur">
+              {% else %}
+                <img id="formateur-photo-preview" class="media-preview media-preview--identity" alt="Photo formateur" style="display:none;">
+              {% endif %}
+              <label for="formateur-photo-input" class="btn-premium btn-premium--soft">Changer la photo</label>
+              <input type="file" id="formateur-photo-input" accept=".jpg,.jpeg,.png,.webp" hidden>
+            </div>
+            <div class="trainer-media-upload trainer-media-upload--badge">
+              <span>Photo badge (carte)</span>
+              {% if formateur.badge_photo %}
+                <img id="badge-photo-preview" class="media-preview media-preview--badge" src="{{ url_for('download_formateur_media', fid=formateur.id, filename=formateur.badge_photo) }}" alt="Photo badge">
+              {% else %}
+                <img id="badge-photo-preview" class="media-preview media-preview--badge" alt="Photo badge" style="display:none;">
+              {% endif %}
+              <label for="badge-photo-input" class="btn-premium btn-premium--soft">Changer le badge</label>
+              <input type="file" id="badge-photo-input" accept=".jpg,.jpeg,.png,.webp" hidden>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -97,7 +123,7 @@
       </div>
 
       {% if formateur.last_relance %}
-      <div class="last-reminder">Dernière relance : {{ formateur.last_relance }}</div>
+      <div class="last-reminder">Dernière relance : {{ last_relance_display }}</div>
       {% endif %}
 
       <form method="POST" action="{{ url_for('update_formateur_profils', fid=formateur.id) }}" class="profile-update-card">
@@ -186,9 +212,11 @@
             <h2>Documents & conformité</h2>
           </div>
           <div class="asset-stats">
-            <span>{{ doc_stats.conformes }} conformes</span>
-            <span>{{ doc_stats.a_controler }} à contrôler</span>
-            <span>{{ doc_stats.non_concernes }} non concernés</span>
+            <button type="button" class="status-filter-btn is-active" data-filter="all">{{ doc_stats.total + doc_stats.non_concernes }} total</button>
+            <button type="button" class="status-filter-btn" data-filter="conforme">{{ doc_stats.conformes }} conformes</button>
+            <button type="button" class="status-filter-btn" data-filter="a_controler">{{ doc_stats.a_controler }} à contrôler</button>
+            <button type="button" class="status-filter-btn status-filter-btn--danger" data-filter="non_conforme">{{ doc_stats.non_conformes }} non conformes</button>
+            <button type="button" class="status-filter-btn" data-filter="non_concerne">{{ doc_stats.non_concernes }} non concernés</button>
           </div>
         </div>
 
@@ -199,8 +227,6 @@
           </label>
           <button type="submit" class="btn-premium btn-premium--blue">Ajouter une ligne</button>
         </form>
-
-        <button onclick="toggleNonConcerne()" class="btn-premium btn-premium--soft">Afficher / masquer les documents non concernés</button>
 
         <div class="table-wrap documents-table-wrap">
           <table class="premium-table documents-table">
@@ -215,7 +241,7 @@
             </thead>
             <tbody>
               {% for doc in formateur.documents %}
-              <tr data-doc-id="{{ doc.id }}" class="document-row {% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
+              <tr data-doc-id="{{ doc.id }}" data-status="{{ doc.status }}" class="document-row {% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
                 <td><strong>{{ doc.label }}</strong></td>
                 <td><input type="date" name="expiration" value="{{ doc.expiration or '' }}" class="table-input"></td>
                 <td>
@@ -229,15 +255,14 @@
                 <td><textarea name="commentaire" rows="2" class="table-textarea">{{ doc.commentaire or "" }}</textarea></td>
                 <td>
                   {% if doc.attachments %}
+                    {% set latest_att = doc.attachments[-1] %}
                     <div class="attachment-list">
-                      {% for att in doc.attachments %}
-                        {% set ext = att.original_name.split('.')[-1]|lower %}
-                        <div class="attachment-row">
-                          {% if ext in ["jpg","jpeg","png","gif","webp"] %}<span>🖼️</span>{% elif ext in ["pdf"] %}<span>📄</span>{% else %}<span>📎</span>{% endif %}
-                          <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=att.filename) }}" target="_blank">{{ att.original_name }}</a>
-                          <button type="button" class="delete-att" data-doc="{{ doc.id }}" data-file="{{ att.filename }}" title="Supprimer">🗑️</button>
-                        </div>
-                      {% endfor %}
+                      {% set ext = latest_att.original_name.split('.')[-1]|lower %}
+                      <div class="attachment-row">
+                        {% if ext in ["jpg","jpeg","png","gif","webp"] %}<span>🖼️</span>{% elif ext in ["pdf"] %}<span>📄</span>{% else %}<span>📎</span>{% endif %}
+                        <a href="{{ url_for('download_formateur_attachment', fid=formateur.id, doc_id=doc.id, filename=latest_att.filename) }}" target="_blank">{{ latest_att.original_name }}</a>
+                        <button type="button" class="delete-att" data-doc="{{ doc.id }}" data-file="{{ latest_att.filename }}" title="Supprimer">🗑️</button>
+                      </div>
                     </div>
                   {% endif %}
                   <input type="file" name="piece_jointe" multiple class="file-input">
@@ -607,24 +632,96 @@ if (badgeAttribue && badgeNumero && badgeStatut) {
 }
 
 
-// 👁️ Afficher / masquer les documents non concernés
-window.toggleNonConcerne = function () {
-  document.querySelectorAll(".non-concerne").forEach(row => {
-    if (row.style.display === "" || row.style.display === "table-row") {
-      row.style.display = "none";
-    } else {
-      row.style.display = "";
-    }
+const filterButtons = document.querySelectorAll(".status-filter-btn");
+function applyStatusFilter(filter) {
+  document.querySelectorAll("tr[data-doc-id]").forEach(row => {
+    const rowStatus = row.dataset.status || "";
+    const visible = filter === "all" ? rowStatus !== "non_concerne" : rowStatus === filter;
+    row.style.display = visible ? "" : "none";
   });
-};
-
-
-
-  // 🚫 Masquer automatiquement les lignes non concernées au chargement
-document.querySelectorAll(".non-concerne").forEach(row => {
-  row.style.display = "none";
+}
+filterButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    filterButtons.forEach(b => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    applyStatusFilter(btn.dataset.filter);
+  });
 });
+applyStatusFilter("all");
 
+var formateurPhotoInput = document.getElementById("formateur-photo-input");
+var badgePhotoInput = document.getElementById("badge-photo-input");
+var formateurPhotoPreview = document.getElementById("formateur-photo-preview");
+var badgePhotoPreview = document.getElementById("badge-photo-preview");
+
+function uploadMedia(inputEl, mediaType, previewEl) {
+  if (!inputEl || !previewEl || !inputEl.files.length) return;
+  const file = inputEl.files[0];
+  const fd = new FormData();
+  fd.append("media_type", mediaType);
+  fd.append("file", file);
+  fetch(`/formateurs/${fid}/media/upload`, { method: "POST", body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok || !data.url) throw new Error("Erreur upload");
+      previewEl.src = `${data.url}?t=${Date.now()}`;
+      previewEl.style.display = "block";
+      showToast();
+    })
+    .catch(err => console.error("Erreur upload media :", err));
+}
+
+if (formateurPhotoInput && !window.__formateurPhotoUploadBound) {
+  formateurPhotoInput.addEventListener("change", () => uploadMedia(formateurPhotoInput, "photo", formateurPhotoPreview));
+  window.__formateurPhotoUploadBound = true;
+}
+if (badgePhotoInput && !window.__badgePhotoUploadBound) {
+  badgePhotoInput.addEventListener("change", () => uploadMedia(badgePhotoInput, "badge_photo", badgePhotoPreview));
+  window.__badgePhotoUploadBound = true;
+}
+
+var lightbox = document.getElementById("media-lightbox");
+var lightboxImg = document.getElementById("media-lightbox-image");
+var lightboxClose = document.getElementById("media-lightbox-close");
+
+function openLightbox(src, alt) {
+  if (!lightbox || !lightboxImg || !src) return;
+  lightboxImg.src = src;
+  lightboxImg.alt = alt || "Aperçu média";
+  lightbox.classList.add("is-open");
+  lightbox.setAttribute("aria-hidden", "false");
+}
+
+function closeLightbox() {
+  if (!lightbox) return;
+  lightbox.classList.remove("is-open");
+  lightbox.setAttribute("aria-hidden", "true");
+}
+
+if (!window.__mediaPreviewZoomBound) {
+  [formateurPhotoPreview, badgePhotoPreview].forEach(img => {
+    if (!img) return;
+    img.addEventListener("click", () => openLightbox(img.src, img.alt));
+  });
+  window.__mediaPreviewZoomBound = true;
+}
+
+if (lightboxClose && !window.__mediaLightboxCloseBound) {
+  lightboxClose.addEventListener("click", closeLightbox);
+  window.__mediaLightboxCloseBound = true;
+}
+if (lightbox && !window.__mediaLightboxOverlayBound) {
+  lightbox.addEventListener("click", (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+  window.__mediaLightboxOverlayBound = true;
+}
+if (!window.__mediaLightboxEscBound) {
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLightbox();
+  });
+  window.__mediaLightboxEscBound = true;
+}
 
 
 
@@ -636,10 +733,6 @@ document.querySelectorAll(".non-concerne").forEach(row => {
 
 </body>
 </html>
-
-
-
-
 
 
 

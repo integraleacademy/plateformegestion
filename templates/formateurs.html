@@ -38,7 +38,7 @@
           <div>
             <p class="trainers-eyebrow">Intégrale Academy</p>
             <h1>Contrôle des formateurs</h1>
-            <p class="trainers-hero__subtitle">Une vue claire, premium et opérationnelle pour suivre les profils, les documents, les clés et les badges.</p>
+            
           </div>
         </div>
       </div>
@@ -52,7 +52,7 @@
           <span>{{ stats.conformes }}</span>
           <small>100% conforme{{ 's' if stats.conformes > 1 else '' }}</small>
         </div>
-        <div class="hero-metric hero-metric--warning">
+        <div class="hero-metric hero-metric--warning {% if stats.a_controler > 0 %}hero-metric--alert{% endif %}">
           <span>{{ stats.a_controler }}</span>
           <small>doc{{ 's' if stats.a_controler > 1 else '' }} à contrôler</small>
         </div>
@@ -61,6 +61,11 @@
           <small>clé{{ 's' if cles_dispos|length > 1 else '' }} disponible{{ 's' if cles_dispos|length > 1 else '' }}</small>
         </div>
       </div>
+        {% if stats.a_controler > 0 %}
+        <a href="{{ url_for('formateurs_home', filtre='docs_a_controler') }}" class="docs-to-check-cta">
+          Voir les documents à contrôler
+        </a>
+        {% endif %}
     </section>
 
     <section class="trainers-layout">
@@ -174,6 +179,9 @@
           </div>
 
           {% if formateurs %}
+          {% if filtre_docs %}
+          <div class="search-count">Filtre actif : documents à contrôler · <a href="{{ url_for('formateurs_home') }}">Réinitialiser</a></div>
+          {% endif %}
           <div id="formateurSearchCount" class="search-count" aria-live="polite"></div>
           <div class="profile-filters" id="formateurProfileFilters" aria-label="Filtrer par profil">
             <button type="button" class="profile-filter-chip is-active" data-profile="all">Tous</button>
@@ -376,7 +384,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const hasFilter = Boolean(query) || isProfileFiltered;
             countLabel.textContent = hasFilter
                 ? `${visibleCount} résultat${visibleCount > 1 ? "s" : ""} trouvé${visibleCount > 1 ? "s" : ""}`
-                : `${rows.length} formateur${rows.length > 1 ? "s" : ""} enregistré${rows.length > 1 ? "s" : ""}`;
+                : `${visibleCount} formateur${visibleCount > 1 ? "s" : ""} affiché${visibleCount > 1 ? "s" : ""}`;
         }
     }
 

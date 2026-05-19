@@ -645,6 +645,36 @@ a{color:inherit;text-decoration:none}
   font-weight: 800;
 }
 
+.profile-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.profile-filter-chip {
+  padding: 8px 12px;
+  border: 1px solid rgba(37, 31, 22, .16);
+  border-radius: 999px;
+  background: #fff;
+  color: #4d463b;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.profile-filter-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(37, 31, 22, .12);
+}
+
+.profile-filter-chip.is-active {
+  border-color: color-mix(in srgb, var(--profile-color, #15120d), transparent 55%);
+  background: color-mix(in srgb, var(--profile-color, #15120d), white 86%);
+  color: var(--profile-color, #15120d);
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;

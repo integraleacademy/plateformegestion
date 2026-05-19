@@ -38,7 +38,7 @@
           <div>
             <p class="trainers-eyebrow">Intégrale Academy</p>
             <h1>Contrôle des formateurs</h1>
-            <p class="trainers-hero__subtitle">Une vue claire, premium et opérationnelle pour suivre les profils, les documents, les clés et les badges.</p>
+            
           </div>
         </div>
       </div>
@@ -52,7 +52,7 @@
           <span>{{ stats.conformes }}</span>
           <small>100% conforme{{ 's' if stats.conformes > 1 else '' }}</small>
         </div>
-        <div class="hero-metric hero-metric--warning">
+        <div class="hero-metric hero-metric--warning {% if stats.a_controler > 0 %}hero-metric--alert{% endif %}">
           <span>{{ stats.a_controler }}</span>
           <small>doc{{ 's' if stats.a_controler > 1 else '' }} à contrôler</small>
         </div>
@@ -61,6 +61,11 @@
           <small>clé{{ 's' if cles_dispos|length > 1 else '' }} disponible{{ 's' if cles_dispos|length > 1 else '' }}</small>
         </div>
       </div>
+        {% if stats.a_controler > 0 %}
+        <button type="button" id="showDocsToCheck" class="docs-to-check-cta" aria-pressed="false">
+          Voir les documents à contrôler
+        </button>
+        {% endif %}
     </section>
 
     <section class="trainers-layout">

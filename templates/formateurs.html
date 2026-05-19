@@ -358,6 +358,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateVisibleRows() {
         const query = normalizeText(searchInput.value);
+        const isProfileFiltered = activeProfileFilter !== "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
@@ -377,7 +378,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (countLabel) {
-            countLabel.textContent = query
+            const hasFilter = Boolean(query) || isProfileFiltered;
+            countLabel.textContent = hasFilter
                 ? `${visibleCount} résultat${visibleCount > 1 ? "s" : ""} trouvé${visibleCount > 1 ? "s" : ""}`
                 : `${rows.length} formateur${rows.length > 1 ? "s" : ""} enregistré${rows.length > 1 ? "s" : ""}`;
         }
@@ -387,7 +389,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     filterButtons.forEach((button) => {
         button.addEventListener("click", () => {
-            activeProfileFilter = button.dataset.profile || "all";
+            activeProfileFilter = normalizeText(button.dataset.profile || "all");
             filterButtons.forEach((item) => item.classList.toggle("is-active", item === button));
             updateVisibleRows();
         });

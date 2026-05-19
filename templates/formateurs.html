@@ -175,6 +175,12 @@
 
           {% if formateurs %}
           <div id="formateurSearchCount" class="search-count" aria-live="polite"></div>
+          <div class="profile-filters" id="formateurProfileFilters" aria-label="Filtrer par profil">
+            <button type="button" class="profile-filter-chip is-active" data-profile="all">Tous</button>
+            {% for option in formateur_profile_options %}
+              <button type="button" class="profile-filter-chip" data-profile="{{ option.key }}" style="--profile-color: {{ option.color }};">{{ option.label }}</button>
+            {% endfor %}
+          </div>
           <div class="table-wrap">
             <table id="formateursTable" class="premium-table">
               <thead>
@@ -188,7 +194,7 @@
               </thead>
               <tbody>
                 {% for f in formateurs %}
-                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
+                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}" data-profiles="{{ ((f.profils or [])|join(' '))|lower|e }}">
                   <td>
                     <a href="{{ url_for('formateur_detail', fid=f.id) }}" class="trainer-name">
                       <span class="trainer-avatar">{{ (f.prenom[:1] ~ f.nom[:1])|upper }}</span>
@@ -331,6 +337,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const rows = Array.from(document.querySelectorAll(".formateur-row"));
     const noResultsRow = document.getElementById("formateurNoResults");
     const countLabel = document.getElementById("formateurSearchCount");
+    const profileFilterContainer = document.getElementById("formateurProfileFilters");
+    const filterButtons = profileFilterContainer ? Array.from(profileFilterContainer.querySelectorAll(".profile-filter-chip")) : [];
+    let activeProfileFilter = "all";
 
     if (!searchInput || !rows.length) {
         return;
@@ -348,7 +357,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         rows.forEach((row) => {
             const searchableText = normalizeText(`${row.dataset.search || ""} ${row.textContent || ""}`);
-            const isVisible = !query || searchableText.includes(query);
+            const rowProfiles = normalizeText(row.dataset.profiles || "");
+            const matchesSearch = !query || searchableText.includes(query);
+            const matchesProfile = activeProfileFilter === "all" || rowProfiles.split(/\s+/).includes(activeProfileFilter);
+            const isVisible = matchesSearch && matchesProfile;
             row.style.display = isVisible ? "" : "none";
             if (isVisible) {
                 visibleCount += 1;
@@ -367,6 +379,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     searchInput.addEventListener("input", updateVisibleRows);
+
+    filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            activeProfileFilter = button.dataset.profile || "all";
+            filterButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+            updateVisibleRows();
+        });
+    });
+
     updateVisibleRows();
 });
 </script>

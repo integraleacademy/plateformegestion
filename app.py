@@ -3616,11 +3616,22 @@ def formateur_detail(fid):
 
     # 🔑🟦 RÉCUPÉRER TOUTES LES CLÉS / BADGES EXISTANTS
     etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
+    last_relance_display = ""
+    raw_relance = (formateur.get("last_relance") or "").strip()
+    if raw_relance:
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+            try:
+                dt = datetime.strptime(raw_relance, fmt)
+                last_relance_display = dt.strftime("%d/%m/%Y")
+                break
+            except ValueError:
+                continue
 
     return render_template(
         "formateur_detail.html",
         title=f"Contrôle formateur — {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
         formateur=formateur,
+        last_relance_display=last_relance_display,
         formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
         etat_cles=etat_cles,       # 👈 indispensable
         etat_badges=etat_badges    # 👈 indispensable
@@ -3689,6 +3700,54 @@ def update_formateur_document(fid, doc_id):
 
     # ⛔️ PLUS AUCUN REDIRECT
     return {"ok": True}
+
+
+@app.route("/formateurs/<fid>/media/upload", methods=["POST"])
+def upload_formateur_media(fid):
+    media_type = request.form.get("media_type", "").strip()
+    if media_type not in ("photo", "badge_photo"):
+        return {"ok": False, "error": "Type de média invalide"}, 400
+
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        return {"ok": False, "error": "Formateur introuvable"}, 404
+
+    media_file = request.files.get("file")
+    if not media_file or not media_file.filename:
+        return {"ok": False, "error": "Aucun fichier reçu"}, 400
+
+    ext = os.path.splitext(media_file.filename)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        return {"ok": False, "error": "Format non supporté"}, 400
+
+    storage_dir = os.path.join(FORMATEUR_FILES_DIR, fid, "_media")
+    os.makedirs(storage_dir, exist_ok=True)
+    unique_name = f"{media_type}_{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(storage_dir, unique_name)
+    media_file.save(file_path)
+
+    old_filename = formateur.get(media_type)
+    if old_filename:
+        old_path = os.path.join(storage_dir, old_filename)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    formateur[media_type] = unique_name
+    save_formateurs(formateurs)
+    return {
+        "ok": True,
+        "url": url_for("download_formateur_media", fid=fid, filename=unique_name),
+    }
+
+
+@app.route("/formateurs/<fid>/media/<filename>")
+def download_formateur_media(fid, filename):
+    subdir = os.path.join(FORMATEUR_FILES_DIR, fid, "_media")
+    return send_from_directory(subdir, filename, as_attachment=False)
 
 
 

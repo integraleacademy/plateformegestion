@@ -180,6 +180,12 @@
 
           {% if formateurs %}
           <div id="formateurSearchCount" class="search-count" aria-live="polite"></div>
+          <div class="profile-filters" id="formateurProfileFilters" aria-label="Filtrer par profil">
+            <button type="button" class="profile-filter-chip is-active" data-profile="all">Tous</button>
+            {% for option in formateur_profile_options %}
+              <button type="button" class="profile-filter-chip" data-profile="{{ option.key }}" style="--profile-color: {{ option.color }};">{{ option.label }}</button>
+            {% endfor %}
+          </div>
           <div class="table-wrap">
             <table id="formateursTable" class="premium-table">
               <thead>
@@ -351,6 +357,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateVisibleRows() {
         const query = normalizeText(searchInput.value);
+        const isProfileFiltered = activeProfileFilter !== "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
@@ -369,7 +376,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (countLabel) {
-            countLabel.textContent = query
+            const hasFilter = Boolean(query) || isProfileFiltered;
+            countLabel.textContent = hasFilter
                 ? `${visibleCount} résultat${visibleCount > 1 ? "s" : ""} trouvé${visibleCount > 1 ? "s" : ""}`
                 : `${visibleCount} formateur${visibleCount > 1 ? "s" : ""} affiché${visibleCount > 1 ? "s" : ""}`;
         }

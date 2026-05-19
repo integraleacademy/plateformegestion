@@ -645,6 +645,36 @@ a{color:inherit;text-decoration:none}
   font-weight: 800;
 }
 
+.profile-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.profile-filter-chip {
+  padding: 8px 12px;
+  border: 1px solid rgba(37, 31, 22, .16);
+  border-radius: 999px;
+  background: #fff;
+  color: #4d463b;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.profile-filter-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(37, 31, 22, .12);
+}
+
+.profile-filter-chip.is-active {
+  border-color: color-mix(in srgb, var(--profile-color, #15120d), transparent 55%);
+  background: color-mix(in srgb, var(--profile-color, #15120d), white 86%);
+  color: var(--profile-color, #15120d);
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -800,6 +830,96 @@ a{color:inherit;text-decoration:none}
   padding: 9px 12px;
   background: #15120d;
   color: var(--gold);
+}
+
+.asset-stats .status-filter-btn {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.asset-stats .status-filter-btn.is-active {
+  outline: 2px solid #0f62fe;
+  outline-offset: 1px;
+}
+
+.asset-stats .status-filter-btn--danger {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.trainer-media-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.trainer-media-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #fff;
+  font-size: 12px;
+}
+
+.trainer-media-upload .media-preview {
+  cursor: zoom-in;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.trainer-media-upload .media-preview--identity {
+  width: 88px;
+  height: 116px;
+}
+
+.trainer-media-upload .media-preview--badge {
+  width: 220px;
+  height: 138px;
+}
+
+.media-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.media-lightbox.is-open {
+  display: flex;
+}
+
+.media-lightbox img {
+  max-width: min(90vw, 960px);
+  max-height: 86vh;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.5);
+  background: #111;
+  object-fit: contain;
+}
+
+.media-lightbox__close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  border: 0;
+  border-radius: 999px;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: #111;
+  background: #fff;
+  cursor: pointer;
 }
 
 .pdf-panel {

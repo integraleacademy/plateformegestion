@@ -38,7 +38,7 @@
           <div>
             <p class="trainers-eyebrow">Intégrale Academy</p>
             <h1>Contrôle des formateurs</h1>
-            <p class="trainers-hero__subtitle">Une vue claire, premium et opérationnelle pour suivre les profils, les documents, les clés et les badges.</p>
+            
           </div>
         </div>
       </div>
@@ -52,7 +52,7 @@
           <span>{{ stats.conformes }}</span>
           <small>100% conforme{{ 's' if stats.conformes > 1 else '' }}</small>
         </div>
-        <div class="hero-metric hero-metric--warning">
+        <div class="hero-metric hero-metric--warning {% if stats.a_controler > 0 %}hero-metric--alert{% endif %}">
           <span>{{ stats.a_controler }}</span>
           <small>doc{{ 's' if stats.a_controler > 1 else '' }} à contrôler</small>
         </div>
@@ -61,6 +61,11 @@
           <small>clé{{ 's' if cles_dispos|length > 1 else '' }} disponible{{ 's' if cles_dispos|length > 1 else '' }}</small>
         </div>
       </div>
+        {% if stats.a_controler > 0 %}
+        <button type="button" id="showDocsToCheck" class="docs-to-check-cta" aria-pressed="false">
+          Voir les documents à contrôler
+        </button>
+        {% endif %}
     </section>
 
     <section class="trainers-layout">
@@ -175,6 +180,12 @@
 
           {% if formateurs %}
           <div id="formateurSearchCount" class="search-count" aria-live="polite"></div>
+          <div class="profile-filters" id="formateurProfileFilters" aria-label="Filtrer par profil">
+            <button type="button" class="profile-filter-chip is-active" data-profile="all">Tous</button>
+            {% for option in formateur_profile_options %}
+              <button type="button" class="profile-filter-chip" data-profile="{{ option.key }}" style="--profile-color: {{ option.color }};">{{ option.label }}</button>
+            {% endfor %}
+          </div>
           <div class="table-wrap">
             <table id="formateursTable" class="premium-table">
               <thead>
@@ -188,7 +199,7 @@
               </thead>
               <tbody>
                 {% for f in formateurs %}
-                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
+                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}" data-profiles="{{ ((f.profils or [])|join(' '))|lower|e }}">
                   <td>
                     <a href="{{ url_for('formateur_detail', fid=f.id) }}" class="trainer-name">
                       <span class="trainer-avatar">{{ (f.prenom[:1] ~ f.nom[:1])|upper }}</span>
@@ -331,6 +342,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const rows = Array.from(document.querySelectorAll(".formateur-row"));
     const noResultsRow = document.getElementById("formateurNoResults");
     const countLabel = document.getElementById("formateurSearchCount");
+    const profileFilterContainer = document.getElementById("formateurProfileFilters");
+    const filterButtons = profileFilterContainer ? Array.from(profileFilterContainer.querySelectorAll(".profile-filter-chip")) : [];
+    let activeProfileFilter = "all";
 
     if (!searchInput || !rows.length) {
         return;
@@ -344,11 +358,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateVisibleRows() {
         const query = normalizeText(searchInput.value);
+        const isProfileFiltered = activeProfileFilter !== "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
             const searchableText = normalizeText(`${row.dataset.search || ""} ${row.textContent || ""}`);
-            const isVisible = !query || searchableText.includes(query);
+            const rowProfiles = normalizeText(row.dataset.profiles || "");
+            const matchesSearch = !query || searchableText.includes(query);
+            const matchesProfile = activeProfileFilter === "all" || rowProfiles.split(/\s+/).includes(activeProfileFilter);
+            const isVisible = matchesSearch && matchesProfile;
             row.style.display = isVisible ? "" : "none";
             if (isVisible) {
                 visibleCount += 1;
@@ -360,13 +378,23 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (countLabel) {
-            countLabel.textContent = query
+            const hasFilter = Boolean(query) || isProfileFiltered;
+            countLabel.textContent = hasFilter
                 ? `${visibleCount} résultat${visibleCount > 1 ? "s" : ""} trouvé${visibleCount > 1 ? "s" : ""}`
                 : `${rows.length} formateur${rows.length > 1 ? "s" : ""} enregistré${rows.length > 1 ? "s" : ""}`;
         }
     }
 
     searchInput.addEventListener("input", updateVisibleRows);
+
+    filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            activeProfileFilter = normalizeText(button.dataset.profile || "all");
+            filterButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+            updateVisibleRows();
+        });
+    });
+
     updateVisibleRows();
 });
 </script>

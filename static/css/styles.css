@@ -802,6 +802,52 @@ a{color:inherit;text-decoration:none}
   color: var(--gold);
 }
 
+.asset-stats .status-filter-btn {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.asset-stats .status-filter-btn.is-active {
+  outline: 2px solid #0f62fe;
+  outline-offset: 1px;
+}
+
+.asset-stats .status-filter-btn--danger {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.trainer-media-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.trainer-media-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #fff;
+  font-size: 12px;
+}
+
+.trainer-media-upload img {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.trainer-media-upload--badge img {
+  width: 140px;
+  height: 88px;
+}
+
 .pdf-panel {
   overflow: hidden;
   margin-bottom: 22px;

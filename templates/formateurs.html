@@ -202,7 +202,7 @@
               </thead>
               <tbody>
                 {% for f in formateurs %}
-                <tr class="formateur-row" data-a-controler="{{ 1 if f.a_controler else 0 }}" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
+                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}" data-profiles="{{ ((f.profils or [])|join(' '))|lower|e }}">
                   <td>
                     <a href="{{ url_for('formateur_detail', fid=f.id) }}" class="trainer-name">
                       <span class="trainer-avatar">{{ (f.prenom[:1] ~ f.nom[:1])|upper }}</span>
@@ -345,8 +345,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const rows = Array.from(document.querySelectorAll(".formateur-row"));
     const noResultsRow = document.getElementById("formateurNoResults");
     const countLabel = document.getElementById("formateurSearchCount");
-    const docsToCheckButton = document.getElementById("showDocsToCheck");
-    let onlyDocsToCheck = false;
+    const profileFilterContainer = document.getElementById("formateurProfileFilters");
+    const filterButtons = profileFilterContainer ? Array.from(profileFilterContainer.querySelectorAll(".profile-filter-chip")) : [];
+    const filtersState = { activeProfileFilter: "all" };
 
     if (!searchInput || !rows.length) {
         return;
@@ -360,13 +361,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateVisibleRows() {
         const query = normalizeText(searchInput.value);
-        const isProfileFiltered = activeProfileFilter !== "all";
+        const isProfileFiltered = filtersState.activeProfileFilter !== "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
             const searchableText = normalizeText(`${row.dataset.search || ""} ${row.textContent || ""}`);
-            const matchesQuery = !query || searchableText.includes(query);
-            const isVisible = !query || searchableText.includes(query);
+            const rowProfiles = normalizeText(row.dataset.profiles || "");
+            const matchesSearch = !query || searchableText.includes(query);
+            const matchesProfile = filtersState.activeProfileFilter === "all" || rowProfiles.split(/\s+/).includes(filtersState.activeProfileFilter);
+            const isVisible = matchesSearch && matchesProfile;
             row.style.display = isVisible ? "" : "none";
             if (isVisible) {
                 visibleCount += 1;
@@ -386,6 +389,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     searchInput.addEventListener("input", updateVisibleRows);
+
+    filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            filtersState.activeProfileFilter = normalizeText(button.dataset.profile || "all");
+            filterButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+            updateVisibleRows();
+        });
+    });
 
     updateVisibleRows();
 });

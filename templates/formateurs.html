@@ -38,7 +38,7 @@
           <div>
             <p class="trainers-eyebrow">Intégrale Academy</p>
             <h1>Contrôle des formateurs</h1>
-            <p class="trainers-hero__subtitle">Une vue claire, premium et opérationnelle pour suivre les profils, les documents, les clés et les badges.</p>
+            
           </div>
         </div>
       </div>
@@ -52,7 +52,7 @@
           <span>{{ stats.conformes }}</span>
           <small>100% conforme{{ 's' if stats.conformes > 1 else '' }}</small>
         </div>
-        <div class="hero-metric hero-metric--warning">
+        <div class="hero-metric hero-metric--warning {% if stats.a_controler > 0 %}hero-metric--alert{% endif %}">
           <span>{{ stats.a_controler }}</span>
           <small>doc{{ 's' if stats.a_controler > 1 else '' }} à contrôler</small>
         </div>
@@ -61,6 +61,11 @@
           <small>clé{{ 's' if cles_dispos|length > 1 else '' }} disponible{{ 's' if cles_dispos|length > 1 else '' }}</small>
         </div>
       </div>
+        {% if stats.a_controler > 0 %}
+        <a href="{{ url_for('formateurs_home', filtre='docs_a_controler') }}" class="docs-to-check-cta">
+          Voir les documents à contrôler
+        </a>
+        {% endif %}
     </section>
 
     <section class="trainers-layout">
@@ -174,7 +179,16 @@
           </div>
 
           {% if formateurs %}
+          {% if filtre_docs %}
+          <div class="search-count">Filtre actif : documents à contrôler · <a href="{{ url_for('formateurs_home') }}">Réinitialiser</a></div>
+          {% endif %}
           <div id="formateurSearchCount" class="search-count" aria-live="polite"></div>
+          <div class="profile-filters" id="formateurProfileFilters" aria-label="Filtrer par profil">
+            <button type="button" class="profile-filter-chip is-active" data-profile="all">Tous</button>
+            {% for option in formateur_profile_options %}
+              <button type="button" class="profile-filter-chip" data-profile="{{ option.key }}" style="--profile-color: {{ option.color }};">{{ option.label }}</button>
+            {% endfor %}
+          </div>
           <div class="table-wrap">
             <table id="formateursTable" class="premium-table">
               <thead>
@@ -188,7 +202,7 @@
               </thead>
               <tbody>
                 {% for f in formateurs %}
-                <tr class="formateur-row" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
+                <tr class="formateur-row" data-a-controler="{{ 1 if f.a_controler else 0 }}" data-search="{{ (f.prenom ~ ' ' ~ f.nom ~ ' ' ~ (f.email or '') ~ ' ' ~ (f.telephone or '') ~ ' ' ~ ((f.profils or [])|join(' ')))|lower|e }}">
                   <td>
                     <a href="{{ url_for('formateur_detail', fid=f.id) }}" class="trainer-name">
                       <span class="trainer-avatar">{{ (f.prenom[:1] ~ f.nom[:1])|upper }}</span>
@@ -331,6 +345,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const rows = Array.from(document.querySelectorAll(".formateur-row"));
     const noResultsRow = document.getElementById("formateurNoResults");
     const countLabel = document.getElementById("formateurSearchCount");
+    const docsToCheckButton = document.getElementById("showDocsToCheck");
+    let onlyDocsToCheck = false;
 
     if (!searchInput || !rows.length) {
         return;
@@ -344,10 +360,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateVisibleRows() {
         const query = normalizeText(searchInput.value);
+        const isProfileFiltered = activeProfileFilter !== "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
             const searchableText = normalizeText(`${row.dataset.search || ""} ${row.textContent || ""}`);
+            const matchesQuery = !query || searchableText.includes(query);
             const isVisible = !query || searchableText.includes(query);
             row.style.display = isVisible ? "" : "none";
             if (isVisible) {
@@ -360,13 +378,15 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (countLabel) {
-            countLabel.textContent = query
+            const hasFilter = Boolean(query) || isProfileFiltered;
+            countLabel.textContent = hasFilter
                 ? `${visibleCount} résultat${visibleCount > 1 ? "s" : ""} trouvé${visibleCount > 1 ? "s" : ""}`
-                : `${rows.length} formateur${rows.length > 1 ? "s" : ""} enregistré${rows.length > 1 ? "s" : ""}`;
+                : `${visibleCount} formateur${visibleCount > 1 ? "s" : ""} affiché${visibleCount > 1 ? "s" : ""}`;
         }
     }
 
     searchInput.addEventListener("input", updateVisibleRows);
+
     updateVisibleRows();
 });
 </script>

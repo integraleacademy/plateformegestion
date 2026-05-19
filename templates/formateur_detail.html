@@ -700,6 +700,29 @@ function closeLightbox() {
   if (!img) return;
   img.addEventListener("click", () => openLightbox(img.src, img.alt));
 });
+applyStatusFilter("all");
+
+const formateurPhotoInput = document.getElementById("formateur-photo-input");
+const badgePhotoInput = document.getElementById("badge-photo-input");
+const formateurPhotoPreview = document.getElementById("formateur-photo-preview");
+const badgePhotoPreview = document.getElementById("badge-photo-preview");
+
+function uploadMedia(inputEl, mediaType, previewEl) {
+  if (!inputEl || !previewEl || !inputEl.files.length) return;
+  const file = inputEl.files[0];
+  const fd = new FormData();
+  fd.append("media_type", mediaType);
+  fd.append("file", file);
+  fetch(`/formateurs/${fid}/media/upload`, { method: "POST", body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok || !data.url) throw new Error("Erreur upload");
+      previewEl.src = `${data.url}?t=${Date.now()}`;
+      previewEl.style.display = "block";
+      showToast();
+    })
+    .catch(err => console.error("Erreur upload media :", err));
+}
 
 if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
 if (lightbox) {

@@ -1,4 +1,53 @@
-{% extends 'planning_base.html' %}{% block content %}
-<div class='stats'>{% for c in dashboard_cards %}<div class='card'><div style='color:#6b7280'>{{c.label}}</div><div class='kpi'>{{c.value}}</div></div>{% endfor %}</div>
-<div class='panel' style='margin-top:14px;padding:16px'><h2>Prochaines formations</h2><table class='table'><tr><th>Nom</th><th>Période</th><th>Salle</th><th>Statut</th></tr>{% for f in formations[:12] %}<tr><td>{{f.nom}}</td><td>{{f.date_debut}} → {{f.date_fin}}</td><td>{{f.salle}}</td><td><span class='badge {{"warn" if f.conflit else "ok"}}'>{{'Conflit' if f.conflit else 'OK'}}</span></td></tr>{% endfor %}</table><a class='btn primary' href='{{url_for("formation_ajouter")}}'>Nouvelle formation</a></div>
+{% extends 'planning_base.html' %}
+{% set page_title='Planning' %}
+{% set page_heading='Gestion des salles & planning' %}
+{% block content %}
+<section class="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  {% set cards=[('Formations',stats.total_formations,'book-open'),('Salles occupées',stats.salles_occupees,'building-2'),('Salles dispo',stats.salles_disponibles,'door-open'),('Conflits',stats.conflits,'alert-triangle')] %}
+  {% for t,v,ico in cards %}
+  <div class="glass rounded-2xl p-5 shadow-lg border border-white/50 hover:-translate-y-0.5 transition">
+    <div class="text-zinc-500 text-sm">{{t}}</div><div class="text-3xl font-semibold mt-1">{{v}}</div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="glass rounded-2xl p-4 border border-white/50 shadow-lg mb-6">
+  <form id="check-form" class="grid md:grid-cols-6 gap-3 items-end">
+    <div><label class="text-sm text-zinc-600">Recherche</label><input class="w-full rounded-xl border-zinc-200" type="text" name="q" value="{{ request.args.get('q','') }}"></div>
+    <div><label class="text-sm text-zinc-600">Salle</label><select name="salle" class="w-full rounded-xl border-zinc-200"><option value="">Toutes</option>{% for s in salles %}<option value="{{s}}" {% if request.args.get('salle')==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></div>
+    <div><label class="text-sm text-zinc-600">Type</label><select name="type" class="w-full rounded-xl border-zinc-200"><option value="">Tous</option>{% for t in types %}<option value="{{t}}" {% if request.args.get('type')==t %}selected{% endif %}>{{t}}</option>{% endfor %}</select></div>
+    <div><label class="text-sm text-zinc-600">Statut</label><select name="statut" class="w-full rounded-xl border-zinc-200"><option value="">Tous</option><option value="ok">OK</option><option value="conflit">Conflit</option></select></div>
+    <div><label class="text-sm text-zinc-600">Début</label><input class="w-full rounded-xl border-zinc-200" type="date" name="date_debut" required></div>
+    <div><label class="text-sm text-zinc-600">Fin</label><input class="w-full rounded-xl border-zinc-200" type="date" name="date_fin" required></div>
+    <button formaction="{{ url_for('planning_home') }}" formmethod="get" class="rounded-xl px-4 py-2 bg-zinc-900 text-white hover:opacity-90 transition">Filtrer</button>
+    <button class="rounded-xl px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 transition">Vérifier les disponibilités</button>
+    <a href="{{ url_for('formation_ajouter') }}" class="rounded-xl px-4 py-2 bg-zinc-900 text-white text-center">Ajouter une formation</a>
+    <a href="{{ url_for('planning_export_csv') }}" class="rounded-xl px-4 py-2 bg-white border text-center">Export CSV</a>
+    <a href="{{ url_for('planning_export_xlsx') }}" class="rounded-xl px-4 py-2 bg-white border text-center">Export Excel</a>
+    <a href="{{ url_for('planning_impression', mode='global') }}" target="_blank" class="rounded-xl px-4 py-2 bg-white border text-center">Imprimer cette vue</a>
+  </form>
+  <div id="check-result" class="mt-3 text-sm"></div>
+</section>
+
+<section class="space-y-3">
+  {% for f in formations %}
+  <article class="glass rounded-2xl border border-white/60 shadow p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:shadow-xl transition">
+    <div>
+      <h3 class="font-semibold text-lg">{{ f.nom }} <span class="text-zinc-500 text-sm">• {{ f.type }}</span></h3>
+      <p class="text-sm text-zinc-600">{{ f.date_debut|datefr }} → {{ f.date_fin|datefr }} · {{ f.salle }} · {{ f.nombre_stagiaires }} stagiaires</p>
+      {% if f.commentaire %}<p class="text-sm mt-1 text-zinc-500">{{ f.commentaire }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="px-3 py-1 rounded-full text-xs font-semibold {{ 'bg-red-100 text-red-700' if f.conflit else 'bg-emerald-100 text-emerald-700' }}">{{ 'Conflit' if f.conflit else 'OK' }}</span>
+      <a href="{{ url_for('formation_modifier', id=f.id) }}" class="px-3 py-2 rounded-xl bg-white border">Modifier</a>
+      <form method="post" action="{{ url_for('formation_supprimer', id=f.id) }}" onsubmit="return confirm('Supprimer ?')"><button class="px-3 py-2 rounded-xl bg-red-600 text-white">Supprimer</button></form>
+    </div>
+  </article>
+  {% else %}
+  <div class="glass rounded-2xl p-8 text-center text-zinc-500">Aucune formation planifiée.</div>
+  {% endfor %}
+</section>
+<script>
+document.getElementById('check-form').addEventListener('submit', async (e)=>{e.preventDefault();const fd=new FormData(e.target);const res=await fetch("{{ url_for('planning_disponibilites') }}",{method:'POST',body:fd});const data=await res.json();document.getElementById('check-result').innerHTML=`<span class='text-emerald-700'>Libres: ${data.libres.join(', ')||'Aucune'}</span><br><span class='text-zinc-700'>Occupées: ${data.occupees.join(', ')||'Aucune'}</span>`})
+</script>
 {% endblock %}

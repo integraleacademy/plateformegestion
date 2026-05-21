@@ -4471,11 +4471,31 @@ def salesforce_lead_outbound():
 PLANNING_SALLES = ["Salle 1", "Salle 2", "Salle 1B", "Salle 2B", "Salle 3B"]
 PLANNING_TYPES = ["APS", "A3P", "SSIAP", "DESP", "VTC", "BTS", "Autre"]
 PERSIST_DIR = os.environ.get("PERSIST_DIR")
-DB_DIR = PERSIST_DIR if PERSIST_DIR else BASE_DIR
+PLANNING_DB_NAME = "formations.db"
+DB_DIR = PERSIST_DIR if PERSIST_DIR else DATA_DIR
 os.makedirs(DB_DIR, exist_ok=True)
-PLANNING_DB = os.path.join(DB_DIR, "formations.db")
+PLANNING_DB = os.path.join(DB_DIR, PLANNING_DB_NAME)
+LEGACY_PLANNING_DB = os.path.join(BASE_DIR, PLANNING_DB_NAME)
+
+def ensure_planning_db_location():
+    """
+    Garantit un chemin stable de base de données et migre l'ancienne DB
+    si elle existe dans l'ancien emplacement.
+    """
+    if PLANNING_DB == LEGACY_PLANNING_DB:
+        return
+    if os.path.exists(PLANNING_DB):
+        return
+    if os.path.exists(LEGACY_PLANNING_DB):
+        try:
+            with open(LEGACY_PLANNING_DB, "rb") as src, open(PLANNING_DB, "wb") as dst:
+                dst.write(src.read())
+            logger.info("Migration planning DB: %s -> %s", LEGACY_PLANNING_DB, PLANNING_DB)
+        except OSError as exc:
+            logger.warning("Impossible de migrer la DB planning legacy: %s", exc)
 
 def get_db():
+    ensure_planning_db_location()
     conn = sqlite3.connect(PLANNING_DB)
     conn.row_factory = sqlite3.Row
     return conn

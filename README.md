@@ -81,3 +81,11 @@ Chemin DB:
   - `/formateurs-planning` : gestion des formateurs planning.
   - `/planning/historique` : historique des actions (création, modification, suppression).
 - Calendrier FullCalendar conservé avec vues jour/semaine/mois/liste.
+
+## Important : persistance des formations
+Si les formations “disparaissent”, c'est généralement que la base SQLite était stockée sur un disque non persistant.
+
+- Chemin utilisé maintenant :
+  1. `PERSIST_DIR/formations.db` si `PERSIST_DIR` est défini
+  2. sinon `DATA_DIR/formations.db`
+- Une migration automatique est prévue depuis l'ancien emplacement local `./formations.db` vers le nouveau chemin persistant si besoin.

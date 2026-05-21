@@ -4378,6 +4378,11 @@ start_price_adaptator_scheduler()
 import xml.etree.ElementTree as ET
 from flask import Response, request
 from datetime import datetime
+import sqlite3
+import calendar
+import csv
+from io import StringIO, BytesIO
+from openpyxl import Workbook
 
 def _first_text(elem, tag_name):
     if elem is None:
@@ -4459,6 +4464,356 @@ def salesforce_lead_outbound():
 </soapenv:Envelope>
 """
     return Response(soap_response, status=200, content_type="text/xml; charset=utf-8")
+
+# -----------------------
+# 📅 Gestion des salles / planning formations (SQLite)
+# -----------------------
+PLANNING_SALLES = ["Salle 1", "Salle 2", "Salle 1B", "Salle 2B", "Salle 3B"]
+PLANNING_TYPES = ["APS", "A3P", "SSIAP", "DESP", "VTC", "BTS", "Autre"]
+PERSIST_DIR = os.environ.get("PERSIST_DIR")
+PLANNING_DB_NAME = "formations.db"
+DB_DIR = PERSIST_DIR if PERSIST_DIR else DATA_DIR
+os.makedirs(DB_DIR, exist_ok=True)
+PLANNING_DB = os.path.join(DB_DIR, PLANNING_DB_NAME)
+LEGACY_PLANNING_DB = os.path.join(BASE_DIR, PLANNING_DB_NAME)
+
+def ensure_planning_db_location():
+    """
+    Garantit un chemin stable de base de données et migre l'ancienne DB
+    si elle existe dans l'ancien emplacement.
+    """
+    if PLANNING_DB == LEGACY_PLANNING_DB:
+        return
+    if os.path.exists(PLANNING_DB):
+        return
+    if os.path.exists(LEGACY_PLANNING_DB):
+        try:
+            with open(LEGACY_PLANNING_DB, "rb") as src, open(PLANNING_DB, "wb") as dst:
+                dst.write(src.read())
+            logger.info("Migration planning DB: %s -> %s", LEGACY_PLANNING_DB, PLANNING_DB)
+        except OSError as exc:
+            logger.warning("Impossible de migrer la DB planning legacy: %s", exc)
+
+def get_db():
+    ensure_planning_db_location()
+    conn = sqlite3.connect(PLANNING_DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_planning_db():
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS formations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                type TEXT NOT NULL,
+                date_debut TEXT NOT NULL,
+                date_fin TEXT NOT NULL,
+                salle TEXT NOT NULL,
+                nombre_stagiaires INTEGER NOT NULL,
+                commentaire TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS salles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL UNIQUE,
+                capacite_max INTEGER NOT NULL DEFAULT 20,
+                equipements TEXT DEFAULT '',
+                indisponibilites TEXT DEFAULT '',
+                commentaire TEXT DEFAULT '',
+                active INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS formateurs_planning (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                prenom TEXT NOT NULL,
+                telephone TEXT DEFAULT '',
+                email TEXT DEFAULT '',
+                competences TEXT DEFAULT '',
+                disponibilites TEXT DEFAULT '',
+                indisponibilites TEXT DEFAULT '',
+                commentaire TEXT DEFAULT ''
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS planning_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                formation_id INTEGER,
+                action TEXT NOT NULL,
+                details TEXT DEFAULT '',
+                user_email TEXT DEFAULT '',
+                created_at TEXT NOT NULL
+            )
+        """)
+        for salle in PLANNING_SALLES:
+            conn.execute("INSERT OR IGNORE INTO salles(nom, capacite_max, active) VALUES(?, ?, 1)", (salle, 20))
+
+def add_planning_history(formation_id, action, details=""):
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO planning_history(formation_id, action, details, user_email, created_at) VALUES(?,?,?,?,?)",
+            (formation_id, action, details, session.get("admin_email", ""), datetime.now().isoformat()),
+        )
+
+def dates_overlap(start_a, end_a, start_b, end_b):
+    return start_a <= end_b and start_b <= end_a
+
+def salle_disponible(salle, date_debut, date_fin, exclude_id=None):
+    query = "SELECT id, date_debut, date_fin FROM formations WHERE salle = ?"
+    params = [salle]
+    if exclude_id is not None:
+        query += " AND id != ?"
+        params.append(exclude_id)
+    with get_db() as conn:
+        rows = conn.execute(query, params).fetchall()
+    for row in rows:
+        if dates_overlap(date_debut, date_fin, row["date_debut"], row["date_fin"]):
+            return False
+    return True
+
+def choisir_salle(date_debut, date_fin, salle_souhaitee=None, exclude_id=None):
+    if salle_souhaitee:
+        if salle_disponible(salle_souhaitee, date_debut, date_fin, exclude_id=exclude_id):
+            return salle_souhaitee, None
+        return None, f"La salle {salle_souhaitee} n'est pas disponible sur cette période."
+    for salle in PLANNING_SALLES:
+        if salle_disponible(salle, date_debut, date_fin, exclude_id=exclude_id):
+            return salle, None
+    return None, "Aucune salle disponible sur cette période"
+
+def format_formation(row):
+    f = dict(row)
+    f["conflit"] = not salle_disponible(f["salle"], f["date_debut"], f["date_fin"], exclude_id=f["id"])
+    return f
+
+@app.route("/planning")
+def planning_home():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC, id DESC").fetchall()
+    formations = [format_formation(r) for r in rows]
+    today = datetime.now().date()
+    salles_occupees = {
+        f["salle"] for f in formations
+        if f["date_debut"] <= today.isoformat() <= f["date_fin"]
+    }
+    next_sessions = [
+        f for f in formations
+        if f["date_debut"] >= today.isoformat()
+    ][:5]
+    stats = {
+        "total_formations": len(formations),
+        "salles_occupees": len(salles_occupees),
+        "salles_disponibles": len(PLANNING_SALLES) - len(salles_occupees),
+        "conflits": sum(1 for f in formations if f["conflit"]),
+        "prochaines_sessions": next_sessions,
+    }
+    q = request.args.get("q", "").strip().lower()
+    salle_filter = request.args.get("salle", "").strip()
+    type_filter = request.args.get("type", "").strip()
+    statut_filter = request.args.get("statut", "").strip()
+    if q:
+        formations = [f for f in formations if q in f["nom"].lower() or q in (f.get("commentaire") or "").lower()]
+    if salle_filter:
+        formations = [f for f in formations if f["salle"] == salle_filter]
+    if type_filter:
+        formations = [f for f in formations if f["type"] == type_filter]
+    if statut_filter == "conflit":
+        formations = [f for f in formations if f["conflit"]]
+    if statut_filter == "ok":
+        formations = [f for f in formations if not f["conflit"]]
+    return render_template("planning.html", formations=formations, salles=PLANNING_SALLES, stats=stats, types=PLANNING_TYPES)
+
+@app.route("/formation/ajouter", methods=["GET", "POST"])
+def formation_ajouter():
+    init_planning_db()
+    if request.method == "POST":
+        nom = request.form.get("nom", "").strip()
+        type_formation = request.form.get("type", "").strip()
+        date_debut = request.form.get("date_debut", "").strip()
+        date_fin = request.form.get("date_fin", "").strip()
+        nombre_stagiaires = int(request.form.get("nombre_stagiaires") or 0)
+        salle_souhaitee = request.form.get("salle_souhaitee", "").strip() or None
+        commentaire = request.form.get("commentaire", "").strip()
+        if not nom or not type_formation or not date_debut or not date_fin or date_debut > date_fin:
+            flash("Merci de remplir correctement le formulaire.", "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
+        salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee)
+        if error:
+            flash(error, "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
+        with get_db() as conn:
+            conn.execute("""INSERT INTO formations(nom, type, date_debut, date_fin, salle, nombre_stagiaires, commentaire, created_at)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                         (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, datetime.now().isoformat()))
+            formation_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        add_planning_history(formation_id, "creation", f"{nom} / {salle} / {date_debut}-{date_fin}")
+        flash("Formation ajoutée avec succès.", "success")
+        return redirect(url_for("planning_home"))
+    return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation={})
+
+@app.route("/formation/<int:id>/modifier", methods=["GET", "POST"])
+def formation_modifier(id):
+    init_planning_db()
+    with get_db() as conn:
+        current = conn.execute("SELECT * FROM formations WHERE id = ?", (id,)).fetchone()
+    if not current:
+        abort(404)
+    if request.method == "POST":
+        nom = request.form.get("nom", "").strip()
+        type_formation = request.form.get("type", "").strip()
+        date_debut = request.form.get("date_debut", "").strip()
+        date_fin = request.form.get("date_fin", "").strip()
+        nombre_stagiaires = int(request.form.get("nombre_stagiaires") or 0)
+        salle_souhaitee = request.form.get("salle_souhaitee", "").strip() or None
+        commentaire = request.form.get("commentaire", "").strip()
+        salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee, exclude_id=id)
+        if error:
+            flash(error, "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=request.form, formation_id=id)
+        with get_db() as conn:
+            conn.execute("""UPDATE formations SET nom=?, type=?, date_debut=?, date_fin=?, salle=?, nombre_stagiaires=?, commentaire=? WHERE id=?""",
+                         (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, id))
+        add_planning_history(id, "modification", f"{nom} / {salle} / {date_debut}-{date_fin}")
+        flash("Formation modifiée.", "success")
+        return redirect(url_for("planning_home"))
+    return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=dict(current), formation_id=id)
+
+@app.post("/formation/<int:id>/supprimer")
+def formation_supprimer(id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM formations WHERE id = ?", (id,))
+    add_planning_history(id, "suppression", "formation supprimée")
+    flash("Formation supprimée.", "success")
+    return redirect(url_for("planning_home"))
+
+@app.route("/planning/export.csv")
+def planning_export_csv():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["Nom", "Type", "Date début", "Date fin", "Salle", "Stagiaires", "Commentaire"])
+    for r in rows:
+        writer.writerow([r["nom"], r["type"], r["date_debut"], r["date_fin"], r["salle"], r["nombre_stagiaires"], r["commentaire"] or ""])
+    resp = Response(out.getvalue(), mimetype="text/csv; charset=utf-8")
+    resp.headers["Content-Disposition"] = "attachment; filename=planning_formations.csv"
+    return resp
+
+@app.route("/planning/export.xlsx")
+def planning_export_xlsx():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Planning"
+    ws.append(["Nom", "Type", "Date début", "Date fin", "Salle", "Stagiaires", "Commentaire"])
+    for r in rows:
+        ws.append([r["nom"], r["type"], r["date_debut"], r["date_fin"], r["salle"], r["nombre_stagiaires"], r["commentaire"] or ""])
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name="planning_formations.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.route("/planning/impression")
+def planning_impression():
+    init_planning_db()
+    mode = request.args.get("mode", "global")
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
+    formations = [dict(r) for r in rows]
+    return render_template("planning_print.html", formations=formations, mode=mode, now=datetime.now())
+
+@app.route("/calendrier")
+def calendrier():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
+    events = [{
+        "id": r["id"],
+        "title": f'{r["nom"]} • {r["salle"]}',
+        "start": r["date_debut"],
+        "end": (datetime.strptime(r["date_fin"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"),
+        "extendedProps": {
+            "type": r["type"],
+            "salle": r["salle"],
+            "stagiaires": r["nombre_stagiaires"],
+            "commentaire": r["commentaire"] or "",
+        }
+    } for r in rows]
+    return render_template("calendrier.html", events=events)
+
+@app.route("/salles", methods=["GET", "POST"])
+def salles_page():
+    init_planning_db()
+    if request.method == "POST":
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO salles(nom, capacite_max, equipements, indisponibilites, commentaire, active) VALUES(?,?,?,?,?,?)",
+                (
+                    request.form.get("nom", "").strip(),
+                    int(request.form.get("capacite_max") or 20),
+                    request.form.get("equipements", "").strip(),
+                    request.form.get("indisponibilites", "").strip(),
+                    request.form.get("commentaire", "").strip(),
+                    1 if request.form.get("active") == "on" else 0,
+                ),
+            )
+        flash("Salle ajoutée.", "success")
+        return redirect(url_for("salles_page"))
+    with get_db() as conn:
+        salles = conn.execute("SELECT * FROM salles ORDER BY nom ASC").fetchall()
+    return render_template("salles.html", salles=salles)
+
+@app.route("/formateurs-planning", methods=["GET", "POST"])
+def formateurs_planning_page():
+    init_planning_db()
+    if request.method == "POST":
+        with get_db() as conn:
+            conn.execute(
+                """INSERT INTO formateurs_planning(nom, prenom, telephone, email, competences, disponibilites, indisponibilites, commentaire)
+                   VALUES(?,?,?,?,?,?,?,?)""",
+                (
+                    request.form.get("nom", "").strip(),
+                    request.form.get("prenom", "").strip(),
+                    request.form.get("telephone", "").strip(),
+                    request.form.get("email", "").strip(),
+                    request.form.get("competences", "").strip(),
+                    request.form.get("disponibilites", "").strip(),
+                    request.form.get("indisponibilites", "").strip(),
+                    request.form.get("commentaire", "").strip(),
+                ),
+            )
+        flash("Formateur ajouté.", "success")
+        return redirect(url_for("formateurs_planning_page"))
+    with get_db() as conn:
+        formateurs = conn.execute("SELECT * FROM formateurs_planning ORDER BY nom ASC").fetchall()
+    return render_template("formateurs_planning.html", formateurs=formateurs)
+
+@app.route("/planning/historique")
+def planning_historique():
+    init_planning_db()
+    with get_db() as conn:
+        logs = conn.execute("SELECT * FROM planning_history ORDER BY id DESC LIMIT 300").fetchall()
+    return render_template("planning_history.html", logs=logs)
+
+@app.post("/planning/disponibilites")
+def planning_disponibilites():
+    date_debut = request.form.get("date_debut")
+    date_fin = request.form.get("date_fin")
+    libres, occupees = [], []
+    for salle in PLANNING_SALLES:
+        if salle_disponible(salle, date_debut, date_fin):
+            libres.append(salle)
+        else:
+            occupees.append(salle)
+    return jsonify({"libres": libres, "occupees": occupees})
 
 
 

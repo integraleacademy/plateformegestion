@@ -1,0 +1,14 @@
+{% extends 'planning_base.html' %}{% set page_heading='Gestion des salles' %}{% block content %}
+<div class='grid lg:grid-cols-3 gap-4'>
+<form method='post' class='glass rounded-2xl p-4 border border-white/60 shadow space-y-2'>
+<input name='nom' required placeholder='Nom salle' class='w-full rounded-xl border-zinc-200'>
+<input name='capacite_max' type='number' min='1' placeholder='Capacité max' class='w-full rounded-xl border-zinc-200'>
+<input name='equipements' placeholder='Équipements' class='w-full rounded-xl border-zinc-200'>
+<input name='indisponibilites' placeholder='Indisponibilités' class='w-full rounded-xl border-zinc-200'>
+<textarea name='commentaire' placeholder='Commentaire' class='w-full rounded-xl border-zinc-200'></textarea>
+<label><input type='checkbox' name='active' checked> Active</label>
+<button class='px-4 py-2 rounded-xl bg-emerald-600 text-white'>Ajouter</button>
+</form>
+<div class='lg:col-span-2 space-y-3'>{% for s in salles %}<div class='glass rounded-2xl p-4 border'>
+<strong>{{s.nom}}</strong> • Capacité {{s.capacite_max}} • {{'Active' if s.active else 'Inactive'}}<br><small>{{s.equipements}}</small></div>{% endfor %}</div></div>
+{% endblock %}

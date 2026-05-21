@@ -4378,6 +4378,8 @@ start_price_adaptator_scheduler()
 import xml.etree.ElementTree as ET
 from flask import Response, request
 from datetime import datetime
+import sqlite3
+import calendar
 
 def _first_text(elem, tag_name):
     if elem is None:
@@ -4459,6 +4461,182 @@ def salesforce_lead_outbound():
 </soapenv:Envelope>
 """
     return Response(soap_response, status=200, content_type="text/xml; charset=utf-8")
+
+# -----------------------
+# 📅 Gestion des salles / planning formations (SQLite)
+# -----------------------
+PLANNING_SALLES = ["Salle 1", "Salle 2", "Salle 1B", "Salle 2B", "Salle 3B"]
+PLANNING_TYPES = ["APS", "A3P", "SSIAP", "DESP", "VTC", "BTS", "Autre"]
+PERSIST_DIR = os.environ.get("PERSIST_DIR")
+DB_DIR = PERSIST_DIR if PERSIST_DIR else BASE_DIR
+os.makedirs(DB_DIR, exist_ok=True)
+PLANNING_DB = os.path.join(DB_DIR, "formations.db")
+
+def get_db():
+    conn = sqlite3.connect(PLANNING_DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_planning_db():
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS formations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                type TEXT NOT NULL,
+                date_debut TEXT NOT NULL,
+                date_fin TEXT NOT NULL,
+                salle TEXT NOT NULL,
+                nombre_stagiaires INTEGER NOT NULL,
+                commentaire TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+def dates_overlap(start_a, end_a, start_b, end_b):
+    return start_a <= end_b and start_b <= end_a
+
+def salle_disponible(salle, date_debut, date_fin, exclude_id=None):
+    query = "SELECT id, date_debut, date_fin FROM formations WHERE salle = ?"
+    params = [salle]
+    if exclude_id is not None:
+        query += " AND id != ?"
+        params.append(exclude_id)
+    with get_db() as conn:
+        rows = conn.execute(query, params).fetchall()
+    for row in rows:
+        if dates_overlap(date_debut, date_fin, row["date_debut"], row["date_fin"]):
+            return False
+    return True
+
+def choisir_salle(date_debut, date_fin, salle_souhaitee=None, exclude_id=None):
+    if salle_souhaitee:
+        if salle_disponible(salle_souhaitee, date_debut, date_fin, exclude_id=exclude_id):
+            return salle_souhaitee, None
+        return None, f"La salle {salle_souhaitee} n'est pas disponible sur cette période."
+    for salle in PLANNING_SALLES:
+        if salle_disponible(salle, date_debut, date_fin, exclude_id=exclude_id):
+            return salle, None
+    return None, "Aucune salle disponible sur cette période"
+
+def format_formation(row):
+    f = dict(row)
+    f["conflit"] = not salle_disponible(f["salle"], f["date_debut"], f["date_fin"], exclude_id=f["id"])
+    return f
+
+@app.route("/planning")
+def planning_home():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC, id DESC").fetchall()
+    formations = [format_formation(r) for r in rows]
+    today = datetime.now().date()
+    salles_occupees = {
+        f["salle"] for f in formations
+        if f["date_debut"] <= today.isoformat() <= f["date_fin"]
+    }
+    next_sessions = [
+        f for f in formations
+        if f["date_debut"] >= today.isoformat()
+    ][:5]
+    stats = {
+        "total_formations": len(formations),
+        "salles_occupees": len(salles_occupees),
+        "salles_disponibles": len(PLANNING_SALLES) - len(salles_occupees),
+        "conflits": sum(1 for f in formations if f["conflit"]),
+        "prochaines_sessions": next_sessions,
+    }
+    return render_template("planning.html", formations=formations, salles=PLANNING_SALLES, stats=stats)
+
+@app.route("/formation/ajouter", methods=["GET", "POST"])
+def formation_ajouter():
+    init_planning_db()
+    if request.method == "POST":
+        nom = request.form.get("nom", "").strip()
+        type_formation = request.form.get("type", "").strip()
+        date_debut = request.form.get("date_debut", "").strip()
+        date_fin = request.form.get("date_fin", "").strip()
+        nombre_stagiaires = int(request.form.get("nombre_stagiaires") or 0)
+        salle_souhaitee = request.form.get("salle_souhaitee", "").strip() or None
+        commentaire = request.form.get("commentaire", "").strip()
+        if not nom or not type_formation or not date_debut or not date_fin or date_debut > date_fin:
+            flash("Merci de remplir correctement le formulaire.", "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
+        salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee)
+        if error:
+            flash(error, "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
+        with get_db() as conn:
+            conn.execute("""INSERT INTO formations(nom, type, date_debut, date_fin, salle, nombre_stagiaires, commentaire, created_at)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                         (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, datetime.now().isoformat()))
+        flash("Formation ajoutée avec succès.", "success")
+        return redirect(url_for("planning_home"))
+    return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation={})
+
+@app.route("/formation/<int:id>/modifier", methods=["GET", "POST"])
+def formation_modifier(id):
+    init_planning_db()
+    with get_db() as conn:
+        current = conn.execute("SELECT * FROM formations WHERE id = ?", (id,)).fetchone()
+    if not current:
+        abort(404)
+    if request.method == "POST":
+        nom = request.form.get("nom", "").strip()
+        type_formation = request.form.get("type", "").strip()
+        date_debut = request.form.get("date_debut", "").strip()
+        date_fin = request.form.get("date_fin", "").strip()
+        nombre_stagiaires = int(request.form.get("nombre_stagiaires") or 0)
+        salle_souhaitee = request.form.get("salle_souhaitee", "").strip() or None
+        commentaire = request.form.get("commentaire", "").strip()
+        salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee, exclude_id=id)
+        if error:
+            flash(error, "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=request.form, formation_id=id)
+        with get_db() as conn:
+            conn.execute("""UPDATE formations SET nom=?, type=?, date_debut=?, date_fin=?, salle=?, nombre_stagiaires=?, commentaire=? WHERE id=?""",
+                         (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, id))
+        flash("Formation modifiée.", "success")
+        return redirect(url_for("planning_home"))
+    return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=dict(current), formation_id=id)
+
+@app.post("/formation/<int:id>/supprimer")
+def formation_supprimer(id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM formations WHERE id = ?", (id,))
+    flash("Formation supprimée.", "success")
+    return redirect(url_for("planning_home"))
+
+@app.route("/calendrier")
+def calendrier():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
+    events = [{
+        "id": r["id"],
+        "title": f'{r["nom"]} • {r["salle"]}',
+        "start": r["date_debut"],
+        "end": (datetime.strptime(r["date_fin"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"),
+        "extendedProps": {
+            "type": r["type"],
+            "salle": r["salle"],
+            "stagiaires": r["nombre_stagiaires"],
+            "commentaire": r["commentaire"] or "",
+        }
+    } for r in rows]
+    return render_template("calendrier.html", events=events)
+
+@app.post("/planning/disponibilites")
+def planning_disponibilites():
+    date_debut = request.form.get("date_debut")
+    date_fin = request.form.get("date_fin")
+    libres, occupees = [], []
+    for salle in PLANNING_SALLES:
+        if salle_disponible(salle, date_debut, date_fin):
+            libres.append(salle)
+        else:
+            occupees.append(salle)
+    return jsonify({"libres": libres, "occupees": occupees})
 
 
 

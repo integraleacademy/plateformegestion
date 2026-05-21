@@ -1,0 +1,16 @@
+{% extends 'planning_base.html' %}{% set page_heading='Gestion des formateurs (planning)' %}{% block content %}
+<div class='grid lg:grid-cols-3 gap-4'>
+<form method='post' class='glass rounded-2xl p-4 border border-white/60 shadow space-y-2'>
+<input name='nom' required placeholder='Nom' class='w-full rounded-xl border-zinc-200'>
+<input name='prenom' required placeholder='Prénom' class='w-full rounded-xl border-zinc-200'>
+<input name='telephone' placeholder='Téléphone' class='w-full rounded-xl border-zinc-200'>
+<input name='email' placeholder='Email' class='w-full rounded-xl border-zinc-200'>
+<input name='competences' placeholder='Compétences / formations possibles' class='w-full rounded-xl border-zinc-200'>
+<input name='disponibilites' placeholder='Disponibilités' class='w-full rounded-xl border-zinc-200'>
+<input name='indisponibilites' placeholder='Indisponibilités' class='w-full rounded-xl border-zinc-200'>
+<textarea name='commentaire' placeholder='Commentaire' class='w-full rounded-xl border-zinc-200'></textarea>
+<button class='px-4 py-2 rounded-xl bg-emerald-600 text-white'>Ajouter</button>
+</form>
+<div class='lg:col-span-2 space-y-3'>{% for f in formateurs %}<div class='glass rounded-2xl p-4 border'>
+<strong>{{f.prenom}} {{f.nom}}</strong> • {{f.email}}<br><small>{{f.competences}}</small></div>{% endfor %}</div></div>
+{% endblock %}

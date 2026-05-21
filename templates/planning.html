@@ -12,11 +12,19 @@
 </section>
 
 <section class="glass rounded-2xl p-4 border border-white/50 shadow-lg mb-6">
-  <form id="check-form" class="grid md:grid-cols-4 gap-3 items-end">
+  <form id="check-form" class="grid md:grid-cols-6 gap-3 items-end">
+    <div><label class="text-sm text-zinc-600">Recherche</label><input class="w-full rounded-xl border-zinc-200" type="text" name="q" value="{{ request.args.get('q','') }}"></div>
+    <div><label class="text-sm text-zinc-600">Salle</label><select name="salle" class="w-full rounded-xl border-zinc-200"><option value="">Toutes</option>{% for s in salles %}<option value="{{s}}" {% if request.args.get('salle')==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></div>
+    <div><label class="text-sm text-zinc-600">Type</label><select name="type" class="w-full rounded-xl border-zinc-200"><option value="">Tous</option>{% for t in types %}<option value="{{t}}" {% if request.args.get('type')==t %}selected{% endif %}>{{t}}</option>{% endfor %}</select></div>
+    <div><label class="text-sm text-zinc-600">Statut</label><select name="statut" class="w-full rounded-xl border-zinc-200"><option value="">Tous</option><option value="ok">OK</option><option value="conflit">Conflit</option></select></div>
     <div><label class="text-sm text-zinc-600">Début</label><input class="w-full rounded-xl border-zinc-200" type="date" name="date_debut" required></div>
     <div><label class="text-sm text-zinc-600">Fin</label><input class="w-full rounded-xl border-zinc-200" type="date" name="date_fin" required></div>
+    <button formaction="{{ url_for('planning_home') }}" formmethod="get" class="rounded-xl px-4 py-2 bg-zinc-900 text-white hover:opacity-90 transition">Filtrer</button>
     <button class="rounded-xl px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 transition">Vérifier les disponibilités</button>
     <a href="{{ url_for('formation_ajouter') }}" class="rounded-xl px-4 py-2 bg-zinc-900 text-white text-center">Ajouter une formation</a>
+    <a href="{{ url_for('planning_export_csv') }}" class="rounded-xl px-4 py-2 bg-white border text-center">Export CSV</a>
+    <a href="{{ url_for('planning_export_xlsx') }}" class="rounded-xl px-4 py-2 bg-white border text-center">Export Excel</a>
+    <a href="{{ url_for('planning_impression', mode='global') }}" target="_blank" class="rounded-xl px-4 py-2 bg-white border text-center">Imprimer cette vue</a>
   </form>
   <div id="check-result" class="mt-3 text-sm"></div>
 </section>

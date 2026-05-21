@@ -72,3 +72,12 @@ Table `formations` :
 Chemin DB:
 - si `PERSIST_DIR` existe: `PERSIST_DIR/formations.db`
 - sinon: `./formations.db`
+
+## Nouvelles options avancées planning
+- Exports: CSV (`/planning/export.csv`), Excel (`/planning/export.xlsx`), impression (`/planning/impression`).
+- Filtres planning: recherche globale, salle, type, statut.
+- Nouvelles pages:
+  - `/salles` : gestion des salles (capacité, équipements, indisponibilités, statut).
+  - `/formateurs-planning` : gestion des formateurs planning.
+  - `/planning/historique` : historique des actions (création, modification, suppression).
+- Calendrier FullCalendar conservé avec vues jour/semaine/mois/liste.

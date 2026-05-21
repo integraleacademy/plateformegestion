@@ -1,0 +1,4 @@
+{% extends 'planning_base.html' %}{% set page_heading='Historique des modifications' %}{% block content %}
+<div class='glass rounded-2xl p-4 border shadow space-y-2'>
+{% for l in logs %}<div class='border-b pb-2'><strong>{{l.action}}</strong> • formation #{{l.formation_id}} • {{l.created_at}}<br><small>{{l.details}}</small></div>{% endfor %}
+</div>{% endblock %}

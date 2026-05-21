@@ -303,10 +303,22 @@ def protect_all_routes():
 def format_date(value):
     try:
         dt = datetime.strptime(value, "%Y-%m-%d")
-        return dt.strftime("%d-%m-%Y")
+        return dt.strftime("%d/%m/%Y")
     except Exception:
         return value
 app.jinja_env.filters['datefr'] = format_date
+
+def format_datetime_fr(value):
+    if not value:
+        return value
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(str(value), fmt)
+            return dt.strftime("%d/%m/%Y %H:%M") if "H" in fmt else dt.strftime("%d/%m/%Y")
+        except Exception:
+            continue
+    return value
+app.jinja_env.filters['datetimefr'] = format_datetime_fr
 
 def to_datetime(value):
     try:
@@ -4700,7 +4712,7 @@ def planning_export_csv():
     writer = csv.writer(out)
     writer.writerow(["Nom", "Type", "Date début", "Date fin", "Salle", "Stagiaires", "Commentaire"])
     for r in rows:
-        writer.writerow([r["nom"], r["type"], r["date_debut"], r["date_fin"], r["salle"], r["nombre_stagiaires"], r["commentaire"] or ""])
+        writer.writerow([r["nom"], r["type"], format_date(r["date_debut"]), format_date(r["date_fin"]), r["salle"], r["nombre_stagiaires"], r["commentaire"] or ""])
     resp = Response(out.getvalue(), mimetype="text/csv; charset=utf-8")
     resp.headers["Content-Disposition"] = "attachment; filename=planning_formations.csv"
     return resp
@@ -4715,7 +4727,7 @@ def planning_export_xlsx():
     ws.title = "Planning"
     ws.append(["Nom", "Type", "Date début", "Date fin", "Salle", "Stagiaires", "Commentaire"])
     for r in rows:
-        ws.append([r["nom"], r["type"], r["date_debut"], r["date_fin"], r["salle"], r["nombre_stagiaires"], r["commentaire"] or ""])
+        ws.append([r["nom"], r["type"], format_date(r["date_debut"]), format_date(r["date_fin"]), r["salle"], r["nombre_stagiaires"], r["commentaire"] or ""])
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)

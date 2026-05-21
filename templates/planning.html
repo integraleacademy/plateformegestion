@@ -34,7 +34,7 @@
   <article class="glass rounded-2xl border border-white/60 shadow p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:shadow-xl transition">
     <div>
       <h3 class="font-semibold text-lg">{{ f.nom }} <span class="text-zinc-500 text-sm">• {{ f.type }}</span></h3>
-      <p class="text-sm text-zinc-600">{{ f.date_debut }} → {{ f.date_fin }} · {{ f.salle }} · {{ f.nombre_stagiaires }} stagiaires</p>
+      <p class="text-sm text-zinc-600">{{ f.date_debut|datefr }} → {{ f.date_fin|datefr }} · {{ f.salle }} · {{ f.nombre_stagiaires }} stagiaires</p>
       {% if f.commentaire %}<p class="text-sm mt-1 text-zinc-500">{{ f.commentaire }}</p>{% endif %}
     </div>
     <div class="flex items-center gap-2">

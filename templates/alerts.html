@@ -1,0 +1,1 @@
+{% extends 'planning_base.html' %}{% block content %}<div class='panel' style='padding:16px;margin-top:14px'><h2>Alertes</h2><ul>{% for a in alerts %}<li style='margin:8px 0'>⚠️ {{a}}</li>{% else %}<li>Aucune alerte.</li>{% endfor %}</ul></div>{% endblock %}

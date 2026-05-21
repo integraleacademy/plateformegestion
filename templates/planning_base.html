@@ -1,55 +1,18 @@
-<!DOCTYPE html>
-<html lang="fr" x-data="appShell()" :class="dark ? 'dark' : ''">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{{ page_title or 'Planning Premium' }}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    body{font-family: Inter, ui-sans-serif, system-ui; background: radial-gradient(circle at top left,#f7fbf8,#f3f4f6 45%,#eef2f0);}
-    .glass{backdrop-filter: blur(10px); background: rgba(255,255,255,.72);}
-    .dark body{background:#0f1311}
-  </style>
-</head>
-<body class="text-zinc-900 dark:text-zinc-100">
-<div class="min-h-screen flex">
-  <aside class="hidden lg:flex w-72 p-5">
-    <div class="glass border border-white/50 shadow-xl rounded-3xl w-full p-5">
-      <div class="flex items-center gap-3 mb-8">
-        <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="h-14 w-14 object-contain rounded-xl bg-white p-1" alt="logo">
-        <div><p class="font-semibold text-lg">Intégrale Academy</p><p class="text-xs text-zinc-500">Planning Premium</p></div>
-      </div>
-      <nav class="space-y-2 text-sm">
-        <a href="{{ url_for('planning_home') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="layout-dashboard" class="h-4"></i>Dashboard</a>
-        <a href="{{ url_for('formation_ajouter') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="plus" class="h-4"></i>Ajouter</a>
-        <a href="{{ url_for('calendrier') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="calendar" class="h-4"></i>Calendrier</a>
-        <a href="{{ url_for('salles_page') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="warehouse" class="h-4"></i>Salles</a>
-        <a href="{{ url_for('formateurs_planning_page') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="users" class="h-4"></i>Formateurs</a>
-        <a href="{{ url_for('planning_historique') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="history" class="h-4"></i>Historique</a>
-        <a href="{{ url_for('index') }}" class="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-emerald-50"><i data-lucide="home" class="h-4"></i>Accueil</a>
-      </nav>
-    </div>
-  </aside>
-  <main class="flex-1 p-4 md:p-8">
-    <div class="glass border border-white/50 rounded-3xl shadow-xl p-4 md:p-6 mb-6 flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">{{ page_heading }}</h1>
-        <p class="text-zinc-500 text-sm">Interface de planification haut de gamme</p>
-      </div>
-      <button @click="toggleDark" class="px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm hover:opacity-90 transition">Mode sombre</button>
-    </div>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}<div class="space-y-2 mb-4">{% for category, message in messages %}
-      <div class="px-4 py-3 rounded-xl shadow-sm {{ 'bg-red-50 text-red-700 border border-red-200' if category=='error' else 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">{{ message }}</div>
-      {% endfor %}</div>{% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
-</div>
-<script>
-function appShell(){return{dark:localStorage.getItem('dark')==='1',toggleDark(){this.dark=!this.dark;localStorage.setItem('dark',this.dark?'1':'0')}}}
-lucide.createIcons();
-</script>
-</body></html>
+<!DOCTYPE html><html lang='fr'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{{ page_title or 'Planning' }}</title><link rel='stylesheet' href='{{ url_for("static", filename="css/planning_premium.css") }}'><link rel='preconnect' href='https://fonts.googleapis.com'><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'></head><body>
+<div class='app-layout'>
+<aside class='sidebar'><div class='logo'><img src='{{ url_for("static", filename="img/logo-integrale.png") }}'><div><strong>Intégrale Academy</strong><div style='font-size:12px;color:#6b7280'>Centre de formation</div></div></div>
+<nav class='nav'>
+<a class='{{"active" if request.endpoint=="planning_home" else ""}}' href='{{ url_for("planning_home") }}'>Tableau de bord</a>
+<a class='{{"active" if request.endpoint=="calendrier" else ""}}' href='{{ url_for("calendrier") }}'>Calendrier</a>
+<a class='{{"active" if request.endpoint=="formations_page" else ""}}' href='{{ url_for("formations_page") }}'>Formations</a>
+<a class='{{"active" if request.endpoint=="salles_page" else ""}}' href='{{ url_for("salles_page") }}'>Salles</a>
+<a class='{{"active" if request.endpoint=="formateurs_planning_page" else ""}}' href='{{ url_for("formateurs_planning_page") }}'>Formateurs</a>
+<a class='{{"active" if request.endpoint=="stagiaires_page" else ""}}' href='{{ url_for("stagiaires_page") }}'>Stagiaires</a>
+<a class='{{"active" if request.endpoint=="reports_page" else ""}}' href='{{ url_for("reports_page") }}'>Rapports & Export</a>
+<a class='{{"active" if request.endpoint=="alerts_page" else ""}}' href='{{ url_for("alerts_page") }}'>Alertes</a>
+<a class='{{"active" if request.endpoint=="planning_historique" else ""}}' href='{{ url_for("planning_historique") }}'>Historique</a>
+<a class='{{"active" if request.endpoint=="backup_page" else ""}}' href='{{ url_for("backup_page") }}'>Sauvegarde & Import</a>
+</nav></aside>
+<main class='main'><div class='topbar'><div class='search'><input placeholder='Rechercher une formation, salle, formateur…' /></div><div>🔔 👤 Admin</div></div>
+{% with messages=get_flashed_messages(with_categories=true) %}{% if messages %}{% for c,m in messages %}<div class='panel' style='padding:10px;margin-top:10px;color:{{"#b42318" if c=="error" else "#067647"}}'>{{m}}</div>{% endfor %}{% endif %}{% endwith %}
+{% block content %}{% endblock %}</main></div></body></html>

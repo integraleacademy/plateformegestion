@@ -4530,7 +4530,23 @@ def planning_home():
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC, id DESC").fetchall()
     formations = [format_formation(r) for r in rows]
-    return render_template("planning.html", formations=formations, salles=PLANNING_SALLES)
+    today = datetime.now().date()
+    salles_occupees = {
+        f["salle"] for f in formations
+        if f["date_debut"] <= today.isoformat() <= f["date_fin"]
+    }
+    next_sessions = [
+        f for f in formations
+        if f["date_debut"] >= today.isoformat()
+    ][:5]
+    stats = {
+        "total_formations": len(formations),
+        "salles_occupees": len(salles_occupees),
+        "salles_disponibles": len(PLANNING_SALLES) - len(salles_occupees),
+        "conflits": sum(1 for f in formations if f["conflit"]),
+        "prochaines_sessions": next_sessions,
+    }
+    return render_template("planning.html", formations=formations, salles=PLANNING_SALLES, stats=stats)
 
 @app.route("/formation/ajouter", methods=["GET", "POST"])
 def formation_ajouter():
@@ -4594,21 +4610,21 @@ def formation_supprimer(id):
 @app.route("/calendrier")
 def calendrier():
     init_planning_db()
-    year = int(request.args.get("year", datetime.now().year))
-    month = int(request.args.get("month", datetime.now().month))
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
-    weeks = calendar.monthcalendar(year, month)
-    by_day = {}
-    for r in rows:
-        d1 = datetime.strptime(r["date_debut"], "%Y-%m-%d").date()
-        d2 = datetime.strptime(r["date_fin"], "%Y-%m-%d").date()
-        cur = d1
-        while cur <= d2:
-            if cur.year == year and cur.month == month:
-                by_day.setdefault(cur.day, []).append(dict(r))
-            cur += timedelta(days=1)
-    return render_template("calendrier.html", weeks=weeks, by_day=by_day, year=year, month=month, month_name=calendar.month_name[month])
+    events = [{
+        "id": r["id"],
+        "title": f'{r["nom"]} • {r["salle"]}',
+        "start": r["date_debut"],
+        "end": (datetime.strptime(r["date_fin"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"),
+        "extendedProps": {
+            "type": r["type"],
+            "salle": r["salle"],
+            "stagiaires": r["nombre_stagiaires"],
+            "commentaire": r["commentaire"] or "",
+        }
+    } for r in rows]
+    return render_template("calendrier.html", events=events)
 
 @app.post("/planning/disponibilites")
 def planning_disponibilites():

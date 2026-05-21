@@ -1,12 +1,15 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"><title>Planning</title></head><body><div style="padding:16px;"><div class="container" style="max-width:800px;margin:24px auto;">
-<h1 style="color:#1e8449;">{% if mode == 'modifier' %}Modifier{% else %}Ajouter{% endif %} une formation</h1>
-<form method="post" style="display:grid;gap:10px;background:#fff;padding:16px;border-radius:8px;">
-<input name="nom" placeholder="Nom de la formation" value="{{ formation.nom or '' }}" required>
-<select name="type" required>{% for t in types %}<option value="{{t}}" {% if formation.type==t %}selected{% endif %}>{{t}}</option>{% endfor %}</select>
-<label>Date début <input type="date" name="date_debut" value="{{ formation.date_debut or '' }}" required></label>
-<label>Date fin <input type="date" name="date_fin" value="{{ formation.date_fin or '' }}" required></label>
-<input type="number" name="nombre_stagiaires" min="1" placeholder="Nombre de stagiaires" value="{{ formation.nombre_stagiaires or '' }}" required>
-<select name="salle_souhaitee"><option value="">Salle auto</option>{% for s in salles %}<option value="{{s}}" {% if formation.salle==s or formation.salle_souhaitee==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select>
-<textarea name="commentaire" placeholder="Commentaire (optionnel)">{{ formation.commentaire or '' }}</textarea>
-<button class="btn" type="submit">Enregistrer</button>
-</form></div></div></body></html>
+{% extends 'planning_base.html' %}
+{% set page_title='Formation' %}
+{% set page_heading='Ajouter / modifier une formation' %}
+{% block content %}
+<form method="post" class="glass rounded-2xl border border-white/50 shadow-xl p-5 md:p-8 max-w-3xl mx-auto grid md:grid-cols-2 gap-4">
+  <div class="md:col-span-2"><label>Nom</label><input name="nom" value="{{ formation.nom or '' }}" required class="w-full rounded-xl border-zinc-200 focus:border-emerald-500 focus:ring-emerald-500"></div>
+  <div><label>Type</label><select name="type" class="w-full rounded-xl border-zinc-200">{% for t in types %}<option value="{{t}}" {% if formation.type==t %}selected{% endif %}>{{t}}</option>{% endfor %}</select></div>
+  <div><label>Salle souhaitée</label><select name="salle_souhaitee" class="w-full rounded-xl border-zinc-200"><option value="">Affectation auto</option>{% for s in salles %}<option value="{{s}}" {% if formation.salle==s or formation.salle_souhaitee==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></div>
+  <div><label>Date début</label><input type="date" name="date_debut" value="{{ formation.date_debut or '' }}" required class="w-full rounded-xl border-zinc-200"></div>
+  <div><label>Date fin</label><input type="date" name="date_fin" value="{{ formation.date_fin or '' }}" required class="w-full rounded-xl border-zinc-200"></div>
+  <div class="md:col-span-2"><label>Nombre de stagiaires</label><input type="number" min="1" name="nombre_stagiaires" value="{{ formation.nombre_stagiaires or '' }}" required class="w-full rounded-xl border-zinc-200"></div>
+  <div class="md:col-span-2"><label>Commentaire</label><textarea name="commentaire" class="w-full rounded-xl border-zinc-200">{{ formation.commentaire or '' }}</textarea></div>
+  <div class="md:col-span-2 flex gap-3"><button class="px-5 py-2 rounded-xl bg-emerald-600 text-white">Enregistrer</button><a href="{{ url_for('planning_home') }}" class="px-5 py-2 rounded-xl border">Retour</a></div>
+</form>
+{% endblock %}

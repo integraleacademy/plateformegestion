@@ -1,6 +1,20 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"><title>Planning</title></head><body><div style="padding:16px;"><div class="container" style="max-width:1100px;margin:24px auto;">
-<h1 style="color:#1e8449;">Calendrier {{ month_name }} {{ year }}</h1>
-<table style="width:100%;border-collapse:collapse;background:#fff;">
-<tr>{% for d in ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'] %}<th>{{d}}</th>{% endfor %}</tr>
-{% for w in weeks %}<tr>{% for day in w %}<td style="vertical-align:top;height:120px;border:1px solid #eee;padding:6px;">{% if day %}<strong>{{day}}</strong>{% for f in by_day.get(day, []) %}<div style="font-size:12px;background:#e8f7ec;padding:4px;margin:4px 0;border-radius:6px;">{{ f.nom }}<br>{{ f.salle }}<br>{{f.date_debut}}→{{f.date_fin}}</div>{% endfor %}{% endif %}</td>{% endfor %}</tr>{% endfor %}
-</table></div></div></body></html>
+{% extends 'planning_base.html' %}
+{% set page_title='Calendrier' %}
+{% set page_heading='Calendrier des formations' %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.css" rel="stylesheet" />
+<div class="glass rounded-2xl border border-white/60 shadow-xl p-4">
+  <div id="calendar"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
+<script>
+const events={{ events|tojson }};
+const cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
+  initialView:'dayGridMonth',height:'auto',locale:'fr',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,listWeek'},
+  events,
+  eventColor:'#059669', eventTextColor:'#fff',
+  eventDidMount(info){info.el.classList.add('rounded-lg','shadow-sm')}
+});
+cal.render();
+</script>
+{% endblock %}

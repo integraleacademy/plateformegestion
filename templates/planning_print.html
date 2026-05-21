@@ -1,0 +1,6 @@
+<!doctype html><html lang='fr'><head><meta charset='utf-8'><title>Impression planning</title>
+<style>body{font-family:Arial,sans-serif;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px}h1{margin:0} .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}</style></head><body onload='window.print()'>
+<div class='top'><div><img src='{{ url_for("static", filename="img/logo-integrale.png") }}' style='height:56px'><h1>Planning des formations</h1><div>Vue: {{ mode }}</div></div><div>Date d'édition : {{ now.strftime('%d/%m/%Y %H:%M') }}</div></div>
+<table><thead><tr><th>Nom</th><th>Type</th><th>Période</th><th>Salle</th><th>Stagiaires</th><th>Commentaire</th></tr></thead><tbody>
+{% for f in formations %}<tr><td>{{f.nom}}</td><td>{{f.type}}</td><td>{{f.date_debut|datefr}} → {{f.date_fin|datefr}}</td><td>{{f.salle}}</td><td>{{f.nombre_stagiaires}}</td><td>{{f.commentaire or ''}}</td></tr>{% endfor %}
+</tbody></table></body></html>

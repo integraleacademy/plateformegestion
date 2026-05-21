@@ -1,53 +1,114 @@
 {% extends 'planning_base.html' %}
 {% set page_title='Planning' %}
-{% set page_heading='Gestion des salles & planning' %}
+{% set page_heading='Calendrier des formations' %}
 {% block content %}
-<section class="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-  {% set cards=[('Formations',stats.total_formations,'book-open'),('Salles occupées',stats.salles_occupees,'building-2'),('Salles dispo',stats.salles_disponibles,'door-open'),('Conflits',stats.conflits,'alert-triangle')] %}
-  {% for t,v,ico in cards %}
-  <div class="glass rounded-2xl p-5 shadow-lg border border-white/50 hover:-translate-y-0.5 transition">
-    <div class="text-zinc-500 text-sm">{{t}}</div><div class="text-3xl font-semibold mt-1">{{v}}</div>
-  </div>
-  {% endfor %}
-</section>
+<div class="space-y-5" x-data="planningDashboard()" x-init="init()">
+  <section class="grid grid-cols-2 xl:grid-cols-6 gap-3">
+    <template x-for="card in statCards" :key="card.label">
+      <article class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white" :style="`background:${card.color}`"><i :data-lucide="card.icon" class="w-5 h-5"></i></span>
+          <div>
+            <p class="text-2xl font-semibold" x-text="card.value"></p>
+            <p class="text-sm text-zinc-600" x-text="card.label"></p>
+          </div>
+        </div>
+      </article>
+    </template>
+  </section>
 
-<section class="glass rounded-2xl p-4 border border-white/50 shadow-lg mb-6">
-  <form id="check-form" class="grid md:grid-cols-6 gap-3 items-end">
-    <div><label class="text-sm text-zinc-600">Recherche</label><input class="w-full rounded-xl border-zinc-200" type="text" name="q" value="{{ request.args.get('q','') }}"></div>
-    <div><label class="text-sm text-zinc-600">Salle</label><select name="salle" class="w-full rounded-xl border-zinc-200"><option value="">Toutes</option>{% for s in salles %}<option value="{{s}}" {% if request.args.get('salle')==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></div>
-    <div><label class="text-sm text-zinc-600">Type</label><select name="type" class="w-full rounded-xl border-zinc-200"><option value="">Tous</option>{% for t in types %}<option value="{{t}}" {% if request.args.get('type')==t %}selected{% endif %}>{{t}}</option>{% endfor %}</select></div>
-    <div><label class="text-sm text-zinc-600">Statut</label><select name="statut" class="w-full rounded-xl border-zinc-200"><option value="">Tous</option><option value="ok">OK</option><option value="conflit">Conflit</option></select></div>
-    <div><label class="text-sm text-zinc-600">Début</label><input class="w-full rounded-xl border-zinc-200" type="date" name="date_debut" required></div>
-    <div><label class="text-sm text-zinc-600">Fin</label><input class="w-full rounded-xl border-zinc-200" type="date" name="date_fin" required></div>
-    <button formaction="{{ url_for('planning_home') }}" formmethod="get" class="rounded-xl px-4 py-2 bg-zinc-900 text-white hover:opacity-90 transition">Filtrer</button>
-    <button class="rounded-xl px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 transition">Vérifier les disponibilités</button>
-    <a href="{{ url_for('formation_ajouter') }}" class="rounded-xl px-4 py-2 bg-zinc-900 text-white text-center">Ajouter une formation</a>
-    <a href="{{ url_for('planning_export_csv') }}" class="rounded-xl px-4 py-2 bg-white border text-center">Export CSV</a>
-    <a href="{{ url_for('planning_export_xlsx') }}" class="rounded-xl px-4 py-2 bg-white border text-center">Export Excel</a>
-    <a href="{{ url_for('planning_impression', mode='global') }}" target="_blank" class="rounded-xl px-4 py-2 bg-white border text-center">Imprimer cette vue</a>
-  </form>
-  <div id="check-result" class="mt-3 text-sm"></div>
-</section>
+  <section class="rounded-2xl border border-zinc-200 bg-white shadow-sm p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div class="flex items-center gap-2">
+        <button @click="today()" class="px-3 py-2 rounded-lg border bg-zinc-50">Aujourd'hui</button>
+        <button @click="changeMonth(-1)" class="px-3 py-2 rounded-lg border">◀</button>
+        <button @click="changeMonth(1)" class="px-3 py-2 rounded-lg border">▶</button>
+        <h3 class="text-xl font-semibold ml-2" x-text="monthLabel"></h3>
+      </div>
+      <div class="flex gap-2">
+        <a href="{{ url_for('planning_export_xlsx') }}" class="px-3 py-2 rounded-lg border">Export</a>
+        <a href="{{ url_for('formation_ajouter') }}" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">+ Nouvelle formation</a>
+      </div>
+    </div>
 
-<section class="space-y-3">
-  {% for f in formations %}
-  <article class="glass rounded-2xl border border-white/60 shadow p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:shadow-xl transition">
-    <div>
-      <h3 class="font-semibold text-lg">{{ f.nom }} <span class="text-zinc-500 text-sm">• {{ f.type }}</span></h3>
-      <p class="text-sm text-zinc-600">{{ f.date_debut|datefr }} → {{ f.date_fin|datefr }} · {{ f.salle }} · {{ f.nombre_stagiaires }} stagiaires</p>
-      {% if f.commentaire %}<p class="text-sm mt-1 text-zinc-500">{{ f.commentaire }}</p>{% endif %}
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-4">
+      <div class="overflow-auto border rounded-xl">
+        <div class="grid grid-cols-7 min-w-[900px]">
+          <template x-for="name in dayNames"><div class="p-3 text-sm font-semibold border-b border-r bg-zinc-50" x-text="name"></div></template>
+          <template x-for="(cell,idx) in monthCells" :key="idx">
+            <div class="min-h-[118px] p-2 border-r border-b" :class="cell.current ? 'bg-white':'bg-zinc-50/70'">
+              <div class="text-right text-sm mb-1" :class="cell.current ? 'text-zinc-800':'text-zinc-400'" x-text="cell.day"></div>
+              <div class="space-y-1">
+                <template x-for="event in cell.events" :key="event.id">
+                  <a :href="`/formation/${event.id}/edit`" class="block text-xs px-2 py-1 rounded text-white truncate" :style="`background:${event.color}`" x-text="`${event.nom} · ${event.salle}`"></a>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <aside class="space-y-3">
+        <div class="border rounded-xl p-3">
+          <h4 class="font-semibold mb-2">Légende des salles</h4>
+          <template x-for="room in roomLegend" :key="room.name">
+            <div class="flex items-center gap-2 text-sm mb-1"><span class="w-3 h-3 rounded" :style="`background:${room.color}`"></span><span x-text="room.name"></span></div>
+          </template>
+        </div>
+        <div class="border rounded-xl p-3">
+          <h4 class="font-semibold mb-2">Disponibilité aujourd'hui</h4>
+          <template x-for="status in roomStatus" :key="status.name">
+            <div class="flex justify-between text-sm mb-1"><span x-text="status.name"></span><span :class="status.occupied ? 'text-red-600':'text-emerald-600'" x-text="status.occupied ? 'Occupée':'Disponible'"></span></div>
+          </template>
+        </div>
+      </aside>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="px-3 py-1 rounded-full text-xs font-semibold {{ 'bg-red-100 text-red-700' if f.conflit else 'bg-emerald-100 text-emerald-700' }}">{{ 'Conflit' if f.conflit else 'OK' }}</span>
-      <a href="{{ url_for('formation_modifier', id=f.id) }}" class="px-3 py-2 rounded-xl bg-white border">Modifier</a>
-      <form method="post" action="{{ url_for('formation_supprimer', id=f.id) }}" onsubmit="return confirm('Supprimer ?')"><button class="px-3 py-2 rounded-xl bg-red-600 text-white">Supprimer</button></form>
-    </div>
-  </article>
-  {% else %}
-  <div class="glass rounded-2xl p-8 text-center text-zinc-500">Aucune formation planifiée.</div>
-  {% endfor %}
-</section>
+  </section>
+</div>
+
 <script>
-document.getElementById('check-form').addEventListener('submit', async (e)=>{e.preventDefault();const fd=new FormData(e.target);const res=await fetch("{{ url_for('planning_disponibilites') }}",{method:'POST',body:fd});const data=await res.json();document.getElementById('check-result').innerHTML=`<span class='text-emerald-700'>Libres: ${data.libres.join(', ')||'Aucune'}</span><br><span class='text-zinc-700'>Occupées: ${data.occupees.join(', ')||'Aucune'}</span>`})
+function planningDashboard(){
+  const formations = {{ formations|tojson }};
+  const roomNames = {{ salles|tojson }};
+  const palette=['#22c55e','#2563eb','#f97316','#a855f7','#06b6d4','#eab308'];
+  const colorByRoom = Object.fromEntries(roomNames.map((r,i)=>[r,palette[i%palette.length]]));
+  return {
+    current: new Date(),
+    dayNames:['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'],
+    monthLabel:'',monthCells:[],
+    statCards:[],roomLegend:[],roomStatus:[],
+    init(){this.buildStats();this.roomLegend=roomNames.map(r=>({name:r,color:colorByRoom[r]||'#64748b'}));this.render();this.$nextTick(()=>lucide.createIcons());},
+    buildStats(){
+      const now = new Date(); const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const monthItems = formations.filter(f=>String(f.date_debut||'').slice(0,7)===ym || String(f.date_fin||'').slice(0,7)===ym);
+      const occupiedToday = new Set(formations.filter(f=>(f.date_debut<=this.iso(now) && f.date_fin>=this.iso(now))).map(f=>f.salle));
+      this.statCards=[
+        {label:'Formations ce mois',value:monthItems.length,icon:'calendar',color:'#22c55e'},
+        {label:'Salles occupées',value:`${occupiedToday.size}/${roomNames.length}`,icon:'building-2',color:'#2563eb'},
+        {label:'Salles disponibles',value:roomNames.length-occupiedToday.size,icon:'door-open',color:'#16a34a'},
+        {label:'Conflits détectés',value:formations.filter(f=>f.conflit).length,icon:'triangle-alert',color:'#f97316'},
+        {label:'Stagiaires',value:formations.reduce((n,f)=>n+(f.nombre_stagiaires||0),0),icon:'users',color:'#7c3aed'},
+        {label:"Taux d'occupation",value:`${roomNames.length?Math.round((occupiedToday.size/roomNames.length)*100):0}%`,icon:'badge-check',color:'#0ea5e9'}
+      ];
+      this.roomStatus = roomNames.map(name=>({name,occupied:occupiedToday.has(name)}));
+    },
+    iso(d){return d.toISOString().slice(0,10)},
+    today(){this.current=new Date();this.render();},
+    changeMonth(step){this.current=new Date(this.current.getFullYear(),this.current.getMonth()+step,1);this.render();},
+    render(){
+      const y=this.current.getFullYear(), m=this.current.getMonth();
+      this.monthLabel = this.current.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+      const first = new Date(y,m,1); const offset=(first.getDay()+6)%7;
+      const start = new Date(y,m,1-offset);
+      this.monthCells=[];
+      for(let i=0;i<42;i++){
+        const day=new Date(start); day.setDate(start.getDate()+i);
+        const dateStr=this.iso(day);
+        const events=formations.filter(f=>f.date_debut<=dateStr && f.date_fin>=dateStr).map(f=>({id:f.id,nom:f.nom,salle:f.salle||'Sans salle',color:colorByRoom[f.salle]||'#64748b'}));
+        this.monthCells.push({day:day.getDate(),current:day.getMonth()===m,events});
+      }
+    }
+  }
+}
 </script>
 {% endblock %}

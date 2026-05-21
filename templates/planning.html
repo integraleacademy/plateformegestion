@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"><title>Planning</title></head><body><div style="padding:16px;"><div class="container" style="max-width:1100px;margin:24px auto;">
+  <h1 style="color:#1e8449;">Gestion des salles et planification</h1>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+    <a class="btn" href="{{ url_for('formation_ajouter') }}">Ajouter une formation</a>
+    <a class="btn" href="{{ url_for('calendrier') }}">Voir calendrier</a>
+  </div>
+  <form id="check-form" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#f6fbf7;padding:12px;border-radius:8px;">
+    <div><label>Début</label><input type="date" name="date_debut" required></div>
+    <div><label>Fin</label><input type="date" name="date_fin" required></div>
+    <button class="btn" type="submit">Vérifier les disponibilités</button>
+    <div id="check-result"></div>
+  </form>
+  <table style="width:100%;margin-top:16px;border-collapse:collapse;background:#fff;">
+    <tr><th>Nom</th><th>Début</th><th>Fin</th><th>Salle</th><th>Stagiaires</th><th>Statut</th><th>Actions</th></tr>
+    {% for f in formations %}
+    <tr>
+      <td>{{ f.nom }} ({{ f.type }})</td><td>{{ f.date_debut }}</td><td>{{ f.date_fin }}</td><td>{{ f.salle }}</td><td>{{ f.nombre_stagiaires }}</td>
+      <td>{% if f.conflit %}<span style="color:#c0392b;font-weight:700;">Conflit</span>{% else %}<span style="color:#1e8449;font-weight:700;">OK</span>{% endif %}</td>
+      <td>
+        <a class="btn" href="{{ url_for('formation_modifier', id=f.id) }}">Modifier</a>
+        <form method="post" action="{{ url_for('formation_supprimer', id=f.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer ?')"><button class="btn" type="submit">Supprimer</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+<script>
+document.getElementById('check-form').addEventListener('submit', async (e)=>{e.preventDefault(); const fd = new FormData(e.target); const res=await fetch("{{ url_for('planning_disponibilites') }}",{method:'POST',body:fd}); const data=await res.json(); document.getElementById('check-result').innerHTML = `<strong>Libres:</strong> ${data.libres.join(', ')||'Aucune'}<br><strong>Occupées:</strong> ${data.occupees.join(', ')||'Aucune'}`;});
+</script></div></body></html>

@@ -3609,11 +3609,6 @@ def formateur_detail(fid):
     formateur["profils"] = normalize_formateur_profils(formateur.get("profils", []))
     apply_profile_document_requirements(formateur, profils_docs_config)
 
-    # mise à jour auto des statuts selon la date d'expiration
-    for doc in formateur.get("documents", []):
-        auto_update_document_status(doc)
-    save_formateurs(formateurs)
-
     # 🔑🟦 RÉCUPÉRER TOUTES LES CLÉS / BADGES EXISTANTS
     etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
     last_relance_display = ""
@@ -3695,7 +3690,8 @@ def update_formateur_document(fid, doc_id):
     if files:
         replace_formateur_attachment(fid, doc, files[-1])
 
-    auto_update_document_status(doc)
+    if "status" not in request.form:
+        auto_update_document_status(doc)
     save_formateurs(formateurs)
 
     # ⛔️ PLUS AUCUN REDIRECT
@@ -3947,10 +3943,6 @@ def print_formateur_dossier(fid):
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
-
-    # Mise à jour auto des statuts avant impression
-    for doc in formateur.get("documents", []):
-        auto_update_document_status(doc)
 
     # Liste des docs non conformes / manquants
     non_conformes = [

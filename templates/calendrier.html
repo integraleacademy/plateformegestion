@@ -1,0 +1,20 @@
+{% extends 'planning_base.html' %}
+{% set page_title='Calendrier' %}
+{% set page_heading='Calendrier des formations' %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.css" rel="stylesheet" />
+<div class="glass rounded-2xl border border-white/60 shadow-xl p-4">
+  <div id="calendar"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
+<script>
+const events={{ events|tojson }};
+const cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
+  initialView:'dayGridMonth',height:'auto',locale:'fr',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,listWeek'},
+  events,
+  eventColor:'#059669', eventTextColor:'#fff',
+  eventDidMount(info){info.el.classList.add('rounded-lg','shadow-sm')}
+});
+cal.render();
+</script>
+{% endblock %}

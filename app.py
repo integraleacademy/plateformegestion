@@ -4465,7 +4465,7 @@ def salesforce_lead_outbound():
 # -----------------------
 # 📅 Gestion des salles / planning formations (SQLite)
 # -----------------------
-PLANNING_SALLES = [f"Salle {i}" for i in range(1, 6)]
+PLANNING_SALLES = ["Salle 1", "Salle 2", "Salle 1B", "Salle 2B", "Salle 3B"]
 PLANNING_TYPES = ["APS", "A3P", "SSIAP", "DESP", "VTC", "BTS", "Autre"]
 PERSIST_DIR = os.environ.get("PERSIST_DIR")
 DB_DIR = PERSIST_DIR if PERSIST_DIR else BASE_DIR

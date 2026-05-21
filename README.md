@@ -41,7 +41,7 @@ Application Flask déployable sur Render.
 - Vérification dispo (AJAX) : `POST /planning/disponibilites`.
 
 ### Fonctionnement de l’affectation automatique des salles
-Salles gérées : `Salle 1` à `Salle 5`.
+Salles gérées : `Salle 1`, `Salle 2`, `Salle 1B`, `Salle 2B`, `Salle 3B`.
 
 - Si une salle est demandée dans le formulaire :
   - l'application vérifie qu'aucune autre formation de cette salle ne chevauche la période,

@@ -1,1 +1,0 @@
-{% extends 'planning_base.html' %}{% block content %}<div class='panel' style='padding:16px;margin-top:14px'><h2>Rapports & Export</h2><div style='display:flex;gap:8px;flex-wrap:wrap'>{% for link,label in actions %}<a class='btn' href='{{link}}' {% if 'impression' in link %}target='_blank'{% endif %}>{{label}}</a>{% endfor %}</div></div>{% endblock %}

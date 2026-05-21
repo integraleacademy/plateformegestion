@@ -4552,22 +4552,6 @@ def init_planning_db():
             )
         """)
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS formations_catalog (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nom TEXT NOT NULL, duree_heures INTEGER DEFAULT 0, duree_jours INTEGER DEFAULT 0,
-                max_stagiaires INTEGER DEFAULT 0, salle_preferee TEXT DEFAULT "", formateur_defaut TEXT DEFAULT "",
-                couleur TEXT DEFAULT "#1f8f5f", date_examen TEXT DEFAULT ""
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS stagiaires_planning (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nom TEXT NOT NULL, formation TEXT DEFAULT "", session TEXT DEFAULT "",
-                statut_dossier TEXT DEFAULT "En cours", statut_cnaps TEXT DEFAULT "N/A",
-                presence TEXT DEFAULT "À confirmer", commentaires TEXT DEFAULT ""
-            )
-        """)
-        conn.execute("""
             CREATE TABLE IF NOT EXISTS planning_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 formation_id INTEGER,
@@ -4654,17 +4638,7 @@ def planning_home():
         formations = [f for f in formations if f["conflit"]]
     if statut_filter == "ok":
         formations = [f for f in formations if not f["conflit"]]
-    dashboard_cards = [
-        {"label":"Formations ce mois","value": sum(1 for f in formations if f["date_debut"][:7]==today.isoformat()[:7])},
-        {"label":"Salles occupées aujourd'hui","value": len(salles_occupees)},
-        {"label":"Salles disponibles","value": len(PLANNING_SALLES)-len(salles_occupees)},
-        {"label":"Conflits détectés","value": stats["conflits"]},
-        {"label":"Stagiaires ce mois","value": sum(f["nombre_stagiaires"] for f in formations if f["date_debut"][:7]==today.isoformat()[:7])},
-        {"label":"Taux d'occupation","value": f"{round((len(salles_occupees)/max(len(PLANNING_SALLES),1))*100)}%"},
-        {"label":"Alertes importantes","value": stats["conflits"]},
-        {"label":"Prochaines formations","value": len(next_sessions)},
-    ]
-    return render_template("planning.html", formations=formations, salles=PLANNING_SALLES, stats=stats, types=PLANNING_TYPES, dashboard_cards=dashboard_cards)
+    return render_template("planning.html", formations=formations, salles=PLANNING_SALLES, stats=stats, types=PLANNING_TYPES)
 
 @app.route("/formation/ajouter", methods=["GET", "POST"])
 def formation_ajouter():
@@ -4894,83 +4868,3 @@ def planning_disponibilites():
 
 
     
-
-
-@app.route("/formations")
-def formations_page():
-    init_planning_db()
-    with get_db() as conn:
-        rows = conn.execute("SELECT * FROM formations_catalog ORDER BY nom ASC").fetchall()
-        if not rows:
-            seeds=[("APS",35,5,12,"Salle 1","M. Karim","#16a34a",""),("A3P",21,3,10,"Salle 1B","Mme Leila","#2563eb",""),("SSIAP 1",70,10,12,"Salle 2","M. Bensaid","#ea580c",""),("DESP",28,4,14,"Salle 3","Mme Ana","#7c3aed",""),("VTC",35,5,16,"Salle 4","M. Hugo","#06b6d4",""),("BTS MOS",140,20,20,"Salle 5","Mme Ines","#d97706","")]
-            conn.executemany("INSERT INTO formations_catalog(nom,duree_heures,duree_jours,max_stagiaires,salle_preferee,formateur_defaut,couleur,date_examen) VALUES(?,?,?,?,?,?,?,?)", seeds)
-            rows = conn.execute("SELECT * FROM formations_catalog ORDER BY nom ASC").fetchall()
-    return render_template("formations.html", formations=rows)
-
-@app.post("/formations/<int:id>/duplicate")
-def formation_duplicate(id):
-    with get_db() as conn:
-        row=conn.execute("SELECT * FROM formations_catalog WHERE id=?",(id,)).fetchone()
-        if row:
-            conn.execute("INSERT INTO formations_catalog(nom,duree_heures,duree_jours,max_stagiaires,salle_preferee,formateur_defaut,couleur,date_examen) VALUES(?,?,?,?,?,?,?,?)",
-                         (f"{row['nom']} (copie)",row['duree_heures'],row['duree_jours'],row['max_stagiaires'],row['salle_preferee'],row['formateur_defaut'],row['couleur'],row['date_examen']))
-    flash("Formation dupliquée.","success")
-    return redirect(url_for("formations_page"))
-
-@app.route('/stagiaires')
-def stagiaires_page():
-    init_planning_db()
-    with get_db() as conn:
-        rows=conn.execute('SELECT * FROM stagiaires_planning ORDER BY id DESC').fetchall()
-        if not rows:
-            conn.executemany("INSERT INTO stagiaires_planning(nom,formation,session,statut_dossier,statut_cnaps,presence,commentaires) VALUES(?,?,?,?,?,?,?)",[("Ali Ben","APS","Session Sept 2026","Complet","Validé","Présent",""),("Sara M.","VTC","Session Oct 2026","En cours","N/A","Absent","Pièce manquante")])
-            rows=conn.execute('SELECT * FROM stagiaires_planning ORDER BY id DESC').fetchall()
-    return render_template('stagiaires.html', stagiaires=rows)
-
-@app.route('/stagiaires/export.xlsx')
-def stagiaires_export_excel():
-    with get_db() as conn: rows=conn.execute('SELECT * FROM stagiaires_planning ORDER BY id DESC').fetchall()
-    wb=Workbook();ws=wb.active;ws.append(["Nom","Formation","Session","Dossier","CNAPS","Présence","Commentaires"])
-    for r in rows: ws.append([r['nom'],r['formation'],r['session'],r['statut_dossier'],r['statut_cnaps'],r['presence'],r['commentaires']])
-    buf=BytesIO();wb.save(buf);buf.seek(0)
-    return send_file(buf,as_attachment=True,download_name='stagiaires.xlsx',mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-
-@app.route('/rapports-export')
-def reports_page():
-    actions=[(url_for('planning_impression',mode='global'),'Imprimer planning global'),(url_for('planning_impression',mode='salle'),'Imprimer planning par salle'),(url_for('planning_impression',mode='formateur'),'Imprimer planning par formateur'),(url_for('planning_export_xlsx'),'Export Excel'),(url_for('planning_export_csv'),'Export CSV')]
-    return render_template('reports.html',actions=actions)
-
-@app.route('/alertes')
-def alerts_page():
-    with get_db() as conn: rows=conn.execute('SELECT * FROM formations').fetchall()
-    alerts=[]
-    for r in [format_formation(x) for x in rows]:
-        if r['conflit']: alerts.append(f"Conflit de salle: {r['nom']} ({r['salle']})")
-        if r['nombre_stagiaires']>20: alerts.append(f"Salle surchargée: {r['nom']}")
-    return render_template('alerts.html',alerts=alerts)
-
-@app.route('/sauvegarde-import')
-def backup_page():
-    return render_template('backup.html')
-
-@app.route('/backup/export.json')
-def backup_export():
-    data={}
-    with get_db() as conn:
-        for t in ['formations','salles','formateurs_planning','formations_catalog','stagiaires_planning','planning_history']:
-            data[t]=[dict(r) for r in conn.execute(f'SELECT * FROM {t}').fetchall()]
-    return Response(json.dumps(data,ensure_ascii=False,indent=2),mimetype='application/json',headers={'Content-Disposition':'attachment; filename=backup_planning.json'})
-
-@app.post('/backup/import')
-def backup_import():
-    f=request.files.get('file')
-    if not f: flash('Fichier manquant','error'); return redirect(url_for('backup_page'))
-    payload=json.load(f)
-    with get_db() as conn:
-        for t,rows in payload.items():
-            if t not in ['formations','salles','formateurs_planning','formations_catalog','stagiaires_planning','planning_history'] or not isinstance(rows,list): continue
-            conn.execute(f'DELETE FROM {t}')
-            if rows:
-                cols=list(rows[0].keys()); q=','.join('?'*len(cols));
-                conn.executemany(f"INSERT INTO {t} ({','.join(cols)}) VALUES ({q})", [[r.get(c) for c in cols] for r in rows])
-    flash('Import terminé','success'); return redirect(url_for('backup_page'))

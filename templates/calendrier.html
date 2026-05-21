@@ -3,18 +3,116 @@
 {% set page_heading='Calendrier des formations' %}
 {% block content %}
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.css" rel="stylesheet" />
-<div class="glass rounded-2xl border border-white/60 shadow-xl p-4">
-  <div id="calendar"></div>
+<div class="space-y-6" x-data="plannerApp()" x-init="init()">
+  <section class="glass rounded-2xl border border-white/60 shadow-xl p-4 md:p-5">
+    <div class="flex flex-wrap items-center gap-3 justify-between">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-zinc-400"></i>
+        <input x-model="search" class="pl-9 pr-3 py-2 rounded-xl border border-zinc-200 w-72" placeholder="Recherche rapide formation...">
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <select x-model="viewMode" class="rounded-xl border-zinc-200"><option value="calendar">Vue calendrier</option><option value="room">Planning par salle</option></select>
+        <select x-model="roomFilter" class="rounded-xl border-zinc-200"><option value="">Toutes les salles</option>{% for s in salles %}<option value="{{s}}">{{s}}</option>{% endfor %}</select>
+        <select x-model="typeFilter" class="rounded-xl border-zinc-200"><option value="">Tous les types</option>{% for t in types %}<option value="{{t}}">{{t}}</option>{% endfor %}</select>
+        <select x-model="statusFilter" class="rounded-xl border-zinc-200"><option value="all">Tout</option><option value="conflict">Conflits uniquement</option><option value="no-room">Sans salle</option><option value="no-trainer">Sans formateur</option></select>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-2">
+      <button @click="setCalendarView('dayGridMonth')" class="px-3 py-2 rounded-lg bg-white border">Mois</button>
+      <button @click="setCalendarView('timeGridWeek')" class="px-3 py-2 rounded-lg bg-white border">Semaine</button>
+      <button @click="setCalendarView('timeGridDay')" class="px-3 py-2 rounded-lg bg-white border">Jour</button>
+      <a href="{{ url_for('planning_impression', mode='global') }}" target="_blank" class="px-3 py-2 rounded-lg bg-white border">Imprimer complet</a>
+      <a href="{{ url_for('planning_impression', mode='salle') }}" target="_blank" class="px-3 py-2 rounded-lg bg-white border">Imprimer par salle</a>
+      <a href="{{ url_for('planning_export_xlsx') }}" class="px-3 py-2 rounded-lg bg-zinc-900 text-white">Exporter Excel</a>
+    </div>
+  </section>
+
+  <section class="glass rounded-2xl border border-white/60 shadow-xl p-4">
+    <h3 class="font-semibold mb-3">Légende des salles (statut du {{"now"|datefr if false else "jour"}})</h3>
+    <div class="grid md:grid-cols-3 xl:grid-cols-6 gap-3">
+      {% for salle in salles_meta %}
+      <div class="rounded-xl border border-zinc-100 p-3 bg-white/70">
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background: {{ salle.couleur }}"></span><strong>{{ salle.nom }}</strong></div>
+        <div class="text-xs text-zinc-500 mt-1">Capacité : {{ salle.capacite }}</div>
+        <div class="text-xs mt-1 {{ 'text-red-600' if salle.statut == 'occupée' else 'text-emerald-600' }}">{{ salle.statut|capitalize }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="grid lg:grid-cols-3 gap-4">
+    <div class="lg:col-span-2 glass rounded-2xl border border-white/60 shadow-xl p-4" x-show="viewMode==='calendar'">
+      <div id="calendar"></div>
+    </div>
+    <div class="lg:col-span-2 glass rounded-2xl border border-white/60 shadow-xl p-4" x-show="viewMode==='room'">
+      <h3 class="font-semibold mb-3">Planning par salle</h3>
+      <div class="space-y-3 max-h-[70vh] overflow-auto">
+        <template x-for="room in roomPlanning" :key="room.nom">
+          <div class="rounded-xl border p-3 bg-white/70">
+            <div class="font-semibold" x-text="room.nom"></div>
+            <template x-if="room.events.length===0"><div class="text-sm text-zinc-500">Aucune formation</div></template>
+            <div class="space-y-2 mt-2" x-show="room.events.length">
+              <template x-for="evt in room.events" :key="evt.id">
+                <div class="rounded-lg p-2 text-white" :style="`background:${evt.backgroundColor}`">
+                  <div class="text-sm font-semibold" x-text="evt.title"></div>
+                  <div class="text-xs" x-text="`${evt.start} → ${evt.end_display} • ${evt.extendedProps.horaire}`"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    <aside class="glass rounded-2xl border border-white/60 shadow-xl p-4 space-y-4">
+      <h3 class="font-semibold">Disponibilités des salles</h3>
+      <p class="text-sm text-zinc-500">Date sélectionnée: <span class="font-medium text-zinc-800" x-text="selectedDate"></span></p>
+      <div><p class="text-xs uppercase text-zinc-500">Salles libres</p><p class="text-sm" x-text="freeRooms.join(', ') || 'Aucune'"></p></div>
+      <div><p class="text-xs uppercase text-zinc-500">Salles occupées</p><template x-for="it in occupiedRooms" :key="it.room"><p class="text-sm"><strong x-text="it.room"></strong> — <span x-text="it.by"></span></p></template></div>
+      <div>
+        <p class="text-xs uppercase text-zinc-500">Conflits à corriger</p>
+        <template x-for="c in conflicts" :key="c.id"><div class="text-sm text-red-600">⚠️ <span x-text="c.title"></span> (<span x-text="c.extendedProps.salle"></span>)</div></template>
+      </div>
+    </aside>
+  </section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
 <script>
-const events={{ events|tojson }};
-const cal = new FullCalendar.Calendar(document.getElementById('calendar'),{
-  initialView:'dayGridMonth',height:'auto',locale:'fr',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,listWeek'},
-  events,
-  eventColor:'#059669', eventTextColor:'#fff',
-  eventDidMount(info){info.el.classList.add('rounded-lg','shadow-sm')}
-});
-cal.render();
+function plannerApp(){
+  return {
+    events: {{ events|tojson }}, salles: {{ salles|tojson }}, viewMode:'calendar', roomFilter:'', typeFilter:'', statusFilter:'all', search:'', cal:null,
+    selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[],
+    init(){
+      this.cal=new FullCalendar.Calendar(document.getElementById('calendar'),{initialView:'dayGridMonth',height:'auto',locale:'fr',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},events:this.events,
+      dateClick:(i)=>{this.selectedDate=i.dateStr;this.computeAvailability();},
+      eventDidMount:(info)=>{info.el.classList.add('rounded-xl','shadow-sm');if(info.event.extendedProps.conflit){info.el.innerHTML+=' <span style="margin-left:4px">⚠️</span>'}},
+      eventClick:(info)=>{const e=info.event;alert(`${e.title}\nSalle: ${e.extendedProps.salle}\nHoraire: ${e.extendedProps.horaire}\nFormateur: ${e.extendedProps.formateur}\nStagiaires: ${e.extendedProps.stagiaires}`)}
+      });
+      this.cal.render();this.computeAvailability();
+      this.$watch('roomFilter',()=>this.applyFilters()); this.$watch('typeFilter',()=>this.applyFilters()); this.$watch('statusFilter',()=>this.applyFilters()); this.$watch('search',()=>this.applyFilters());
+    },
+    get roomPlanning(){return this.salles.map(r=>({nom:r,events:this.events.filter(e=>e.extendedProps.salle===r)}));},
+    setCalendarView(v){if(this.cal)this.cal.changeView(v)},
+    applyFilters(){
+      const filtered=this.events.filter(e=>{
+        if(this.roomFilter && e.extendedProps.salle!==this.roomFilter) return false;
+        if(this.typeFilter && e.extendedProps.type!==this.typeFilter) return false;
+        if(this.statusFilter==='conflict' && !e.extendedProps.conflit) return false;
+        if(this.statusFilter==='no-room' && e.extendedProps.salle) return false;
+        if(this.statusFilter==='no-trainer' && e.extendedProps.formateur!=='Non renseigné') return false;
+        if(this.search && !(e.title+' '+(e.extendedProps.salle||'')).toLowerCase().includes(this.search.toLowerCase())) return false;
+        return true;
+      });
+      this.cal.removeAllEvents(); filtered.forEach(e=>this.cal.addEvent(e)); this.computeAvailability();
+    },
+    computeAvailability(){
+      const day=this.selectedDate;
+      const inDay=(e)=>e.start<=day && e.end>day;
+      const current=this.cal.getEvents().filter(e=>inDay({start:e.startStr,end:e.endStr})).map(e=>({room:e.extendedProps.salle,title:e.title,conflit:e.extendedProps.conflit,id:e.id,extendedProps:e.extendedProps}));
+      this.occupiedRooms=this.salles.filter(s=>current.some(c=>c.room===s)).map(s=>({room:s,by:current.filter(c=>c.room===s).map(c=>c.title).join(', ')}));
+      this.freeRooms=this.salles.filter(s=>!this.occupiedRooms.some(o=>o.room===s));
+      this.conflicts=current.filter(c=>c.conflit);
+    }
+  }
+}
 </script>
 {% endblock %}

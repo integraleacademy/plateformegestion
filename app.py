@@ -4745,21 +4745,52 @@ def planning_impression():
 @app.route("/calendrier")
 def calendrier():
     init_planning_db()
+    room_colors = {
+        "Salle 1": "#2563EB",
+        "Salle 1B": "#16A34A",
+        "Salle 2": "#7C3AED",
+        "Salle 3": "#EA580C",
+        "Salle 4": "#EC4899",
+        "Salle 5": "#334155",
+    }
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC").fetchall()
+        room_rows = conn.execute("SELECT nom, capacite_max FROM salles WHERE active = 1 ORDER BY nom ASC").fetchall()
+    formations = [format_formation(r) for r in rows]
+    room_capacity = {r["nom"]: r["capacite_max"] for r in room_rows}
+    today_iso = datetime.now().date().isoformat()
+    salle_meta = []
+    for salle in PLANNING_SALLES:
+        occuped_today = []
+        for f in formations:
+            if f["salle"] == salle and f["date_debut"] <= today_iso <= f["date_fin"]:
+                occuped_today.append(f["nom"])
+        salle_meta.append({
+            "nom": salle,
+            "capacite": room_capacity.get(salle, 20),
+            "couleur": room_colors.get(salle, "#059669"),
+            "statut": "occupée" if occuped_today else "libre",
+            "occupations": occuped_today,
+        })
+
     events = [{
         "id": r["id"],
-        "title": f'{r["nom"]} • {r["salle"]}',
+        "title": r["nom"],
         "start": r["date_debut"],
         "end": (datetime.strptime(r["date_fin"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"),
+        "backgroundColor": "#DC2626" if r["conflit"] else room_colors.get(r["salle"], "#059669"),
+        "borderColor": "#991B1B" if r["conflit"] else room_colors.get(r["salle"], "#059669"),
         "extendedProps": {
             "type": r["type"],
             "salle": r["salle"],
             "stagiaires": r["nombre_stagiaires"],
             "commentaire": r["commentaire"] or "",
+            "conflit": bool(r["conflit"]),
+            "formateur": "Non renseigné",
+            "horaire": "Journée",
         }
-    } for r in rows]
-    return render_template("calendrier.html", events=events)
+    } for r in formations]
+    return render_template("calendrier.html", events=events, salles_meta=salle_meta, salles=PLANNING_SALLES, types=PLANNING_TYPES)
 
 @app.route("/salles", methods=["GET", "POST"])
 def salles_page():

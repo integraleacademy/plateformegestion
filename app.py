@@ -4695,6 +4695,10 @@ def formation_modifier(id):
         return redirect(url_for("planning_home"))
     return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=dict(current), formation_id=id)
 
+@app.route("/formation/<int:id>/edit", methods=["GET", "POST"])
+def formation_edit_alias(id):
+    return formation_modifier(id)
+
 @app.post("/formation/<int:id>/supprimer")
 def formation_supprimer(id):
     with get_db() as conn:

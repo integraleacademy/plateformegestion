@@ -4656,15 +4656,17 @@ def formation_ajouter():
             return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
         salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee)
         if error:
-            flash(error, "error")
-            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
+            salle = salle_souhaitee or (PLANNING_SALLES[0] if PLANNING_SALLES else "Sans salle")
         with get_db() as conn:
             conn.execute("""INSERT INTO formations(nom, type, date_debut, date_fin, salle, nombre_stagiaires, commentaire, created_at)
                          VALUES(?,?,?,?,?,?,?,?)""",
                          (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, datetime.now().isoformat()))
             formation_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         add_planning_history(formation_id, "creation", f"{nom} / {salle} / {date_debut}-{date_fin}")
-        flash("Formation ajoutée avec succès.", "success")
+        if error:
+            flash(f"{error} Formation ajoutée avec conflit sur {salle}.", "error")
+        else:
+            flash("Formation ajoutée avec succès.", "success")
         return redirect(url_for("planning_home"))
     return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation={})
 
@@ -4685,13 +4687,15 @@ def formation_modifier(id):
         commentaire = request.form.get("commentaire", "").strip()
         salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee, exclude_id=id)
         if error:
-            flash(error, "error")
-            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=request.form, formation_id=id)
+            salle = salle_souhaitee or (current["salle"] if current["salle"] else (PLANNING_SALLES[0] if PLANNING_SALLES else "Sans salle"))
         with get_db() as conn:
             conn.execute("""UPDATE formations SET nom=?, type=?, date_debut=?, date_fin=?, salle=?, nombre_stagiaires=?, commentaire=? WHERE id=?""",
                          (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, id))
         add_planning_history(id, "modification", f"{nom} / {salle} / {date_debut}-{date_fin}")
-        flash("Formation modifiée.", "success")
+        if error:
+            flash(f"{error} Formation modifiée avec conflit sur {salle}.", "error")
+        else:
+            flash("Formation modifiée.", "success")
         return redirect(url_for("planning_home"))
     return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=dict(current), formation_id=id)
 

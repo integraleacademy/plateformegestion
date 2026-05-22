@@ -132,6 +132,12 @@ function planningDashboard(){
     dayNames:['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'],
     monthLabel:'',monthCells:[],
     statCards:[],roomLegend:[],roomStatus:[],listSearch:'',
+    formatDisplayDate(value){
+      if (!value) return "—";
+      const [year, month, day] = String(value).split("-");
+      if (!year || !month || !day) return value;
+      return `${day}/${month}/${year}`;
+    },
     get filteredList(){
       const q = this.listSearch.toLowerCase();
       const sorted = [...formations].sort((a,b)=>String(a.date_debut||'').localeCompare(String(b.date_debut||'')));

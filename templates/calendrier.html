@@ -82,7 +82,7 @@ function plannerApp(){
     events: {{ events|tojson }}, salles: {{ salles|tojson }}, viewMode:'calendar', roomFilter:'', typeFilter:'', statusFilter:'all', search:'', cal:null,
     selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[],
     init(){
-      this.cal=new FullCalendar.Calendar(document.getElementById('calendar'),{initialView:'dayGridMonth',height:'auto',locale:'fr',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},events:this.events,
+      this.cal=new FullCalendar.Calendar(document.getElementById('calendar'),{initialView:'dayGridMonth',height:'auto',locale:'fr',dayMaxEvents:true,moreLinkClick:'popover',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},events:this.events,
       dateClick:(i)=>{this.selectedDate=i.dateStr;this.computeAvailability();},
       eventDidMount:(info)=>{info.el.classList.add('rounded-xl','shadow-sm');if(info.event.extendedProps.conflit){info.el.innerHTML+=' <span style="margin-left:4px">⚠️</span>'}},
       eventClick:(info)=>{const e=info.event;alert(`${e.title}\nSalle: ${e.extendedProps.salle}\nHoraire: ${e.extendedProps.horaire}\nFormateur: ${e.extendedProps.formateur}\nStagiaires: ${e.extendedProps.stagiaires}`)}

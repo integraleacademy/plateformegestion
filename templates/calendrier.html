@@ -66,6 +66,7 @@
     <aside class="glass rounded-2xl border border-white/60 shadow-xl p-4 space-y-4">
       <h3 class="font-semibold">Disponibilités des salles</h3>
       <p class="text-sm text-zinc-500">Date sélectionnée: <span class="font-medium text-zinc-800" x-text="formatDate(selectedDate)"></span></p>
+      <p class="text-xs text-emerald-700" x-show="lastClickLabel" x-text="lastClickLabel"></p>
       <div class="grid grid-cols-2 gap-2">
         <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2"><p class="text-xs text-emerald-700">Salles disponibles</p><p class="text-xl font-semibold text-emerald-700" x-text="freeRooms.length"></p></div>
         <div class="rounded-lg bg-blue-50 border border-blue-200 p-2"><p class="text-xs text-blue-700">Salles occupées</p><p class="text-xl font-semibold text-blue-700" x-text="occupiedRooms.length"></p></div>
@@ -86,7 +87,7 @@
 function plannerApp(){
   return {
     events: {{ events|tojson }}, salles: {{ salles|tojson }}, viewMode:'calendar', roomFilter:'', typeFilter:'', statusFilter:'all', search:'', cal:null,
-    selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[], dayEvents:[],
+    selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[], dayEvents:[], lastClickLabel:'',
     init(){
       this.cal=new FullCalendar.Calendar(document.getElementById('calendar'),{initialView:'dayGridMonth',height:'auto',locale:'fr',dayMaxEvents:true,moreLinkClick:'popover',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},events:this.events,
       dateClick:(i)=>this.selectDate(i.date),
@@ -102,6 +103,12 @@ function plannerApp(){
       }
       });
       this.cal.render();this.computeAvailability();
+      document.getElementById('calendar').addEventListener('click', (evt)=>{
+        const cell = evt.target.closest('[data-date]');
+        if(cell && cell.dataset.date){
+          this.selectDate(cell.dataset.date);
+        }
+      });
       this.$watch('roomFilter',()=>this.applyFilters()); this.$watch('typeFilter',()=>this.applyFilters()); this.$watch('statusFilter',()=>this.applyFilters()); this.$watch('search',()=>this.applyFilters());
     },
     get roomPlanning(){return this.salles.map(r=>({nom:r,events:this.events.filter(e=>e.extendedProps.salle===r)}));},
@@ -114,6 +121,7 @@ function plannerApp(){
       const m = String(d.getMonth()+1).padStart(2,'0');
       const day = String(d.getDate()).padStart(2,'0');
       this.selectedDate = `${y}-${m}-${day}`;
+      this.lastClickLabel = `✓ Mise à jour : ${this.formatDate(this.selectedDate)}`;
       this.computeAvailability();
     },
     applyFilters(){

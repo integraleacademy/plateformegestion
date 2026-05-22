@@ -40,7 +40,7 @@
               <div class="text-right text-sm mb-1" :class="cell.current ? 'text-zinc-800':'text-zinc-400'" x-text="cell.day"></div>
               <div class="space-y-1">
                 <template x-for="event in cell.events" :key="event.id">
-                  <a :href="`/formation/${event.id}/edit`" class="block text-xs px-2 py-1 rounded text-white truncate" :style="`background:${event.color}`" x-text="`${event.nom} · ${event.salle}`"></a>
+                  <a :href="`/formation/${event.id}/edit`" class="block text-xs px-2 py-1 rounded text-white truncate" :style="`background:${event.color}`" :title="`Salle affectée: ${event.salle}`" x-text="`${event.nom} · ${event.salle}`"></a>
                 </template>
               </div>
             </div>

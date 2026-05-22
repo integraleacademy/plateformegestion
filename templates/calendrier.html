@@ -89,15 +89,33 @@ function plannerApp(){
     selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[], dayEvents:[],
     init(){
       this.cal=new FullCalendar.Calendar(document.getElementById('calendar'),{initialView:'dayGridMonth',height:'auto',locale:'fr',dayMaxEvents:true,moreLinkClick:'popover',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},events:this.events,
-      dateClick:(i)=>{this.selectedDate=i.dateStr;this.computeAvailability();},
+      dateClick:(i)=>this.selectDate(i.date),
+      dayCellDidMount:(info)=>{
+        info.el.style.cursor='pointer';
+        info.el.addEventListener('click',()=>this.selectDate(info.date));
+      },
       eventDidMount:(info)=>{info.el.classList.add('rounded-xl','shadow-sm');if(info.event.extendedProps.conflit){info.el.innerHTML+=' <span style="margin-left:4px">⚠️</span>'}},
-      eventClick:(info)=>{const e=info.event;alert(`${e.title}\nSalle: ${e.extendedProps.salle}\nHoraire: ${e.extendedProps.horaire}\nFormateur: ${e.extendedProps.formateur}\nStagiaires: ${e.extendedProps.stagiaires}`)}
+      eventClick:(info)=>{
+        const e=info.event;
+        this.selectDate(e.start);
+        alert(`${e.title}\nSalle: ${e.extendedProps.salle}\nHoraire: ${e.extendedProps.horaire}\nFormateur: ${e.extendedProps.formateur}\nStagiaires: ${e.extendedProps.stagiaires}`)
+      }
       });
       this.cal.render();this.computeAvailability();
       this.$watch('roomFilter',()=>this.applyFilters()); this.$watch('typeFilter',()=>this.applyFilters()); this.$watch('statusFilter',()=>this.applyFilters()); this.$watch('search',()=>this.applyFilters());
     },
     get roomPlanning(){return this.salles.map(r=>({nom:r,events:this.events.filter(e=>e.extendedProps.salle===r)}));},
     setCalendarView(v){if(this.cal)this.cal.changeView(v)},
+    selectDate(dateValue){
+      if(!dateValue) return;
+      const d = new Date(dateValue);
+      if(Number.isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      this.selectedDate = `${y}-${m}-${day}`;
+      this.computeAvailability();
+    },
     applyFilters(){
       const filtered=this.events.filter(e=>{
         if(this.roomFilter && e.extendedProps.salle!==this.roomFilter) return false;

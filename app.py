@@ -4640,6 +4640,14 @@ def planning_home():
         formations = [f for f in formations if not f["conflit"]]
     return render_template("planning.html", formations=formations, salles=PLANNING_SALLES, stats=stats, types=PLANNING_TYPES)
 
+@app.route("/planning/formations")
+def planning_formations():
+    init_planning_db()
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM formations ORDER BY date_debut ASC, id DESC").fetchall()
+    formations = [format_formation(r) for r in rows]
+    return render_template("planning_formations.html", formations=formations)
+
 @app.route("/formation/ajouter", methods=["GET", "POST"])
 def formation_ajouter():
     init_planning_db()

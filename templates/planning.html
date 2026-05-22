@@ -64,6 +64,55 @@
       </aside>
     </div>
   </section>
+
+  <section class="rounded-2xl border border-zinc-200 bg-white shadow-sm p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h3 class="text-lg font-semibold">Liste complète des formations</h3>
+        <p class="text-sm text-zinc-500">Toutes les sessions enregistrées sur le planning.</p>
+      </div>
+      <div class="w-full md:w-80">
+        <input
+          type="search"
+          x-model.trim="listSearch"
+          placeholder="Rechercher une formation, type, salle…"
+          class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+    </div>
+
+    <div class="overflow-auto border rounded-xl">
+      <table class="min-w-full text-sm">
+        <thead class="bg-zinc-50">
+          <tr>
+            <th class="text-left px-3 py-2 font-semibold">Formation</th>
+            <th class="text-left px-3 py-2 font-semibold">Type</th>
+            <th class="text-left px-3 py-2 font-semibold">Dates</th>
+            <th class="text-left px-3 py-2 font-semibold">Salle</th>
+            <th class="text-left px-3 py-2 font-semibold">Stagiaires</th>
+            <th class="text-left px-3 py-2 font-semibold">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-if="filteredList.length===0">
+            <tr><td colspan="6" class="px-3 py-4 text-center text-zinc-500">Aucune formation trouvée.</td></tr>
+          </template>
+          <template x-for="item in filteredList" :key="item.id">
+            <tr class="border-t">
+              <td class="px-3 py-2" x-text="item.nom"></td>
+              <td class="px-3 py-2" x-text="item.type || '—'"></td>
+              <td class="px-3 py-2" x-text="`${item.date_debut || '—'} → ${item.date_fin || '—'}`"></td>
+              <td class="px-3 py-2" x-text="item.salle || 'Sans salle'"></td>
+              <td class="px-3 py-2" x-text="item.nombre_stagiaires ?? 0"></td>
+              <td class="px-3 py-2">
+                <a :href="`/formation/${item.id}/edit`" class="inline-flex items-center rounded-lg border px-2 py-1 hover:bg-zinc-50">Ouvrir</a>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -76,7 +125,20 @@ function planningDashboard(){
     current: new Date(),
     dayNames:['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'],
     monthLabel:'',monthCells:[],
-    statCards:[],roomLegend:[],roomStatus:[],
+    statCards:[],roomLegend:[],roomStatus:[],listSearch:'',
+    get filteredList(){
+      const q = this.listSearch.toLowerCase();
+      const sorted = [...formations].sort((a,b)=>String(a.date_debut||'').localeCompare(String(b.date_debut||'')));
+      if(!q) return sorted;
+      return sorted.filter(f=>[
+        f.nom,
+        f.type,
+        f.salle,
+        f.date_debut,
+        f.date_fin,
+        String(f.nombre_stagiaires ?? '')
+      ].some(v=>String(v||'').toLowerCase().includes(q)));
+    },
     init(){this.buildStats();this.roomLegend=roomNames.map(r=>({name:r,color:colorByRoom[r]||'#64748b'}));this.render();this.$nextTick(()=>lucide.createIcons());},
     buildStats(){
       const now = new Date(); const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;

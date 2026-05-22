@@ -101,7 +101,7 @@
             <tr class="border-t">
               <td class="px-3 py-2" x-text="item.nom"></td>
               <td class="px-3 py-2" x-text="item.type || '—'"></td>
-              <td class="px-3 py-2" x-text="`${item.date_debut || '—'} → ${item.date_fin || '—'}`"></td>
+              <td class="px-3 py-2" x-text="`${formatDisplayDate(item.date_debut)} → ${formatDisplayDate(item.date_fin)}`"></td>
               <td class="px-3 py-2" x-text="item.salle || 'Sans salle'"></td>
               <td class="px-3 py-2" x-text="item.nombre_stagiaires ?? 0"></td>
               <td class="px-3 py-2">
@@ -121,6 +121,12 @@ function planningDashboard(){
   const roomNames = {{ salles|tojson }};
   const palette=['#22c55e','#2563eb','#f97316','#a855f7','#06b6d4','#eab308'];
   const colorByRoom = Object.fromEntries(roomNames.map((r,i)=>[r,palette[i%palette.length]]));
+  const formatDisplayDate = (value) => {
+    if (!value) return "—";
+    const [year, month, day] = String(value).split("-");
+    if (!year || !month || !day) return value;
+    return `${day}/${month}/${year}`;
+  };
   return {
     current: new Date(),
     dayNames:['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'],

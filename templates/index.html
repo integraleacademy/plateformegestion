@@ -481,7 +481,7 @@
       font-weight: 600;
     }
 
-    .shortcut-form-actions {
+.shortcut-form-actions {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
@@ -652,6 +652,7 @@
   <div class="title">Demandes de devis</div>
   <div class="desc">Devis détaillés & financement</div>
   <div id="notif-devis" class="notif empty">🧾 Chargement...</div>
+  <button type="button" class="vae-open-btn" id="open-vae-simulator">Eligibilité VAE</button>
 </a>
 
   <a class="card" href="https://factures-jx8r.onrender.com/admin" target="_blank" rel="noopener">
@@ -723,6 +724,49 @@
 
 
       </section>
+    </div>
+
+    <div class="vae-modal" id="vae-modal" aria-hidden="true">
+      <div class="vae-modal-card">
+        <div class="vae-head">
+          <div class="vae-brand">
+            <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy">
+            <div>
+              <h2>Simulateur d'éligibilité VAE DESP</h2>
+              <p>Évaluez rapidement le profil et orientez le candidat vers la bonne action.</p>
+            </div>
+          </div>
+          <button type="button" class="vae-close" id="close-vae-modal" aria-label="Fermer">×</button>
+        </div>
+
+        <div id="vae-form">
+          <div class="vae-question">
+            <h4>1. Avez-vous déjà une carte professionnelle CNAPS ?</h4>
+            <div class="vae-options"><label><input type="radio" name="q1" value="oui"> Oui</label><label><input type="radio" name="q1" value="non"> Non</label></div>
+          </div>
+          <div class="vae-question">
+            <h4>2. Avez-vous déjà créé, repris ou dirigé une entreprise, même hors secteur sécurité privée ?</h4>
+            <div class="vae-options"><label><input type="radio" name="q2" value="oui"> Oui</label><label><input type="radio" name="q2" value="non"> Non</label></div>
+          </div>
+          <div class="vae-question">
+            <h4>3. Avez-vous une expérience en gestion d’entreprise, management, encadrement d’équipe ou comptabilité ?</h4>
+            <div class="vae-options"><label><input type="radio" name="q3" value="oui"> Oui</label><label><input type="radio" name="q3" value="non"> Non</label></div>
+          </div>
+          <div class="vae-question">
+            <h4>4. Avez-vous un diplôme en gestion, comptabilité, management ou gestion d’entreprise ?</h4>
+            <div class="vae-options"><label><input type="radio" name="q4" value="oui"> Oui</label><label><input type="radio" name="q4" value="non"> Non</label></div>
+          </div>
+          <div class="vae-question">
+            <h4>5. Disposez-vous de documents pour justifier votre expérience ?</h4>
+            <p>Exemples : Kbis, fiches de paie, contrat de travail, attestation employeur, statuts de société, bilans, documents comptables.</p>
+            <div class="vae-options"><label><input type="radio" name="q5" value="oui"> Oui</label><label><input type="radio" name="q5" value="non"> Non</label></div>
+          </div>
+          <div class="vae-result" id="vae-result">
+            <h3>Complétez le simulateur</h3>
+            <p>Répondez aux 5 questions pour afficher le résultat d’orientation.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="shortcut-modal" id="shortcut-modal" aria-hidden="true">
@@ -1003,6 +1047,63 @@ async function updateDotations() {
     box.innerHTML = "🔒 Erreur Dotations";
   }
 }
+
+/* === Simulateur VAE DESP === */
+.vae-open-btn {
+  margin-top: 10px;
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1947e6, #0d1b5f);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(25, 71, 230, 0.3);
+}
+
+.vae-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 14, 40, 0.72);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+}
+
+.vae-modal.open { display: flex; }
+
+.vae-modal-card {
+  width: min(920px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 40px 80px rgba(5, 14, 40, 0.35);
+  padding: 22px;
+}
+
+.vae-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vae-brand { display: flex; align-items: center; gap: 12px; }
+.vae-brand img { width: 52px; height: 52px; border-radius: 12px; object-fit: contain; background: #fff; }
+.vae-close { border: none; background: #edf1ff; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 22px; }
+.vae-question { padding: 14px; border: 1px solid #e5e9ff; border-radius: 14px; margin-top: 10px; }
+.vae-question h4 { margin: 0 0 8px; }
+.vae-options { display: flex; gap: 12px; flex-wrap: wrap; }
+.vae-result { margin-top: 18px; border-radius: 14px; padding: 16px; background: #f8faff; border: 1px solid #dfe7ff; }
+.vae-result h3 { margin: 0 0 8px; }
+.vae-msg { margin-top: 10px; font-weight: 600; color: #0d1b5f; }
+.vae-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.vae-link {
+  text-decoration: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+.vae-link.primary { background: #1239c7; color: white; }
+.vae-link.secondary { background: #e8eeff; color: #0d1b5f; }
 
 
 
@@ -1554,9 +1655,80 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.reload();
   }, 600000);
 
-    
+  const vaeModal = document.getElementById("vae-modal");
+  const openVaeBtn = document.getElementById("open-vae-simulator");
+  const closeVaeBtn = document.getElementById("close-vae-modal");
+  const vaeResult = document.getElementById("vae-result");
+  const vaeInputs = document.querySelectorAll("#vae-form input[type='radio']");
 
-    
+  if (openVaeBtn) {
+    openVaeBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      vaeModal.classList.add("open");
+      vaeModal.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  if (closeVaeBtn) {
+    closeVaeBtn.addEventListener("click", () => {
+      vaeModal.classList.remove("open");
+      vaeModal.setAttribute("aria-hidden", "true");
+    });
+  }
+
+  vaeModal?.addEventListener("click", (event) => {
+    if (event.target === vaeModal) {
+      vaeModal.classList.remove("open");
+      vaeModal.setAttribute("aria-hidden", "true");
+    }
+  });
+
+  function getAnswer(name) {
+    return document.querySelector(`input[name='${name}']:checked`)?.value || null;
+  }
+
+  function renderVaeResult() {
+    const q1 = getAnswer("q1");
+    const q2 = getAnswer("q2");
+    const q3 = getAnswer("q3");
+    const q4 = getAnswer("q4");
+    const q5 = getAnswer("q5");
+
+    if (![q1, q2, q3, q4, q5].every(Boolean)) return;
+
+    const hasBizExp = [q2, q3, q4].some((v) => v === "oui");
+    const cnapsMessage = q1 === "oui"
+      ? "Votre expérience sécurité privée est un atout pour votre dossier."
+      : "Ce n’est pas bloquant. Un module e-learning pourra vous permettre d’acquérir les compétences liées à la sécurité privée.";
+
+    let title = "";
+    let text = "";
+
+    if (q5 === "non") {
+      title = "Votre dossier nécessite des justificatifs.";
+      text = "Pour une VAE, vous devez pouvoir prouver votre expérience avec des documents : Kbis, fiches de paie, contrat de travail, attestations, documents comptables…";
+    } else if (!hasBizExp) {
+      title = "La VAE DESP ne semble pas adaptée à votre profil.";
+      text = "Nous vous conseillons plutôt la formation DESP initiale pour obtenir le titre de Dirigeant d’Entreprise de Sécurité Privée.";
+    } else {
+      title = "Bonne nouvelle, votre profil semble éligible à la VAE DESP.";
+      text = "Vous pouvez démarrer votre dossier de recevabilité en ligne. Notre plateforme vous guide étape par étape.";
+    }
+
+    vaeResult.innerHTML = `
+      <h3>${title}</h3>
+      <p>${text}</p>
+      <p class="vae-msg">${cnapsMessage}</p>
+      <div class="vae-actions">
+        <a class="vae-link primary" href="https://gestionstagiaires-r5no.onrender.com/vae-desp" target="_blank" rel="noopener">Démarrer ma VAE DESP</a>
+        <a class="vae-link secondary" href="https://assistance-alw9.onrender.com/demande-informations-formations" target="_blank" rel="noopener">Être rappelé par un conseiller</a>
+      </div>
+      <p><strong>Téléphone :</strong> 04 22 47 07 68</p>
+    `;
+  }
+
+  vaeInputs.forEach((input) => input.addEventListener("change", renderVaeResult));
 </script>
 
 

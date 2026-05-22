@@ -36,7 +36,7 @@
         <div class="grid grid-cols-7 min-w-[900px]">
           <template x-for="name in dayNames"><div class="p-3 text-sm font-semibold border-b border-r bg-zinc-50" x-text="name"></div></template>
           <template x-for="(cell,idx) in monthCells" :key="idx">
-            <div class="min-h-[118px] p-2 border-r border-b" :class="cell.current ? 'bg-white':'bg-zinc-50/70'">
+            <div class="min-h-[118px] p-2 border-r border-b cursor-pointer" :class="cell.current ? 'bg-white':'bg-zinc-50/70'" @click="selectDate(cell.dateStr)">
               <div class="text-right text-sm mb-1" :class="cell.current ? 'text-zinc-800':'text-zinc-400'" x-text="cell.day"></div>
               <div class="space-y-1">
                 <template x-for="event in cell.events" :key="event.id">
@@ -56,7 +56,12 @@
           </template>
         </div>
         <div class="border rounded-xl p-3">
-          <h4 class="font-semibold mb-2">Disponibilité aujourd'hui</h4>
+          <h4 class="font-semibold mb-2">Disponibilité (date sélectionnée)</h4>
+          <p class="text-xs text-zinc-500 mb-2">Date : <span class="font-medium text-zinc-800" x-text="formatDisplayDate(selectedDate)"></span></p>
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2"><p class="text-xs text-emerald-700">Disponibles</p><p class="text-lg font-semibold text-emerald-700" x-text="freeRoomsCount"></p></div>
+            <div class="rounded-lg bg-blue-50 border border-blue-200 p-2"><p class="text-xs text-blue-700">Occupées</p><p class="text-lg font-semibold text-blue-700" x-text="occupiedRoomsCount"></p></div>
+          </div>
           <template x-for="status in roomStatus" :key="status.name">
             <div class="flex justify-between text-sm mb-1"><span x-text="status.name"></span><span :class="status.occupied ? 'text-red-600':'text-emerald-600'" x-text="status.occupied ? 'Occupée':'Disponible'"></span></div>
           </template>
@@ -131,7 +136,7 @@ function planningDashboard(){
     current: new Date(),
     dayNames:['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'],
     monthLabel:'',monthCells:[],
-    statCards:[],roomLegend:[],roomStatus:[],listSearch:'',
+    statCards:[],roomLegend:[],roomStatus:[],listSearch:'', selectedDate:'', occupiedRoomsCount:0, freeRoomsCount:0,
     formatDisplayDate(value){
       if (!value) return "—";
       const [year, month, day] = String(value).split("-");
@@ -151,7 +156,7 @@ function planningDashboard(){
         String(f.nombre_stagiaires ?? '')
       ].some(v=>String(v||'').toLowerCase().includes(q)));
     },
-    init(){this.buildStats();this.roomLegend=roomNames.map(r=>({name:r,color:colorByRoom[r]||'#64748b'}));this.render();this.$nextTick(()=>lucide.createIcons());},
+    init(){this.selectedDate=this.iso(new Date());this.buildStats();this.roomLegend=roomNames.map(r=>({name:r,color:colorByRoom[r]||'#64748b'}));this.render();this.computeRoomStatus();this.$nextTick(()=>lucide.createIcons());},
     buildStats(){
       const now = new Date(); const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
       const monthItems = formations.filter(f=>String(f.date_debut||'').slice(0,7)===ym || String(f.date_fin||'').slice(0,7)===ym);
@@ -172,7 +177,17 @@ function planningDashboard(){
       const day = String(d.getDate()).padStart(2,'0');
       return `${y}-${m}-${day}`;
     },
-    today(){this.current=new Date();this.render();},
+    computeRoomStatus(){
+      const occupied = new Set(formations.filter(f=>(f.date_debut<=this.selectedDate && f.date_fin>=this.selectedDate)).map(f=>f.salle));
+      this.occupiedRoomsCount = [...occupied].filter(Boolean).length;
+      this.freeRoomsCount = roomNames.length - this.occupiedRoomsCount;
+      this.roomStatus = roomNames.map(name=>({name,occupied:occupied.has(name)}));
+    },
+    selectDate(dateStr){
+      this.selectedDate = dateStr;
+      this.computeRoomStatus();
+    },
+    today(){this.current=new Date();this.selectedDate=this.iso(new Date());this.render();this.computeRoomStatus();},
     changeMonth(step){this.current=new Date(this.current.getFullYear(),this.current.getMonth()+step,1);this.render();},
     render(){
       const y=this.current.getFullYear(), m=this.current.getMonth();
@@ -184,7 +199,7 @@ function planningDashboard(){
         const day=new Date(start); day.setDate(start.getDate()+i);
         const dateStr=this.iso(day);
         const events=formations.filter(f=>f.date_debut<=dateStr && f.date_fin>=dateStr).map(f=>({id:f.id,nom:f.nom,salle:f.salle||'Sans salle',color:colorByRoom[f.salle]||'#64748b'}));
-        this.monthCells.push({day:day.getDate(),current:day.getMonth()===m,events});
+        this.monthCells.push({day:day.getDate(),dateStr,current:day.getMonth()===m,events});
       }
     }
   }

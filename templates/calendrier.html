@@ -115,9 +115,15 @@ function plannerApp(){
       return date.toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
     },
     computeAvailability(){
-      const day=this.selectedDate;
-      const inDay=(e)=>e.start<=day && e.end>day;
-      const current=this.cal.getEvents().filter(e=>inDay({start:e.startStr,end:e.endStr})).map(e=>({room:e.extendedProps.salle,title:e.title,conflit:e.extendedProps.conflit,id:e.id,extendedProps:e.extendedProps}));
+      const dayStart = new Date(`${this.selectedDate}T00:00:00`);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const current=this.cal.getEvents().filter(e=>{
+        const start = e.start;
+        const end = e.end || e.start;
+        return start < dayEnd && end > dayStart;
+      }).map(e=>({room:e.extendedProps.salle,title:e.title,conflit:e.extendedProps.conflit,id:e.id,extendedProps:e.extendedProps}));
       this.dayEvents=current;
       this.occupiedRooms=this.salles.filter(s=>current.some(c=>c.room===s)).map(s=>({room:s,by:current.filter(c=>c.room===s).map(c=>c.title).join(', ')}));
       this.freeRooms=this.salles.filter(s=>!this.occupiedRooms.some(o=>o.room===s));

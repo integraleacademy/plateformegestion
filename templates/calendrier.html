@@ -65,9 +65,15 @@
     </div>
     <aside class="glass rounded-2xl border border-white/60 shadow-xl p-4 space-y-4">
       <h3 class="font-semibold">Disponibilités des salles</h3>
-      <p class="text-sm text-zinc-500">Date sélectionnée: <span class="font-medium text-zinc-800" x-text="selectedDate"></span></p>
+      <p class="text-sm text-zinc-500">Date sélectionnée: <span class="font-medium text-zinc-800" x-text="formatDate(selectedDate)"></span></p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2"><p class="text-xs text-emerald-700">Salles disponibles</p><p class="text-xl font-semibold text-emerald-700" x-text="freeRooms.length"></p></div>
+        <div class="rounded-lg bg-blue-50 border border-blue-200 p-2"><p class="text-xs text-blue-700">Salles occupées</p><p class="text-xl font-semibold text-blue-700" x-text="occupiedRooms.length"></p></div>
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-2"><p class="text-xs text-amber-700">Formations ce jour</p><p class="text-xl font-semibold text-amber-700" x-text="dayEvents.length"></p></div>
+        <div class="rounded-lg bg-red-50 border border-red-200 p-2"><p class="text-xs text-red-700">Conflits</p><p class="text-xl font-semibold text-red-700" x-text="conflicts.length"></p></div>
+      </div>
       <div><p class="text-xs uppercase text-zinc-500">Salles libres</p><p class="text-sm" x-text="freeRooms.join(', ') || 'Aucune'"></p></div>
-      <div><p class="text-xs uppercase text-zinc-500">Salles occupées</p><template x-for="it in occupiedRooms" :key="it.room"><p class="text-sm"><strong x-text="it.room"></strong> — <span x-text="it.by"></span></p></template></div>
+      <div><p class="text-xs uppercase text-zinc-500">Salles occupées</p><template x-for="it in occupiedRooms" :key="it.room"><p class="text-sm"><strong x-text="it.room"></strong> — <span x-text="it.by"></span></p></template><p class="text-sm text-zinc-500" x-show="occupiedRooms.length===0">Aucune</p></div>
       <div>
         <p class="text-xs uppercase text-zinc-500">Conflits à corriger</p>
         <template x-for="c in conflicts" :key="c.id"><div class="text-sm text-red-600">⚠️ <span x-text="c.title"></span> (<span x-text="c.extendedProps.salle"></span>)</div></template>
@@ -80,7 +86,7 @@
 function plannerApp(){
   return {
     events: {{ events|tojson }}, salles: {{ salles|tojson }}, viewMode:'calendar', roomFilter:'', typeFilter:'', statusFilter:'all', search:'', cal:null,
-    selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[],
+    selectedDate: new Date().toISOString().slice(0,10), freeRooms:[], occupiedRooms:[], conflicts:[], dayEvents:[],
     init(){
       this.cal=new FullCalendar.Calendar(document.getElementById('calendar'),{initialView:'dayGridMonth',height:'auto',locale:'fr',dayMaxEvents:true,moreLinkClick:'popover',headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},events:this.events,
       dateClick:(i)=>{this.selectedDate=i.dateStr;this.computeAvailability();},
@@ -104,10 +110,21 @@ function plannerApp(){
       });
       this.cal.removeAllEvents(); filtered.forEach(e=>this.cal.addEvent(e)); this.computeAvailability();
     },
+    formatDate(dateStr){
+      const date = new Date(`${dateStr}T00:00:00`);
+      return date.toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+    },
     computeAvailability(){
-      const day=this.selectedDate;
-      const inDay=(e)=>e.start<=day && e.end>day;
-      const current=this.cal.getEvents().filter(e=>inDay({start:e.startStr,end:e.endStr})).map(e=>({room:e.extendedProps.salle,title:e.title,conflit:e.extendedProps.conflit,id:e.id,extendedProps:e.extendedProps}));
+      const dayStart = new Date(`${this.selectedDate}T00:00:00`);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const current=this.cal.getEvents().filter(e=>{
+        const start = e.start;
+        const end = e.end || e.start;
+        return start < dayEnd && end > dayStart;
+      }).map(e=>({room:e.extendedProps.salle,title:e.title,conflit:e.extendedProps.conflit,id:e.id,extendedProps:e.extendedProps}));
+      this.dayEvents=current;
       this.occupiedRooms=this.salles.filter(s=>current.some(c=>c.room===s)).map(s=>({room:s,by:current.filter(c=>c.room===s).map(c=>c.title).join(', ')}));
       this.freeRooms=this.salles.filter(s=>!this.occupiedRooms.some(o=>o.room===s));
       this.conflicts=current.filter(c=>c.conflit);

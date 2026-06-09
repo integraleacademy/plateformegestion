@@ -58,53 +58,42 @@
         <a class="btn btn-outline" href="{{ url_for('prospecting.export_prospects') }}">⇩ Export Excel</a>
       </div>
 
+      <div class="default-view-note"><strong>Vue par défaut :</strong> prospects avec signal récent depuis moins de 90 jours. Les entreprises anciennes sans signal récent sont masquées et disponibles dans Archives.</div>
       <form class="filters" method="get">
         <label class="search-field"><span>⌕</span><input name="q" value="{{ filters.q }}" placeholder="Rechercher un nom, une ville, un SIREN…"></label>
+        <select name="signal_filter" aria-label="Filtre de récence">{% for value, label in signal_filters %}<option value="{{ value }}" {{ 'selected' if filters.signal_filter == value }}>{{ label }}</option>{% endfor %}</select>
         <select name="status"><option value="">Tous les statuts</option>{% for status in statuses %}<option value="{{ status }}" {{ 'selected' if filters.status == status }}>{{ status }}</option>{% endfor %}</select>
         <select name="score"><option value="0">Tous les scores</option><option value="80" {{ 'selected' if filters.score == 80 }}>80 et +</option><option value="60" {{ 'selected' if filters.score == 60 }}>60 et +</option><option value="40" {{ 'selected' if filters.score == 40 }}>40 et +</option></select>
         <button class="btn btn-dark" type="submit">Filtrer</button>
-        {% if filters.q or filters.status or filters.score %}<a class="reset-link" href="{{ url_for('prospecting.admin_prospects') }}">Réinitialiser</a>{% endif %}
+        {% if filters.q or filters.status or filters.score or filters.signal_filter != 'recent_90' %}<a class="reset-link" href="{{ url_for('prospecting.admin_prospects') }}">Réinitialiser</a>{% endif %}
       </form>
 
       <div class="table-wrap">
-        <table>
-          <thead><tr><th>Score</th><th>Entreprise</th><th>Localisation</th><th>Contact</th><th>Source & signal</th><th>Statut</th><th>Détecté</th><th>Actions</th></tr></thead>
+        <table class="signals-table">
+          <thead><tr><th>Score</th><th>Nom</th><th>Ville</th><th>Département</th><th>Date création</th><th>Signal récent</th><th>Date du signal</th><th>Ancienneté</th><th>Source</th><th>Statut commercial</th><th>Commentaire</th><th>Actions</th></tr></thead>
           <tbody>
           {% for prospect in prospects %}
-            <tr>
+            <tr class="{{ 'archived-row' if prospect.archive }}">
               <td><div class="score score-{{ 'high' if prospect.score >= 75 else 'mid' if prospect.score >= 50 else 'low' }}"><strong>{{ prospect.score }}</strong><span>/100</span></div></td>
-              <td class="company-cell">
-                <strong>{{ prospect.name }}</strong>
-                <span>{% if prospect.siret %}SIRET {{ prospect.siret }}{% elif prospect.siren %}SIREN {{ prospect.siren }}{% else %}Identifiant non disponible{% endif %}</span>
-                <div class="badges">{% if prospect.ape_code %}<b>APE {{ prospect.ape_code }}</b>{% endif %}{% if prospect.qualiopi %}<b class="qualiopi">✓ Qualiopi</b>{% endif %}</div>
-              </td>
-              <td><strong>{{ prospect.city or '—' }}</strong><span class="subline">{{ prospect.department and 'Département ' ~ prospect.department or 'Non localisé' }}</span></td>
-              <td class="contact-cell">
-                {% if prospect.manager %}<span>♙ {{ prospect.manager }}</span>{% endif %}
-                {% if prospect.email %}<a href="mailto:{{ prospect.email }}">✉ {{ prospect.email }}</a>{% endif %}
-                {% if prospect.phone %}<a href="tel:{{ prospect.phone }}">☎ {{ prospect.phone }}</a>{% endif %}
-                {% if prospect.website %}<a href="{{ prospect.website if prospect.website.startswith('http') else 'https://' ~ prospect.website }}" target="_blank" rel="noopener">↗ Site internet</a>{% endif %}
-                {% if not prospect.manager and not prospect.email and not prospect.phone and not prospect.website %}<span class="subline">À enrichir</span>{% endif %}
-              </td>
-              <td class="signal-cell"><b>{{ prospect.source }}</b><span>{{ prospect.signal }}</span></td>
+              <td class="company-cell"><strong>{{ prospect.name }}</strong><span>{% if prospect.siret %}SIRET {{ prospect.siret }}{% elif prospect.siren %}SIREN {{ prospect.siren }}{% endif %}</span><div class="badges">{% if prospect.qualiopi %}<b class="signal-badge badge-blue">Qualiopi</b>{% endif %}{% if prospect.archive %}<b class="signal-badge badge-gray">Archivé</b>{% endif %}</div></td>
+              <td><strong>{{ prospect.city or '—' }}</strong></td>
+              <td>{{ prospect.department or '—' }}</td>
+              <td><span>{{ prospect.date_creation_entreprise|datefr if prospect.date_creation_entreprise else '—' }}</span>{% if prospect.date_creation_etablissement %}<small>Établ. {{ prospect.date_creation_etablissement|datefr }}</small>{% endif %}</td>
+              <td class="signal-cell"><span class="signal-badge {% if prospect.archive %}badge-gray{% elif prospect.type_signal_recent == 'Qualiopi récent' %}badge-blue{% elif prospect.type_signal_recent == 'Recrutement formateur sécurité' %}badge-purple{% elif 'Création' in prospect.type_signal_recent %}badge-gold{% elif prospect.anciennete_signal_jours is not none and prospect.anciennete_signal_jours <= 30 %}badge-green{% elif prospect.anciennete_signal_jours is not none and prospect.anciennete_signal_jours <= 90 %}badge-orange{% else %}badge-gray{% endif %}">{{ prospect.type_signal_recent }}</span><small>{{ prospect.raison_detection }}</small></td>
+              <td>{{ prospect.date_signal_recent|datefr if prospect.date_signal_recent else '—' }}</td>
+              <td>{% if prospect.anciennete_signal_jours is not none %}<strong>{{ prospect.anciennete_signal_jours }} j</strong>{% else %}<span class="subline">Non daté</span>{% endif %}</td>
+              <td><strong>{{ prospect.source }}</strong>{% if prospect.source_url %}<small><a href="{{ prospect.source_url }}" target="_blank" rel="noopener">Voir la source ↗</a></small>{% endif %}</td>
               <td><span class="status status-{{ prospect.commercial_status|lower|replace(' ', '-')|replace('à', 'a') }}">{{ prospect.commercial_status }}</span></td>
-              <td><span>{{ prospect.detected_at|datetimefr }}</span>{% if prospect.company_created_at %}<small>Créée le {{ prospect.company_created_at|datefr }}</small>{% endif %}</td>
-              <td>
-                <details class="action-menu">
-                  <summary aria-label="Actions">•••</summary>
-                  <div>
-                    <button type="button" class="mail-action" data-mail-url="{{ url_for('prospecting.prepare_mail', prospect_id=prospect.id) }}" data-email="{{ prospect.email }}" data-name="{{ prospect.name }}">✦ Préparer un mail</button>
-                    <form action="{{ url_for('prospecting.contact_prospect', prospect_id=prospect.id) }}" method="post"><button>✓ Marquer contacté</button></form>
-                    <form action="{{ url_for('prospecting.follow_up_prospect', prospect_id=prospect.id) }}" method="post"><button>↻ Relancer</button></form>
-                    <button type="button" class="edit-action" data-id="{{ prospect.id }}" data-status="{{ prospect.commercial_status }}" data-comment="{{ prospect.comment|e }}">✎ Statut & commentaire</button>
-                    <form action="{{ url_for('prospecting.delete_prospect', prospect_id=prospect.id) }}" method="post" onsubmit="return confirm('Supprimer ce prospect ?')"><button class="danger">⌫ Supprimer</button></form>
-                  </div>
-                </details>
-              </td>
+              <td class="comment-cell">{{ prospect.comment or '—' }}</td>
+              <td><details class="action-menu"><summary aria-label="Actions">•••</summary><div>
+                <button type="button" class="mail-action" data-mail-url="{{ url_for('prospecting.prepare_mail', prospect_id=prospect.id) }}" data-email="{{ prospect.email }}" data-name="{{ prospect.name }}">✦ Préparer un mail</button>
+                <form action="{{ url_for('prospecting.contact_prospect', prospect_id=prospect.id) }}" method="post"><button>✓ Marquer contacté</button></form>
+                <form action="{{ url_for('prospecting.follow_up_prospect', prospect_id=prospect.id) }}" method="post"><button>↻ Relancer</button></form>
+                <button type="button" class="edit-action" data-id="{{ prospect.id }}" data-status="{{ prospect.commercial_status }}" data-comment="{{ prospect.comment|e }}">✎ Statut & commentaire</button>
+                <form action="{{ url_for('prospecting.delete_prospect', prospect_id=prospect.id) }}" method="post" onsubmit="return confirm('Supprimer ce prospect ?')"><button class="danger">⌫ Supprimer</button></form>
+              </div></details></td>
             </tr>
-          {% else %}
-            <tr><td colspan="8" class="empty-state"><span>⌁</span><strong>Aucun prospect pour le moment</strong><p>Lancez un premier scan ou modifiez vos filtres.</p></td></tr>
-          {% endfor %}
+          {% else %}<tr><td colspan="12" class="empty-state"><span>⌁</span><strong>Aucun signal récent dans cette vue</strong><p>Essayez une autre période ou consultez les archives.</p></td></tr>{% endfor %}
           </tbody>
         </table>
       </div>

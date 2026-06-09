@@ -120,3 +120,11 @@ L'interface protégée est accessible depuis la tuile **Prospection sécurité**
 5. Déployer puis ouvrir `/admin` après authentification.
 
 Le scan est déclenché manuellement depuis l'interface. Pour une veille planifiée, configurer un Render Cron Job qui appelle `GET /cron-prospects-scan?key=<CRON_SECRET>` ou transmet `Authorization: Bearer <CRON_SECRET>`.
+
+### Qualification par signal récent
+
+La vue `/admin` n'affiche plus par défaut l'ensemble des sociétés APE 85.59A. Elle affiche uniquement les prospects non archivés ayant un signal daté de moins de 90 jours. Le code APE est un indicateur secondaire (+10) et ne suffit jamais à rendre un prospect récent.
+
+Les signaux reconnus sont notamment : création récente de l'entreprise ou de l'établissement, nouvel organisme de formation, Qualiopi récent, recrutement de formateur sécurité, nouvelle page de formation sécurité et ouverture de centre. Une société créée depuis plus de 12 mois sans signal récent est automatiquement archivée et reste consultable avec le filtre **Archives / anciens prospects**.
+
+À chaque scan, le module déduplique par SIRET puis SIREN, actualise les données, conserve un signal récent encore valable et recalcule le score, la récence et l'archivage.

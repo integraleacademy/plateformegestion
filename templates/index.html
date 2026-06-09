@@ -375,6 +375,32 @@
       width: 100%;
     }
 
+    .prospecting-card {
+      position: relative;
+      overflow: hidden;
+      border-color: rgba(176, 128, 28, .42);
+      background: linear-gradient(145deg, #fffdf7 0%, #f8efd8 100%);
+    }
+
+    .prospecting-card::after {
+      content: "NOUVEAU";
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: #171717;
+      color: #f4c45a;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .1em;
+    }
+
+    .prospecting-card .notif {
+      background: #171717;
+      color: #f4c45a;
+    }
+
     .shortcut-modal {
       position: fixed;
       inset: 0;
@@ -512,6 +538,7 @@
       cursor: wait;
     }
 
+
     @media (max-width: 980px){
       .dashboard-layout {
         grid-template-columns: 1fr;
@@ -605,6 +632,13 @@
 
       <section class="main-content">
 <div class="grid">
+  <a class="card prospecting-card" href="{{ url_for('prospecting.admin_prospects') }}">
+    <div class="emoji">🎯</div>
+    <div class="title">Prospection sécurité</div>
+    <div class="desc">Détecter et suivre les nouveaux centres de formation sécurité</div>
+    <div class="notif">Scanner les prospects</div>
+  </a>
+
   <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
     <div class="emoji">🛟</div>
     <div class="title">Assistance</div>

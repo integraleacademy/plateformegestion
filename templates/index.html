@@ -551,6 +551,16 @@
     }
 
     @media (max-width: 640px) {
+
+      .dashboard-topbar-inner {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .prospecting-header-btn {
+        width: 100%;
+      }
       .shortcut-panel-header {
         align-items: flex-start;
       }
@@ -591,12 +601,18 @@
 
 <body>
   <header class="topbar">
-    <div class="brand">
-      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
-      <div>
-        <h1>Plateforme de gestion <span>Intégrale Academy</span></h1>
-        <div id="clock" class="clock">—</div>
+    <div class="dashboard-topbar-inner">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy" class="logo">
+        <div>
+          <h1>Plateforme de gestion <span>Intégrale Academy</span></h1>
+          <div id="clock" class="clock">—</div>
+        </div>
       </div>
+      <a id="prospecting-direct-access" class="prospecting-header-btn" href="{{ url_for('prospecting.admin_prospects') }}">
+        <span class="prospecting-header-btn-icon" aria-hidden="true">🎯</span>
+        Accéder à la prospection sécurité
+      </a>
     </div>
   </header>
 

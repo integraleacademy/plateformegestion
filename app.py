@@ -23,6 +23,8 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from prospecting import prospecting_bp
+
 
 
 # --- 🔧 Forcer le fuseau horaire français ---
@@ -33,6 +35,7 @@ time.tzset()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 app = Flask(__name__)
+app.register_blueprint(prospecting_bp)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")

@@ -449,6 +449,12 @@ def _openai_mail(prospect: sqlite3.Row) -> str:
         return fallback
 
 
+@prospecting_bp.get("/prospection")
+def prospecting_shortcut():
+    """URL lisible pouvant être partagée avec l'équipe commerciale."""
+    return redirect(url_for("prospecting.admin_prospects"))
+
+
 @prospecting_bp.get("/admin")
 def admin_prospects():
     init_prospect_db()

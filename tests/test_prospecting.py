@@ -45,6 +45,17 @@ def test_admin_crud_mail_and_excel_export(client):
             "qualiopi": "oui",
         }, "Test"))
 
+    response = client.get("/")
+    assert response.status_code == 200
+    home_html = response.get_data(as_text=True)
+    assert 'id="prospecting-direct-access"' in home_html
+    assert 'href="/admin"' in home_html
+    assert "Accéder à la prospection sécurité" in home_html
+
+    response = client.get("/prospection")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/admin")
+
     response = client.get("/cron-prospects-scan")
     assert response.status_code == 401
 

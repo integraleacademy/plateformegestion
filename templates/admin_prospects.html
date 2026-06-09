@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prospection sécurité · Intégrale Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_prospects.css') }}">
+</head>
+<body>
+  <header class="admin-header">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="Retour à l'accueil">
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Intégrale Academy">
+      <span><strong>INTÉGRALE</strong><small>ACADEMY · PROSPECTION</small></span>
+    </a>
+    <div class="header-actions">
+      <span class="live-dot"><i></i>Veille active</span>
+      <a class="icon-link" href="{{ url_for('index') }}" title="Accueil">⌂</a>
+      <a class="icon-link" href="{{ url_for('logout') }}" title="Déconnexion">↗</a>
+    </div>
+  </header>
+
+  <main class="admin-shell">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">DÉTECTION AUTOMATISÉE</p>
+        <h1>Prospects <em>formation sécurité</em></h1>
+        <p class="hero-copy">Identifiez, qualifiez et contactez les nouveaux centres de formation à fort potentiel commercial.</p>
+        <div class="source-health">
+          <span><i class="ok"></i> data.gouv / DGEFP</span>
+          <span><i class="ok"></i> RNE / Annuaire</span>
+          <span><i class="{{ 'ok' if web_enabled else 'muted' }}"></i> Web {{ 'connecté' if web_enabled else 'optionnel' }}</span>
+          <span><i class="{{ 'ok' if openai_enabled else 'muted' }}"></i> IA {{ 'active' if openai_enabled else 'non configurée' }}</span>
+        </div>
+      </div>
+      <form action="{{ url_for('prospecting.scan_prospects') }}" method="post">
+        <button class="btn btn-gold scan-button" type="submit"><span>⌁</span> Scanner maintenant</button>
+        {% if last_scan %}<small class="last-scan">Dernier scan : {{ last_scan.finished_at|datetimefr }} · {{ last_scan.added_count }} ajouté(s)</small>{% else %}<small class="last-scan">Aucun scan effectué</small>{% endif %}
+      </form>
+    </section>
+
+    <section class="stats-grid">
+      <article><span class="stat-icon">◎</span><div><strong>{{ stats.total or 0 }}</strong><small>Prospects détectés</small></div><b>Total</b></article>
+      <article><span class="stat-icon">✦</span><div><strong>{{ stats.new_count or 0 }}</strong><small>Nouveaux à qualifier</small></div><b>À traiter</b></article>
+      <article><span class="stat-icon">↻</span><div><strong>{{ stats.followup_count or 0 }}</strong><small>Relances à effectuer</small></div><b>Suivi</b></article>
+      <article><span class="stat-icon">◇</span><div><strong>{{ stats.average_score|int }}</strong><small>Score moyen</small></div><b>/ 100</b></article>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-heading">
+        <div><p class="eyebrow">PIPELINE COMMERCIAL</p><h2>Prospects détectés</h2></div>
+        <a class="btn btn-outline" href="{{ url_for('prospecting.export_prospects') }}">⇩ Export Excel</a>
+      </div>
+
+      <div class="default-view-note"><strong>Vue par défaut :</strong> prospects avec signal récent depuis moins de 90 jours. Les entreprises anciennes sans signal récent sont masquées et disponibles dans Archives.</div>
+      <form class="filters" method="get">
+        <label class="search-field"><span>⌕</span><input name="q" value="{{ filters.q }}" placeholder="Rechercher un nom, une ville, un SIREN…"></label>
+        <select name="signal_filter" aria-label="Filtre de récence">{% for value, label in signal_filters %}<option value="{{ value }}" {{ 'selected' if filters.signal_filter == value }}>{{ label }}</option>{% endfor %}</select>
+        <select name="status"><option value="">Tous les statuts</option>{% for status in statuses %}<option value="{{ status }}" {{ 'selected' if filters.status == status }}>{{ status }}</option>{% endfor %}</select>
+        <select name="score"><option value="0">Tous les scores</option><option value="80" {{ 'selected' if filters.score == 80 }}>80 et +</option><option value="60" {{ 'selected' if filters.score == 60 }}>60 et +</option><option value="40" {{ 'selected' if filters.score == 40 }}>40 et +</option></select>
+        <button class="btn btn-dark" type="submit">Filtrer</button>
+        {% if filters.q or filters.status or filters.score or filters.signal_filter != 'recent_90' %}<a class="reset-link" href="{{ url_for('prospecting.admin_prospects') }}">Réinitialiser</a>{% endif %}
+      </form>
+
+      <div class="table-wrap">
+        <table class="signals-table">
+          <thead><tr><th>Score</th><th>Nom</th><th>Ville</th><th>Département</th><th>Date création</th><th>Signal récent</th><th>Date du signal</th><th>Ancienneté</th><th>Source</th><th>Statut commercial</th><th>Commentaire</th><th>Actions</th></tr></thead>
+          <tbody>
+          {% for prospect in prospects %}
+            <tr class="{{ 'archived-row' if prospect.archive }}">
+              <td><div class="score score-{{ 'high' if prospect.score >= 75 else 'mid' if prospect.score >= 50 else 'low' }}"><strong>{{ prospect.score }}</strong><span>/100</span></div></td>
+              <td class="company-cell"><strong>{{ prospect.name }}</strong><span>{% if prospect.siret %}SIRET {{ prospect.siret }}{% elif prospect.siren %}SIREN {{ prospect.siren }}{% endif %}</span><div class="badges">{% if prospect.qualiopi %}<b class="signal-badge badge-blue">Qualiopi</b>{% endif %}{% if prospect.archive %}<b class="signal-badge badge-gray">Archivé</b>{% endif %}</div></td>
+              <td><strong>{{ prospect.city or '—' }}</strong></td>
+              <td>{{ prospect.department or '—' }}</td>
+              <td><span>{{ prospect.date_creation_entreprise|datefr if prospect.date_creation_entreprise else '—' }}</span>{% if prospect.date_creation_etablissement %}<small>Établ. {{ prospect.date_creation_etablissement|datefr }}</small>{% endif %}</td>
+              <td class="signal-cell"><span class="signal-badge {% if prospect.archive %}badge-gray{% elif prospect.type_signal_recent == 'Qualiopi récent' %}badge-blue{% elif prospect.type_signal_recent == 'Recrutement formateur sécurité' %}badge-purple{% elif 'Création' in prospect.type_signal_recent %}badge-gold{% elif prospect.anciennete_signal_jours is not none and prospect.anciennete_signal_jours <= 30 %}badge-green{% elif prospect.anciennete_signal_jours is not none and prospect.anciennete_signal_jours <= 90 %}badge-orange{% else %}badge-gray{% endif %}">{{ prospect.type_signal_recent }}</span><small>{{ prospect.raison_detection }}</small></td>
+              <td>{{ prospect.date_signal_recent|datefr if prospect.date_signal_recent else '—' }}</td>
+              <td>{% if prospect.anciennete_signal_jours is not none %}<strong>{{ prospect.anciennete_signal_jours }} j</strong>{% else %}<span class="subline">Non daté</span>{% endif %}</td>
+              <td><strong>{{ prospect.source }}</strong>{% if prospect.source_url %}<small><a href="{{ prospect.source_url }}" target="_blank" rel="noopener">Voir la source ↗</a></small>{% endif %}</td>
+              <td><span class="status status-{{ prospect.commercial_status|lower|replace(' ', '-')|replace('à', 'a') }}">{{ prospect.commercial_status }}</span></td>
+              <td class="comment-cell">{{ prospect.comment or '—' }}</td>
+              <td><details class="action-menu"><summary aria-label="Actions">•••</summary><div>
+                <button type="button" class="mail-action" data-mail-url="{{ url_for('prospecting.prepare_mail', prospect_id=prospect.id) }}" data-email="{{ prospect.email }}" data-name="{{ prospect.name }}">✦ Préparer un mail</button>
+                <form action="{{ url_for('prospecting.contact_prospect', prospect_id=prospect.id) }}" method="post"><button>✓ Marquer contacté</button></form>
+                <form action="{{ url_for('prospecting.follow_up_prospect', prospect_id=prospect.id) }}" method="post"><button>↻ Relancer</button></form>
+                <button type="button" class="edit-action" data-id="{{ prospect.id }}" data-status="{{ prospect.commercial_status }}" data-comment="{{ prospect.comment|e }}">✎ Statut & commentaire</button>
+                <form action="{{ url_for('prospecting.delete_prospect', prospect_id=prospect.id) }}" method="post" onsubmit="return confirm('Supprimer ce prospect ?')"><button class="danger">⌫ Supprimer</button></form>
+              </div></details></td>
+            </tr>
+          {% else %}<tr><td colspan="12" class="empty-state"><span>⌁</span><strong>Aucun signal récent dans cette vue</strong><p>Essayez une autre période ou consultez les archives.</p></td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <footer class="table-footer"><span>{{ prospects|length }} résultat(s) affiché(s)</span><span>Données persistées dans SQLite</span></footer>
+    </section>
+  </main>
+
+  <dialog id="mail-dialog">
+    <form method="dialog" class="dialog-card">
+      <header><div><p class="eyebrow">ASSISTANT DE PROSPECTION</p><h2>Mail personnalisé</h2></div><button value="close" aria-label="Fermer">×</button></header>
+      <p id="mail-prospect" class="dialog-lead"></p>
+      <div id="mail-loading" class="mail-loading">L’assistant prépare votre message…</div>
+      <textarea id="mail-content" rows="14" aria-label="Contenu du mail"></textarea>
+      <footer><button type="button" class="btn btn-outline" id="copy-mail">Copier le texte</button><a class="btn btn-gold" id="open-mailto" href="#">Ouvrir dans la messagerie</a></footer>
+    </form>
+  </dialog>
+
+  <dialog id="edit-dialog">
+    <form method="post" class="dialog-card" id="edit-form">
+      <header><div><p class="eyebrow">MISE À JOUR</p><h2>Suivi commercial</h2></div><button type="button" class="close-edit" aria-label="Fermer">×</button></header>
+      <label>Statut<select name="commercial_status">{% for status in statuses %}<option value="{{ status }}">{{ status }}</option>{% endfor %}</select></label>
+      <label>Commentaire<textarea name="comment" rows="5" placeholder="Prochaine action, contexte de l’échange…"></textarea></label>
+      <footer><button type="button" class="btn btn-outline close-edit">Annuler</button><button class="btn btn-gold" type="submit">Enregistrer</button></footer>
+    </form>
+  </dialog>
+
+  <script src="{{ url_for('static', filename='js/admin_prospects.js') }}"></script>
+</body>
+</html>

@@ -48,9 +48,10 @@ def test_admin_crud_mail_and_excel_export(client):
     response = client.get("/")
     assert response.status_code == 200
     home_html = response.get_data(as_text=True)
-    assert 'id="prospecting-direct-access"' in home_html
+    assert 'id="prospecting-direct-access"' not in home_html
+    assert "Accéder à la prospection sécurité" not in home_html
+    assert "Prospection sécurité" in home_html
     assert 'href="/admin"' in home_html
-    assert "Accéder à la prospection sécurité" in home_html
 
     response = client.get("/prospection")
     assert response.status_code == 302

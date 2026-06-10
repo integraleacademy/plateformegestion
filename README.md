@@ -96,8 +96,7 @@ L'interface protégée est accessible depuis la tuile **Prospection sécurité**
 
 ### Sources et fonctionnement
 
-- **Liste publique des organismes de formation (DGEFP / data.gouv.fr)** : la ressource CSV ou Excel est découverte automatiquement depuis l'API du catalogue data.gouv.fr.
-- **RNE / Annuaire des Entreprises** : recherche des entreprises dont l'activité principale est `85.59A` via l'API publique de recherche d'entreprises, alimentée notamment par les données du RNE/Sirene.
+- **Annuaire des Entreprises** : un appel borné à l'API publique recherche les entreprises actives ayant l'activité principale `85.59A` et reconnues comme organismes de formation. Le scan manuel ne télécharge plus le fichier national DGEFP, trop volumineux et généré dynamiquement.
 - **Recherche web optionnelle** : activée si `SERPER_API_KEY` est définie.
 - Les doublons sont fusionnés à partir du SIRET, du SIREN ou, à défaut, du nom et de la ville.
 - Le score sur 100 tient compte du code APE, des mots-clés sécurité, de la récence de création, de Qualiopi et des coordonnées disponibles.

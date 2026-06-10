@@ -159,13 +159,12 @@ def test_existing_database_is_migrated_and_old_company_archived(tmp_path, monkey
 
 def test_run_scan_tolerates_invalid_limit_and_unexpected_source_error(client, monkeypatch):
     monkeypatch.setenv("PROSPECT_SCAN_LIMIT", "not-a-number")
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
 
     def broken_source(_limit):
         raise RuntimeError("unexpected payload")
 
-    monkeypatch.setattr(prospecting, "_data_gouv_rows", broken_source)
-    monkeypatch.setattr(prospecting, "_rne_rows", lambda limit: [])
-    monkeypatch.setattr(prospecting, "_web_rows", lambda limit: [])
+    monkeypatch.setattr(prospecting, "_rne_rows", broken_source)
 
     with app.app_context():
         result = prospecting.run_scan()
@@ -173,66 +172,56 @@ def test_run_scan_tolerates_invalid_limit_and_unexpected_source_error(client, mo
             scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
 
     assert result["found"] == 0
-    assert result["errors"] == ["data.gouv / DGEFP: erreur inattendue (RuntimeError)"]
+    assert result["errors"] == ["Annuaire des Entreprises: erreur inattendue (RuntimeError)"]
     assert scan["status"] == "partial"
     assert scan["finished_at"]
 
 
-def test_admin_scan_redirects_immediately_while_scan_runs(client, monkeypatch):
-    import threading
-
-    scan_started = threading.Event()
-    release_scan = threading.Event()
-    scan_finished = threading.Event()
-
-    def slow_scan(scan_id):
-        scan_started.set()
-        release_scan.wait(timeout=2)
-        scan_finished.set()
-        return {"found": 0, "added": 0, "updated": 0, "errors": []}
-
-    monkeypatch.setattr(prospecting, "run_scan", slow_scan)
-
-    response = client.post("/admin/scan")
-
-    assert response.status_code == 302
-    assert response.headers["Location"].endswith("/admin")
-    assert scan_started.wait(timeout=1)
-    assert not scan_finished.is_set()
-
-    release_scan.set()
-    assert scan_finished.wait(timeout=1)
-
-
-def test_admin_scan_does_not_start_a_second_concurrent_scan(client, monkeypatch):
-    monkeypatch.setattr(prospecting, "start_background_scan", lambda: False)
+def test_admin_scan_completes_and_redirects_with_results(client, monkeypatch):
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+    monkeypatch.setattr(
+        prospecting,
+        "_rne_rows",
+        lambda limit: [make_candidate("Nouveau centre sécurité", "923456789", 10)],
+    )
 
     response = client.post("/admin/scan", follow_redirects=True)
+    page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Un scan est déjà en cours" in response.get_data(as_text=True)
+    assert "Scan terminé : 1 détecté(s), 1 ajouté(s), 0 actualisé(s)." in page
+    assert "Nouveau centre sécurité" in page
+    assert "Scan en cours" not in page
 
 
-def test_admin_scan_redirects_when_background_start_fails(client, monkeypatch):
-    def failed_start():
-        raise RuntimeError("database temporarily unavailable")
+def test_admin_scan_reports_source_failure_without_staying_running(client, monkeypatch):
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
 
-    monkeypatch.setattr(prospecting, "start_background_scan", failed_start)
+    def unavailable(_limit):
+        raise OSError("service unavailable")
+
+    monkeypatch.setattr(prospecting, "_rne_rows", unavailable)
 
     response = client.post("/admin/scan", follow_redirects=True)
+    page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Le scan n&#39;a pas pu démarrer" in response.get_data(as_text=True)
+    assert "Scan terminé avec une source indisponible" in page
+    assert "Scanner maintenant" in page
+    with app.app_context():
+        with prospecting.get_prospect_db() as connection:
+            scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
+    assert scan["status"] == "partial"
+    assert scan["finished_at"]
 
 
-def test_admin_expires_stale_scan_and_allows_retry(client):
-    stale_started_at = (date.today() - timedelta(days=1)).isoformat() + "T00:00:00+00:00"
+def test_admin_closes_running_rows_left_by_old_async_version(client):
     with app.app_context():
         prospecting.init_prospect_db()
         with prospecting.get_prospect_db() as connection:
             connection.execute(
-                "INSERT INTO prospect_scans(started_at,status,sources) VALUES (?,'running','data.gouv / DGEFP (en cours)')",
-                (stale_started_at,),
+                "INSERT INTO prospect_scans(started_at,status,sources) VALUES (?,'running','data.gouv / DGEFP')",
+                ("2026-06-10T06:00:00+00:00",),
             )
 
     response = client.get("/admin")
@@ -241,7 +230,6 @@ def test_admin_expires_stale_scan_and_allows_retry(client):
     assert response.status_code == 200
     assert "Le scan précédent a été interrompu" in page
     assert "Scanner maintenant" in page
-    assert "Scan en cours…" not in page
     with app.app_context():
         with prospecting.get_prospect_db() as connection:
             scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
@@ -249,61 +237,38 @@ def test_admin_expires_stale_scan_and_allows_retry(client):
     assert scan["finished_at"]
 
 
-def test_data_gouv_scanner_ignores_old_resource(monkeypatch):
-    selected_urls = []
-    metadata = {
-        "resources": [
-            {
-                "title": "Liste OF (ancien format, antérieure au 31/12/2021)",
-                "format": "csv",
-                "type": "main",
-                "last_modified": "2026-06-10",
-                "latest": "https://example.test/old.csv",
-            },
-            {
-                "title": "Liste publique des Organismes de Formation (format CSV)",
-                "format": "csv",
-                "type": "main",
-                "last_modified": "2026-06-01",
-                "latest": "https://example.test/current.csv",
-                "url": "https://example.test/current-source.csv",
-            },
-        ]
-    }
-    csv_content = b"nom;siren;date_creation_entreprise\nCentre test;123456789;2026-06-01\n"
+def test_rne_scanner_uses_training_organization_filters(monkeypatch):
+    captured = {}
 
-    monkeypatch.setattr(prospecting, "_request_json", lambda url: metadata)
+    def request_json(url, timeout):
+        captured["url"] = url
+        captured["timeout"] = timeout
+        return {
+            "results": [{
+                "nom_complet": "Centre API",
+                "siren": "123456789",
+                "date_creation": date.today().isoformat(),
+                "activite_principale": "85.59A",
+                "siege": {
+                    "siret": "12345678900010",
+                    "libelle_commune": "PARIS",
+                    "code_postal": "75001",
+                    "date_creation": date.today().isoformat(),
+                    "liste_id_organisme_formation": ["11750000075"],
+                },
+                "complements": {"est_qualiopi": True},
+                "dirigeants": [],
+            }]
+        }
 
-    def download(url, max_bytes=60 * 1024 * 1024):
-        selected_urls.append(url)
-        return csv_content
+    monkeypatch.setattr(prospecting, "_request_json", request_json)
 
-    monkeypatch.setattr(prospecting, "_download", download)
+    rows = prospecting._rne_rows(25)
 
-    rows = prospecting._data_gouv_rows(5)
-
-    assert selected_urls == ["https://example.test/current.csv"]
     assert len(rows) == 1
-
-
-def test_download_rejects_oversized_resource_before_read(monkeypatch):
-    class Headers(dict):
-        def get_content_charset(self):
-            return "utf-8"
-
-    class Response:
-        headers = Headers({"Content-Length": str(61 * 1024 * 1024)})
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return None
-
-        def read(self, size):
-            raise AssertionError("Le corps ne doit pas être téléchargé")
-
-    monkeypatch.setattr(prospecting.urllib.request, "urlopen", lambda request, timeout: Response())
-
-    with pytest.raises(ValueError, match="dépasse 60 Mo"):
-        prospecting._download("https://example.test/large.csv")
+    assert rows[0]["nda"] == "11750000075"
+    assert rows[0]["qualiopi"] is True
+    assert "est_organisme_formation=true" in captured["url"]
+    assert "etat_administratif=A" in captured["url"]
+    assert "activite_principale=85.59A" in captured["url"]
+    assert captured["timeout"] == 20

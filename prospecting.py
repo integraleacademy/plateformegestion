@@ -490,27 +490,45 @@ def _upsert(prospect: dict) -> bool:
         return True
 
 
+def _scan_limit() -> int:
+    raw_limit = os.environ.get("PROSPECT_SCAN_LIMIT", "250")
+    try:
+        return max(5, min(int(raw_limit), 2000))
+    except (TypeError, ValueError):
+        logger.warning("PROSPECT_SCAN_LIMIT invalide (%r), utilisation de 250.", raw_limit)
+        return 250
+
+
 def run_scan() -> dict:
     init_prospect_db()
-    limit = max(5, min(int(os.environ.get("PROSPECT_SCAN_LIMIT", "250")), 2000))
+    limit = _scan_limit()
     with get_prospect_db() as connection:
         scan_id = connection.execute("INSERT INTO prospect_scans(started_at,status) VALUES (?,'running')", (_now(),)).lastrowid
     found = added = updated = 0
     sources, errors = [], []
+    expected_errors = (OSError, ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError, urllib.error.URLError)
     for source_name, scanner in (("data.gouv / DGEFP", _data_gouv_rows), ("RNE", _rne_rows), ("Web", _web_rows)):
         try:
             rows = scanner(limit)
-            if rows or source_name != "Web": sources.append(source_name)
+            if rows or source_name != "Web":
+                sources.append(source_name)
             for prospect in rows:
                 found += 1
-                if _upsert(prospect): added += 1
-                else: updated += 1
-        except (OSError, ValueError, KeyError, json.JSONDecodeError, urllib.error.URLError) as exc:
-            logger.warning("Échec scanner %s: %s", source_name, exc); errors.append(f"{source_name}: {exc}")
+                if _upsert(prospect):
+                    added += 1
+                else:
+                    updated += 1
+        except expected_errors as exc:
+            logger.warning("Échec scanner %s: %s", source_name, exc)
+            errors.append(f"{source_name}: {exc}")
+        except Exception as exc:
+            # Une source externe ou une ligne mal formée ne doit pas faire tomber toute la page admin.
+            logger.exception("Erreur inattendue pendant le scanner %s", source_name)
+            errors.append(f"{source_name}: erreur inattendue ({type(exc).__name__})")
     with get_prospect_db() as connection:
         connection.execute(
             "UPDATE prospect_scans SET finished_at=?,status=?,sources=?,found_count=?,added_count=?,updated_count=?,error_message=? WHERE id=?",
-            (_now(), "success" if found else "partial" if errors else "success", ", ".join(sources), found, added, updated, " | ".join(errors), scan_id),
+            (_now(), "partial" if errors else "success", ", ".join(sources), found, added, updated, " | ".join(errors), scan_id),
         )
     return {"found": found, "added": added, "updated": updated, "errors": errors}
 
@@ -584,9 +602,16 @@ def cron_scan_prospects():
 
 @prospecting_bp.post("/admin/scan")
 def scan_prospects():
-    result = run_scan()
+    try:
+        result = run_scan()
+    except Exception:
+        logger.exception("Impossible d'exécuter le scan de prospection")
+        flash("Le scan n'a pas pu démarrer. Réessayez dans quelques instants.", "error")
+        return redirect(url_for("prospecting.admin_prospects"))
+
     flash(f"Scan terminé : {result['added']} nouveau(x), {result['updated']} actualisé(s).", "success" if result["found"] else "error")
-    if result["errors"]: flash("Sources indisponibles : " + " | ".join(result["errors"]), "warning")
+    if result["errors"]:
+        flash("Sources indisponibles : " + " | ".join(result["errors"]), "warning")
     return redirect(url_for("prospecting.admin_prospects"))
 
 

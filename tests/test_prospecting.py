@@ -155,3 +155,36 @@ def test_existing_database_is_migrated_and_old_company_archived(tmp_path, monkey
     assert row["archive"] == 1
     assert row["est_recent"] == 0
     assert row["score"] == 0
+
+
+def test_run_scan_tolerates_invalid_limit_and_unexpected_source_error(client, monkeypatch):
+    monkeypatch.setenv("PROSPECT_SCAN_LIMIT", "not-a-number")
+
+    def broken_source(_limit):
+        raise RuntimeError("unexpected payload")
+
+    monkeypatch.setattr(prospecting, "_data_gouv_rows", broken_source)
+    monkeypatch.setattr(prospecting, "_rne_rows", lambda limit: [])
+    monkeypatch.setattr(prospecting, "_web_rows", lambda limit: [])
+
+    with app.app_context():
+        result = prospecting.run_scan()
+        with prospecting.get_prospect_db() as connection:
+            scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
+
+    assert result["found"] == 0
+    assert result["errors"] == ["data.gouv / DGEFP: erreur inattendue (RuntimeError)"]
+    assert scan["status"] == "partial"
+    assert scan["finished_at"]
+
+
+def test_admin_scan_redirects_instead_of_returning_500(client, monkeypatch):
+    def failed_scan():
+        raise RuntimeError("database temporarily unavailable")
+
+    monkeypatch.setattr(prospecting, "run_scan", failed_scan)
+
+    response = client.post("/admin/scan", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert "Le scan n&#39;a pas pu démarrer" in response.get_data(as_text=True)

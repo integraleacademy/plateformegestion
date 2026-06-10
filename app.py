@@ -168,12 +168,27 @@ STAGIAIRES_DOCS_TO_CONTROL_URL = os.environ.get(
     "STAGIAIRES_DOCS_TO_CONTROL_URL",
     "https://gestionstagiaires-r5no.onrender.com/docs_to_control.json",
 )
+STAGIAIRES_DOCS_RETRY_SECONDS = 60
+_stagiaires_docs_cache = {"payload": None, "retry_after": 0.0}
+_stagiaires_docs_cache_lock = threading.Lock()
 
 
-def fetch_json_url(url, timeout=10):
+def stagiaires_docs_request_headers():
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "plateformegestion/1.0 (+https://plateformegestion.onrender.com)",
+    }
+    token = (os.environ.get("STAGIAIRES_DOCS_TO_CONTROL_TOKEN") or "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+        headers["X-API-Key"] = token
+    return headers
+
+
+def fetch_json_url(url, timeout=10, headers=None):
     request_obj = urllib.request.Request(
         url,
-        headers={
+        headers=headers or {
             "Accept": "application/json",
             "User-Agent": "plateformegestion/1.0 (+https://plateformegestion.onrender.com)",
         },
@@ -209,6 +224,16 @@ def count_pending_stagiaires_documents(payload):
         except (TypeError, ValueError):
             continue
     return total
+
+
+def stagiaires_docs_response(payload, stale=False):
+    return {
+        "ok": True,
+        "stale": stale,
+        "pending_count": count_pending_stagiaires_documents(payload),
+        "items": payload.get("items", []),
+    }
+
 
 # ------------------------------------------------------------
 # 🔐 AUTHENTIFICATION ADMIN
@@ -1704,17 +1729,46 @@ def shortcuts_data():
 
 @app.route("/stagiaires/docs-to-control.json")
 def stagiaires_docs_to_control():
-    try:
-        payload = fetch_json_url(STAGIAIRES_DOCS_TO_CONTROL_URL)
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
-        logger.warning("Impossible de récupérer les dossiers stagiaires: %s", exc)
-        return jsonify({"ok": False, "error": "Données dossiers stagiaires indisponibles"}), 502
+    now = time.monotonic()
+    with _stagiaires_docs_cache_lock:
+        cached_payload = _stagiaires_docs_cache["payload"]
+        retry_after = _stagiaires_docs_cache["retry_after"]
 
-    return jsonify({
-        "ok": True,
-        "pending_count": count_pending_stagiaires_documents(payload),
-        "items": payload.get("items", []) if isinstance(payload, dict) else [],
-    })
+    if now < retry_after:
+        if cached_payload is not None:
+            return jsonify(stagiaires_docs_response(cached_payload, stale=True))
+        return jsonify({
+            "ok": False,
+            "pending_count": None,
+            "items": [],
+            "error": "Données dossiers stagiaires temporairement indisponibles",
+        })
+
+    try:
+        payload = fetch_json_url(
+            STAGIAIRES_DOCS_TO_CONTROL_URL,
+            headers=stagiaires_docs_request_headers(),
+        )
+        if not isinstance(payload, dict) or payload.get("ok") is False:
+            raise ValueError("Réponse dossiers stagiaires invalide")
+    except (OSError, ValueError, TimeoutError, json.JSONDecodeError) as exc:
+        logger.warning("Impossible de récupérer les dossiers stagiaires: %s", exc)
+        with _stagiaires_docs_cache_lock:
+            _stagiaires_docs_cache["retry_after"] = now + STAGIAIRES_DOCS_RETRY_SECONDS
+            cached_payload = _stagiaires_docs_cache["payload"]
+        if cached_payload is not None:
+            return jsonify(stagiaires_docs_response(cached_payload, stale=True))
+        return jsonify({
+            "ok": False,
+            "pending_count": None,
+            "items": [],
+            "error": "Données dossiers stagiaires indisponibles",
+        })
+
+    with _stagiaires_docs_cache_lock:
+        _stagiaires_docs_cache["payload"] = payload
+        _stagiaires_docs_cache["retry_after"] = 0.0
+    return jsonify(stagiaires_docs_response(payload))
 
 
 @app.route("/shortcut-images/<path:filename>")

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import hashlib
 import io
 import json
@@ -18,7 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
-from openpyxl import Workbook, load_workbook
+from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -54,8 +53,6 @@ SIGNAL_FILTERS = (
     ("all", "Tous les prospects"),
     ("archives", "Archives / anciens prospects"),
 )
-DATA_GOUV_DATASET = "liste-publique-des-organismes-de-formation-l-6351-7-1-du-code-du-travail"
-DATA_GOUV_API = f"https://www.data.gouv.fr/api/1/datasets/{DATA_GOUV_DATASET}/"
 RNE_SEARCH_API = "https://recherche-entreprises.api.gouv.fr/search"
 
 FIELD_ALIASES = {
@@ -342,63 +339,35 @@ def _request_json(url: str, *, timeout: int = 25) -> dict:
         return json.loads(response.read().decode(response.headers.get_content_charset() or "utf-8"))
 
 
-def _download(url: str, max_bytes: int = 60 * 1024 * 1024) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "IntegraleAcademyProspector/2.0"})
-    with urllib.request.urlopen(req, timeout=45) as response:
-        content = response.read(max_bytes + 1)
-    if len(content) > max_bytes:
-        raise ValueError("La ressource dépasse 60 Mo.")
-    return content
-
-
-def _data_gouv_rows(limit: int) -> list[dict]:
-    metadata = _request_json(DATA_GOUV_API)
-    resources = [r for r in metadata.get("resources", []) if (r.get("format") or "").lower() in {"csv", "xlsx", "xls"}]
-    if not resources:
-        raise ValueError("Aucune ressource CSV/XLSX data.gouv trouvée.")
-    preferred = [r for r in resources if (r.get("format") or "").lower() == "csv"] or resources
-    resource = max(preferred, key=lambda r: r.get("last_modified") or r.get("created_at") or "")
-    content = _download(resource.get("latest") or resource.get("url"))
-    raw_rows = []
-    if (resource.get("format") or "").lower() == "csv":
-        text = content.decode("utf-8-sig", errors="replace")
-        try:
-            dialect = csv.Sniffer().sniff(text[:8192], delimiters=";,\t|")
-        except csv.Error:
-            dialect = csv.excel; dialect.delimiter = ";"
-        raw_rows = csv.DictReader(io.StringIO(text), dialect=dialect)
-    else:
-        sheet = load_workbook(io.BytesIO(content), read_only=True, data_only=True).active
-        iterator = sheet.iter_rows(values_only=True)
-        headers = [_clean(value) for value in next(iterator)]
-        raw_rows = (dict(zip(headers, values)) for values in iterator)
-    prospects = []
-    for row in raw_rows:
-        candidate = _candidate(row, "data.gouv / DGEFP", resource.get("url", ""))
-        if candidate["est_recent"] or candidate["archive"]:
-            prospects.append(candidate)
-        if len(prospects) >= limit:
-            break
-    return prospects
-
-
 def _rne_rows(limit: int) -> list[dict]:
-    params = urllib.parse.urlencode({"activite_principale": "85.59A", "per_page": min(limit, 25), "page": 1})
-    payload = _request_json(f"{RNE_SEARCH_API}?{params}")
+    params = urllib.parse.urlencode({
+        "activite_principale": "85.59A",
+        "est_organisme_formation": "true",
+        "etat_administratif": "A",
+        "minimal": "true",
+        "include": "siege,dirigeants,complements",
+        "per_page": min(limit, 25),
+        "page": 1,
+    })
+    payload = _request_json(f"{RNE_SEARCH_API}?{params}", timeout=20)
     prospects = []
     for company in payload.get("results", [])[:limit]:
         headquarters, managers = company.get("siege") or {}, company.get("dirigeants") or []
+        complements = company.get("complements") or {}
+        training_ids = headquarters.get("liste_id_organisme_formation") or []
         raw = {
             "denomination": company.get("nom_complet") or company.get("nom_raison_sociale"),
             "siren": company.get("siren"), "siret": headquarters.get("siret"),
             "ville": headquarters.get("libelle_commune"), "code_postal": headquarters.get("code_postal"),
-            "activite_principale": company.get("activite_principale"),
+            "activite_principale": company.get("activite_principale") or headquarters.get("activite_principale"),
             "date_creation_entreprise": company.get("date_creation"),
             "date_creation_etablissement": headquarters.get("date_creation"),
-            "dirigeant": " ".join(_clean(managers[0].get(k)) for k in ("prenom", "nom")) if managers else "",
-            "signal": "Entreprise APE 8559A repérée dans l’Annuaire des Entreprises / RNE",
+            "dirigeant": " ".join(_clean(managers[0].get(k)) for k in ("prenoms", "nom")) if managers else "",
+            "numero_de_declaration_d_activite": training_ids[0] if training_ids else "",
+            "qualiopi": bool(complements.get("est_qualiopi")),
+            "signal": "Organisme de formation actif repéré dans l’Annuaire des Entreprises",
         }
-        prospects.append(_candidate(raw, "RNE / Annuaire des Entreprises", "https://annuaire-entreprises.data.gouv.fr"))
+        prospects.append(_candidate(raw, "Annuaire des Entreprises", "https://annuaire-entreprises.data.gouv.fr"))
     return prospects
 
 
@@ -490,27 +459,72 @@ def _upsert(prospect: dict) -> bool:
         return True
 
 
+def _scan_limit() -> int:
+    raw_limit = os.environ.get("PROSPECT_SCAN_LIMIT", "250")
+    try:
+        return max(5, min(int(raw_limit), 2000))
+    except (TypeError, ValueError):
+        logger.warning("PROSPECT_SCAN_LIMIT invalide (%r), utilisation de 250.", raw_limit)
+        return 250
+
+
+def _expire_stale_scans(connection: sqlite3.Connection) -> None:
+    """Ferme les scans `running` laissés par les anciennes versions asynchrones."""
+    connection.execute(
+        """UPDATE prospect_scans
+           SET finished_at=?, status='failed', error_message='Ancien scan interrompu'
+           WHERE status='running'""",
+        (_now(),),
+    )
+
+
+def _close_abandoned_scans() -> None:
+    """Compatibilité pour les appels sans connexion déjà ouverts."""
+    with get_prospect_db() as connection:
+        _expire_stale_scans(connection)
+
+
 def run_scan() -> dict:
     init_prospect_db()
-    limit = max(5, min(int(os.environ.get("PROSPECT_SCAN_LIMIT", "250")), 2000))
+    _close_abandoned_scans()
+    limit = _scan_limit()
     with get_prospect_db() as connection:
-        scan_id = connection.execute("INSERT INTO prospect_scans(started_at,status) VALUES (?,'running')", (_now(),)).lastrowid
+        scan_id = connection.execute(
+            "INSERT INTO prospect_scans(started_at,status,sources) VALUES (?,'running','Annuaire des Entreprises')",
+            (_now(),),
+        ).lastrowid
+
     found = added = updated = 0
-    sources, errors = [], []
-    for source_name, scanner in (("data.gouv / DGEFP", _data_gouv_rows), ("RNE", _rne_rows), ("Web", _web_rows)):
+    errors = []
+    sources = []
+    scanners = [("Annuaire des Entreprises", _rne_rows)]
+    if os.environ.get("SERPER_API_KEY"):
+        scanners.append(("Web", _web_rows))
+
+    for source_name, scanner in scanners:
         try:
             rows = scanner(limit)
-            if rows or source_name != "Web": sources.append(source_name)
+            sources.append(source_name)
             for prospect in rows:
                 found += 1
-                if _upsert(prospect): added += 1
-                else: updated += 1
-        except (OSError, ValueError, KeyError, json.JSONDecodeError, urllib.error.URLError) as exc:
-            logger.warning("Échec scanner %s: %s", source_name, exc); errors.append(f"{source_name}: {exc}")
+                if _upsert(prospect):
+                    added += 1
+                else:
+                    updated += 1
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError) as exc:
+            logger.warning("Échec scanner %s: %s", source_name, exc)
+            errors.append(f"{source_name}: {exc}")
+        except Exception as exc:
+            logger.exception("Erreur inattendue du scanner %s", source_name)
+            errors.append(f"{source_name}: erreur inattendue ({type(exc).__name__})")
+
+    status = "partial" if errors else "success"
     with get_prospect_db() as connection:
         connection.execute(
-            "UPDATE prospect_scans SET finished_at=?,status=?,sources=?,found_count=?,added_count=?,updated_count=?,error_message=? WHERE id=?",
-            (_now(), "success" if found else "partial" if errors else "success", ", ".join(sources), found, added, updated, " | ".join(errors), scan_id),
+            """UPDATE prospect_scans
+               SET finished_at=?,status=?,sources=?,found_count=?,added_count=?,updated_count=?,error_message=?
+               WHERE id=?""",
+            (_now(), status, ", ".join(sources), found, added, updated, " | ".join(errors), scan_id),
         )
     return {"found": found, "added": added, "updated": updated, "errors": errors}
 
@@ -566,6 +580,7 @@ def admin_prospects():
         clauses.append("(name LIKE ? OR siren LIKE ? OR siret LIKE ? OR city LIKE ? OR raison_detection LIKE ?)"); parameters.extend([f"%{search}%"] * 5)
     if status in STATUSES: clauses.append("commercial_status=?"); parameters.append(status)
     with get_prospect_db() as connection:
+        _expire_stale_scans(connection)
         prospects = connection.execute(f"SELECT * FROM prospects WHERE {' AND '.join(clauses)} ORDER BY score DESC, date_signal_recent DESC, date_detection DESC LIMIT 1000", parameters).fetchall()
         stats = connection.execute("SELECT COUNT(*) total, SUM(est_recent=1 AND archive=0) new_count, SUM(commercial_status='À relancer' AND archive=0) followup_count, COALESCE(ROUND(AVG(CASE WHEN archive=0 THEN score END)),0) average_score FROM prospects").fetchone()
         last_scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
@@ -584,9 +599,17 @@ def cron_scan_prospects():
 
 @prospecting_bp.post("/admin/scan")
 def scan_prospects():
-    result = run_scan()
-    flash(f"Scan terminé : {result['added']} nouveau(x), {result['updated']} actualisé(s).", "success" if result["found"] else "error")
-    if result["errors"]: flash("Sources indisponibles : " + " | ".join(result["errors"]), "warning")
+    try:
+        result = run_scan()
+    except Exception:
+        logger.exception("Impossible d'exécuter le scan de prospection")
+        flash("Le scan n'a pas pu être exécuté. Réessayez dans quelques instants.", "error")
+        return redirect(url_for("prospecting.admin_prospects"))
+
+    if result["errors"]:
+        flash("Scan terminé avec une source indisponible : " + " | ".join(result["errors"]), "warning")
+    else:
+        flash(f"Scan terminé : {result['found']} détecté(s), {result['added']} ajouté(s), {result['updated']} actualisé(s).", "success")
     return redirect(url_for("prospecting.admin_prospects"))
 
 

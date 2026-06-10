@@ -96,8 +96,7 @@ L'interface protégée est accessible depuis la tuile **Prospection sécurité**
 
 ### Sources et fonctionnement
 
-- **Liste publique des organismes de formation (DGEFP / data.gouv.fr)** : la ressource CSV ou Excel est découverte automatiquement depuis l'API du catalogue data.gouv.fr.
-- **RNE / Annuaire des Entreprises** : recherche des entreprises dont l'activité principale est `85.59A` via l'API publique de recherche d'entreprises, alimentée notamment par les données du RNE/Sirene.
+- **Annuaire des Entreprises** : un appel borné à l'API publique recherche les entreprises actives ayant l'activité principale `85.59A` et reconnues comme organismes de formation. Le scan manuel ne télécharge plus le fichier national DGEFP, trop volumineux et généré dynamiquement.
 - **Recherche web optionnelle** : activée si `SERPER_API_KEY` est définie.
 - Les doublons sont fusionnés à partir du SIRET, du SIREN ou, à défaut, du nom et de la ville.
 - Le score sur 100 tient compte du code APE, des mots-clés sécurité, de la récence de création, de Qualiopi et des coordonnées disponibles.
@@ -128,3 +127,7 @@ La vue `/admin` n'affiche plus par défaut l'ensemble des sociétés APE 85.59A.
 Les signaux reconnus sont notamment : création récente de l'entreprise ou de l'établissement, nouvel organisme de formation, Qualiopi récent, recrutement de formateur sécurité, nouvelle page de formation sécurité et ouverture de centre. Une société créée depuis plus de 12 mois sans signal récent est automatiquement archivée et reste consultable avec le filtre **Archives / anciens prospects**.
 
 À chaque scan, le module déduplique par SIRET puis SIREN, actualise les données, conserve un signal récent encore valable et recalcule le score, la récence et l'archivage.
+
+### Compteur des dossiers stagiaires
+
+Le tableau de bord récupère le compteur depuis `STAGIAIRES_DOCS_TO_CONTROL_URL`. Si cette route est protégée, définir la même valeur secrète sur les deux services avec `STAGIAIRES_DOCS_TO_CONTROL_TOKEN`. La plateforme transmet ce secret dans les en-têtes `Authorization: Bearer ...` et `X-API-Key`. En cas d'indisponibilité temporaire du service stagiaires, la dernière réponse valide est conservée en mémoire et affichée comme donnée en cache.

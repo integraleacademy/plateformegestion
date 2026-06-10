@@ -1283,7 +1283,9 @@ async function updateStagiaires() {
     if (!r.ok) throw 0;
 
     const d = await r.json();
-    const docsCount = Number(d.pending_count || 0);
+    if (d.ok !== true || d.pending_count === null || d.pending_count === undefined) throw 0;
+    const docsCount = Number(d.pending_count);
+    if (!Number.isFinite(docsCount)) throw 0;
 
     if (docsCount > 0) {
       box.className = "notif wait";

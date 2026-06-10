@@ -11,6 +11,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -58,6 +59,8 @@ SIGNAL_FILTERS = (
 DATA_GOUV_DATASET = "liste-publique-des-organismes-de-formation-l-6351-7-1-du-code-du-travail"
 DATA_GOUV_API = f"https://www.data.gouv.fr/api/1/datasets/{DATA_GOUV_DATASET}/"
 RNE_SEARCH_API = "https://recherche-entreprises.api.gouv.fr/search"
+SCAN_STALE_MINUTES = 5
+DOWNLOAD_MAX_SECONDS = 45
 
 FIELD_ALIASES = {
     "name": ("nom", "denomination", "raison_sociale", "raison sociale", "nom_organisme", "name"),
@@ -345,20 +348,38 @@ def _request_json(url: str, *, timeout: int = 25) -> dict:
 
 def _download(url: str, max_bytes: int = 60 * 1024 * 1024) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "IntegraleAcademyProspector/2.0"})
-    with urllib.request.urlopen(req, timeout=45) as response:
-        content = response.read(max_bytes + 1)
-    if len(content) > max_bytes:
-        raise ValueError("La ressource dépasse 60 Mo.")
-    return content
+    deadline = time.monotonic() + DOWNLOAD_MAX_SECONDS
+    chunks = []
+    downloaded = 0
+    with urllib.request.urlopen(req, timeout=15) as response:
+        content_length = response.headers.get("Content-Length")
+        if content_length and int(content_length) > max_bytes:
+            raise ValueError("La ressource dépasse 60 Mo.")
+        while True:
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"Téléchargement interrompu après {DOWNLOAD_MAX_SECONDS} secondes")
+            chunk = response.read(min(1024 * 1024, max_bytes + 1 - downloaded))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            downloaded += len(chunk)
+            if downloaded > max_bytes:
+                raise ValueError("La ressource dépasse 60 Mo.")
+    return b"".join(chunks)
 
 
 def _data_gouv_rows(limit: int) -> list[dict]:
     metadata = _request_json(DATA_GOUV_API)
-    resources = [r for r in metadata.get("resources", []) if (r.get("format") or "").lower() in {"csv", "xlsx", "xls"}]
+    resources = [
+        resource for resource in metadata.get("resources", [])
+        if (resource.get("format") or "").lower() in {"csv", "xlsx", "xls"}
+        and resource.get("type") == "main"
+        and "ancien" not in (resource.get("title") or "").lower()
+    ]
     if not resources:
-        raise ValueError("Aucune ressource CSV/XLSX data.gouv trouvée.")
-    preferred = [r for r in resources if (r.get("format") or "").lower() == "csv"] or resources
-    resource = max(preferred, key=lambda r: r.get("last_modified") or r.get("created_at") or "")
+        raise ValueError("Aucune ressource CSV/XLSX data.gouv courante trouvée.")
+    preferred = [resource for resource in resources if (resource.get("format") or "").lower() == "csv"] or resources
+    resource = max(preferred, key=lambda item: item.get("last_modified") or item.get("created_at") or "")
     content = _download(resource.get("latest") or resource.get("url"))
     raw_rows = []
     if (resource.get("format") or "").lower() == "csv":
@@ -500,19 +521,24 @@ def _scan_limit() -> int:
         return 250
 
 
+def _expire_stale_scans(connection: sqlite3.Connection) -> None:
+    now = _now()
+    stale_before = (datetime.now(timezone.utc) - timedelta(minutes=SCAN_STALE_MINUTES)).replace(microsecond=0).isoformat()
+    connection.execute(
+        """UPDATE prospect_scans
+           SET finished_at=?, status='failed', error_message='Scan interrompu ou trop long'
+           WHERE status='running' AND started_at<?""",
+        (now, stale_before),
+    )
+
+
 def _create_scan_run() -> int | None:
     """Réserve un scan de façon atomique, même avec plusieurs workers Gunicorn."""
     init_prospect_db()
     now = _now()
-    stale_before = (datetime.now(timezone.utc) - timedelta(minutes=30)).replace(microsecond=0).isoformat()
     with get_prospect_db() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        connection.execute(
-            """UPDATE prospect_scans
-               SET finished_at=?, status='failed', error_message='Scan interrompu avant sa finalisation'
-               WHERE status='running' AND started_at<?""",
-            (now, stale_before),
-        )
+        _expire_stale_scans(connection)
         running = connection.execute(
             "SELECT id FROM prospect_scans WHERE status='running' ORDER BY id DESC LIMIT 1"
         ).fetchone()
@@ -536,7 +562,17 @@ def run_scan(scan_id: int | None = None) -> dict:
     found = added = updated = 0
     sources, errors = [], []
     expected_errors = (OSError, ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError, urllib.error.URLError)
+    completed_sources = []
     for source_name, scanner in (("data.gouv / DGEFP", _data_gouv_rows), ("RNE", _rne_rows), ("Web", _web_rows)):
+        with get_prospect_db() as connection:
+            active = connection.execute("SELECT status FROM prospect_scans WHERE id=?", (scan_id,)).fetchone()
+            if not active or active["status"] != "running":
+                errors.append("Scan interrompu car sa durée maximale a été dépassée")
+                break
+            connection.execute(
+                "UPDATE prospect_scans SET sources=? WHERE id=? AND status='running'",
+                (f"{source_name} (en cours)", scan_id),
+            )
         try:
             rows = scanner(limit)
             if rows or source_name != "Web":
@@ -554,9 +590,17 @@ def run_scan(scan_id: int | None = None) -> dict:
             # Une source externe ou une ligne mal formée ne doit pas faire tomber toute la page admin.
             logger.exception("Erreur inattendue pendant le scanner %s", source_name)
             errors.append(f"{source_name}: erreur inattendue ({type(exc).__name__})")
+        completed_sources.append(source_name)
+        with get_prospect_db() as connection:
+            connection.execute(
+                """UPDATE prospect_scans SET sources=?, found_count=?, added_count=?, updated_count=?, error_message=?
+                   WHERE id=? AND status='running'""",
+                (", ".join(completed_sources), found, added, updated, " | ".join(errors), scan_id),
+            )
     with get_prospect_db() as connection:
         connection.execute(
-            "UPDATE prospect_scans SET finished_at=?,status=?,sources=?,found_count=?,added_count=?,updated_count=?,error_message=? WHERE id=?",
+            """UPDATE prospect_scans SET finished_at=?,status=?,sources=?,found_count=?,added_count=?,updated_count=?,error_message=?
+               WHERE id=? AND status='running'""",
             (_now(), "partial" if errors else "success", ", ".join(sources), found, added, updated, " | ".join(errors), scan_id),
         )
     return {"found": found, "added": added, "updated": updated, "errors": errors}
@@ -647,6 +691,7 @@ def admin_prospects():
         clauses.append("(name LIKE ? OR siren LIKE ? OR siret LIKE ? OR city LIKE ? OR raison_detection LIKE ?)"); parameters.extend([f"%{search}%"] * 5)
     if status in STATUSES: clauses.append("commercial_status=?"); parameters.append(status)
     with get_prospect_db() as connection:
+        _expire_stale_scans(connection)
         prospects = connection.execute(f"SELECT * FROM prospects WHERE {' AND '.join(clauses)} ORDER BY score DESC, date_signal_recent DESC, date_detection DESC LIMIT 1000", parameters).fetchall()
         stats = connection.execute("SELECT COUNT(*) total, SUM(est_recent=1 AND archive=0) new_count, SUM(commercial_status='À relancer' AND archive=0) followup_count, COALESCE(ROUND(AVG(CASE WHEN archive=0 THEN score END)),0) average_score FROM prospects").fetchone()
         last_scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()

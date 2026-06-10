@@ -223,3 +223,87 @@ def test_admin_scan_redirects_when_background_start_fails(client, monkeypatch):
 
     assert response.status_code == 200
     assert "Le scan n&#39;a pas pu démarrer" in response.get_data(as_text=True)
+
+
+def test_admin_expires_stale_scan_and_allows_retry(client):
+    stale_started_at = (date.today() - timedelta(days=1)).isoformat() + "T00:00:00+00:00"
+    with app.app_context():
+        prospecting.init_prospect_db()
+        with prospecting.get_prospect_db() as connection:
+            connection.execute(
+                "INSERT INTO prospect_scans(started_at,status,sources) VALUES (?,'running','data.gouv / DGEFP (en cours)')",
+                (stale_started_at,),
+            )
+
+    response = client.get("/admin")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Le scan précédent a été interrompu" in page
+    assert "Scanner maintenant" in page
+    assert "Scan en cours…" not in page
+    with app.app_context():
+        with prospecting.get_prospect_db() as connection:
+            scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
+    assert scan["status"] == "failed"
+    assert scan["finished_at"]
+
+
+def test_data_gouv_scanner_ignores_old_resource(monkeypatch):
+    selected_urls = []
+    metadata = {
+        "resources": [
+            {
+                "title": "Liste OF (ancien format, antérieure au 31/12/2021)",
+                "format": "csv",
+                "type": "main",
+                "last_modified": "2026-06-10",
+                "latest": "https://example.test/old.csv",
+            },
+            {
+                "title": "Liste publique des Organismes de Formation (format CSV)",
+                "format": "csv",
+                "type": "main",
+                "last_modified": "2026-06-01",
+                "latest": "https://example.test/current.csv",
+                "url": "https://example.test/current-source.csv",
+            },
+        ]
+    }
+    csv_content = b"nom;siren;date_creation_entreprise\nCentre test;123456789;2026-06-01\n"
+
+    monkeypatch.setattr(prospecting, "_request_json", lambda url: metadata)
+
+    def download(url, max_bytes=60 * 1024 * 1024):
+        selected_urls.append(url)
+        return csv_content
+
+    monkeypatch.setattr(prospecting, "_download", download)
+
+    rows = prospecting._data_gouv_rows(5)
+
+    assert selected_urls == ["https://example.test/current.csv"]
+    assert len(rows) == 1
+
+
+def test_download_rejects_oversized_resource_before_read(monkeypatch):
+    class Headers(dict):
+        def get_content_charset(self):
+            return "utf-8"
+
+    class Response:
+        headers = Headers({"Content-Length": str(61 * 1024 * 1024)})
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def read(self, size):
+            raise AssertionError("Le corps ne doit pas être téléchargé")
+
+    monkeypatch.setattr(prospecting.urllib.request, "urlopen", lambda request, timeout: Response())
+
+    with pytest.raises(ValueError, match="dépasse 60 Mo"):
+        prospecting._download("https://example.test/large.csv")

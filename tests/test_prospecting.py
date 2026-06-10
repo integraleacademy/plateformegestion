@@ -178,11 +178,46 @@ def test_run_scan_tolerates_invalid_limit_and_unexpected_source_error(client, mo
     assert scan["finished_at"]
 
 
-def test_admin_scan_redirects_instead_of_returning_500(client, monkeypatch):
-    def failed_scan():
+def test_admin_scan_redirects_immediately_while_scan_runs(client, monkeypatch):
+    import threading
+
+    scan_started = threading.Event()
+    release_scan = threading.Event()
+    scan_finished = threading.Event()
+
+    def slow_scan(scan_id):
+        scan_started.set()
+        release_scan.wait(timeout=2)
+        scan_finished.set()
+        return {"found": 0, "added": 0, "updated": 0, "errors": []}
+
+    monkeypatch.setattr(prospecting, "run_scan", slow_scan)
+
+    response = client.post("/admin/scan")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/admin")
+    assert scan_started.wait(timeout=1)
+    assert not scan_finished.is_set()
+
+    release_scan.set()
+    assert scan_finished.wait(timeout=1)
+
+
+def test_admin_scan_does_not_start_a_second_concurrent_scan(client, monkeypatch):
+    monkeypatch.setattr(prospecting, "start_background_scan", lambda: False)
+
+    response = client.post("/admin/scan", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert "Un scan est déjà en cours" in response.get_data(as_text=True)
+
+
+def test_admin_scan_redirects_when_background_start_fails(client, monkeypatch):
+    def failed_start():
         raise RuntimeError("database temporarily unavailable")
 
-    monkeypatch.setattr(prospecting, "run_scan", failed_scan)
+    monkeypatch.setattr(prospecting, "start_background_scan", failed_start)
 
     response = client.post("/admin/scan", follow_redirects=True)
 

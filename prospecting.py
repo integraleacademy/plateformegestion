@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import sqlite3
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -499,11 +500,39 @@ def _scan_limit() -> int:
         return 250
 
 
-def run_scan() -> dict:
+def _create_scan_run() -> int | None:
+    """Réserve un scan de façon atomique, même avec plusieurs workers Gunicorn."""
+    init_prospect_db()
+    now = _now()
+    stale_before = (datetime.now(timezone.utc) - timedelta(minutes=30)).replace(microsecond=0).isoformat()
+    with get_prospect_db() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            """UPDATE prospect_scans
+               SET finished_at=?, status='failed', error_message='Scan interrompu avant sa finalisation'
+               WHERE status='running' AND started_at<?""",
+            (now, stale_before),
+        )
+        running = connection.execute(
+            "SELECT id FROM prospect_scans WHERE status='running' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if running:
+            return None
+        return connection.execute(
+            "INSERT INTO prospect_scans(started_at,status) VALUES (?,'running')",
+            (now,),
+        ).lastrowid
+
+
+def run_scan(scan_id: int | None = None) -> dict:
     init_prospect_db()
     limit = _scan_limit()
-    with get_prospect_db() as connection:
-        scan_id = connection.execute("INSERT INTO prospect_scans(started_at,status) VALUES (?,'running')", (_now(),)).lastrowid
+    if scan_id is None:
+        with get_prospect_db() as connection:
+            scan_id = connection.execute(
+                "INSERT INTO prospect_scans(started_at,status) VALUES (?,'running')",
+                (_now(),),
+            ).lastrowid
     found = added = updated = 0
     sources, errors = [], []
     expected_errors = (OSError, ValueError, KeyError, TypeError, AttributeError, json.JSONDecodeError, urllib.error.URLError)
@@ -531,6 +560,40 @@ def run_scan() -> dict:
             (_now(), "partial" if errors else "success", ", ".join(sources), found, added, updated, " | ".join(errors), scan_id),
         )
     return {"found": found, "added": added, "updated": updated, "errors": errors}
+
+
+def _run_scan_in_background(app, scan_id: int) -> None:
+    with app.app_context():
+        try:
+            run_scan(scan_id)
+        except Exception as exc:
+            logger.exception("Échec du scan de prospection en arrière-plan")
+            try:
+                with get_prospect_db() as connection:
+                    connection.execute(
+                        """UPDATE prospect_scans
+                           SET finished_at=?, status='failed', error_message=?
+                           WHERE id=? AND status='running'""",
+                        (_now(), f"{type(exc).__name__}: {exc}", scan_id),
+                    )
+            except Exception:
+                logger.exception("Impossible d'enregistrer l'échec du scan %s", scan_id)
+
+
+def start_background_scan() -> bool:
+    scan_id = _create_scan_run()
+    if scan_id is None:
+        return False
+
+    app = current_app._get_current_object()
+    thread = threading.Thread(
+        target=_run_scan_in_background,
+        args=(app, scan_id),
+        name=f"prospect-scan-{scan_id}",
+        daemon=True,
+    )
+    thread.start()
+    return True
 
 
 def _openai_mail(prospect: sqlite3.Row) -> str:
@@ -587,9 +650,11 @@ def admin_prospects():
         prospects = connection.execute(f"SELECT * FROM prospects WHERE {' AND '.join(clauses)} ORDER BY score DESC, date_signal_recent DESC, date_detection DESC LIMIT 1000", parameters).fetchall()
         stats = connection.execute("SELECT COUNT(*) total, SUM(est_recent=1 AND archive=0) new_count, SUM(commercial_status='À relancer' AND archive=0) followup_count, COALESCE(ROUND(AVG(CASE WHEN archive=0 THEN score END)),0) average_score FROM prospects").fetchone()
         last_scan = connection.execute("SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1").fetchone()
+    scan_running = bool(last_scan and last_scan["status"] == "running")
     return render_template("admin_prospects.html", prospects=prospects, stats=stats, last_scan=last_scan, statuses=STATUSES,
         signal_filters=SIGNAL_FILTERS, filters={"q": search, "status": status, "score": minimum_score, "signal_filter": signal_filter},
-        openai_enabled=bool(os.environ.get("OPENAI_API_KEY")), web_enabled=bool(os.environ.get("SERPER_API_KEY")))
+        scan_running=scan_running, openai_enabled=bool(os.environ.get("OPENAI_API_KEY")),
+        web_enabled=bool(os.environ.get("SERPER_API_KEY")))
 
 
 @prospecting_bp.route("/cron-prospects-scan", methods=["GET", "POST"])
@@ -603,15 +668,16 @@ def cron_scan_prospects():
 @prospecting_bp.post("/admin/scan")
 def scan_prospects():
     try:
-        result = run_scan()
+        started = start_background_scan()
     except Exception:
-        logger.exception("Impossible d'exécuter le scan de prospection")
+        logger.exception("Impossible de démarrer le scan de prospection")
         flash("Le scan n'a pas pu démarrer. Réessayez dans quelques instants.", "error")
         return redirect(url_for("prospecting.admin_prospects"))
 
-    flash(f"Scan terminé : {result['added']} nouveau(x), {result['updated']} actualisé(s).", "success" if result["found"] else "error")
-    if result["errors"]:
-        flash("Sources indisponibles : " + " | ".join(result["errors"]), "warning")
+    if started:
+        flash("Le scan a démarré en arrière-plan. La page sera actualisée automatiquement.", "success")
+    else:
+        flash("Un scan est déjà en cours.", "warning")
     return redirect(url_for("prospecting.admin_prospects"))
 
 

@@ -472,15 +472,20 @@ def _scan_limit() -> int:
         return 250
 
 
+def _expire_stale_scans(connection: sqlite3.Connection) -> None:
+    """Ferme les scans `running` laissés par les anciennes versions asynchrones."""
+    connection.execute(
+        """UPDATE prospect_scans
+           SET finished_at=?, status='failed', error_message='Ancien scan interrompu'
+           WHERE status='running'""",
+        (_now(),),
+    )
+
+
 def _close_abandoned_scans() -> None:
-    """Nettoie les lignes laissées `running` par les anciennes versions asynchrones."""
+    """Compatibilité pour les appels sans connexion déjà ouverts."""
     with get_prospect_db() as connection:
-        connection.execute(
-            """UPDATE prospect_scans
-               SET finished_at=?, status='failed', error_message='Ancien scan interrompu'
-               WHERE status='running'""",
-            (_now(),),
-        )
+        _expire_stale_scans(connection)
 
 
 def run_scan() -> dict:

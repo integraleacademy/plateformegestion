@@ -272,3 +272,29 @@ def test_rne_scanner_uses_training_organization_filters(monkeypatch):
     assert "etat_administratif=A" in captured["url"]
     assert "activite_principale=85.59A" in captured["url"]
     assert captured["timeout"] == 20
+
+
+def test_expire_stale_scans_symbol_used_by_admin_exists(client):
+    assert callable(prospecting._expire_stale_scans)
+
+    with app.app_context():
+        prospecting.init_prospect_db()
+        with prospecting.get_prospect_db() as connection:
+            connection.execute(
+                "INSERT INTO prospect_scans(started_at,status) VALUES (?,'running')",
+                ("2026-06-10T06:00:00+00:00",),
+            )
+            prospecting._expire_stale_scans(connection)
+            scan = connection.execute(
+                "SELECT * FROM prospect_scans ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+
+    assert scan["status"] == "failed"
+    assert scan["finished_at"]
+
+
+def test_admin_route_has_no_reference_to_removed_cleanup_symbol(client):
+    response = client.get("/admin")
+
+    assert response.status_code == 200
+    assert b"Internal Server Error" not in response.data

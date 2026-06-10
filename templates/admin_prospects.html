@@ -48,6 +48,7 @@
           <small class="last-scan">Aucun scan effectué</small>
         {% endif %}
       </form>
+      {% if scan_running %}<script>window.setTimeout(() => window.location.reload(), 10000);</script>{% endif %}
     </section>
 
     <section class="stats-grid">

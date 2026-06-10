@@ -40,9 +40,18 @@
         </div>
       </div>
       <form action="{{ url_for('prospecting.scan_prospects') }}" method="post">
-        <button class="btn btn-gold scan-button" type="submit"><span>⌁</span> Scanner maintenant</button>
-        {% if last_scan %}<small class="last-scan">Dernier scan : {{ last_scan.finished_at|datetimefr }} · {{ last_scan.added_count }} ajouté(s)</small>{% else %}<small class="last-scan">Aucun scan effectué</small>{% endif %}
+        <button class="btn btn-gold scan-button" type="submit"{% if scan_running %} disabled{% endif %}><span>⌁</span> {{ 'Scan en cours…' if scan_running else 'Scanner maintenant' }}</button>
+        {% if scan_running %}
+          <small class="last-scan">{{ last_scan.sources or 'Initialisation' }} · {{ last_scan.found_count }} résultat(s) traité(s)</small>
+        {% elif last_scan and last_scan.status == 'failed' %}
+          <small class="last-scan">Le scan précédent a été interrompu. Vous pouvez le relancer.</small>
+        {% elif last_scan %}
+          <small class="last-scan">Dernier scan : {{ last_scan.finished_at|datetimefr }} · {{ last_scan.added_count }} ajouté(s)</small>
+        {% else %}
+          <small class="last-scan">Aucun scan effectué</small>
+        {% endif %}
       </form>
+      {% if scan_running %}<script>window.setTimeout(() => window.location.reload(), 10000);</script>{% endif %}
     </section>
 
     <section class="stats-grid">

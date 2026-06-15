@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{{ title }}</title>
+  <style>
+    body {
+      background:#f8f8f8;
+      font-family:'Segoe UI',Arial,sans-serif;
+      margin:0;
+      padding:0;
+    }
+
+    header.topbar {
+      background:#111;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:15px 30px;
+      box-shadow:0 2px 6px rgba(0,0,0,.3);
+    }
+    .brand {display:flex;align-items:center;gap:15px;}
+    .brand img.logo {height:60px;border-radius:10px;}
+    .brand a.back {color:#f4c45a;font-weight:600;text-decoration:none;margin-right:15px;}
+    .topbar h1 {margin:0;font-size:22px;letter-spacing:0.5px;}
+
+    main.container {padding:40px;max-width:1200px;margin:auto;}
+    .btn.gold {
+      background:#f4c45a;color:#000;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;
+      font-weight:600;transition:0.2s;
+    }
+    .btn.gold:hover {background:#e8b940;}
+    .actions-bar {text-align:right;margin-bottom:25px;}
+    h2.section-title {
+      font-size:20px;margin:25px 0 15px;color:#222;border-left:4px solid #2a9134;padding-left:10px;
+      display:flex;align-items:center;gap:8px;
+    }
+    .section-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-top:25px;
+    }
+    .section-header .section-title {margin:0;}
+    .toggle-archived-btn {
+      border:none;
+      border-radius:999px;
+      padding:8px 14px;
+      background:#efefef;
+      color:#333;
+      font-weight:600;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      transition:background .2s ease, transform .2s ease;
+    }
+    .toggle-archived-btn:hover {
+      background:#e3e3e3;
+      transform:translateY(-1px);
+    }
+    .archived-content {
+      margin-top:12px;
+    }
+    .archived-content[hidden] {
+      display:none;
+    }
+
+    /* Bloc récapitulatif */
+    .recap {
+      background:#fff;
+      border-radius:14px;
+      box-shadow:0 4px 10px rgba(0,0,0,.1);
+      padding:20px 30px;
+      margin-bottom:35px;
+    }
+    .recap h3 {
+      margin-top:0;
+      font-size:19px;
+      color:#222;
+      border-bottom:2px solid #eee;
+      padding-bottom:10px;
+    }
+    .recap table {
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+    }
+    .recap th, .recap td {
+      padding:10px;
+      text-align:left;
+      border-bottom:1px solid #eee;
+      vertical-align:top;
+    }
+    .recap th {background:#f4f4f4;color:#222;text-align:center;}
+    .ok {color:#2ecc71;font-weight:600;}
+    .warn {color:#f4c45a;font-weight:600;}
+    .late {color:#e74c3c;font-weight:600;}
+    .list {font-size:14px;line-height:1.5;margin-top:5px;}
+    .global-alert {
+      background:#fff3f3;
+      border-left:5px solid #e74c3c;
+      color:#c0392b;
+      padding:10px 15px;
+      font-weight:600;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+    .global-ok {
+      background:#f1fff2;
+      border-left:5px solid #2ecc71;
+      color:#2d8640;
+      padding:10px 15px;
+      font-weight:600;
+      border-radius:8px;
+      margin-bottom:15px;
+    }
+
+    /* Cartes sessions */
+    .sessions-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+      gap:25px;
+    }
+    .session-card {
+      display:block;background:#fff;border-radius:14px;padding:18px 20px 18px 24px;
+      text-decoration:none;color:#222;box-shadow:0 4px 10px rgba(0,0,0,.08);
+      transition:transform 0.2s, box-shadow 0.2s;
+      position:relative;border-left:10px solid var(--accent,#2a9134);
+    }
+    .session-card:hover {transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.15);}
+    .session-title {font-size:22px;font-weight:700;color:var(--accent,#2a9134);text-align:center;margin-bottom:8px;}
+    .session-title-input {
+      width:100%;
+      border:none;
+      background:transparent;
+      text-align:center;
+      font-size:22px;
+      font-weight:700;
+      color:var(--accent,#2a9134);
+      outline:none;
+      border-radius:8px;
+      padding:2px 6px;
+    }
+    .session-title-input:hover,
+    .session-title-input:focus {
+      background:#f7f7f7;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);
+    }
+    .session-save-status {
+      min-height:16px;
+      margin-top:4px;
+      text-align:center;
+      font-size:12px;
+      color:#666;
+    }
+    .session-save-status.error { color:#c0392b; }
+    .session-sub {text-align:center;font-size:14px;color:#555;}
+    .jury-status-line {
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:8px;
+      font-size:12px;
+      font-weight:600;
+    }
+    .jury-pill {
+      padding:4px 10px;
+      border-radius:16px;
+      background:#eee;
+      color:#222;
+    }
+    .jury-pill.pending {background:#e74c3c;color:#fff;}
+    .jury-pill.present {background:#2a9134;color:#fff;}
+    .jury-pill.absent {background:#c0392b;color:#fff;}
+    .jury-pill.to-notify {background:#f39c12;color:#111;}
+    .session-badge {display:inline-block;background:#2a9134;color:#fff;font-size:12px;
+      padding:4px 10px;border-radius:20px;margin-top:10px;}
+    .archived .session-badge {background:#999;}
+    .next-badge {
+      position:absolute;top:-10px;left:-10px;background:#f4c45a;color:#000;font-weight:600;
+      padding:4px 12px;border-radius:0 8px 8px 0;font-size:13px;box-shadow:0 2px 5px rgba(0,0,0,.15);
+      animation:fadeIn 0.8s ease-in;
+    }
+    @keyframes fadeIn {from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
+    .countdown {text-align:center;font-size:13px;color:#333;margin-top:6px;font-weight:500;}
+    footer.footer {text-align:center;color:#777;padding:25px 0;font-size:14px;}
+
+    /* === Modal ajout session === */
+    .modal {
+      display:none;
+      position:fixed;
+      z-index:9999;
+      top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,.6);
+      justify-content:center;
+      align-items:center;
+    }
+    .modal-content {
+      background:#fff;
+      padding:25px 30px;
+      border-radius:12px;
+      box-shadow:0 4px 20px rgba(0,0,0,.3);
+      width:90%;
+      max-width:450px;
+      animation:fadeIn 0.3s ease;
+    }
+    .modal-content h3 {margin-top:0;}
+    .modal-content label {display:block;margin-top:12px;font-weight:600;}
+    .modal-content input, .modal-content select {
+      width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:6px;
+    }
+    .modal-content .btns {margin-top:18px;text-align:right;}
+    .btn.cancel {background:#ccc;color:#000;margin-left:10px;}
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <a href="{{ url_for('index') }}" class="back">← Accueil</a>
+    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo" alt="Logo">
+  </div>
+  <h1>Gestion des sessions</h1>
+</header>
+
+<main class="container">
+
+  <!-- === Bloc récapitulatif === -->
+  <div class="recap">
+    {% if total_late > 0 %}
+      <div class="global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>
+    {% else %}
+      <div class="global-ok">✅ Aucune étape en retard — tout est à jour 🎉</div>
+    {% endif %}
+
+    <h3>🧾 Récapitulatif des retards et échéances du jour</h3>
+    <table>
+      <tr><th>Formation</th><th>🔴 Étapes en retard</th><th>🟡 À faire aujourd’hui</th></tr>
+      {% for f, late_steps, today_steps in recap_data %}
+      <tr>
+        <td><b>{{ f }}</b></td>
+        <td>
+          {% if late_steps %}
+            {% for text, days in late_steps %}
+              <div class="list late">🔴 {{ text }} ({{ days }} j)</div>
+            {% endfor %}
+          {% else %}
+            <div class="list ok">✅ Aucun retard</div>
+          {% endif %}
+        </td>
+        <td>
+          {% if today_steps %}
+            {% for text in today_steps %}
+              <div class="list warn">🟡 {{ text }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="list" style="color:#999;">—</div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <!-- === Bouton ajouter === -->
+  <div class="actions-bar">
+    <button class="btn gold" id="openModal">➕ Ajouter une session</button>
+  </div>
+
+  {% set sorted_active = active_sessions|sort(attribute='date_debut') %}
+  {% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
+  {% set next_session_found = false %}
+
+  {% if sorted_active %}
+  <h2 class="section-title">📅 Sessions actives</h2>
+  <div class="sessions-grid">
+    {% for s in sorted_active %}
+      {% set color = s.color %}
+      {% set date_debut = s.date_debut|datetime %}
+      {% set diff = (date_debut.date() - now().date()).days %}
+      {% if not next_session_found and diff > 0 %}
+        {% set is_next = true %}
+        {% set next_session_found = true %}
+      {% else %}
+        {% set is_next = false %}
+      {% endif %}
+
+      <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
+        {% if is_next %}
+          <div class="next-badge">🌟 Prochaine session</div>
+        {% endif %}
+        <div class="session-title" onclick="event.preventDefault(); event.stopPropagation();">
+          <input
+            class="session-title-input"
+            type="text"
+            value="{{ (s.display_name or s.formation)|e }}"
+            maxlength="80"
+            data-session-id="{{ s.id }}"
+            aria-label="Nom de la session"
+          >
+          <div class="session-save-status" data-session-status="{{ s.id }}"></div>
+        </div>
+        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
+        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
+
+        {% if diff > 0 %}
+          <div class="countdown">🕓 Dans {{ diff }} jour{% if diff>1 %}s{% endif %}</div>
+        {% elif diff == 0 %}
+          <div class="countdown">📅 Commence aujourd’hui</div>
+        {% else %}
+          <div class="countdown" style="color:#999;">✔️ Déjà commencée</div>
+        {% endif %}
+        {% set pending_count = s.jurys|selectattr('status', 'equalto', 'pending')|list|length %}
+        {% set present_count = s.jurys|selectattr('status', 'equalto', 'present')|list|length %}
+        {% set absent_count = s.jurys|selectattr('status', 'equalto', 'absent')|list|length %}
+        <div class="jury-status-line">
+          {% if s.jury_notification_status != "notified" %}
+            <span class="jury-pill to-notify">Jury à notifier</span>
+          {% else %}
+            {% if present_count == 0 %}
+              <span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>
+            {% endif %}
+            <span class="jury-pill present">{{ present_count }} présent{% if present_count > 1 %}s{% endif %}</span>
+            {% if present_count < 2 %}
+              <span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="session-badge">Active</div>
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if sorted_archived %}
+  <div class="section-header">
+    <h2 class="section-title">🗃️ Sessions archivées / terminées</h2>
+    <button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions">
+      <span id="toggleArchivedIcon">▶️</span>
+      <span id="toggleArchivedText">Afficher</span>
+    </button>
+  </div>
+
+  <div class="archived-content" id="archivedSessions" hidden>
+    <div class="sessions-grid">
+      {% for s in sorted_archived %}
+        <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
+          <div class="session-title">{{ s.formation }}</div>
+          <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
+          <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
+          {% if s.archived %}
+            <div class="countdown" style="color:#777;">📦 Session archivée</div>
+          {% else %}
+            <div class="countdown" style="color:#777;">✅ Session terminée</div>
+          {% endif %}
+          <div class="session-badge">Archivée</div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</main>
+
+<!-- === MODAL NOUVELLE SESSION === -->
+<div class="modal" id="sessionModal">
+  <div class="modal-content">
+    <h3>➕ Nouvelle session</h3>
+    <form method="post" action="{{ url_for('create_session') }}">
+      <label>Formation :</label>
+      <select name="formation" required>
+        <option value="">-- Choisir --</option>
+        <option value="APS">APS</option>
+        <option value="A3P">A3P</option>
+        <option value="SSIAP">SSIAP</option>
+        <option value="DIRIGEANT">DIRIGEANT</option>
+        <option value="GENERAL">GENERAL</option>
+      </select>
+
+      <label>Date début :</label>
+      <input type="date" name="date_debut" required>
+
+      <label>Date fin :</label>
+      <input type="date" name="date_fin" required>
+
+      <label>Date examen :</label>
+      <input type="date" name="date_exam" required>
+
+      <div class="btns">
+        <button type="submit" class="btn gold">Créer</button>
+        <button type="button" class="btn cancel" id="closeModal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="footer">
+  © <span id="year"></span> Intégrale Academy — Tous droits réservés
+</footer>
+
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// Script pour le modal
+document.addEventListener("DOMContentLoaded", () => {
+  const openBtn = document.getElementById("openModal");
+  const closeBtn = document.getElementById("closeModal");
+  const modal = document.getElementById("sessionModal");
+  const toggleArchivedBtn = document.getElementById("toggleArchived");
+  const archivedSessions = document.getElementById("archivedSessions");
+  const toggleArchivedText = document.getElementById("toggleArchivedText");
+  const toggleArchivedIcon = document.getElementById("toggleArchivedIcon");
+
+  if (openBtn && modal) {
+    openBtn.addEventListener("click", () => modal.style.display = "flex");
+  }
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => modal.style.display = "none");
+  }
+  window.addEventListener("click", (e) => {
+    if (e.target === modal) modal.style.display = "none";
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") modal.style.display = "none";
+  });
+
+  if (toggleArchivedBtn && archivedSessions && toggleArchivedText && toggleArchivedIcon) {
+    toggleArchivedBtn.addEventListener("click", () => {
+      const shouldOpen = archivedSessions.hasAttribute("hidden");
+
+      if (shouldOpen) {
+        archivedSessions.removeAttribute("hidden");
+      } else {
+        archivedSessions.setAttribute("hidden", "");
+      }
+
+      toggleArchivedBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      toggleArchivedText.textContent = shouldOpen ? "Masquer" : "Afficher";
+      toggleArchivedIcon.textContent = shouldOpen ? "🔽" : "▶️";
+    });
+  }
+
+  const titleInputs = document.querySelectorAll(".session-title-input[data-session-id]");
+
+  const setStatus = (sessionId, message, isError = false) => {
+    const statusEl = document.querySelector(`[data-session-status="${sessionId}"]`);
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.toggle("error", isError);
+  };
+
+  const persistSessionName = async (input) => {
+    const sessionId = input.dataset.sessionId;
+    const nextValue = input.value.trim();
+    const previousValue = input.dataset.lastSavedValue || "";
+
+    if (!sessionId || nextValue === previousValue) return;
+
+    if (!nextValue) {
+      input.value = previousValue;
+      setStatus(sessionId, "Le nom ne peut pas être vide.", true);
+      return;
+    }
+
+    setStatus(sessionId, "Enregistrement...");
+
+    try {
+      const response = await fetch(`/sessions/${sessionId}/rename`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: nextValue }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Erreur inconnue");
+      }
+
+      input.dataset.lastSavedValue = payload.name;
+      input.value = payload.name;
+      setStatus(sessionId, "✓ Enregistré");
+      setTimeout(() => setStatus(sessionId, ""), 1800);
+    } catch (error) {
+      input.value = previousValue;
+      setStatus(sessionId, error.message || "Erreur lors de l'enregistrement.", true);
+    }
+  };
+
+  titleInputs.forEach((input) => {
+    input.dataset.lastSavedValue = input.value.trim();
+
+    input.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        persistSessionName(input);
+        input.blur();
+      }
+      if (event.key === "Escape") {
+        input.value = input.dataset.lastSavedValue || "";
+        input.blur();
+      }
+      event.stopPropagation();
+    });
+
+    input.addEventListener("blur", () => {
+      persistSessionName(input);
+    });
+  });
+});
+</script>
+</body>
+</html>

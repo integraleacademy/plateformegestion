@@ -2,520 +2,245 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>{{ title }}</title>
   <style>
-    body {
-      background:#f8f8f8;
-      font-family:'Segoe UI',Arial,sans-serif;
-      margin:0;
-      padding:0;
-    }
+    :root { --gold:#F4C45A; --gold-dark:#d39b25; --ink:#1d2433; --muted:#687083; --line:#e7e9ef; --surface:#fff; --bg:#f6f7f9; --sidebar:#17191f; --success:#23845b; --danger:#c94b4b; --warning:#b87712; --radius:18px; --shadow:0 8px 28px rgba(29,36,51,.07); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:Inter,"Segoe UI",Arial,sans-serif; }
+    button,input,select { font:inherit; }
+    a { color:inherit; text-decoration:none; }
+    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid rgba(244,196,90,.5); outline-offset:2px; }
 
-    header.topbar {
-      background:#111;
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:15px 30px;
-      box-shadow:0 2px 6px rgba(0,0,0,.3);
-    }
-    .brand {display:flex;align-items:center;gap:15px;}
-    .brand img.logo {height:60px;border-radius:10px;}
-    .brand a.back {color:#f4c45a;font-weight:600;text-decoration:none;margin-right:15px;}
-    .topbar h1 {margin:0;font-size:22px;letter-spacing:0.5px;}
+    .app-shell { min-height:100vh; }
+    .sidebar { position:fixed; inset:0 auto 0 0; z-index:30; width:248px; display:flex; flex-direction:column; padding:24px 16px; background:var(--sidebar); color:#fff; }
+    .sidebar-brand { display:flex; align-items:center; gap:12px; padding:0 8px 24px; border-bottom:1px solid rgba(255,255,255,.1); }
+    .sidebar-brand img { width:48px; height:48px; object-fit:contain; border-radius:12px; background:#fff; padding:5px; }
+    .sidebar-brand strong { display:block; font-size:14px; line-height:1.2; }
+    .sidebar-brand span { display:block; margin-top:4px; color:#aeb3bf; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+    .nav-label { margin:26px 12px 10px; color:#777e8d; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .sidebar-nav { display:grid; gap:6px; }
+    .nav-link { display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px; border-radius:11px; color:#c7cbd4; font-size:14px; font-weight:600; transition:.2s ease; }
+    .nav-link:hover { background:rgba(255,255,255,.07); color:#fff; transform:translateX(2px); }
+    .nav-link.active { background:var(--gold); color:#191a1e; box-shadow:0 8px 20px rgba(244,196,90,.18); }
+    .nav-icon { width:22px; text-align:center; font-size:17px; }
+    .sidebar-foot { margin-top:auto; padding:16px 12px 0; border-top:1px solid rgba(255,255,255,.1); color:#858b98; font-size:11px; line-height:1.5; }
 
-    main.container {padding:40px;max-width:1200px;margin:auto;}
-    .btn.gold {
-      background:#f4c45a;color:#000;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;
-      font-weight:600;transition:0.2s;
-    }
-    .btn.gold:hover {background:#e8b940;}
-    .actions-bar {text-align:right;margin-bottom:25px;}
-    h2.section-title {
-      font-size:20px;margin:25px 0 15px;color:#222;border-left:4px solid #2a9134;padding-left:10px;
-      display:flex;align-items:center;gap:8px;
-    }
-    .section-header {
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-top:25px;
-    }
-    .section-header .section-title {margin:0;}
-    .toggle-archived-btn {
-      border:none;
-      border-radius:999px;
-      padding:8px 14px;
-      background:#efefef;
-      color:#333;
-      font-weight:600;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      transition:background .2s ease, transform .2s ease;
-    }
-    .toggle-archived-btn:hover {
-      background:#e3e3e3;
-      transform:translateY(-1px);
-    }
-    .archived-content {
-      margin-top:12px;
-    }
-    .archived-content[hidden] {
-      display:none;
-    }
+    .page { min-height:100vh; margin-left:248px; }
+    .topbar { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; min-height:76px; padding:14px 32px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.94); backdrop-filter:blur(12px); }
+    .mobile-brand { display:none; align-items:center; gap:10px; font-weight:800; }
+    .mobile-brand img { width:36px; height:36px; object-fit:contain; border-radius:9px; background:#fff; }
+    .breadcrumb { margin:0 0 4px; color:#8a91a0; font-size:12px; font-weight:700; }
+    .topbar-title { margin:0; font-size:21px; letter-spacing:-.02em; }
+    .topbar-meta { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:#36a875; box-shadow:0 0 0 4px rgba(54,168,117,.12); }
 
-    /* Bloc récapitulatif */
-    .recap {
-      background:#fff;
-      border-radius:14px;
-      box-shadow:0 4px 10px rgba(0,0,0,.1);
-      padding:20px 30px;
-      margin-bottom:35px;
-    }
-    .recap h3 {
-      margin-top:0;
-      font-size:19px;
-      color:#222;
-      border-bottom:2px solid #eee;
-      padding-bottom:10px;
-    }
-    .recap table {
-      width:100%;
-      border-collapse:collapse;
-      margin-top:10px;
-    }
-    .recap th, .recap td {
-      padding:10px;
-      text-align:left;
-      border-bottom:1px solid #eee;
-      vertical-align:top;
-    }
-    .recap th {background:#f4f4f4;color:#222;text-align:center;}
-    .ok {color:#2ecc71;font-weight:600;}
-    .warn {color:#f4c45a;font-weight:600;}
-    .late {color:#e74c3c;font-weight:600;}
-    .list {font-size:14px;line-height:1.5;margin-top:5px;}
-    .global-alert {
-      background:#fff3f3;
-      border-left:5px solid #e74c3c;
-      color:#c0392b;
-      padding:10px 15px;
-      font-weight:600;
-      border-radius:8px;
-      margin-bottom:15px;
-    }
-    .global-ok {
-      background:#f1fff2;
-      border-left:5px solid #2ecc71;
-      color:#2d8640;
-      padding:10px 15px;
-      font-weight:600;
-      border-radius:8px;
-      margin-bottom:15px;
-    }
+    .content { width:min(1420px,100%); margin:0 auto; padding:34px 32px 44px; }
+    .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:26px; }
+    .eyebrow { margin:0 0 8px; color:var(--gold-dark); font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .hero h2 { margin:0; font-size:clamp(27px,3vw,38px); letter-spacing:-.04em; }
+    .hero-copy { max-width:700px; margin:9px 0 0; color:var(--muted); font-size:14px; line-height:1.6; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid transparent; border-radius:11px; padding:11px 16px; font-weight:750; cursor:pointer; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; }
+    .btn:hover { transform:translateY(-1px); }
+    .btn.gold { background:var(--gold); color:#17191f; box-shadow:0 8px 18px rgba(211,155,37,.2); }
+    .btn.gold:hover { background:#edb942; box-shadow:0 10px 24px rgba(211,155,37,.28); }
+    .btn.cancel { margin-left:8px; border-color:var(--line); background:#f4f5f7; color:#525a69; }
 
-    /* Cartes sessions */
-    .sessions-grid {
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
-      gap:25px;
-    }
-    .session-card {
-      display:block;background:#fff;border-radius:14px;padding:18px 20px 18px 24px;
-      text-decoration:none;color:#222;box-shadow:0 4px 10px rgba(0,0,0,.08);
-      transition:transform 0.2s, box-shadow 0.2s;
-      position:relative;border-left:10px solid var(--accent,#2a9134);
-    }
-    .session-card:hover {transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.15);}
-    .session-title {font-size:22px;font-weight:700;color:var(--accent,#2a9134);text-align:center;margin-bottom:8px;}
-    .session-title-input {
-      width:100%;
-      border:none;
-      background:transparent;
-      text-align:center;
-      font-size:22px;
-      font-weight:700;
-      color:var(--accent,#2a9134);
-      outline:none;
-      border-radius:8px;
-      padding:2px 6px;
-    }
-    .session-title-input:hover,
-    .session-title-input:focus {
-      background:#f7f7f7;
-      box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);
-    }
-    .session-save-status {
-      min-height:16px;
-      margin-top:4px;
-      text-align:center;
-      font-size:12px;
-      color:#666;
-    }
-    .session-save-status.error { color:#c0392b; }
-    .session-sub {text-align:center;font-size:14px;color:#555;}
-    .jury-status-line {
-      margin-top:10px;
-      display:flex;
-      flex-wrap:wrap;
-      justify-content:center;
-      gap:8px;
-      font-size:12px;
-      font-weight:600;
-    }
-    .jury-pill {
-      padding:4px 10px;
-      border-radius:16px;
-      background:#eee;
-      color:#222;
-    }
-    .jury-pill.pending {background:#e74c3c;color:#fff;}
-    .jury-pill.present {background:#2a9134;color:#fff;}
-    .jury-pill.absent {background:#c0392b;color:#fff;}
-    .jury-pill.to-notify {background:#f39c12;color:#111;}
-    .session-badge {display:inline-block;background:#2a9134;color:#fff;font-size:12px;
-      padding:4px 10px;border-radius:20px;margin-top:10px;}
-    .archived .session-badge {background:#999;}
-    .next-badge {
-      position:absolute;top:-10px;left:-10px;background:#f4c45a;color:#000;font-weight:600;
-      padding:4px 12px;border-radius:0 8px 8px 0;font-size:13px;box-shadow:0 2px 5px rgba(0,0,0,.15);
-      animation:fadeIn 0.8s ease-in;
-    }
-    @keyframes fadeIn {from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
-    .countdown {text-align:center;font-size:13px;color:#333;margin-top:6px;font-weight:500;}
-    footer.footer {text-align:center;color:#777;padding:25px 0;font-size:14px;}
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
+    .kpi-card { position:relative; overflow:hidden; padding:20px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); }
+    .kpi-card::after { content:""; position:absolute; right:-24px; bottom:-34px; width:90px; height:90px; border-radius:50%; background:var(--kpi-color,#eee); opacity:.1; }
+    .kpi-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .kpi-label { color:var(--muted); font-size:13px; font-weight:700; }
+    .kpi-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:11px; background:var(--kpi-bg,#f8f1df); font-size:18px; }
+    .kpi-value { margin-top:13px; font-size:30px; font-weight:800; line-height:1; letter-spacing:-.04em; }
+    .kpi-caption { margin-top:8px; color:#969caa; font-size:11px; }
 
-    /* === Modal ajout session === */
-    .modal {
-      display:none;
-      position:fixed;
-      z-index:9999;
-      top:0;left:0;width:100%;height:100%;
-      background:rgba(0,0,0,.6);
-      justify-content:center;
-      align-items:center;
+    .panel { border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); }
+    .panel + .panel { margin-top:24px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; border-bottom:1px solid var(--line); }
+    .panel-title { margin:0; font-size:17px; letter-spacing:-.02em; }
+    .panel-subtitle { margin:5px 0 0; color:var(--muted); font-size:12px; }
+    .alert-banner { display:flex; align-items:center; gap:11px; margin:18px 20px 0; padding:12px 14px; border-radius:11px; font-size:13px; font-weight:700; }
+    .global-alert { border:1px solid #f4cccc; background:#fff4f3; color:#a93737; }
+    .global-ok { border:1px solid #cce8da; background:#f2fbf7; color:#23724f; }
+    .recap-table-wrap { overflow-x:auto; padding:12px 20px 20px; }
+    .recap table { width:100%; border-collapse:collapse; }
+    .recap th { padding:11px 12px; background:#f7f8fa; color:#717888; font-size:11px; text-align:left; text-transform:uppercase; letter-spacing:.04em; }
+    .recap th:first-child { border-radius:9px 0 0 9px; }
+    .recap th:last-child { border-radius:0 9px 9px 0; }
+    .recap td { padding:14px 12px; border-bottom:1px solid #eef0f3; vertical-align:top; font-size:13px; }
+    .recap tr:last-child td { border-bottom:0; }
+    .list { margin:3px 0; line-height:1.45; }
+    .ok { color:var(--success); font-weight:650; } .warn { color:var(--warning); font-weight:650; } .late { color:var(--danger); font-weight:650; }
+
+    .sessions-panel { margin-top:24px; }
+    .sessions-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:20px 22px; border-bottom:1px solid var(--line); }
+    .section-count { display:inline-flex; align-items:center; justify-content:center; min-width:27px; height:25px; margin-left:7px; border-radius:999px; background:#fff4d8; color:#9a6b0c; font-size:12px; }
+    .sessions-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; padding:20px; }
+    .session-card { position:relative; display:flex; flex-direction:column; min-height:264px; padding:20px; overflow:hidden; border:1px solid var(--line); border-radius:15px; background:#fff; color:var(--ink); transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease; }
+    .session-card::before { content:""; position:absolute; inset:0 auto 0 0; width:4px; background:var(--accent,var(--gold)); }
+    .session-card:hover { transform:translateY(-3px); border-color:#d9dce4; box-shadow:0 14px 30px rgba(29,36,51,.11); }
+    .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .session-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border-radius:999px; background:#eaf8f1; color:#207451; font-size:10px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+    .session-badge::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+    .session-card.archived { background:#fafafa; }
+    .session-card.archived .session-badge { background:#edeff2; color:#6f7683; }
+    .next-badge { padding:5px 9px; border-radius:999px; background:#fff4d8; color:#8a600d; font-size:10px; font-weight:800; }
+    .session-title { margin:20px 0 4px; font-size:20px; font-weight:800; letter-spacing:-.03em; }
+    .session-title-input { width:100%; padding:5px 7px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ink); font-size:20px; font-weight:800; letter-spacing:-.03em; outline:none; }
+    .session-title-input:hover,.session-title-input:focus { border-color:#dfd6bd; background:#fffbf1; }
+    .session-save-status { min-height:15px; padding-left:8px; color:var(--success); font-size:10px; }
+    .session-save-status.error { color:var(--danger); }
+    .session-dates { display:grid; gap:8px; margin-top:13px; padding:13px 0; border-top:1px solid #f0f1f4; border-bottom:1px solid #f0f1f4; }
+    .session-sub { display:flex; align-items:center; gap:8px; color:#5f6776; font-size:12px; }
+    .countdown { margin-top:11px; color:#4d5666; font-size:12px; font-weight:700; }
+    .jury-status-line { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .jury-pill { padding:4px 8px; border-radius:7px; background:#f0f1f4; color:#4f5663; font-size:10px; font-weight:700; }
+    .jury-pill.pending { background:#fff0ef; color:#b13e3e; } .jury-pill.present { background:#eaf8f1; color:#207451; } .jury-pill.absent { background:#fbeaea; color:#a63d3d; } .jury-pill.to-notify { background:#fff4d8; color:#8a600d; }
+    .card-action { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:15px; color:#3f4654; font-size:12px; font-weight:800; }
+    .card-action span:last-child { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; background:#f5f6f8; transition:.2s ease; }
+    .session-card:hover .card-action span:last-child { background:var(--gold); transform:translateX(2px); }
+    .empty-state { padding:46px 20px; color:var(--muted); text-align:center; }
+    .section-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:20px 22px; }
+    .toggle-archived-btn { display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:#f7f8fa; color:#505867; font-weight:700; cursor:pointer; }
+    .archived-content { border-top:1px solid var(--line); } .archived-content[hidden] { display:none; }
+
+    .modal { display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; padding:20px; background:rgba(20,22,27,.62); backdrop-filter:blur(5px); }
+    .modal-content { width:min(480px,100%); padding:26px; border-radius:18px; background:#fff; box-shadow:0 24px 70px rgba(0,0,0,.3); }
+    .modal-content h3 { margin:0 0 20px; font-size:21px; }
+    .modal-content label { display:block; margin-top:13px; color:#424957; font-size:12px; font-weight:800; }
+    .modal-content input,.modal-content select { width:100%; margin-top:6px; padding:11px 12px; border:1px solid #dcdfe5; border-radius:10px; background:#fff; color:var(--ink); }
+    .modal-content input:focus,.modal-content select:focus { border-color:var(--gold-dark); outline:3px solid rgba(244,196,90,.18); }
+    .modal-content .btns { display:flex; justify-content:flex-end; margin-top:22px; }
+    .footer { padding:24px 32px 32px; color:#969caa; font-size:11px; text-align:center; }
+
+    @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } .sessions-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:760px) {
+      .sidebar { position:static; width:100%; height:auto; padding:10px 14px; }
+      .sidebar-brand,.nav-label,.sidebar-foot { display:none; }
+      .sidebar-nav { display:flex; overflow-x:auto; gap:7px; scrollbar-width:none; }
+      .nav-link { flex:0 0 auto; min-height:40px; padding:8px 11px; font-size:12px; }
+      .page { margin-left:0; }
+      .topbar { min-height:64px; padding:10px 18px; }
+      .topbar-heading { display:none; } .mobile-brand { display:flex; } .topbar-meta span:last-child { display:none; }
+      .content { padding:24px 16px 34px; }
+      .hero { align-items:stretch; flex-direction:column; } .hero .btn { width:100%; }
+      .kpi-grid { gap:10px; } .kpi-card { padding:16px; } .kpi-value { font-size:26px; }
+      .sessions-grid { grid-template-columns:1fr; padding:14px; }
+      .recap-table-wrap { padding:8px 14px 16px; }
+      .recap table,.recap tbody,.recap tr,.recap td { display:block; }
+      .recap tr:first-child { display:none; }
+      .recap tr { padding:13px 0; border-bottom:1px solid var(--line); }
+      .recap td { padding:5px 8px; border:0; }
+      .panel-head,.sessions-toolbar,.section-header { padding:16px; }
     }
-    .modal-content {
-      background:#fff;
-      padding:25px 30px;
-      border-radius:12px;
-      box-shadow:0 4px 20px rgba(0,0,0,.3);
-      width:90%;
-      max-width:450px;
-      animation:fadeIn 0.3s ease;
-    }
-    .modal-content h3 {margin-top:0;}
-    .modal-content label {display:block;margin-top:12px;font-weight:600;}
-    .modal-content input, .modal-content select {
-      width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:6px;
-    }
-    .modal-content .btns {margin-top:18px;text-align:right;}
-    .btn.cancel {background:#ccc;color:#000;margin-left:10px;}
+    @media (max-width:480px) { .kpi-grid { grid-template-columns:1fr 1fr; } .kpi-label { font-size:11px; } .kpi-caption { display:none; } .topbar-meta { display:none; } .modal-content .btns { flex-direction:column; } .modal-content .btn { width:100%; } .btn.cancel { margin:8px 0 0; } }
   </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <a href="{{ url_for('index') }}" class="back">← Accueil</a>
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo" alt="Logo">
-  </div>
-  <h1>Gestion des sessions</h1>
-</header>
-
-<main class="container">
-
-  <!-- === Bloc récapitulatif === -->
-  <div class="recap">
-    {% if total_late > 0 %}
-      <div class="global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>
-    {% else %}
-      <div class="global-ok">✅ Aucune étape en retard — tout est à jour 🎉</div>
-    {% endif %}
-
-    <h3>🧾 Récapitulatif des retards et échéances du jour</h3>
-    <table>
-      <tr><th>Formation</th><th>🔴 Étapes en retard</th><th>🟡 À faire aujourd’hui</th></tr>
-      {% for f, late_steps, today_steps in recap_data %}
-      <tr>
-        <td><b>{{ f }}</b></td>
-        <td>
-          {% if late_steps %}
-            {% for text, days in late_steps %}
-              <div class="list late">🔴 {{ text }} ({{ days }} j)</div>
-            {% endfor %}
-          {% else %}
-            <div class="list ok">✅ Aucun retard</div>
-          {% endif %}
-        </td>
-        <td>
-          {% if today_steps %}
-            {% for text in today_steps %}
-              <div class="list warn">🟡 {{ text }}</div>
-            {% endfor %}
-          {% else %}
-            <div class="list" style="color:#999;">—</div>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-
-  <!-- === Bouton ajouter === -->
-  <div class="actions-bar">
-    <button class="btn gold" id="openModal">➕ Ajouter une session</button>
-  </div>
-
-  {% set sorted_active = active_sessions|sort(attribute='date_debut') %}
-  {% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
-  {% set next_session_found = false %}
-
-  {% if sorted_active %}
-  <h2 class="section-title">📅 Sessions actives</h2>
-  <div class="sessions-grid">
-    {% for s in sorted_active %}
-      {% set color = s.color %}
-      {% set date_debut = s.date_debut|datetime %}
-      {% set diff = (date_debut.date() - now().date()).days %}
-      {% if not next_session_found and diff > 0 %}
-        {% set is_next = true %}
-        {% set next_session_found = true %}
-      {% else %}
-        {% set is_next = false %}
-      {% endif %}
-
-      <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
-        {% if is_next %}
-          <div class="next-badge">🌟 Prochaine session</div>
-        {% endif %}
-        <div class="session-title" onclick="event.preventDefault(); event.stopPropagation();">
-          <input
-            class="session-title-input"
-            type="text"
-            value="{{ (s.display_name or s.formation)|e }}"
-            maxlength="80"
-            data-session-id="{{ s.id }}"
-            aria-label="Nom de la session"
-          >
-          <div class="session-save-status" data-session-status="{{ s.id }}"></div>
-        </div>
-        <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
-        <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
-
-        {% if diff > 0 %}
-          <div class="countdown">🕓 Dans {{ diff }} jour{% if diff>1 %}s{% endif %}</div>
-        {% elif diff == 0 %}
-          <div class="countdown">📅 Commence aujourd’hui</div>
-        {% else %}
-          <div class="countdown" style="color:#999;">✔️ Déjà commencée</div>
-        {% endif %}
-        {% set pending_count = s.jurys|selectattr('status', 'equalto', 'pending')|list|length %}
-        {% set present_count = s.jurys|selectattr('status', 'equalto', 'present')|list|length %}
-        {% set absent_count = s.jurys|selectattr('status', 'equalto', 'absent')|list|length %}
-        <div class="jury-status-line">
-          {% if s.jury_notification_status != "notified" %}
-            <span class="jury-pill to-notify">Jury à notifier</span>
-          {% else %}
-            {% if present_count == 0 %}
-              <span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>
-            {% endif %}
-            <span class="jury-pill present">{{ present_count }} présent{% if present_count > 1 %}s{% endif %}</span>
-            {% if present_count < 2 %}
-              <span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>
-            {% endif %}
-          {% endif %}
-        </div>
-        <div class="session-badge">Active</div>
-      </a>
-    {% endfor %}
-  </div>
+{% set sorted_active = active_sessions|sort(attribute='date_debut') %}
+{% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
+{% set next_session_found = false %}
+{% set counters = namespace(upcoming=0, ongoing=0) %}
+{% for s in sorted_active %}
+  {% set kpi_start = s.date_debut|datetime %}
+  {% set kpi_end = s.date_fin|datetime %}
+  {% if kpi_start.date() > now().date() %}
+    {% set counters.upcoming = counters.upcoming + 1 %}
+  {% elif kpi_start.date() <= now().date() and kpi_end.date() >= now().date() %}
+    {% set counters.ongoing = counters.ongoing + 1 %}
   {% endif %}
+{% endfor %}
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Navigation principale">
+    <a class="sidebar-brand" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy">
+      <div><strong>Intégrale Academy</strong><span>Administration</span></div>
+    </a>
+    <p class="nav-label">Espace gestion</p>
+    <nav class="sidebar-nav">
+      <a class="nav-link" href="{{ url_for('index') }}"><span class="nav-icon">⌂</span>Accueil</a>
+      <a class="nav-link active" href="{{ url_for('sessions_home') }}" aria-current="page"><span class="nav-icon">▣</span>Sessions</a>
+      <a class="nav-link" href="{{ url_for('planning_home') }}"><span class="nav-icon">▦</span>Planning</a>
+      <a class="nav-link" href="{{ url_for('formateurs_home') }}"><span class="nav-icon">♙</span>Formateurs</a>
+      <a class="nav-link" href="{{ url_for('dotations_home') }}"><span class="nav-icon">◫</span>Dotations</a>
+      <a class="nav-link" href="{{ url_for('distributeur_home') }}"><span class="nav-icon">◇</span>Distributeur</a>
+    </nav>
+    <div class="sidebar-foot">Plateforme de gestion<br>Intégrale Academy</div>
+  </aside>
 
-  {% if sorted_archived %}
-  <div class="section-header">
-    <h2 class="section-title">🗃️ Sessions archivées / terminées</h2>
-    <button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions">
-      <span id="toggleArchivedIcon">▶️</span>
-      <span id="toggleArchivedText">Afficher</span>
-    </button>
-  </div>
+  <div class="page">
+    <header class="topbar">
+      <div class="topbar-heading"><p class="breadcrumb">Gestion / Sessions</p><h1 class="topbar-title">Sessions de formation</h1></div>
+      <a class="mobile-brand" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt=""><span>Sessions</span></a>
+      <div class="topbar-meta"><span class="status-dot"></span><span>Plateforme opérationnelle</span></div>
+    </header>
 
-  <div class="archived-content" id="archivedSessions" hidden>
-    <div class="sessions-grid">
-      {% for s in sorted_archived %}
-        <a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}">
-          <div class="session-title">{{ s.formation }}</div>
-          <div class="session-sub">Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div>
-          <div class="session-sub">Examen : {{ s.date_exam|datefr }}</div>
-          {% if s.archived %}
-            <div class="countdown" style="color:#777;">📦 Session archivée</div>
-          {% else %}
-            <div class="countdown" style="color:#777;">✅ Session terminée</div>
-          {% endif %}
-          <div class="session-badge">Archivée</div>
-        </a>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-</main>
+    <main class="content">
+      <section class="hero">
+        <div><p class="eyebrow">Pilotage des formations</p><h2>Sessions de formation</h2><p class="hero-copy">Suivez vos échéances, les jurys et l’avancement de toutes les sessions depuis un espace unique.</p></div>
+        <button class="btn gold" id="openModal" type="button"><span>＋</span> Ajouter une session</button>
+      </section>
 
-<!-- === MODAL NOUVELLE SESSION === -->
-<div class="modal" id="sessionModal">
-  <div class="modal-content">
-    <h3>➕ Nouvelle session</h3>
-    <form method="post" action="{{ url_for('create_session') }}">
-      <label>Formation :</label>
-      <select name="formation" required>
-        <option value="">-- Choisir --</option>
-        <option value="APS">APS</option>
-        <option value="A3P">A3P</option>
-        <option value="SSIAP">SSIAP</option>
-        <option value="DIRIGEANT">DIRIGEANT</option>
-        <option value="GENERAL">GENERAL</option>
-      </select>
+      <section class="kpi-grid" aria-label="Indicateurs des sessions">
+        <article class="kpi-card" style="--kpi-color:#F4C45A;--kpi-bg:#fff5dc"><div class="kpi-head"><span class="kpi-label">Total sessions</span><span class="kpi-icon">▣</span></div><div class="kpi-value">{{ (active_sessions|length) + (archived_sessions|length) }}</div><div class="kpi-caption">Toutes les sessions enregistrées</div></article>
+        <article class="kpi-card" style="--kpi-color:#4d83d1;--kpi-bg:#edf4ff"><div class="kpi-head"><span class="kpi-label">À venir</span><span class="kpi-icon">↗</span></div><div class="kpi-value">{{ counters.upcoming }}</div><div class="kpi-caption">Sessions qui démarrent prochainement</div></article>
+        <article class="kpi-card" style="--kpi-color:#36a875;--kpi-bg:#eaf8f1"><div class="kpi-head"><span class="kpi-label">En cours</span><span class="kpi-icon">●</span></div><div class="kpi-value">{{ counters.ongoing }}</div><div class="kpi-caption">Formations actuellement actives</div></article>
+        <article class="kpi-card" style="--kpi-color:#858b98;--kpi-bg:#f0f1f4"><div class="kpi-head"><span class="kpi-label">Terminées</span><span class="kpi-icon">✓</span></div><div class="kpi-value">{{ archived_sessions|length }}</div><div class="kpi-caption">Sessions terminées ou archivées</div></article>
+      </section>
 
-      <label>Date début :</label>
-      <input type="date" name="date_debut" required>
+      <section class="panel recap">
+        <div class="panel-head"><div><h3 class="panel-title">Échéances et points d’attention</h3><p class="panel-subtitle">Récapitulatif des retards et des actions à réaliser aujourd’hui</p></div></div>
+        {% if total_late > 0 %}<div class="alert-banner global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>{% else %}<div class="alert-banner global-ok">✓ Aucune étape en retard — tout est à jour</div>{% endif %}
+        <div class="recap-table-wrap"><table><tr><th>Formation</th><th>Étapes en retard</th><th>À faire aujourd’hui</th></tr>
+          {% for f, late_steps, today_steps in recap_data %}<tr><td><b>{{ f }}</b></td><td>{% if late_steps %}{% for text, days in late_steps %}<div class="list late">● {{ text }} ({{ days }} j)</div>{% endfor %}{% else %}<div class="list ok">✓ Aucun retard</div>{% endif %}</td><td>{% if today_steps %}{% for text in today_steps %}<div class="list warn">● {{ text }}</div>{% endfor %}{% else %}<div class="list" style="color:#999;">—</div>{% endif %}</td></tr>{% endfor %}
+        </table></div>
+      </section>
 
-      <label>Date fin :</label>
-      <input type="date" name="date_fin" required>
+      <section class="panel sessions-panel">
+        <div class="sessions-toolbar"><div><h3 class="panel-title">Sessions actives <span class="section-count">{{ sorted_active|length }}</span></h3><p class="panel-subtitle">Cliquez sur une session pour accéder à son suivi complet</p></div></div>
+        {% if sorted_active %}<div class="sessions-grid">
+          {% for s in sorted_active %}
+            {% set color = s.color %}{% set date_debut = s.date_debut|datetime %}{% set diff = (date_debut.date() - now().date()).days %}
+            {% if not next_session_found and diff > 0 %}{% set is_next = true %}{% set next_session_found = true %}{% else %}{% set is_next = false %}{% endif %}
+            <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
+              <div class="card-top"><span class="session-badge">Active</span>{% if is_next %}<span class="next-badge">★ Prochaine session</span>{% endif %}</div>
+              <div class="session-title" onclick="event.preventDefault(); event.stopPropagation();"><input class="session-title-input" type="text" value="{{ (s.display_name or s.formation)|e }}" maxlength="80" data-session-id="{{ s.id }}" aria-label="Nom de la session"><div class="session-save-status" data-session-status="{{ s.id }}"></div></div>
+              <div class="session-dates"><div class="session-sub"><span>◷</span> Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div><div class="session-sub"><span>✓</span> Examen : {{ s.date_exam|datefr }}</div></div>
+              {% if diff > 0 %}<div class="countdown">Dans {{ diff }} jour{% if diff>1 %}s{% endif %}</div>{% elif diff == 0 %}<div class="countdown">Commence aujourd’hui</div>{% else %}<div class="countdown" style="color:#6e7582;">Session déjà commencée</div>{% endif %}
+              {% set pending_count = s.jurys|selectattr('status', 'equalto', 'pending')|list|length %}{% set present_count = s.jurys|selectattr('status', 'equalto', 'present')|list|length %}{% set absent_count = s.jurys|selectattr('status', 'equalto', 'absent')|list|length %}
+              <div class="jury-status-line">{% if s.jury_notification_status != "notified" %}<span class="jury-pill to-notify">Jury à notifier</span>{% else %}{% if present_count == 0 %}<span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>{% endif %}<span class="jury-pill present">{{ present_count }} présent{% if present_count > 1 %}s{% endif %}</span>{% if present_count < 2 %}<span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>{% endif %}{% endif %}</div>
+              <div class="card-action"><span>Voir la session</span><span>→</span></div>
+            </a>
+          {% endfor %}
+        </div>{% else %}<div class="empty-state">Aucune session active pour le moment.</div>{% endif %}
+      </section>
 
-      <label>Date examen :</label>
-      <input type="date" name="date_exam" required>
+      {% if sorted_archived %}<section class="panel"><div class="section-header"><div><h3 class="panel-title">Sessions archivées / terminées <span class="section-count">{{ sorted_archived|length }}</span></h3><p class="panel-subtitle">Historique des sessions clôturées</p></div><button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions"><span id="toggleArchivedIcon">▸</span><span id="toggleArchivedText">Afficher</span></button></div>
+        <div class="archived-content" id="archivedSessions" hidden><div class="sessions-grid">{% for s in sorted_archived %}<a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}"><div class="card-top"><span class="session-badge">Archivée</span></div><div class="session-title">{{ s.formation }}</div><div class="session-dates"><div class="session-sub"><span>◷</span> Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div><div class="session-sub"><span>✓</span> Examen : {{ s.date_exam|datefr }}</div></div>{% if s.archived %}<div class="countdown" style="color:#777;">Session archivée</div>{% else %}<div class="countdown" style="color:#777;">Session terminée</div>{% endif %}<div class="card-action"><span>Voir la session</span><span>→</span></div></a>{% endfor %}</div></div>
+      </section>{% endif %}
+    </main>
 
-      <div class="btns">
-        <button type="submit" class="btn gold">Créer</button>
-        <button type="button" class="btn cancel" id="closeModal">Annuler</button>
-      </div>
-    </form>
+    <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
   </div>
 </div>
 
-<footer class="footer">
-  © <span id="year"></span> Intégrale Academy — Tous droits réservés
-</footer>
+<div class="modal" id="sessionModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-content"><h3 id="modalTitle">Nouvelle session</h3><form method="post" action="{{ url_for('create_session') }}"><label>Formation :</label><select name="formation" required><option value="">-- Choisir --</option><option value="APS">APS</option><option value="A3P">A3P</option><option value="SSIAP">SSIAP</option><option value="DIRIGEANT">DIRIGEANT</option><option value="GENERAL">GENERAL</option></select><label>Date début :</label><input type="date" name="date_debut" required><label>Date fin :</label><input type="date" name="date_fin" required><label>Date examen :</label><input type="date" name="date_exam" required><div class="btns"><button type="submit" class="btn gold">Créer</button><button type="button" class="btn cancel" id="closeModal">Annuler</button></div></form></div></div>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
-
-// Script pour le modal
 document.addEventListener("DOMContentLoaded", () => {
-  const openBtn = document.getElementById("openModal");
-  const closeBtn = document.getElementById("closeModal");
-  const modal = document.getElementById("sessionModal");
-  const toggleArchivedBtn = document.getElementById("toggleArchived");
-  const archivedSessions = document.getElementById("archivedSessions");
-  const toggleArchivedText = document.getElementById("toggleArchivedText");
-  const toggleArchivedIcon = document.getElementById("toggleArchivedIcon");
-
-  if (openBtn && modal) {
-    openBtn.addEventListener("click", () => modal.style.display = "flex");
-  }
-  if (closeBtn && modal) {
-    closeBtn.addEventListener("click", () => modal.style.display = "none");
-  }
-  window.addEventListener("click", (e) => {
-    if (e.target === modal) modal.style.display = "none";
-  });
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") modal.style.display = "none";
-  });
-
-  if (toggleArchivedBtn && archivedSessions && toggleArchivedText && toggleArchivedIcon) {
-    toggleArchivedBtn.addEventListener("click", () => {
-      const shouldOpen = archivedSessions.hasAttribute("hidden");
-
-      if (shouldOpen) {
-        archivedSessions.removeAttribute("hidden");
-      } else {
-        archivedSessions.setAttribute("hidden", "");
-      }
-
-      toggleArchivedBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-      toggleArchivedText.textContent = shouldOpen ? "Masquer" : "Afficher";
-      toggleArchivedIcon.textContent = shouldOpen ? "🔽" : "▶️";
-    });
-  }
-
+  const openBtn = document.getElementById("openModal"); const closeBtn = document.getElementById("closeModal"); const modal = document.getElementById("sessionModal"); const toggleArchivedBtn = document.getElementById("toggleArchived"); const archivedSessions = document.getElementById("archivedSessions"); const toggleArchivedText = document.getElementById("toggleArchivedText"); const toggleArchivedIcon = document.getElementById("toggleArchivedIcon");
+  if (openBtn && modal) openBtn.addEventListener("click", () => modal.style.display = "flex");
+  if (closeBtn && modal) closeBtn.addEventListener("click", () => modal.style.display = "none");
+  window.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") modal.style.display = "none"; });
+  if (toggleArchivedBtn && archivedSessions && toggleArchivedText && toggleArchivedIcon) toggleArchivedBtn.addEventListener("click", () => { const shouldOpen = archivedSessions.hasAttribute("hidden"); if (shouldOpen) archivedSessions.removeAttribute("hidden"); else archivedSessions.setAttribute("hidden", ""); toggleArchivedBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false"); toggleArchivedText.textContent = shouldOpen ? "Masquer" : "Afficher"; toggleArchivedIcon.textContent = shouldOpen ? "⌄" : "▸"; });
   const titleInputs = document.querySelectorAll(".session-title-input[data-session-id]");
-
-  const setStatus = (sessionId, message, isError = false) => {
-    const statusEl = document.querySelector(`[data-session-status="${sessionId}"]`);
-    if (!statusEl) return;
-    statusEl.textContent = message;
-    statusEl.classList.toggle("error", isError);
-  };
-
-  const persistSessionName = async (input) => {
-    const sessionId = input.dataset.sessionId;
-    const nextValue = input.value.trim();
-    const previousValue = input.dataset.lastSavedValue || "";
-
-    if (!sessionId || nextValue === previousValue) return;
-
-    if (!nextValue) {
-      input.value = previousValue;
-      setStatus(sessionId, "Le nom ne peut pas être vide.", true);
-      return;
-    }
-
-    setStatus(sessionId, "Enregistrement...");
-
-    try {
-      const response = await fetch(`/sessions/${sessionId}/rename`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: nextValue }),
-      });
-
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || "Erreur inconnue");
-      }
-
-      input.dataset.lastSavedValue = payload.name;
-      input.value = payload.name;
-      setStatus(sessionId, "✓ Enregistré");
-      setTimeout(() => setStatus(sessionId, ""), 1800);
-    } catch (error) {
-      input.value = previousValue;
-      setStatus(sessionId, error.message || "Erreur lors de l'enregistrement.", true);
-    }
-  };
-
-  titleInputs.forEach((input) => {
-    input.dataset.lastSavedValue = input.value.trim();
-
-    input.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-    });
-
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        persistSessionName(input);
-        input.blur();
-      }
-      if (event.key === "Escape") {
-        input.value = input.dataset.lastSavedValue || "";
-        input.blur();
-      }
-      event.stopPropagation();
-    });
-
-    input.addEventListener("blur", () => {
-      persistSessionName(input);
-    });
-  });
+  const setStatus = (sessionId, message, isError = false) => { const statusEl = document.querySelector(`[data-session-status="${sessionId}"]`); if (!statusEl) return; statusEl.textContent = message; statusEl.classList.toggle("error", isError); };
+  const persistSessionName = async (input) => { const sessionId = input.dataset.sessionId; const nextValue = input.value.trim(); const previousValue = input.dataset.lastSavedValue || ""; if (!sessionId || nextValue === previousValue) return; if (!nextValue) { input.value = previousValue; setStatus(sessionId, "Le nom ne peut pas être vide.", true); return; } setStatus(sessionId, "Enregistrement..."); try { const response = await fetch(`/sessions/${sessionId}/rename`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:nextValue}) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error || "Erreur inconnue"); input.dataset.lastSavedValue = payload.name; input.value = payload.name; setStatus(sessionId, "✓ Enregistré"); setTimeout(() => setStatus(sessionId, ""), 1800); } catch (error) { input.value = previousValue; setStatus(sessionId, error.message || "Erreur lors de l'enregistrement.", true); } };
+  titleInputs.forEach((input) => { input.dataset.lastSavedValue = input.value.trim(); input.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); }); input.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); persistSessionName(input); input.blur(); } if (event.key === "Escape") { input.value = input.dataset.lastSavedValue || ""; input.blur(); } event.stopPropagation(); }); input.addEventListener("blur", () => persistSessionName(input)); });
 });
 </script>
 </body>

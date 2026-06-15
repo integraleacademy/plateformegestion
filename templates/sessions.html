@@ -21,10 +21,15 @@
     .sidebar-brand span { display:block; margin-top:4px; color:#aeb3bf; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
     .nav-label { margin:26px 12px 10px; color:#777e8d; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
     .sidebar-nav { display:grid; gap:6px; }
-    .nav-link { display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px; border-radius:11px; color:#c7cbd4; font-size:14px; font-weight:600; transition:.2s ease; }
+    .nav-link { width:100%; display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px; border:0; border-radius:11px; background:transparent; color:#c7cbd4; font-size:14px; font-weight:600; text-align:left; cursor:pointer; transition:.2s ease; }
     .nav-link:hover { background:rgba(255,255,255,.07); color:#fff; transform:translateX(2px); }
     .nav-link.active { background:var(--gold); color:#191a1e; box-shadow:0 8px 20px rgba(244,196,90,.18); }
     .nav-icon { width:22px; text-align:center; font-size:17px; }
+    .nav-count { min-width:24px; margin-left:auto; padding:3px 7px; border-radius:999px; background:rgba(255,255,255,.1); color:#fff; font-size:10px; text-align:center; }
+    .nav-link.active .nav-count { background:rgba(23,25,31,.14); color:#191a1e; }
+    .sidebar-shortcut { margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,.1); }
+    .sidebar-primary { background:var(--gold); color:#191a1e; box-shadow:0 8px 20px rgba(244,196,90,.16); }
+    .sidebar-primary:hover { background:#edb942; color:#191a1e; }
     .sidebar-foot { margin-top:auto; padding:16px 12px 0; border-top:1px solid rgba(255,255,255,.1); color:#858b98; font-size:11px; line-height:1.5; }
 
     .page { min-height:100vh; margin-left:248px; }
@@ -37,6 +42,7 @@
     .status-dot { width:8px; height:8px; border-radius:50%; background:#36a875; box-shadow:0 0 0 4px rgba(54,168,117,.12); }
 
     .content { width:min(1420px,100%); margin:0 auto; padding:34px 32px 44px; }
+    .content section[id] { scroll-margin-top:96px; }
     .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:26px; }
     .eyebrow { margin:0 0 8px; color:var(--gold-dark); font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
     .hero h2 { margin:0; font-size:clamp(27px,3vw,38px); letter-spacing:-.04em; }
@@ -154,31 +160,35 @@
 {% endfor %}
 <div class="app-shell">
   <aside class="sidebar" aria-label="Navigation principale">
-    <a class="sidebar-brand" href="{{ url_for('index') }}">
+    <a class="sidebar-brand" href="{{ url_for('sessions_home') }}">
       <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy">
-      <div><strong>Intégrale Academy</strong><span>Administration</span></div>
+      <div><strong>Gestion des sessions</strong><span>Intégrale Academy</span></div>
     </a>
-    <p class="nav-label">Espace gestion</p>
+    <p class="nav-label">Navigation sessions</p>
     <nav class="sidebar-nav">
-      <a class="nav-link" href="{{ url_for('index') }}"><span class="nav-icon">⌂</span>Accueil</a>
-      <a class="nav-link active" href="{{ url_for('sessions_home') }}" aria-current="page"><span class="nav-icon">▣</span>Sessions</a>
-      <a class="nav-link" href="{{ url_for('planning_home') }}"><span class="nav-icon">▦</span>Planning</a>
-      <a class="nav-link" href="{{ url_for('formateurs_home') }}"><span class="nav-icon">♙</span>Formateurs</a>
-      <a class="nav-link" href="{{ url_for('dotations_home') }}"><span class="nav-icon">◫</span>Dotations</a>
-      <a class="nav-link" href="{{ url_for('distributeur_home') }}"><span class="nav-icon">◇</span>Distributeur</a>
+      <a class="nav-link active" href="#overview" aria-current="page"><span class="nav-icon">▦</span>Vue d’ensemble</a>
+      <a class="nav-link" href="#deadlines"><span class="nav-icon">⚠</span>Échéances{% if total_late > 0 %}<span class="nav-count">{{ total_late }}</span>{% endif %}</a>
+      <a class="nav-link" href="#active-sessions"><span class="nav-icon">●</span>Sessions actives<span class="nav-count">{{ sorted_active|length }}</span></a>
+      {% if sorted_archived %}
+      <button class="nav-link" type="button" id="sidebarArchives"><span class="nav-icon">✓</span>Sessions terminées<span class="nav-count">{{ sorted_archived|length }}</span></button>
+      {% endif %}
     </nav>
-    <div class="sidebar-foot">Plateforme de gestion<br>Intégrale Academy</div>
+    <div class="sidebar-shortcut">
+      <p class="nav-label" style="margin-top:0;">Action rapide</p>
+      <button class="nav-link sidebar-primary" type="button" id="sidebarOpenModal"><span class="nav-icon">＋</span>Nouvelle session</button>
+    </div>
+    <div class="sidebar-foot"><a href="{{ url_for('index') }}">← Retour à l’accueil général</a></div>
   </aside>
 
   <div class="page">
     <header class="topbar">
       <div class="topbar-heading"><p class="breadcrumb">Gestion / Sessions</p><h1 class="topbar-title">Sessions de formation</h1></div>
-      <a class="mobile-brand" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt=""><span>Sessions</span></a>
+      <a class="mobile-brand" href="{{ url_for('sessions_home') }}"><img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt=""><span>Sessions</span></a>
       <div class="topbar-meta"><span class="status-dot"></span><span>Plateforme opérationnelle</span></div>
     </header>
 
     <main class="content">
-      <section class="hero">
+      <section class="hero" id="overview">
         <div><p class="eyebrow">Pilotage des formations</p><h2>Sessions de formation</h2><p class="hero-copy">Suivez vos échéances, les jurys et l’avancement de toutes les sessions depuis un espace unique.</p></div>
         <button class="btn gold" id="openModal" type="button"><span>＋</span> Ajouter une session</button>
       </section>
@@ -190,7 +200,7 @@
         <article class="kpi-card" style="--kpi-color:#858b98;--kpi-bg:#f0f1f4"><div class="kpi-head"><span class="kpi-label">Terminées</span><span class="kpi-icon">✓</span></div><div class="kpi-value">{{ archived_sessions|length }}</div><div class="kpi-caption">Sessions terminées ou archivées</div></article>
       </section>
 
-      <section class="panel recap">
+      <section class="panel recap" id="deadlines">
         <div class="panel-head"><div><h3 class="panel-title">Échéances et points d’attention</h3><p class="panel-subtitle">Récapitulatif des retards et des actions à réaliser aujourd’hui</p></div></div>
         {% if total_late > 0 %}<div class="alert-banner global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>{% else %}<div class="alert-banner global-ok">✓ Aucune étape en retard — tout est à jour</div>{% endif %}
         <div class="recap-table-wrap"><table><tr><th>Formation</th><th>Étapes en retard</th><th>À faire aujourd’hui</th></tr>
@@ -198,7 +208,7 @@
         </table></div>
       </section>
 
-      <section class="panel sessions-panel">
+      <section class="panel sessions-panel" id="active-sessions">
         <div class="sessions-toolbar"><div><h3 class="panel-title">Sessions actives <span class="section-count">{{ sorted_active|length }}</span></h3><p class="panel-subtitle">Cliquez sur une session pour accéder à son suivi complet</p></div></div>
         {% if sorted_active %}<div class="sessions-grid">
           {% for s in sorted_active %}
@@ -217,7 +227,7 @@
         </div>{% else %}<div class="empty-state">Aucune session active pour le moment.</div>{% endif %}
       </section>
 
-      {% if sorted_archived %}<section class="panel"><div class="section-header"><div><h3 class="panel-title">Sessions archivées / terminées <span class="section-count">{{ sorted_archived|length }}</span></h3><p class="panel-subtitle">Historique des sessions clôturées</p></div><button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions"><span id="toggleArchivedIcon">▸</span><span id="toggleArchivedText">Afficher</span></button></div>
+      {% if sorted_archived %}<section class="panel" id="archived-section"><div class="section-header"><div><h3 class="panel-title">Sessions archivées / terminées <span class="section-count">{{ sorted_archived|length }}</span></h3><p class="panel-subtitle">Historique des sessions clôturées</p></div><button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions"><span id="toggleArchivedIcon">▸</span><span id="toggleArchivedText">Afficher</span></button></div>
         <div class="archived-content" id="archivedSessions" hidden><div class="sessions-grid">{% for s in sorted_archived %}<a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}"><div class="card-top"><span class="session-badge">Archivée</span></div><div class="session-title">{{ s.formation }}</div><div class="session-dates"><div class="session-sub"><span>◷</span> Du {{ s.date_debut|datefr }} au {{ s.date_fin|datefr }}</div><div class="session-sub"><span>✓</span> Examen : {{ s.date_exam|datefr }}</div></div>{% if s.archived %}<div class="countdown" style="color:#777;">Session archivée</div>{% else %}<div class="countdown" style="color:#777;">Session terminée</div>{% endif %}<div class="card-action"><span>Voir la session</span><span>→</span></div></a>{% endfor %}</div></div>
       </section>{% endif %}
     </main>
@@ -231,12 +241,15 @@
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 document.addEventListener("DOMContentLoaded", () => {
-  const openBtn = document.getElementById("openModal"); const closeBtn = document.getElementById("closeModal"); const modal = document.getElementById("sessionModal"); const toggleArchivedBtn = document.getElementById("toggleArchived"); const archivedSessions = document.getElementById("archivedSessions"); const toggleArchivedText = document.getElementById("toggleArchivedText"); const toggleArchivedIcon = document.getElementById("toggleArchivedIcon");
-  if (openBtn && modal) openBtn.addEventListener("click", () => modal.style.display = "flex");
+  const openBtn = document.getElementById("openModal"); const sidebarOpenBtn = document.getElementById("sidebarOpenModal"); const sidebarArchives = document.getElementById("sidebarArchives"); const closeBtn = document.getElementById("closeModal"); const modal = document.getElementById("sessionModal"); const toggleArchivedBtn = document.getElementById("toggleArchived"); const archivedSessions = document.getElementById("archivedSessions"); const archivedSection = document.getElementById("archived-section"); const toggleArchivedText = document.getElementById("toggleArchivedText"); const toggleArchivedIcon = document.getElementById("toggleArchivedIcon");
+  const openSessionModal = () => { if (modal) modal.style.display = "flex"; };
+  if (openBtn) openBtn.addEventListener("click", openSessionModal);
+  if (sidebarOpenBtn) sidebarOpenBtn.addEventListener("click", openSessionModal);
   if (closeBtn && modal) closeBtn.addEventListener("click", () => modal.style.display = "none");
   window.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") modal.style.display = "none"; });
   if (toggleArchivedBtn && archivedSessions && toggleArchivedText && toggleArchivedIcon) toggleArchivedBtn.addEventListener("click", () => { const shouldOpen = archivedSessions.hasAttribute("hidden"); if (shouldOpen) archivedSessions.removeAttribute("hidden"); else archivedSessions.setAttribute("hidden", ""); toggleArchivedBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false"); toggleArchivedText.textContent = shouldOpen ? "Masquer" : "Afficher"; toggleArchivedIcon.textContent = shouldOpen ? "⌄" : "▸"; });
+  if (sidebarArchives && archivedSessions && archivedSection) sidebarArchives.addEventListener("click", () => { archivedSessions.removeAttribute("hidden"); toggleArchivedBtn?.setAttribute("aria-expanded", "true"); if (toggleArchivedText) toggleArchivedText.textContent = "Masquer"; if (toggleArchivedIcon) toggleArchivedIcon.textContent = "⌄"; archivedSection.scrollIntoView({behavior:"smooth", block:"start"}); });
   const titleInputs = document.querySelectorAll(".session-title-input[data-session-id]");
   const setStatus = (sessionId, message, isError = false) => { const statusEl = document.querySelector(`[data-session-status="${sessionId}"]`); if (!statusEl) return; statusEl.textContent = message; statusEl.classList.toggle("error", isError); };
   const persistSessionName = async (input) => { const sessionId = input.dataset.sessionId; const nextValue = input.value.trim(); const previousValue = input.dataset.lastSavedValue || ""; if (!sessionId || nextValue === previousValue) return; if (!nextValue) { input.value = previousValue; setStatus(sessionId, "Le nom ne peut pas être vide.", true); return; } setStatus(sessionId, "Enregistrement..."); try { const response = await fetch(`/sessions/${sessionId}/rename`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:nextValue}) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error || "Erreur inconnue"); input.dataset.lastSavedValue = payload.name; input.value = payload.name; setStatus(sessionId, "✓ Enregistré"); setTimeout(() => setStatus(sessionId, ""), 1800); } catch (error) { input.value = previousValue; setStatus(sessionId, error.message || "Erreur lors de l'enregistrement.", true); } };

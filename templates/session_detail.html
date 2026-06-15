@@ -444,43 +444,165 @@ a.back:hover{ background:#d9a848 !important; }
 }
 
     
-/* ✅ Header (topbar) : forcer texte lisible */
-header.topbar,
-header.topbar * {
-  color: #fff !important;
-}
+    /* Modern SaaS layout shared with the sessions dashboard */
+    :root {
+      --session-gold:#F4C45A;
+      --session-gold-dark:#d39b25;
+      --session-ink:#1d2433;
+      --session-muted:#687083;
+      --session-line:#e7e9ef;
+      --session-bg:#f6f7f9;
+      --session-sidebar:#17191f;
+      --session-shadow:0 8px 28px rgba(29,36,51,.07);
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--session-bg) !important; color:var(--session-ink) !important; }
+    .detail-shell { min-height:100vh; }
+    .detail-sidebar {
+      position:fixed; inset:0 auto 0 0; z-index:1000; width:248px;
+      display:flex; flex-direction:column; padding:24px 16px;
+      background:var(--session-sidebar); color:#fff !important;
+    }
+    .detail-sidebar * { color:inherit !important; }
+    .detail-sidebar-brand {
+      display:flex; align-items:center; gap:12px; padding:0 8px 24px;
+      border-bottom:1px solid rgba(255,255,255,.1);
+    }
+    .detail-sidebar-brand img { width:48px; height:48px; object-fit:contain; border-radius:12px; background:#fff; padding:5px; }
+    .detail-sidebar-brand strong { display:block; font-size:14px; line-height:1.2; }
+    .detail-sidebar-brand span { display:block; margin-top:4px; color:#aeb3bf !important; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+    .detail-nav-label { margin:26px 12px 10px; color:#777e8d !important; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .detail-sidebar-nav { display:grid; gap:6px; }
+    .detail-nav-link {
+      display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px;
+      border-radius:11px; color:#c7cbd4 !important; font-size:14px; font-weight:600;
+      transition:.2s ease;
+    }
+    .detail-nav-link:hover { background:rgba(255,255,255,.07); color:#fff !important; transform:translateX(2px); }
+    .detail-nav-link.active { background:var(--session-gold); color:#191a1e !important; box-shadow:0 8px 20px rgba(244,196,90,.18); }
+    .detail-nav-icon { width:22px; text-align:center; font-size:17px; }
+    .detail-sidebar-foot { margin-top:auto; padding:16px 12px 0; border-top:1px solid rgba(255,255,255,.1); color:#858b98 !important; font-size:11px; line-height:1.5; }
+    .detail-page { min-height:100vh; margin-left:248px; }
+    .detail-topbar {
+      position:sticky; top:0; z-index:900; display:flex; align-items:center; justify-content:space-between;
+      min-height:76px; padding:14px 32px; border-bottom:1px solid var(--session-line);
+      background:rgba(255,255,255,.94); backdrop-filter:blur(12px);
+    }
+    .detail-breadcrumb { margin:0 0 4px; color:#8a91a0 !important; font-size:12px; font-weight:700; }
+    .detail-topbar h1 { margin:0; color:var(--session-ink) !important; font-size:21px; letter-spacing:-.02em; }
+    .detail-topbar .clock { margin:4px 0 0; color:var(--session-muted) !important; font-size:12px; }
+    .detail-back {
+      display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid var(--session-line);
+      border-radius:10px; background:#f7f8fa; color:#505867 !important; font-size:12px; font-weight:800;
+    }
+    .detail-main.container { max-width:1420px; margin:0 auto; padding:32px; }
+    .detail-hero {
+      display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px;
+      padding:24px; border:1px solid var(--session-line); border-radius:18px; background:#fff; box-shadow:var(--session-shadow);
+    }
+    .detail-eyebrow { margin:0 0 8px; color:var(--session-gold-dark) !important; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .detail-hero h2 { margin:0; color:var(--session-ink) !important; font-size:clamp(25px,3vw,34px); letter-spacing:-.04em; }
+    .detail-hero p { margin:8px 0 0; color:var(--session-muted) !important; font-size:13px; }
+    .actions-bar { margin:0; justify-content:flex-end; }
+    .actions-bar form { margin:0; }
+    .btn {
+      min-width:0; border-radius:10px !important; padding:10px 14px !important;
+      font-size:12px; font-weight:800 !important; box-shadow:none;
+    }
+    .btn.edit,.btn.gold { background:var(--session-gold) !important; border-color:var(--session-gold-dark) !important; color:#17191f !important; }
+    .btn.danger { background:#fff1f0 !important; border-color:#f0cbc8 !important; color:#a33a32 !important; }
+    .flash-messages { margin-top:0; }
+    .jury-panel,.planning-box,.filter-bar,.sommaire-ssi {
+      border:1px solid var(--session-line); border-radius:18px; background:#fff;
+      box-shadow:var(--session-shadow);
+    }
+    .jury-panel,.planning-box { padding:20px 22px; }
+    .jury-header h2,.planning-header h2 { color:var(--session-ink) !important; font-size:17px; letter-spacing:-.02em; }
+    .jury-item { padding:13px 14px; border-color:#eceef2; border-radius:11px; background:#fafbfc; }
+    .jury-label,.jury-status { color:#fff !important; }
+    .jury-label.notified,.jury-status.pending { color:#3a2b00 !important; }
+    .planning-form input[type="file"],.filter-bar input,.filter-bar select,.jury-form-grid input {
+      border:1px solid #dcdfe5 !important; border-radius:10px !important; background:#fff !important;
+    }
+    .filter-bar { position:sticky; top:92px; z-index:80; padding:13px 15px; }
+    .filter-bar button { padding:9px 12px; border:1px solid var(--session-line); border-radius:9px; background:#f7f8fa; cursor:pointer; font-weight:700; }
+    .step {
+      padding:14px; border:1px solid var(--session-line); border-radius:14px;
+      background:#fff; box-shadow:0 5px 18px rgba(29,36,51,.05);
+    }
+    .step-btn { min-height:54px; border-color:#e5e7ec; background:#fafbfc; text-align:left; }
+    .step-btn.done { background:#effaf4; border-color:#cce8da; }
+    .section-title { color:var(--session-ink) !important; }
+    .section-line { background:var(--session-gold); }
+    .sommaire-ssi { top:92px; }
+    .sommaire-item { border:1px solid var(--session-line); background:#f7f8fa; }
+    .modal { z-index:3000; backdrop-filter:blur(5px); }
+    .modal-content { border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.3); }
+    .detail-footer { padding:24px 32px 32px; color:#969caa !important; font-size:11px; text-align:center; }
 
-/* Dates un peu plus discrètes */
-header.topbar .clock.small {
-  opacity: 0.9;
-}
+    @media (max-width:900px) {
+      .detail-sidebar { position:static; width:100%; height:auto; padding:10px 14px; }
+      .detail-sidebar-brand,.detail-nav-label,.detail-sidebar-foot { display:none; }
+      .detail-sidebar-nav { display:flex; overflow-x:auto; gap:7px; scrollbar-width:none; }
+      .detail-nav-link { flex:0 0 auto; min-height:40px; padding:8px 11px; font-size:12px; }
+      .detail-page { margin-left:0; }
+      .detail-topbar { min-height:68px; padding:10px 16px; }
+      .detail-topbar h1 { font-size:17px; }
+      .detail-main.container { padding:20px 16px 32px; }
+      .detail-hero { align-items:stretch; flex-direction:column; padding:18px; }
+      .actions-bar { justify-content:flex-start; }
+      .filter-bar,.sommaire-ssi { top:76px; }
+    }
+    @media (max-width:600px) {
+      .detail-topbar .clock { display:none; }
+      .detail-back { padding:8px 10px; }
+      .actions-bar { display:grid; grid-template-columns:1fr; width:100%; }
+      .actions-bar form,.actions-bar .btn { width:100%; }
+      .jury-item,.jury-actions { align-items:stretch; flex-direction:column; }
+      .jury-actions form,.jury-actions .btn { width:100%; }
+      .planning-actions { width:100%; }
+      .planning-actions .btn { flex:1; }
+      .filter-bar { position:static; }
+    }
 
 
   </style>
 </head>
 
 <body>
-<header class="topbar">
-  <div class="brand">
-    <a href="{{ url_for('sessions_home') }}" class="back">⬅️ Retour sessions</a>
+<div class="detail-shell">
+  <aside class="detail-sidebar" aria-label="Navigation principale">
+    <a class="detail-sidebar-brand" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy">
+      <div><strong>Intégrale Academy</strong><span>Administration</span></div>
+    </a>
+    <p class="detail-nav-label">Espace gestion</p>
+    <nav class="detail-sidebar-nav">
+      <a class="detail-nav-link" href="{{ url_for('index') }}"><span class="detail-nav-icon">⌂</span>Accueil</a>
+      <a class="detail-nav-link active" href="{{ url_for('sessions_home') }}" aria-current="page"><span class="detail-nav-icon">▣</span>Sessions</a>
+      <a class="detail-nav-link" href="{{ url_for('planning_home') }}"><span class="detail-nav-icon">▦</span>Planning</a>
+      <a class="detail-nav-link" href="{{ url_for('formateurs_home') }}"><span class="detail-nav-icon">♙</span>Formateurs</a>
+      <a class="detail-nav-link" href="{{ url_for('dotations_home') }}"><span class="detail-nav-icon">◫</span>Dotations</a>
+      <a class="detail-nav-link" href="{{ url_for('distributeur_home') }}"><span class="detail-nav-icon">◇</span>Distributeur</a>
+    </nav>
+    <div class="detail-sidebar-foot">Plateforme de gestion<br>Intégrale Academy</div>
+  </aside>
 
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
-
-    <div class="brand-text">
-      <h1>{{ s.formation|formation_label }} — Fiche session</h1>
-      <div class="clock small">
-        Du {{ s.date_debut|datefr if s.date_debut else '—' }}
-        au {{ s.date_fin|datefr if s.date_fin else '—' }} •
-        Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}
+  <div class="detail-page">
+    <header class="detail-topbar">
+      <div>
+        <p class="detail-breadcrumb">Gestion / Sessions / Fiche session</p>
+        <h1>{{ s.formation|formation_label }} — Fiche session</h1>
+        <div class="clock small">
+          Du {{ s.date_debut|datefr if s.date_debut else '—' }}
+          au {{ s.date_fin|datefr if s.date_fin else '—' }} •
+          Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}
+        </div>
       </div>
-    </div>
-  </div>
-</header>
+      <a href="{{ url_for('sessions_home') }}" class="detail-back">← Retour aux sessions</a>
+    </header>
 
-
-
-
-<main class="container">
+<main class="container detail-main">
 
 <!-- ======================================================================= -->
 <!--                            ACTIONS (boutons)                            -->
@@ -496,15 +618,22 @@ header.topbar .clock.small {
   {% endif %}
 {% endwith %}
 
-<div class="actions-bar">
-  <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
-    <button type="submit" class="btn edit">✏️ Modifier la session</button>
-  </form>
-  <button type="button" class="btn gold" id="openJuryModal">📣 Notifier jury examen</button>
-  <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
-    <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
-  </form>
-</div>
+<section class="detail-hero">
+  <div>
+    <p class="detail-eyebrow">Pilotage de la formation</p>
+    <h2>{{ s.display_name or (s.formation|formation_label) }}</h2>
+    <p>Gérez les jurys, le planning et l’avancement administratif de cette session.</p>
+  </div>
+  <div class="actions-bar">
+    <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
+      <button type="submit" class="btn edit">✏️ Modifier la session</button>
+    </form>
+    <button type="button" class="btn gold" id="openJuryModal">📣 Notifier jury examen</button>
+    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
+      <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
+    </form>
+  </div>
+</section>
 
 <section class="jury-panel">
   <div class="jury-header">
@@ -904,9 +1033,11 @@ header.topbar .clock.small {
 
 </main>
 
-<footer class="footer">
-  © <span id="year"></span> Intégrale Academy
-</footer>
+    <footer class="detail-footer">
+      © <span id="year"></span> Intégrale Academy
+    </footer>
+  </div>
+</div>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();

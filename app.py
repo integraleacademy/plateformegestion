@@ -10,6 +10,9 @@ import smtplib
 import urllib.parse
 import urllib.request
 import urllib.error
+import re
+import shutil
+import subprocess
 from io import BytesIO
 from datetime import datetime, timedelta, date, time as dt_time
 from functools import wraps
@@ -394,6 +397,9 @@ PRICE_ADAPTATOR_ALLOWED_FORMATIONS = {
 # -----------------------
 PLANNING_DIR = os.path.join(DATA_DIR, "plannings")
 os.makedirs(PLANNING_DIR, exist_ok=True)
+CONVOCATION_DIR = os.path.join(DATA_DIR, "convocations")
+os.makedirs(CONVOCATION_DIR, exist_ok=True)
+APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
 
 APS_TOTAL_HOURS = 175
 
@@ -786,6 +792,184 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         y = draw_wrapped_text(c, line, margin, y, width - 2 * margin, "Helvetica", 7.5, 10)
     c.save()
     return {"planning_data": planning_data, "totals": summary["uv_totals"], "total_hours": summary["total_hours"], "summary": summary}
+
+
+# -----------------------
+# Convocation APS depuis modèle Word officiel
+# -----------------------
+DOCX_UNRESOLVED_PATTERN = re.compile(r"\[(?:'?[A-Za-zÀ-ÿ0-9_()=]+|:[A-Za-zÀ-ÿ0-9_]+)\]")
+WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+
+def _xml_escape(value):
+    return ("" if value is None else str(value)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _format_hour(value, default="08h30"):
+    raw = (value or "").strip() if isinstance(value, str) else ""
+    if not raw:
+        return default
+    if re.match(r"^\d{1,2}:\d{2}$", raw):
+        h, m = raw.split(":")
+        return f"{int(h):02d}h{m}"
+    return raw
+
+
+def _session_label(session_data):
+    return session_data.get("display_name") or session_data.get("name") or "TFP APS - Agent de Prévention et de Sécurité"
+
+
+def _trainee_value(trainee, *keys):
+    for key in keys:
+        value = trainee.get(key) if isinstance(trainee, dict) else None
+        if value not in (None, ""):
+            return str(value).strip()
+    return ""
+
+
+def _aps_convocation_context(trainee, session_data):
+    start = parse_date(session_data.get("date_debut"))
+    exam = parse_date(session_data.get("date_exam"))
+    date_convocation = start.strftime("%d/%m/%Y") if start else ""
+    date_exam = exam.strftime("%d/%m/%Y") if exam else ""
+    civilite = _trainee_value(trainee, "civilite", "NomCivilite", "title")
+    prenom = _trainee_value(trainee, "prenom", "Prenom", "first_name")
+    nom = _trainee_value(trainee, "nom", "Nom", "last_name")
+    ctx = {
+        "NomCivilite": civilite,
+        "Prenom": prenom,
+        "Nom": nom,
+        "Ligne1": _trainee_value(trainee, "ligne1", "Ligne1", "adresse", "address1"),
+        "Ligne2": _trainee_value(trainee, "ligne2", "Ligne2", "address2"),
+        "Ligne3": _trainee_value(trainee, "ligne3", "Ligne3", "address3"),
+        "Ligne4": _trainee_value(trainee, "ligne4", "Ligne4", "address4"),
+        "CodePostal": _trainee_value(trainee, "code_postal", "CodePostal", "postal_code", "cp"),
+        "Ville": _trainee_value(trainee, "ville", "Ville", "city"),
+        "NomPedagogique": _session_label(session_data),
+        "Libelle": _session_label(session_data),
+        "DateConvocation": date_convocation,
+        "heureConvocation": _format_hour(session_data.get("heure_convocation") or session_data.get("heureConvocation"), "08h30"),
+        "DateExamen": date_exam,
+        "heureExamen": _format_hour(session_data.get("heure_exam") or session_data.get("heureExamen"), "08h00"),
+        "Duree": "175 heures",
+        "LieuFormation": "Intégrale Academy - 54 chemin du Carreou - 83480 Puget-sur-Argens",
+        "=TODAY()": datetime.now().strftime("%d/%m/%Y"),
+    }
+    # Le modèle contient les deux variantes: [Nom] et ['Nom].
+    replacements = {}
+    for key, value in ctx.items():
+        replacements[f"[{key}]"] = value
+        replacements[f"['{key}]"] = value
+    return ctx, replacements
+
+
+def _replace_text_preserving_xml_nodes(xml, replacements):
+    def repl_paragraph(match):
+        block = match.group(0)
+        texts = re.findall(r"<w:t[^>]*>(.*?)</w:t>", block, flags=re.S)
+        if not texts:
+            return block
+        plain = "".join(texts)
+        original = plain
+        for needle, value in replacements.items():
+            plain = plain.replace(needle, str(value))
+        if plain == original:
+            return block
+        escaped = _xml_escape(plain)
+        first = True
+        def replace_t(tmatch):
+            nonlocal first
+            if first:
+                first = False
+                return re.sub(r">.*?</w:t>", f">{escaped}</w:t>", tmatch.group(0), flags=re.S)
+            return re.sub(r">.*?</w:t>", "></w:t>", tmatch.group(0), flags=re.S)
+        return re.sub(r"<w:t[^>]*>.*?</w:t>", replace_t, block, flags=re.S)
+    return re.sub(r"<w:p[\s>].*?</w:p>", repl_paragraph, xml, flags=re.S)
+
+
+def _drop_empty_conditionals(xml, ctx):
+    def conditional_repl(match):
+        block = match.group(0)
+        key_match = re.search(r"\['?([A-Za-zÀ-ÿ0-9_]+)\].*?\[:if\]", block, flags=re.S)
+        if key_match and not str(ctx.get(key_match.group(1), "")).strip():
+            return ""
+        return block.replace("[:if]", "")
+    xml = re.sub(r"<w:tr[\s>].*?\[:if\].*?</w:tr>", conditional_repl, xml, flags=re.S)
+    xml = re.sub(r"<w:p[\s>].*?\[:if\].*?</w:p>", conditional_repl, xml, flags=re.S)
+    return xml
+
+
+def _expand_afs_block(xml, replacements):
+    formation_line = {
+        "[Libelle]": replacements.get("[Libelle]", ""),
+        "['Libelle]": replacements.get("[Libelle]", ""),
+        "[DateConvocation]": replacements.get("[DateConvocation]", ""),
+        "[heureConvocation]": replacements.get("[heureConvocation]", ""),
+        "[Duree]": "175 heures",
+        "[LieuFormation]": "Intégrale Academy - 54 chemin du Carreou - 83480 Puget-sur-Argens",
+    }
+    def repl(match):
+        inner = match.group(1)
+        for needle, value in formation_line.items():
+            inner = inner.replace(needle, str(value))
+        return inner
+    return re.sub(r"\[AFs\](.*?)\[:AFs\]", repl, xml, flags=re.S)
+
+
+def _render_docx_template(template_path, output_docx_path, ctx, replacements):
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Modèle Word APS introuvable: {template_path}")
+    unresolved = set()
+    with zipfile.ZipFile(template_path, "r") as zin, zipfile.ZipFile(output_docx_path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename.startswith("word/") and item.filename.endswith(".xml"):
+                xml = data.decode("utf-8")
+                xml = _drop_empty_conditionals(xml, ctx)
+                xml = _expand_afs_block(xml, replacements)
+                xml = _replace_text_preserving_xml_nodes(xml, replacements)
+                xml = xml.replace("[:if]", "")
+                found = {m.group(0) for m in DOCX_UNRESOLVED_PATTERN.finditer(xml)}
+                unresolved.update(v for v in found if v not in {"[Content_Types]"})
+                data = xml.encode("utf-8")
+            zout.writestr(item, data)
+    return sorted(unresolved)
+
+
+def _convert_docx_to_pdf(docx_path, output_dir):
+    soffice = shutil.which("libreoffice") or shutil.which("soffice")
+    if not soffice:
+        raise RuntimeError("LibreOffice/soffice est introuvable sur le serveur; impossible de convertir le DOCX en PDF.")
+    result = subprocess.run([soffice, "--headless", "--convert-to", "pdf", "--outdir", output_dir, docx_path], capture_output=True, text=True, timeout=90)
+    if result.returncode != 0:
+        raise RuntimeError(f"Conversion LibreOffice échouée: {result.stderr or result.stdout}")
+    pdf_path = os.path.join(output_dir, os.path.splitext(os.path.basename(docx_path))[0] + ".pdf")
+    if not os.path.exists(pdf_path):
+        raise RuntimeError("Conversion LibreOffice terminée sans fichier PDF généré.")
+    return pdf_path
+
+
+def generateApsConvocationFromDocxTemplate(trainee, session_data):
+    ctx, replacements = _aps_convocation_context(trainee or {}, session_data or {})
+    sid = session_data.get("id") or uuid.uuid4().hex
+    trainee_id = _trainee_value(trainee or {}, "id") or hashlib.sha1((ctx.get("Nom", "") + ctx.get("Prenom", "") + uuid.uuid4().hex).encode()).hexdigest()[:10]
+    base_name = secure_filename(f"convocation_aps_session_{sid}_{trainee_id}")
+    docx_path = os.path.join(CONVOCATION_DIR, f"{base_name}.docx")
+    final_pdf = os.path.join(CONVOCATION_DIR, f"{base_name}.pdf")
+    app.logger.info("Convocation APS: template=%s stagiaire=%s %s session=%s date_convocation=%s date_examen=%s", APS_CONVOCATION_TEMPLATE, ctx.get("Prenom"), ctx.get("Nom"), sid, ctx.get("DateConvocation"), ctx.get("DateExamen"))
+    unresolved = _render_docx_template(APS_CONVOCATION_TEMPLATE, docx_path, ctx, replacements)
+    if unresolved:
+        app.logger.error("Convocation APS: variables non remplacées session=%s stagiaire=%s variables=%s", sid, trainee_id, unresolved)
+        try:
+            os.remove(docx_path)
+        except OSError:
+            pass
+        raise ValueError("Variables non remplacées dans le modèle Word: " + ", ".join(unresolved))
+    generated_pdf = _convert_docx_to_pdf(docx_path, CONVOCATION_DIR)
+    if generated_pdf != final_pdf:
+        os.replace(generated_pdf, final_pdf)
+    app.logger.info("Convocation APS générée: docx=%s pdf=%s", docx_path, final_pdf)
+    return {"pdf_url": url_for("view_aps_convocation_pdf", filename=os.path.basename(final_pdf)), "docx_url": url_for("download_aps_convocation_docx", filename=os.path.basename(docx_path)), "pdf_path": final_pdf, "docx_path": docx_path}
 
 def get_planning_for_session(sid):
     data = load_sessions()
@@ -3216,6 +3400,46 @@ def download_planning_pdf(sid):
 
     return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=name)
 
+
+
+@app.post("/api/sessions/<sid>/aps-convocation")
+def generate_aps_convocation_route(sid):
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS":
+        return jsonify({"ok": False, "error": "La convocation modèle Word est réservée aux sessions APS."}), 400
+    payload = request.get_json(silent=True) or {}
+    trainee = payload.get("trainee") if isinstance(payload.get("trainee"), dict) else payload
+    try:
+        result = generateApsConvocationFromDocxTemplate(trainee, session_data)
+        return jsonify({"ok": True, **result})
+    except Exception as exc:
+        app.logger.exception("Erreur génération convocation APS session=%s", sid)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.get("/convocations/aps/<path:filename>")
+def view_aps_convocation_pdf(filename):
+    safe_name = secure_filename(filename)
+    if not safe_name.lower().endswith(".pdf"):
+        abort(404)
+    path = os.path.join(CONVOCATION_DIR, safe_name)
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, mimetype="application/pdf", as_attachment=False)
+
+
+@app.get("/convocations/aps/docx/<path:filename>")
+def download_aps_convocation_docx(filename):
+    safe_name = secure_filename(filename)
+    if not safe_name.lower().endswith(".docx"):
+        abort(404)
+    path = os.path.join(CONVOCATION_DIR, safe_name)
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document", as_attachment=True, download_name=safe_name)
 
 @app.route("/healthz")
 def healthz():

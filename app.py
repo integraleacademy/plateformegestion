@@ -416,6 +416,23 @@ APS_MODULES = [
     ("UV8 PROFESSIONNEL", 7),
 ]
 
+APS_RECAP_ROWS = [
+    ("UV1", "Secouriste Sauveteur du Travail (SST)"),
+    ("UV2", "Environnement juridique de la sécurité privée"),
+    ("UV3", "Gestion des conflits"),
+    ("UV4", "Stratégique"),
+    ("UV5", "Prévention des risques incendie"),
+    ("UV6", "Appréhension au cours de l’exercice"),
+    ("UV7", "Risques terroristes"),
+    ("UV8", "Professionnel"),
+    ("UV9", "Palpation de sécurité et inspection visuelle des bagages"),
+    ("UV10", "Surveillance par moyens électroniques"),
+    ("UV11", "Gestion des risques"),
+    ("UV12", "Événementiel spécifique"),
+    ("UV13", "Gestion des situations conflictuelles dégradées"),
+    ("UV14", "Industriel spécifique"),
+]
+
 def easter_date(year):
     """Retourne la date du dimanche de Pâques (algorithme de Meeus/Jones/Butcher)."""
     a = year % 19
@@ -533,6 +550,28 @@ def draw_wrapped_text(canvas, text, x, y, max_width, font="Helvetica", size=9, l
         y -= leading
     return y
 
+def uv_code_from_name(module_name):
+    return (module_name or "").split(" ", 1)[0].upper()
+
+
+def build_aps_recap_from_days(days):
+    hours_by_uv = {code: 0.0 for code, _ in APS_RECAP_ROWS}
+    for day in days:
+        for block in day.get("blocks", []):
+            code = uv_code_from_name(block.get("uv"))
+            if code in hours_by_uv:
+                hours_by_uv[code] = round(hours_by_uv[code] + float(block.get("hours", 0)), 2)
+    total = round(sum(hours_by_uv.values()), 2)
+    return [
+        {"uv": code, "label": label, "hours": hours_by_uv.get(code, 0.0)}
+        for code, label in APS_RECAP_ROWS
+    ], total
+
+
+def format_pdf_hours(value):
+    return f"{int(value)}h" if float(value).is_integer() else f"{value:g}h"
+
+
 def generate_aps_planning_pdf(session_data, formateur, output_path):
     try:
         from reportlab.lib import colors
@@ -549,88 +588,237 @@ def generate_aps_planning_pdf(session_data, formateur, output_path):
         raise ValueError("La date d'examen est obligatoire pour générer le planning APS.")
 
     days, totals, total_hours = build_aps_planning(start_dt.date())
-    if round(total_hours, 2) != APS_TOTAL_HOURS:
-        raise ValueError(f"Total APS invalide: {total_hours}h au lieu de {APS_TOTAL_HOURS}h.")
+    recap_rows, recap_total = build_aps_recap_from_days(days)
+    if round(total_hours, 2) != APS_TOTAL_HOURS or round(recap_total, 2) != APS_TOTAL_HOURS:
+        raise ValueError(
+            f"Total APS invalide: planning={total_hours}h, récapitulatif={recap_total}h, attendu={APS_TOTAL_HOURS}h."
+        )
 
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
-    margin = 36
-    title = session_data.get("display_name") or session_data.get("nom") or formation_label(session_data.get("formation", "APS"))
+    margin = 34
+    header_height = 88
+    footer_height = 34
+    content_top = height - header_height
+    content_bottom = footer_height + 8
+    accent = colors.HexColor("#1b9aaa")
+    dark = colors.HexColor("#111827")
+    muted = colors.HexColor("#6b7280")
+    light_line = colors.HexColor("#e5e7eb")
+    pale = colors.HexColor("#f3f4f6")
+    exam_bg = colors.HexColor("#eef7fb")
+    title = session_data.get("display_name") or session_data.get("nom") or "Session APS"
     salle = session_data.get("salle") or session_data.get("room") or "Salle à définir"
     edited = datetime.now().strftime("%d/%m/%Y")
     weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
     months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-    pages = [[]]
+
+    def day_label(day_date):
+        return f"{weekdays[day_date.weekday()]} {day_date.day} {months[day_date.month - 1]} {day_date.year}"
+
+    def wrapped_lines(text, max_width, font="Helvetica", size=8.5):
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        words = (text or "").split()
+        lines, current = [], ""
+        for word in words:
+            candidate = f"{current} {word}".strip()
+            if stringWidth(candidate, font, size) <= max_width:
+                current = candidate
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+        return lines or [""]
+
+    def day_height(day):
+        total = 25
+        for block in day["blocks"]:
+            total += max(25, 15 + 9 * len(wrapped_lines(block["uv"], 245, "Helvetica-Bold", 8.3)))
+        return total + 8
+
+    pages = []
+    current_page = []
+    remaining = content_top - content_bottom
     for day in days:
-        if len(pages[-1]) == 5:
-            pages.append([])
-        pages[-1].append(day)
+        needed = day_height(day)
+        if current_page and needed > remaining:
+            pages.append(current_page)
+            current_page = []
+            remaining = content_top - content_bottom
+        current_page.append(day)
+        remaining -= needed
+    if current_page:
+        pages.append(current_page)
+    pages.append([{"synthesis": True}])
     total_pages = len(pages)
+
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
 
-    for page_index, page_days in enumerate(pages, start=1):
-        c.setFillColor(colors.HexColor("#111827"))
-        c.setFont("Helvetica-Bold", 18)
-        c.drawString(margin, height - 38, title.upper())
-        c.setFont("Helvetica", 9)
-        c.setFillColor(colors.HexColor("#6b7280"))
-        c.drawString(margin, height - 54, f"APS 175h • Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin')) if session_data.get('date_fin') else '—'} • Examen {format_date(session_data.get('date_exam'))}")
-
-        y = height - 82
-        for day in page_days:
-            day_date = day["date"]
-            label = f"{weekdays[day_date.weekday()]} {day_date.day} {months[day_date.month - 1]} {day_date.year}"
-            c.setFillColor(colors.HexColor("#f3f4f6"))
-            c.roundRect(margin, y - 18, width - 2 * margin, 22, 6, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#111827"))
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(margin + 10, y - 12, label)
-            y -= 30
-            for block in day["blocks"]:
-                h = 42
-                c.setFillColor(colors.white)
-                c.roundRect(margin, y - h + 5, width - 2 * margin, h, 6, fill=1, stroke=1)
-                c.setFillColor(colors.HexColor("#1b9aaa"))
-                c.roundRect(margin, y - h + 5, 5, h, 2, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor("#111827"))
-                y_text = draw_wrapped_text(c, block["uv"], margin + 14, y - 8, width - 190, "Helvetica-Bold", 8.5, 10)
-                c.setFont("Helvetica", 8)
-                c.setFillColor(colors.HexColor("#374151"))
-                time_label = f"{block['start'].strftime('%Hh%M')} - {block['end'].strftime('%Hh%M')} ({block['hours']:g}h)"
-                c.drawString(width - margin - 160, y - 8, time_label)
-                c.drawString(margin + 14, min(y_text, y - 28), f"Salle : {salle} • Formateur : {formateur}")
-                y -= h + 5
-            y -= 4
-
-        if page_index == total_pages:
-            y = max(y, 150)
-            c.setFillColor(colors.HexColor("#111827"))
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
-            y -= 24
-            box_w = (width - 2 * margin - 18) / 2
-            for idx, (label, image_path) in enumerate((("Signature du centre de formation", signature_image), ("Tampon du centre de formation", stamp_image))):
-                x = margin + idx * (box_w + 18)
-                c.setFillColor(colors.white)
-                c.roundRect(x, y - 72, box_w, 72, 6, fill=1, stroke=1)
-                c.setFillColor(colors.HexColor("#374151"))
-                c.setFont("Helvetica-Bold", 9)
-                c.drawString(x + 10, y - 16, label)
-                if image_path:
-                    c.drawImage(image_path, x + 10, y - 64, width=box_w - 20, height=40, preserveAspectRatio=True, mask="auto")
-                else:
-                    c.setFont("Helvetica", 12)
-                    c.setFillColor(colors.HexColor("#9ca3af"))
-                    c.drawCentredString(x + box_w / 2, y - 48, "Signature" if idx == 0 else "Tampon")
-
+    def draw_header(page_index):
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 15)
+        c.drawString(margin, height - 32, "PLANNING DE FORMATION APS")
+        c.setFont("Helvetica", 10)
+        c.setFillColor(muted)
+        c.drawString(margin, height - 49, "Agent de Prévention et de Sécurité — 175 heures")
         c.setFont("Helvetica", 8)
-        c.setFillColor(colors.HexColor("#6b7280"))
-        c.drawString(margin, 22, f"Édité le {edited}, sous réserve de modification.")
-        c.drawRightString(width - margin, 22, f"{page_index} / {total_pages}")
+        details = (
+            f"Session : {title}  •  Période : {format_date(session_data.get('date_debut'))}"
+            f" au {format_date(session_data.get('date_fin')) if session_data.get('date_fin') else '—'}  •  "
+            f"Examen : {format_date(session_data.get('date_exam'))}  •  Formateur : {formateur}  •  Salle : {salle}"
+        )
+        c.drawString(margin, height - 68, details[:155])
+        c.setStrokeColor(light_line)
+        c.setLineWidth(0.6)
+        c.line(margin, height - 80, width - margin, height - 80)
+
+    def draw_footer(page_index):
+        c.setStrokeColor(light_line)
+        c.setLineWidth(0.5)
+        c.line(margin, 34, width - margin, 34)
+        c.setFont("Helvetica", 8)
+        c.setFillColor(muted)
+        c.drawString(margin, 20, f"Édité le {edited}, sous réserve de modification.")
+        c.drawRightString(width - margin, 20, f"Page {page_index} / {total_pages}")
+
+    def draw_day(day, y):
+        c.setFillColor(pale)
+        c.roundRect(margin, y - 17, width - 2 * margin, 18, 4, fill=1, stroke=0)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 9.5)
+        c.drawString(margin + 9, y - 12, day_label(day["date"]))
+        y -= 27
+
+        table_x = margin
+        col_time = table_x + 14
+        col_duration = table_x + 92
+        col_module = table_x + 132
+        col_room = width - margin - 138
+        col_trainer = width - margin - 80
+
+        c.setFont("Helvetica-Bold", 7)
+        c.setFillColor(muted)
+        c.drawString(col_time, y, "HEURE")
+        c.drawString(col_duration, y, "DURÉE")
+        c.drawString(col_module, y, "MODULE / UV")
+        c.drawString(col_room, y, "SALLE")
+        c.drawString(col_trainer, y, "FORMATEUR")
+        y -= 8
+        c.setStrokeColor(light_line)
+        c.line(table_x, y, width - margin, y)
+        y -= 5
+
+        for block in day["blocks"]:
+            lines = wrapped_lines(block["uv"], col_room - col_module - 12, "Helvetica-Bold", 8.2)
+            row_h = max(25, 14 + 9 * len(lines))
+            c.setFillColor(accent)
+            c.roundRect(table_x, y - row_h + 3, 3.5, row_h - 4, 1.2, fill=1, stroke=0)
+            c.setStrokeColor(light_line)
+            c.setLineWidth(0.35)
+            c.line(table_x + 7, y - row_h + 2, width - margin, y - row_h + 2)
+
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 8.2)
+            time_label = f"{block['start'].strftime('%Hh%M')} - {block['end'].strftime('%Hh%M')}"
+            c.drawString(col_time, y - 10, time_label)
+            c.setFont("Helvetica", 8)
+            c.setFillColor(muted)
+            c.drawString(col_duration, y - 10, format_pdf_hours(block["hours"]))
+            c.drawString(col_room, y - 10, salle[:12])
+            c.drawString(col_trainer, y - 10, formateur[:18])
+
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 8.2)
+            text_y = y - 10
+            for line in lines:
+                c.drawString(col_module, text_y, line)
+                text_y -= 9
+            y -= row_h
+        return y - 10
+
+    def draw_synthesis():
+        y = content_top
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(margin, y, "Synthèse du planning APS")
+        y -= 24
+
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin, y, "Récapitulatif des heures de formation")
+        y -= 16
+        table_x = margin
+        table_w = width - 2 * margin
+        row_h = 17
+        c.setFillColor(colors.HexColor("#f8fafc"))
+        c.roundRect(table_x, y - row_h + 3, table_w, row_h, 4, fill=1, stroke=0)
+        c.setFillColor(muted)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(table_x + 8, y - 8, "UV")
+        c.drawString(table_x + 55, y - 8, "INTITULÉ")
+        c.drawRightString(table_x + table_w - 10, y - 8, "NOMBRE D’HEURES")
+        y -= row_h
+        c.setStrokeColor(light_line)
+        c.setLineWidth(0.35)
+        for row in recap_rows:
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 8)
+            c.drawString(table_x + 8, y - 8, row["uv"])
+            c.setFont("Helvetica", 8)
+            c.drawString(table_x + 55, y - 8, row["label"][:82])
+            c.drawRightString(table_x + table_w - 10, y - 8, format_pdf_hours(row["hours"]))
+            c.line(table_x, y - row_h + 3, table_x + table_w, y - row_h + 3)
+            y -= row_h
+        c.setFillColor(colors.HexColor("#f3f4f6"))
+        c.roundRect(table_x, y - row_h + 3, table_w, row_h, 4, fill=1, stroke=0)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawRightString(table_x + table_w - 10, y - 8, f"TOTAL : {format_pdf_hours(recap_total)}")
+        y -= row_h + 18
+
+        c.setFillColor(exam_bg)
+        c.roundRect(margin, y - 45, width - 2 * margin, 45, 7, fill=1, stroke=0)
+        c.setFillColor(accent)
+        c.roundRect(margin, y - 45, 5, 45, 2, fill=1, stroke=0)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin + 14, y - 17, "Examen APS")
+        c.setFont("Helvetica", 10)
+        c.drawString(margin + 14, y - 34, f"Date : {format_date(session_data.get('date_exam'))}")
+
+        box_y = 145
+        box_h = 88
+        box_w = (width - 2 * margin - 18) / 2
+        for idx, (label, image_path) in enumerate((("Signature du centre de formation", signature_image), ("Tampon du centre de formation", stamp_image))):
+            x = margin + idx * (box_w + 18)
+            c.setFillColor(colors.white)
+            c.setStrokeColor(light_line)
+            c.setLineWidth(0.7)
+            c.roundRect(x, box_y, box_w, box_h, 7, fill=1, stroke=1)
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(x + 10, box_y + box_h - 18, label)
+            if image_path:
+                c.drawImage(image_path, x + 16, box_y + 18, width=box_w - 32, height=42, preserveAspectRatio=True, mask="auto")
+            else:
+                c.setFillColor(colors.HexColor("#9ca3af"))
+                c.setFont("Helvetica", 12)
+                c.drawCentredString(x + box_w / 2, box_y + 39, "Signature" if idx == 0 else "Tampon")
+
+    for page_index, page_days in enumerate(pages, start=1):
+        draw_header(page_index)
+        if page_days and page_days[0].get("synthesis"):
+            draw_synthesis()
+        else:
+            y = content_top
+            for day in page_days:
+                y = draw_day(day, y)
+        draw_footer(page_index)
         c.showPage()
     c.save()
-    return {"days": days, "totals": totals, "total_hours": total_hours}
+    return {"days": days, "totals": totals, "recap": recap_rows, "total_hours": total_hours}
 
 def get_planning_for_session(sid):
     data = load_sessions()

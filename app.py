@@ -4600,6 +4600,30 @@ def view_aps_attendance_sheets(sid):
     return send_file(path, mimetype="application/pdf", as_attachment=False)
 
 
+@app.post("/api/sessions/<sid>/a3p-documents/draft")
+def save_a3p_documents_draft(sid):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
+    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
+    payload=request.get_json(silent=True) or {}
+    cfg=payload.get("scheduleConfig") or payload
+    session_data["a3pPlanningDraftJson"] = cfg
+    session_data["a3pPlanningDraftSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_sessions(data)
+    return jsonify({"ok":True,"savedAt":session_data["a3pPlanningDraftSavedAt"]})
+
+@app.post("/api/sessions/<sid>/a3p-documents/preview")
+def preview_a3p_documents(sid):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
+    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
+    payload=request.get_json(silent=True) or {}
+    try:
+        result=generateA3pSchedule(payload.get("scheduleConfig") or payload)
+        return jsonify({"ok":True,"planning":result["planning"],"summary":result["summary"]})
+    except ValueError as exc:
+        return jsonify({"ok":False,"error":str(exc)}),400
+
 @app.post("/api/sessions/<sid>/a3p-documents/generate")
 def generate_a3p_documents(sid):
     data=load_sessions(); session_data=find_session(data,sid)

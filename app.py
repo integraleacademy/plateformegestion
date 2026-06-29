@@ -1643,16 +1643,37 @@ def generate_aps_attendance_pdf(session_data, output_path):
 
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
-    margin = 30
-    footer_reserved_h = 20 * mm
-    footer_y = 10 * mm
-    footer_top_y = footer_reserved_h
-    min_signature_footer_gap = 14 * mm
+    margin = 10 * mm
+    footer_reserved_h = 24 * mm
+    footer_y = 6 * mm
+    footer_top_y = 18 * mm
+    min_signature_footer_gap = 16 * mm
     logo_path = aps_pdf_logo_path()
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
     total_pages = len(presentiel_days) + 1
     session_name = session_data.get("display_name") or session_data.get("name") or f"Session {session_data.get('id', '')}"
+    formation_period_label = (
+        f"Formation complète : du {format_date(session_data.get('date_debut'))} "
+        f"au {format_date(session_data.get('date_fin'))} — "
+        f"Examen : {format_date(session_data.get('date_exam'))}"
+    )
+
+    def slot_is_morning(slot):
+        midpoint = (_minutes_from_hhmm(slot.get("start")) + _minutes_from_hhmm(slot.get("end"))) / 2
+        return midpoint < 13 * 60
+
+    def half_day_trainer_label(slots, morning=True):
+        names = []
+        seen = set()
+        for slot in slots:
+            if slot_is_morning(slot) != morning:
+                continue
+            name = (slot.get("trainer") or "").strip()
+            if name and name not in seen:
+                names.append(name)
+                seen.add(name)
+        return ", ".join(names) if names else "—"
 
     def footer(page_no):
         c.saveState()
@@ -1660,14 +1681,27 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.line(margin, footer_top_y, width - margin, footer_top_y)
         page_label = f"Page {page_no} / {total_pages}"
         c.setFillColor(colors.HexColor("#6b7280"))
-        c.setFont("Helvetica", 6.2)
-        page_width = stringWidth(page_label, "Helvetica", 6.2)
+        footer_font_size = 7.5
+        page_width = stringWidth(page_label, "Helvetica", footer_font_size)
         legal_text = " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:])
-        legal_max_width = width - 2 * margin - page_width - 22
-        while legal_text and stringWidth(legal_text, "Helvetica", 6.2) > legal_max_width:
-            legal_text = legal_text[:-2].rstrip() + "…"
-        legal_center_x = margin + legal_max_width / 2
-        c.drawCentredString(legal_center_x, footer_y, legal_text)
+        legal_max_width = width - 2 * margin - page_width - 8
+        legal_lines = []
+        current = ""
+        for word in legal_text.split():
+            candidate = f"{current} {word}".strip()
+            if stringWidth(candidate, "Helvetica", footer_font_size) <= legal_max_width or not current:
+                current = candidate
+            else:
+                legal_lines.append(current)
+                current = word
+        if current:
+            legal_lines.append(current)
+        c.setFont("Helvetica", footer_font_size)
+        visible_legal_lines = legal_lines[:2]
+        line_y = footer_y + max(0, len(visible_legal_lines) - 1) * footer_font_size * 1.2
+        for line in visible_legal_lines:
+            c.drawString(margin, line_y, line)
+            line_y -= footer_font_size * 1.2
         c.drawRightString(width - margin, footer_y, page_label)
         c.restoreState()
 
@@ -1684,10 +1718,13 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.drawString(margin, height - 84, f"Session : {session_name}")
         c.drawString(margin, height - 98, f"Date : {date_label}")
         c.drawString(margin + 210, height - 98, f"Lieu / salle : {slots[0].get('room') or session_data.get('salle') or '—'}")
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(margin, height - 112, formation_period_label)
+        c.setFont("Helvetica", 8)
         trainers = sorted({(s.get("trainer") or "—").strip() for s in slots})
-        c.drawString(margin, height - 112, f"Formateur : {', '.join(trainers)}")
-        c.drawString(margin + 300, height - 112, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
-        y = height - 136
+        c.drawString(margin, height - 126, f"Formateur : {', '.join(trainers)}")
+        c.drawString(margin + 300, height - 126, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
+        y = height - 150
         c.setFont("Helvetica-Bold", 8.5)
         c.drawString(margin, y, "Modules et horaires du jour")
         y -= 11
@@ -1726,8 +1763,8 @@ def generate_aps_attendance_pdf(session_data, output_path):
         bottom_label_y = top_box_y - row_gap
         bottom_box_y = bottom_label_y - 8 - block_h
         c.setFont("Helvetica-Bold", 8)
-        c.drawString(left_x, y, "Signature formateur matin")
-        c.drawString(right_x, y, "Signature formateur après-midi")
+        c.drawString(left_x, y, f"Signature formateur matin — {half_day_trainer_label(slots, True)}")
+        c.drawString(right_x, y, f"Signature formateur après-midi — {half_day_trainer_label(slots, False)}")
         c.rect(left_x, top_box_y, block_w, block_h)
         c.rect(right_x, top_box_y, block_w, block_h)
         c.drawString(left_x, bottom_label_y, "Observations éventuelles")

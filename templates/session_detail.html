@@ -1654,13 +1654,24 @@ function renderContractTrainer(trainer){
     <div class="contract-grid">
       <label>Nom et prénom<input class="contract-name" value="${trainer.name.replaceAll('"','&quot;')}" required></label>
       <label>Email du formateur<input type="email" class="contract-email" placeholder="email@example.com"></label>
+      <label>Téléphone<input class="contract-phone" placeholder="06..."></label>
       <label>Tarif par jour HT *<input type="number" min="0.01" step="0.01" class="contract-rate" required></label>
       <label>Jours facturés retenus<input type="number" min="0" step="0.01" class="contract-billed" value="${trainer.calculatedDays}" required></label>
-      <label>Statut / structure<input class="contract-status"></label>
+      <label>Société / nom commercial<input class="contract-commercial-name" placeholder="si applicable"></label>
+      <label>Statut juridique<input class="contract-status" placeholder="Micro-entrepreneur, EI, société..."></label>
       <label>SIRET<input class="contract-siret"></label>
       <label>Adresse<input class="contract-address"></label>
+      <label>N° déclaration d’activité<input class="contract-activity-declaration"></label>
+      <label>N° TVA intracommunautaire<input class="contract-vat-number"></label>
       <label>TVA applicable <select class="contract-vat"><option value="false">Non</option><option value="true">Oui</option></select></label>
       <label>Taux TVA<input type="number" step="0.01" class="contract-vat-rate" value="20"></label>
+      <label>Mention TVA<input class="contract-vat-mention" placeholder="TVA non applicable, art. 293 B du CGI"></label>
+      <label>Assurance RC Pro<input class="contract-rc-pro" placeholder="Assureur / police / à fournir"></label>
+      <label>Attestation vigilance URSSAF<input class="contract-urssaf" placeholder="date ou référence si ≥ 5 000 € HT"></label>
+      <label>Extrait RNE / Kbis / SIRENE<input class="contract-rne-kbis"></label>
+      <label>RIB<input class="contract-rib" placeholder="fourni / à fournir"></label>
+      <label>Diplômes / habilitations<input class="contract-diplomas" placeholder="APS, SST, SSIAP, carte pro..."></label>
+      <label>CV formateur<input class="contract-cv" placeholder="à jour / à fournir"></label>
     </div>
     <p class="muted"><strong>Heures :</strong> ${fmtHours(trainer.totalHours)} · <strong>Jours calendaires :</strong> ${trainer.calendarDays} · <strong>Jours calculés :</strong> ${trainer.calculatedDays}</p>
     <p><strong>Total HT estimé :</strong> <span class="contract-total">0,00 €</span></p>
@@ -1692,9 +1703,42 @@ document.querySelectorAll(".open-aps-contract-modal-again").forEach(btn => btn.a
 closeApsContractModal?.addEventListener("click", closeContractModal); cancelApsContract?.addEventListener("click", closeContractModal);
 apsContractForm?.addEventListener("submit", async (event) => {
   event.preventDefault(); apsContractError.style.display = "none";
-  const trainers = [...apsContractTrainerList.querySelectorAll(".contract-form-card")].filter(c => c.querySelector(".contract-select").checked).map(c => ({name:c.dataset.trainer, email:c.querySelector(".contract-email").value.trim(), dailyRate:Number(c.querySelector(".contract-rate").value), billedDays:Number(c.querySelector(".contract-billed").value), vatEnabled:c.querySelector(".contract-vat").value === "true", vatRate:Number(c.querySelector(".contract-vat-rate").value || 20), address:c.querySelector(".contract-address").value.trim(), siret:c.querySelector(".contract-siret").value.trim(), status:c.querySelector(".contract-status").value.trim()}));
+  const trainers = [...apsContractTrainerList.querySelectorAll(".contract-form-card")].filter(c => c.querySelector(".contract-select").checked).map(c => ({
+    name:c.querySelector(".contract-name").value.trim() || c.dataset.trainer,
+    planningName:c.dataset.trainer,
+    email:c.querySelector(".contract-email").value.trim(),
+    phone:c.querySelector(".contract-phone").value.trim(),
+    dailyRate:Number(c.querySelector(".contract-rate").value),
+    billedDays:Number(c.querySelector(".contract-billed").value),
+    vatEnabled:c.querySelector(".contract-vat").value === "true",
+    vatRate:Number(c.querySelector(".contract-vat-rate").value || 20),
+    address:c.querySelector(".contract-address").value.trim(),
+    siret:c.querySelector(".contract-siret").value.trim(),
+    status:c.querySelector(".contract-status").value.trim(),
+    commercialName:c.querySelector(".contract-commercial-name").value.trim(),
+    activityDeclaration:c.querySelector(".contract-activity-declaration").value.trim(),
+    vatNumber:c.querySelector(".contract-vat-number").value.trim(),
+    vatMention:c.querySelector(".contract-vat-mention").value.trim(),
+    rcPro:c.querySelector(".contract-rc-pro").value.trim(),
+    urssafVigilance:c.querySelector(".contract-urssaf").value.trim(),
+    rneKbis:c.querySelector(".contract-rne-kbis").value.trim(),
+    rib:c.querySelector(".contract-rib").value.trim(),
+    diplomas:c.querySelector(".contract-diplomas").value.trim(),
+    cv:c.querySelector(".contract-cv").value.trim()
+  }));
   if(!trainers.length){ apsContractError.textContent = "Veuillez sélectionner au moins un formateur."; apsContractError.style.display = "block"; return; }
   if(trainers.some(t => !t.dailyRate || t.dailyRate <= 0)){ apsContractError.textContent = "Le tarif journalier HT est obligatoire."; apsContractError.style.display = "block"; return; }
+  const warnings = [];
+  trainers.forEach(t => {
+    const totalHT = Number(t.dailyRate || 0) * Number(t.billedDays || 0);
+    if(!t.siret) warnings.push(`${t.name} : SIRET formateur manquant`);
+    if(!t.address) warnings.push(`${t.name} : adresse formateur manquante`);
+    if(!t.rcPro) warnings.push(`${t.name} : assurance RC Pro non renseignée`);
+    if(totalHT >= 5000 && !t.urssafVigilance) warnings.push(`${t.name} : attestation de vigilance URSSAF non renseignée (≥ 5 000 € HT)`);
+  });
+  const undefinedRoom = [...apsContractTrainerList.querySelectorAll(".contract-table tbody td")].some(td => (td.textContent || "").toLowerCase().includes("salle à définir"));
+  if(undefinedRoom) warnings.push("Lieu “Salle à définir” encore présent dans le planning.");
+  if(warnings.length && !confirm(`Alertes avant génération :\n\n${warnings.join("\n")}\n\nCes alertes seront reprises dans le PDF. Continuer ?`)) return;
   try{ const response = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/generate`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trainers})}); const payload = await response.json(); if(!response.ok || !payload.ok) throw new Error(payload.error || "Génération impossible."); closeContractModal(); showPlanningToast("Contrat(s) généré(s).", "success"); setTimeout(()=>window.location.reload(), 800); }
   catch(error){ apsContractError.textContent = error.message; apsContractError.style.display = "block"; showPlanningToast(error.message, "error"); }
 });

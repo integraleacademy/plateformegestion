@@ -458,6 +458,23 @@ APS_MODULES = [
     ("UV8 PROFESSIONNEL", 7),
 ]
 
+APS_RECAP_ROWS = [
+    ("UV1", "Secouriste Sauveteur du Travail (SST)"),
+    ("UV2", "Environnement juridique de la sécurité privée"),
+    ("UV3", "Gestion des conflits"),
+    ("UV4", "Stratégique"),
+    ("UV5", "Prévention des risques incendie"),
+    ("UV6", "Appréhension au cours de l’exercice"),
+    ("UV7", "Risques terroristes"),
+    ("UV8", "Professionnel"),
+    ("UV9", "Palpation de sécurité et inspection visuelle des bagages"),
+    ("UV10", "Surveillance par moyens électroniques"),
+    ("UV11", "Gestion des risques"),
+    ("UV12", "Événementiel spécifique"),
+    ("UV13", "Gestion des situations conflictuelles dégradées"),
+    ("UV14", "Industriel spécifique"),
+]
+
 def easter_date(year):
     """Retourne la date du dimanche de Pâques (algorithme de Meeus/Jones/Butcher)."""
     a = year % 19

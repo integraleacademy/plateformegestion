@@ -77,9 +77,14 @@ def generateA3pSchedule(config):
         slots=[]
         for period in (("morningStart","morningEnd"),("afternoonStart","afternoonEnd")):
             start, end = day.get(period[0]), day.get(period[1])
-            if not start or not end: continue
+            if bool(start) != bool(end):
+                raise ValueError(f"Horaires incomplets pour le {day.get('date')}")
+            if not start and not end:
+                continue
             _slot_minutes(start,end)
             slots.append({"start":start,"end":end,"free":True})
+        if not slots:
+            raise ValueError(f"Aucun horaire renseigné pour le {day.get('date')}")
         for code, dates in locked.items():
             if day.get("date") in set(dates or []):
                 for s in slots:
@@ -87,14 +92,18 @@ def generateA3pSchedule(config):
                         s.update({"free":False,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":_slot_minutes(s["start"],s["end"])})
                         locked_totals[code]+=s["durationMinutes"]
         planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":slots})
-    for code, dates in locked.items():
-        if code not in A3P_MODULE_BY_CODE:
-            raise ValueError(f"Module inconnu: {code}")
-        if dates:
-            expected=A3P_MODULE_BY_CODE[code]["hours"]*60
-            if locked_totals[code] != expected:
-                raise ValueError(f"Module manuel invalide: {A3P_MODULE_BY_CODE[code]['title']} = {locked_totals[code]/60:g}h / {expected/60:g}h")
-    modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60-locked_totals[c]} for c in A3P_AUTO_ORDER if A3P_MODULE_BY_CODE[c]["hours"]*60-locked_totals[c] > 0]
+    unknown = set(locked) - set(A3P_MODULE_BY_CODE)
+    if unknown:
+        raise ValueError(f"Module inconnu: {', '.join(sorted(unknown))}")
+    invalid_manual = sorted(set(locked) - A3P_LOCKED_CODES)
+    if invalid_manual:
+        labels = ", ".join(A3P_MODULE_BY_CODE[c]["title"] for c in invalid_manual)
+        raise ValueError(f"Seuls les 4 modules imposés peuvent être verrouillés manuellement: {labels}")
+    for code in A3P_LOCKED_CODES:
+        expected=A3P_MODULE_BY_CODE[code]["hours"]*60
+        if locked_totals[code] != expected:
+            raise ValueError(f"Module manuel invalide: {A3P_MODULE_BY_CODE[code]['title']} = {locked_totals[code]/60:g}h / {expected/60:g}h")
+    modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60} for c in A3P_AUTO_ORDER if c not in A3P_LOCKED_CODES]
     idx=0
     for day in planning:
         new=[]

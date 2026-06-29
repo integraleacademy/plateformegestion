@@ -9,13 +9,13 @@ A3P_MODULES = [
     {"code":"UV3","title":"Gestion des conflits","hours":14,"locked":False},
     {"code":"UV4","title":"Module stratégique","hours":8,"locked":False},
     {"code":"UV5","title":"Risques terroristes","hours":13,"locked":True},
-    {"code":"UV6A","title":"Module professionnel approfondi — déplacements et accompagnements","hours":45,"locked":True},
-    {"code":"UV6B","title":"Module professionnel approfondi — autres contenus hors déplacements","hours":113,"locked":False},
+    {"code":"UV6B","title":"Module professionnel approfondi hors déplacements","hours":113,"locked":False},
+    {"code":"UV6A","title":"Déplacements et accompagnements","hours":45,"locked":True},
     {"code":"UV7","title":"Techniques professionnelles","hours":45,"locked":False},
     {"code":"UV8","title":"Gestion des risques","hours":40,"locked":False},
     {"code":"UV9","title":"Secourisme tactique d’urgence","hours":14,"locked":True},
 ]
-A3P_AUTO_ORDER = ["UV2", "UV3", "UV4", "UV6B", "UV7", "UV8"]
+A3P_AUTO_ORDER = [m["code"] for m in A3P_MODULES]
 A3P_LOCKED_CODES = {m["code"] for m in A3P_MODULES if m["locked"]}
 A3P_MODULE_BY_CODE = {m["code"]: m for m in A3P_MODULES}
 assert sum(m["hours"] for m in A3P_MODULES) == A3P_TOTAL_HOURS
@@ -87,11 +87,14 @@ def generateA3pSchedule(config):
                         s.update({"free":False,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":_slot_minutes(s["start"],s["end"])})
                         locked_totals[code]+=s["durationMinutes"]
         planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":slots})
-    for code in A3P_LOCKED_CODES:
-        expected=A3P_MODULE_BY_CODE[code]["hours"]*60
-        if locked_totals[code] != expected:
-            raise ValueError(f"Module verrouillé invalide: {A3P_MODULE_BY_CODE[code]['title']} = {locked_totals[code]/60:g}h / {expected/60:g}h")
-    modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60} for c in A3P_AUTO_ORDER]
+    for code, dates in locked.items():
+        if code not in A3P_MODULE_BY_CODE:
+            raise ValueError(f"Module inconnu: {code}")
+        if dates:
+            expected=A3P_MODULE_BY_CODE[code]["hours"]*60
+            if locked_totals[code] != expected:
+                raise ValueError(f"Module manuel invalide: {A3P_MODULE_BY_CODE[code]['title']} = {locked_totals[code]/60:g}h / {expected/60:g}h")
+    modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60-locked_totals[c]} for c in A3P_AUTO_ORDER if A3P_MODULE_BY_CODE[c]["hours"]*60-locked_totals[c] > 0]
     idx=0
     for day in planning:
         new=[]

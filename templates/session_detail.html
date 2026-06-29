@@ -202,6 +202,39 @@
       cursor:pointer;
       font-weight:700;
     }
+    .aps-planning-mode-fieldset {
+      border:0;
+      padding:0;
+      margin:0 0 4px;
+    }
+    .aps-planning-mode-fieldset legend {
+      margin-bottom:10px;
+    }
+    .aps-planning-mode-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:12px;
+    }
+    .aps-planning-mode-card {
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding:14px;
+      border:1px solid #dcdfe5;
+      border-radius:14px;
+      background:#fff;
+      cursor:pointer;
+      transition:border-color .2s, box-shadow .2s, background .2s;
+    }
+    .aps-planning-mode-card:has(input:checked) {
+      border-color:#d6ac48;
+      background:#fff8e6;
+      box-shadow:0 0 0 3px rgba(214,172,72,.2);
+    }
+    .aps-planning-mode-card input { margin-top:3px; }
+    .aps-planning-mode-card strong { display:block; color:#111827; }
+    .aps-planning-mode-card small { display:block; margin-top:5px; color:#6b7280; line-height:1.35; }
+
     .jury-form-grid {
       display:grid;
       grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
@@ -328,6 +361,39 @@
       cursor:pointer;
       font-weight:700;
     }
+    .aps-planning-mode-fieldset {
+      border:0;
+      padding:0;
+      margin:0 0 4px;
+    }
+    .aps-planning-mode-fieldset legend {
+      margin-bottom:10px;
+    }
+    .aps-planning-mode-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:12px;
+    }
+    .aps-planning-mode-card {
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding:14px;
+      border:1px solid #dcdfe5;
+      border-radius:14px;
+      background:#fff;
+      cursor:pointer;
+      transition:border-color .2s, box-shadow .2s, background .2s;
+    }
+    .aps-planning-mode-card:has(input:checked) {
+      border-color:#d6ac48;
+      background:#fff8e6;
+      box-shadow:0 0 0 3px rgba(214,172,72,.2);
+    }
+    .aps-planning-mode-card input { margin-top:3px; }
+    .aps-planning-mode-card strong { display:block; color:#111827; }
+    .aps-planning-mode-card small { display:block; margin-top:5px; color:#6b7280; line-height:1.35; }
+
     .jury-form-grid {
       display:grid;
       grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
@@ -825,12 +891,34 @@ a.back:hover{ background:#d9a848 !important; }
       <div>
         <h3 style="margin:0;">✨ Générer planning APS</h3>
         <p class="muted" style="margin:6px 0 0;">Planning APS 175h, hors week-ends et jours fériés français.</p>
+        <p class="muted" style="margin:6px 0 0;">Choisissez le mode d’organisation de la session APS.</p>
       </div>
       <button class="modal-close" type="button" id="closeApsPlanningModal">✕</button>
     </div>
     <form id="apsPlanningForm" style="margin-top:18px;">
-      <label for="apsFormateur"><strong>Nom et prénom du formateur</strong></label>
+      <fieldset class="aps-planning-mode-fieldset">
+        <legend><strong>Type de planning APS</strong> <span aria-hidden="true">*</span></legend>
+        <div class="aps-planning-mode-grid" role="radiogroup" aria-required="true">
+          <label class="aps-planning-mode-card" for="apsModeFullPresentiel">
+            <input id="apsModeFullPresentiel" name="planningMode" type="radio" value="full_presentiel" required>
+            <span>
+              <strong>100% présentiel</strong>
+              <small>175h entièrement au centre de formation.</small>
+            </span>
+          </label>
+          <label class="aps-planning-mode-card" for="apsModeElearningPresentiel">
+            <input id="apsModeElearningPresentiel" name="planningMode" type="radio" value="elearning_presentiel" required>
+            <span>
+              <strong>E-learning + présentiel</strong>
+              <small>62h en e-learning d’abord, puis 113h en présentiel.</small>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+      <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>Nom et prénom du formateur</strong></label>
       <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
+      <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
+      <input id="apsRoom" name="room" type="text" value="Salle à définir" placeholder="Salle à définir" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
       <div class="planning-actions" style="justify-content:flex-end;margin-top:18px;">
         <button type="button" class="btn" id="cancelApsPlanning">Annuler</button>
@@ -1242,6 +1330,7 @@ const closeApsPlanningModal = document.getElementById("closeApsPlanningModal");
 const cancelApsPlanning = document.getElementById("cancelApsPlanning");
 const apsPlanningForm = document.getElementById("apsPlanningForm");
 const apsFormateur = document.getElementById("apsFormateur");
+const apsRoom = document.getElementById("apsRoom");
 const apsPlanningError = document.getElementById("apsPlanningError");
 const submitApsPlanning = document.getElementById("submitApsPlanning");
 const planningToast = document.getElementById("planningToast");
@@ -1322,6 +1411,13 @@ confirmResetApsPlanning?.addEventListener("click", async () => {
 apsPlanningForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formateur = apsFormateur.value.trim();
+  const planningMode = apsPlanningForm.querySelector('input[name="planningMode"]:checked')?.value || "";
+  const room = (apsRoom?.value || "Salle à définir").trim() || "Salle à définir";
+  if(!planningMode){
+    apsPlanningError.textContent = "Veuillez choisir le type de planning APS.";
+    apsPlanningError.style.display = "block";
+    return;
+  }
   if(!formateur){
     apsPlanningError.textContent = "Veuillez renseigner le nom et prénom du formateur.";
     apsPlanningError.style.display = "block";
@@ -1334,7 +1430,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     const response = await fetch("{{ url_for('generate_aps_planning_route', sid=s.id) }}", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({formateur})
+      body: JSON.stringify({planningMode, trainer: formateur, room})
     });
     const payload = await response.json();
     if(!response.ok || !payload.ok){

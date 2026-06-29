@@ -610,32 +610,40 @@ def aps_day_label(day_date):
     months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
     return f"{weekdays[day_date.weekday()]} {day_date.day} {months[day_date.month - 1]} {day_date.year}"
 
-def aps_blocks_to_planning_data(days, formateur, salle):
+def aps_blocks_to_planning_data(days, formateur, salle, planning_mode="full_presentiel"):
     planning = []
+    elearning_remaining = 62.0 if planning_mode == "elearning_presentiel" else 0.0
     for day in days:
         day_date = day["date"]
         slots = []
         for block in day.get("blocks", []):
             uv, title = split_uv_title(block.get("uv"))
+            duration = float(block.get("hours", 0))
+            modality = "presentiel"
+            if elearning_remaining > 0:
+                modality = "elearning"
+                elearning_remaining = round(elearning_remaining - duration, 2)
             slots.append({
                 "start": block["start"].strftime("%H:%M"),
                 "end": block["end"].strftime("%H:%M"),
-                "duration": float(block.get("hours", 0)),
+                "duration": duration,
                 "uv": uv,
                 "title": title,
-                "room": salle or "Salle à définir",
+                "room": "E-learning / distanciel" if modality == "elearning" else (salle or "Salle à définir"),
                 "trainer": formateur or "",
+                "modality": modality,
             })
         planning.append({"date": day_date.isoformat(), "dayLabel": aps_day_label(day_date), "slots": slots})
     return planning
 
-def build_aps_planning_data(start_date, formateur, salle):
+def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel"):
     days, totals, total_hours = build_aps_planning(start_date)
-    return aps_blocks_to_planning_data(days, formateur, salle), totals, total_hours
+    return aps_blocks_to_planning_data(days, formateur, salle, planning_mode), totals, total_hours
 
 def aps_summary_from_data(planning_data):
     uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
     total = 0.0
+    modality_totals = {"elearning": 0.0, "presentiel": 0.0}
     slot_count = 0
     errors = []
     previous = None
@@ -662,13 +670,16 @@ def aps_summary_from_data(planning_data):
                 previous = end_dt
             except Exception:
                 errors.append(f"Horaire invalide le {day_date}: {start}-{end}.")
+            modality = (slot.get("modality") or "presentiel").strip()
+            if modality in modality_totals:
+                modality_totals[modality] = round(modality_totals[modality] + duration, 2)
             if uv not in uv_totals:
                 errors.append(f"UV inconnue: {uv}")
             else:
                 uv_totals[uv] = round(uv_totals[uv] + duration, 2)
             total = round(total + duration, 2)
     rows = [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
-    return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
+    return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "modality_totals": modality_totals, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
 
 def validate_aps_planning_data(planning_data):
     summary = aps_summary_from_data(planning_data)
@@ -695,7 +706,9 @@ def append_planning_history(session_data, label):
         session_data["planning_history"] = session_data["planning_history"][-20:]
     return now
 
-def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None):
+def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel"):
+    if planning_mode not in {"full_presentiel", "elearning_presentiel"}:
+        raise ValueError("Le type de planning APS est obligatoire.")
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -712,7 +725,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     salle = session_data.get("salle") or session_data.get("room") or "Salle à définir"
     if planning_data is None:
-        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle)
+        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode)
     errors, summary = validate_aps_planning_data(planning_data)
     if errors:
         raise ValueError(" ".join(errors))
@@ -756,9 +769,11 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             for slot in day.get("slots", []):
                 h = 44
                 c.setFillColor(colors.white); c.roundRect(margin, y - h + 5, width - 2 * margin, h, 6, fill=1, stroke=1)
-                c.setFillColor(colors.HexColor("#1b9aaa")); c.roundRect(margin, y - h + 5, 5, h, 2, fill=1, stroke=0)
+                modality_color = "#7c3aed" if slot.get("modality") == "elearning" else "#1b9aaa"
+                c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 5, h, 2, fill=1, stroke=0)
                 c.setFillColor(colors.HexColor("#111827"))
-                draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')}", margin + 14, y - 8, width - 215, "Helvetica-Bold", 8.2, 9)
+                modality_label = "E-learning" if slot.get("modality") == "elearning" else "Présentiel"
+                draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')} — {modality_label}", margin + 14, y - 8, width - 215, "Helvetica-Bold", 8.2, 9)
                 c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
                 c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({slot.get('duration'):g}h)")
                 c.drawString(margin + 14, y - 32, f"Salle : {slot.get('room') or '—'} • Formateur : {slot.get('trainer') or '—'}")
@@ -774,6 +789,13 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     c.setFont("Helvetica", 8.5)
     for row in summary["uv_rows"]:
         c.drawString(margin, y, f"{row['uv']} — {row['label']} — {row['hours']:g}h")
+        y -= 13
+    if planning_mode == "elearning_presentiel":
+        y -= 4
+        modality_totals = summary.get("modality_totals", {})
+        c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"E-learning : {modality_totals.get('elearning', 0):g}h")
+        y -= 13
+        c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h")
         y -= 13
     c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, f"TOTAL : {summary['total_hours']:g}h")
     y -= 34
@@ -3262,7 +3284,11 @@ def generate_aps_planning_route(sid):
         return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS."}), 400
 
     payload = request.get_json(silent=True) or {}
-    formateur = (payload.get("formateur") or "").strip()
+    planning_mode = (payload.get("planningMode") or "").strip()
+    formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
+    room = (payload.get("room") or "Salle à définir").strip() or "Salle à définir"
+    if planning_mode not in {"full_presentiel", "elearning_presentiel"}:
+        return jsonify({"ok": False, "error": "Le type de planning APS est obligatoire."}), 400
     if not formateur:
         return jsonify({"ok": False, "error": "Le nom et prénom du formateur sont obligatoires."}), 400
     if not parse_date(session_data.get("date_exam")):
@@ -3272,7 +3298,8 @@ def generate_aps_planning_route(sid):
     output_path = os.path.join(PLANNING_DIR, filename)
     temp_path = f"{output_path}.tmp"
     try:
-        result = generate_aps_planning_pdf(session_data, formateur, temp_path)
+        session_data["salle"] = room
+        result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_mode=planning_mode)
         if round(result["total_hours"], 2) != APS_TOTAL_HOURS:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
@@ -3281,6 +3308,7 @@ def generate_aps_planning_route(sid):
         session_data["planning_pdf"] = filename
         session_data["apsPlanningData"] = result["planning_data"]
         session_data["apsPlanningSummary"] = result["summary"]
+        session_data["apsPlanningMode"] = planning_mode
         session_data["planning_generated_at"] = append_planning_history(session_data, "planning généré")
         save_sessions(data)
         app.logger.info(
@@ -3359,7 +3387,8 @@ def update_aps_planning_api(sid):
         filename = f"planning_aps_session_{sid}.pdf"
         output_path = os.path.join(PLANNING_DIR, filename)
         temp_path = f"{output_path}.tmp"
-        result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data)
+        planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
+        result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode)
         if os.path.exists(output_path):
             archive = os.path.join(PLANNING_DIR, f"planning_aps_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
             try:
@@ -3369,6 +3398,7 @@ def update_aps_planning_api(sid):
         os.replace(temp_path, output_path)
         session_data["planning_pdf"] = filename
         session_data["apsPlanningSummary"] = result["summary"]
+        session_data["apsPlanningMode"] = planning_mode
         session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF régénéré")
         pdf_url = url_for("view_planning_pdf", sid=sid)
     save_sessions(data)

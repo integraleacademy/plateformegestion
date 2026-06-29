@@ -1738,43 +1738,50 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8)
         for x, h in zip(xs, headers): c.drawString(x, y - 12, h)
         y -= 18
-        signature_block_h = 92
-        signature_top_y = footer_top_y + min_signature_footer_gap + signature_block_h
-        available_table_h = max(24, y - signature_top_y)
-        row_h = max(22, min(34, int(available_table_h / max(len(students), 1))))
+        table_signature_gap = 14
+        signature_row_gap = 10
+        signature_col_gap = 18
+        signature_label_gap = 5
+        signature_label_h = 12
+        signature_box_h = 42
+        signature_section_h = (signature_label_h + signature_label_gap + signature_box_h) * 2 + signature_row_gap
+        content_bottom_y = footer_top_y + min_signature_footer_gap
+        signature_bottom_y = content_bottom_y
+        table_bottom_limit_y = signature_bottom_y + signature_section_h + table_signature_gap
+        available_table_h = max(24, y - table_bottom_limit_y)
+        row_h = max(20, min(34, int(available_table_h / max(len(students), 1))))
         c.setFont("Helvetica", 8)
         for idx, student in enumerate(students, 1):
-            if y - row_h < signature_top_y:
+            if y - row_h < table_bottom_limit_y:
                 break
             c.rect(margin, y - row_h, width - 2 * margin, row_h)
             for x in [margin + 28, margin + 154, margin + 260, margin + 405]:
                 c.line(x, y, x, y - row_h)
-            c.drawString(margin + 8, y - 15, str(idx))
-            c.drawString(margin + 36, y - 15, student.get("lastName", ""))
-            c.drawString(margin + 162, y - 15, student.get("firstName", ""))
+            text_y = y - min(15, row_h - 7)
+            c.drawString(margin + 8, text_y, str(idx))
+            c.drawString(margin + 36, text_y, student.get("lastName", ""))
+            c.drawString(margin + 162, text_y, student.get("firstName", ""))
             y -= row_h
-        y = footer_top_y + min_signature_footer_gap + signature_block_h
-        block_w = (width - 2 * margin - 12) / 2
-        block_h = 34
-        row_gap = 12
+        y -= table_signature_gap
+        block_w = (width - 2 * margin - signature_col_gap) / 2
         left_x = margin
-        right_x = margin + block_w + 12
-        top_box_y = y - 8 - block_h
-        bottom_label_y = top_box_y - row_gap
-        bottom_box_y = bottom_label_y - 8 - block_h
+        right_x = margin + block_w + signature_col_gap
         c.setFont("Helvetica-Bold", 8)
         c.drawString(left_x, y, f"Signature formateur matin — {half_day_trainer_label(slots, True)}")
         c.drawString(right_x, y, f"Signature formateur après-midi — {half_day_trainer_label(slots, False)}")
-        c.rect(left_x, top_box_y, block_w, block_h)
-        c.rect(right_x, top_box_y, block_w, block_h)
+        top_box_y = y - signature_label_gap - signature_box_h
+        c.rect(left_x, top_box_y, block_w, signature_box_h)
+        c.rect(right_x, top_box_y, block_w, signature_box_h)
+        bottom_label_y = top_box_y - signature_row_gap - signature_label_h
         c.drawString(left_x, bottom_label_y, "Observations éventuelles")
         c.drawString(right_x, bottom_label_y, "Cachet du centre")
-        c.rect(left_x, bottom_box_y, block_w, block_h)
-        c.rect(right_x, bottom_box_y, block_w, block_h)
+        bottom_box_y = bottom_label_y - signature_label_gap - signature_box_h
+        c.rect(left_x, bottom_box_y, block_w, signature_box_h)
+        c.rect(right_x, bottom_box_y, block_w, signature_box_h)
         if signature_image:
-            c.drawImage(signature_image, left_x + 8, top_box_y + 4, width=block_w - 16, height=block_h - 8, preserveAspectRatio=True, mask="auto")
+            c.drawImage(signature_image, left_x + 8, top_box_y + 4, width=block_w - 16, height=signature_box_h - 8, preserveAspectRatio=True, mask="auto")
         if stamp_image:
-            c.drawImage(stamp_image, right_x + 8, bottom_box_y + 4, width=block_w - 16, height=block_h - 8, preserveAspectRatio=True, mask="auto")
+            c.drawImage(stamp_image, right_x + 8, bottom_box_y + 4, width=block_w - 16, height=signature_box_h - 8, preserveAspectRatio=True, mask="auto")
         footer(page_no); c.showPage()
 
     footer(total_pages)

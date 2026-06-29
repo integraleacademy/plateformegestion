@@ -72,26 +72,51 @@ def generateA3pSchedule(config):
     room = config.get("room") or "Salle à définir"
     planning=[]
     locked_totals = a3p_empty_module_totals()
+    period_fields = {"morning": ("morningStart", "morningEnd"), "afternoon": ("afternoonStart", "afternoonEnd")}
+    locked_by_slot = {}
+    for code, entries in locked.items():
+        for entry in entries or []:
+            if isinstance(entry, str):
+                locked_by_slot[(entry, "morning")] = {"code": code}
+                locked_by_slot[(entry, "afternoon")] = {"code": code}
+            else:
+                locked_by_slot[(entry.get("date"), entry.get("period"))] = {"code": code, **entry}
     for day in days:
         if day.get("date") == config.get("examDate"): continue
         slots=[]
-        for period in (("morningStart","morningEnd"),("afternoonStart","afternoonEnd")):
-            start, end = day.get(period[0]), day.get(period[1])
+        for period, fields in period_fields.items():
+            start, end = day.get(fields[0]), day.get(fields[1])
             if bool(start) != bool(end):
                 raise ValueError(f"Horaires incomplets pour le {day.get('date')}")
             if not start and not end:
                 continue
             _slot_minutes(start,end)
-            slots.append({"start":start,"end":end,"free":True})
+            slots.append({"start":start,"end":end,"period":period,"free":True})
         if not slots:
             raise ValueError(f"Aucun horaire renseigné pour le {day.get('date')}")
-        for code, dates in locked.items():
-            if day.get("date") in set(dates or []):
-                for s in slots:
-                    if s.get("free"):
-                        s.update({"free":False,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":_slot_minutes(s["start"],s["end"])})
-                        locked_totals[code]+=s["durationMinutes"]
-        planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":slots})
+        day_slots = []
+        for slot in slots:
+            entry = locked_by_slot.get((day.get("date"), slot.get("period")))
+            if not entry:
+                day_slots.append(slot)
+                continue
+            code = entry.get("code")
+            if code not in A3P_MODULE_BY_CODE:
+                continue
+            start = entry.get("startTime") or slot["start"]
+            hours = float(entry.get("hours") or (_slot_minutes(slot["start"], slot["end"]) / 60))
+            duration = int(round(hours * 60))
+            end = entry.get("endTime") or _hhmm(_minutes(start) + duration)
+            if _minutes(start) < _minutes(slot["start"]) or _minutes(end) > _minutes(slot["end"]):
+                raise ValueError(f"Le créneau verrouillé dépasse la demi-journée du {day.get('date')}")
+            day_slots.append({"free":False,"start":start,"end":end,"period":slot.get("period"),"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":duration})
+            locked_totals[code] += duration
+            if _minutes(slot["start"]) < _minutes(start):
+                day_slots.append({"start":slot["start"],"end":start,"period":slot.get("period"),"free":True})
+            if _minutes(end) < _minutes(slot["end"]):
+                day_slots.append({"start":end,"end":slot["end"],"period":slot.get("period"),"free":True})
+        day_slots.sort(key=lambda item: _minutes(item["start"]))
+        planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":day_slots})
     unknown = set(locked) - set(A3P_MODULE_BY_CODE)
     if unknown:
         raise ValueError(f"Module inconnu: {', '.join(sorted(unknown))}")

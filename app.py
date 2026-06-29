@@ -406,6 +406,9 @@ os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
 APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
 
 APS_TOTAL_HOURS = 175
+APS_TOTAL_MINUTES = 10500
+APS_ELEARNING_MINUTES = 3720
+APS_PRESENTIEL_MINUTES = 6780
 
 APS_EXPECTED_UV_TOTALS = {
     "UV1": 14,
@@ -468,6 +471,29 @@ APS_MODULES = [
     ("UV8 PROFESSIONNEL", 7),
 ]
 
+
+APS_ELEARNING_PRESENTIEL_MODULES = [
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV2", "title": "Environnement juridique de la sécurité privée", "durationMinutes": 17 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV3", "title": "Gestion des risques et situations conflictuelles", "durationMinutes": 5 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV4", "title": "Transmission des consignes et informations", "durationMinutes": 5 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV2", "title": "Environnement juridique de la sécurité privée", "durationMinutes": 3 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV11", "title": "Gestion des risques / connaissances des vecteurs d’incendie", "durationMinutes": 9 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV7", "title": "Prévention des risques terroristes", "durationMinutes": 6 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV1", "title": "Secourir", "durationMinutes": 1 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV10", "title": "Connaissance de l’outil informatique / transmission", "durationMinutes": 2 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV8", "title": "Surveillance et gardiennage", "durationMinutes": 7 * 60},
+    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV12", "title": "Événementiel", "durationMinutes": 7 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV1", "title": "Gestion des premiers secours", "durationMinutes": 14 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV2", "title": "Environnement juridique de la sécurité privée", "durationMinutes": 2 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV5", "title": "Gestion des risques / connaissances des vecteurs d’incendie", "durationMinutes": 16 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV7", "title": "Prévention des risques terroristes", "durationMinutes": 270},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV1", "title": "Secourir", "durationMinutes": 90},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV3", "title": "Gestion des risques et des situations conflictuelles", "durationMinutes": 9 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV13", "title": "Gestion des risques de situations conflictuelles dégradées", "durationMinutes": 7 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV8", "title": "Surveillance et gardiennage", "durationMinutes": 45 * 60},
+    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV12", "title": "Événementiel", "durationMinutes": 14 * 60},
+]
+
 APS_RECAP_ROWS = [
     ("UV1", "Secouriste Sauveteur du Travail (SST)"),
     ("UV2", "Environnement juridique de la sécurité privée"),
@@ -524,6 +550,21 @@ def is_french_working_day(day):
 def add_hours_to_time(start_time, hours):
     base = datetime.combine(date.today(), start_time)
     return (base + timedelta(hours=hours)).time()
+
+def add_minutes_to_time(start_time, minutes):
+    base = datetime.combine(date.today(), start_time)
+    return (base + timedelta(minutes=minutes)).time()
+
+def next_french_working_day(day):
+    day += timedelta(days=1)
+    while not is_french_working_day(day):
+        day += timedelta(days=1)
+    return day
+
+def format_duration_from_minutes(minutes):
+    hours = minutes // 60
+    rest = minutes % 60
+    return f"{hours:g}h" if rest == 0 else f"{hours:g}h{rest:02d}"
 
 def build_aps_planning(start_date):
     modules = [{"name": name, "hours": float(hours), "remaining": float(hours)} for name, hours in APS_MODULES]
@@ -640,9 +681,62 @@ def aps_blocks_to_planning_data(days, formateur, salle, planning_mode="full_pres
         planning.append({"date": day_date.isoformat(), "dayLabel": aps_day_label(day_date), "slots": slots})
     return planning
 
-def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel"):
+def generateApsFullPresentielPlanning(start_date, formateur, salle):
     days, totals, total_hours = build_aps_planning(start_date)
-    return aps_blocks_to_planning_data(days, formateur, salle, planning_mode), totals, total_hours
+    return aps_blocks_to_planning_data(days, formateur, salle, "full_presentiel"), totals, total_hours
+
+def generateApsElearningPresentielPlanning(start_date, formateur, salle):
+    sequence = [dict(item, remainingMinutes=int(item["durationMinutes"])) for item in APS_ELEARNING_PRESENTIEL_MODULES]
+    idx = 0
+    current_day = start_date
+    planning = []
+    totals = {}
+    for modality in ("elearning", "presentiel"):
+        if modality == "presentiel" and planning:
+            current_day = next_french_working_day(datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date())
+        while idx < len(sequence) and sequence[idx]["modality"] == modality:
+            if not is_french_working_day(current_day):
+                current_day += timedelta(days=1)
+                continue
+            slots = []
+            for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
+                cursor = slot_start
+                remaining_slot = slot_minutes
+                while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == modality:
+                    module = sequence[idx]
+                    duration_minutes = min(remaining_slot, module["remainingMinutes"])
+                    end_time = add_minutes_to_time(cursor, duration_minutes)
+                    duration_hours = round(duration_minutes / 60, 2)
+                    slots.append({
+                        "start": cursor.strftime("%H:%M"),
+                        "end": end_time.strftime("%H:%M"),
+                        "duration": duration_hours,
+                        "durationMinutes": duration_minutes,
+                        "uv": module["uv"],
+                        "title": module["title"],
+                        "part": module["part"],
+                        "room": "Plateforme e-learning" if modality == "elearning" else (salle or "Salle à définir"),
+                        "trainer": formateur or "",
+                        "modality": modality,
+                    })
+                    module["remainingMinutes"] -= duration_minutes
+                    remaining_slot -= duration_minutes
+                    cursor = end_time
+                    totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
+                    if module["remainingMinutes"] == 0:
+                        idx += 1
+                if idx >= len(sequence) or sequence[idx]["modality"] != modality:
+                    break
+            if slots:
+                planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
+            current_day += timedelta(days=1)
+    total_hours = sum(slot["durationMinutes"] for day in planning for slot in day["slots"]) / 60
+    return planning, {k: round(v / 60, 2) for k, v in totals.items()}, total_hours
+
+def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel"):
+    if planning_mode == "elearning_presentiel":
+        return generateApsElearningPresentielPlanning(start_date, formateur, salle)
+    return generateApsFullPresentielPlanning(start_date, formateur, salle)
 
 def aps_summary_from_data(planning_data):
     uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
@@ -660,7 +754,8 @@ def aps_summary_from_data(planning_data):
         for slot in day.get("slots", []):
             slot_count += 1
             uv = (slot.get("uv") or "").strip().upper()
-            duration = float(slot.get("duration") or 0)
+            duration_minutes = int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60))))
+            duration = round(duration_minutes / 60, 2)
             start = slot.get("start") or ""
             end = slot.get("end") or ""
             try:
@@ -685,16 +780,56 @@ def aps_summary_from_data(planning_data):
     rows = [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
     return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "modality_totals": modality_totals, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
 
-def validate_aps_planning_data(planning_data):
+def validate_aps_planning_data(planning_data, planning_mode="full_presentiel"):
     summary = aps_summary_from_data(planning_data)
     errors = list(summary["errors"])
     if round(summary["total_hours"], 2) != APS_TOTAL_HOURS:
         errors.append(f"Le total doit être exactement de {APS_TOTAL_HOURS}h (actuel: {summary['total_hours']}h).")
-    for uv, expected in APS_EXPECTED_UV_TOTALS.items():
-        actual = round(summary["uv_totals"].get(uv, 0), 2)
-        if actual != expected:
-            errors.append(f"{uv} doit totaliser {expected}h (actuel: {actual}h).")
+    if planning_mode == "elearning_presentiel":
+        errors.extend(validate_aps_elearning_presentiel_rules(planning_data, summary))
+    else:
+        for uv, expected in APS_EXPECTED_UV_TOTALS.items():
+            actual = round(summary["uv_totals"].get(uv, 0), 2)
+            if actual != expected:
+                errors.append(f"{uv} doit totaliser {expected}h (actuel: {actual}h).")
     return errors, summary
+
+def validate_aps_elearning_presentiel_rules(planning_data, summary=None):
+    summary = summary or aps_summary_from_data(planning_data)
+    errors = []
+    totals = summary.get("modality_totals", {})
+    if int(round(totals.get("elearning", 0) * 60)) != APS_ELEARNING_MINUTES:
+        errors.append(f"Le total e-learning doit être exactement de 62h (actuel: {totals.get('elearning', 0):g}h).")
+    if int(round(totals.get("presentiel", 0) * 60)) != APS_PRESENTIEL_MINUTES:
+        errors.append(f"Le total présentiel doit être exactement de 113h (actuel: {totals.get('presentiel', 0):g}h).")
+    seen_presentiel = False
+    last_elearning_day = None
+    first_presentiel = None
+    for day in planning_data or []:
+        day_modalities = {(slot.get("modality") or "presentiel") for slot in day.get("slots", [])}
+        if len(day_modalities) > 1:
+            errors.append(f"La journée {day.get('date')} mélange e-learning et présentiel.")
+        for slot in day.get("slots", []):
+            modality = slot.get("modality") or "presentiel"
+            if modality == "presentiel":
+                seen_presentiel = True
+                if first_presentiel is None:
+                    first_presentiel = (day.get("date"), slot.get("start"))
+            elif seen_presentiel:
+                errors.append("Tous les blocs e-learning doivent être avant les blocs présentiels.")
+            if modality == "elearning":
+                last_elearning_day = day.get("date")
+    if first_presentiel:
+        first_date, first_start = first_presentiel
+        if first_start != "08:30":
+            errors.append("Le présentiel doit commencer sur un nouveau jour ouvré à 08h30.")
+        try:
+            expected = next_french_working_day(datetime.strptime(last_elearning_day, "%Y-%m-%d").date()).isoformat()
+            if first_date != expected:
+                errors.append(f"Le présentiel doit commencer le prochain jour ouvré complet ({expected}) après la période e-learning.")
+        except Exception:
+            errors.append("Impossible de vérifier le prochain jour ouvré de démarrage présentiel.")
+    return errors
 
 def aps_pdf_logo_path():
     public_logo = os.path.join(BASE_DIR, "public", "logo-integrale-academy.png")
@@ -730,7 +865,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     salle = session_data.get("salle") or session_data.get("room") or "Salle à définir"
     if planning_data is None:
         planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode)
-    errors, summary = validate_aps_planning_data(planning_data)
+    errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if errors:
         raise ValueError(" ".join(errors))
 
@@ -756,6 +891,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
         c.drawString(margin + 78, height - 50, "Agent de Prévention et de Sécurité — 175 heures")
         c.drawString(margin + 78, height - 64, f"{period} • Examen {format_date(session_data.get('date_exam'))} • Formateur(s) : {trainer_label}")
+        if planning_mode == "elearning_presentiel":
+            c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
+            c.drawString(margin + 78, height - 75, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
         c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 78, width - margin, height - 78)
         c.setFont("Helvetica", 7); c.setFillColor(colors.HexColor("#6b7280"))
         c.drawString(margin, 28, f"Édité le {edited}, sous réserve de modification.")
@@ -765,19 +903,36 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     page_no = 1
     for page_days in pages:
         draw_header_footer(page_no)
-        y = height - 100
+        y = height - 108 if planning_mode == "elearning_presentiel" else height - 100
+        if page_no == 1 and planning_mode == "elearning_presentiel":
+            c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Légende :")
+            c.setFillColor(colors.HexColor("#6d28d9")); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
+            c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 78, y, "E-learning / distanciel — 62h")
+            c.setFillColor(colors.HexColor("#0d9488")); c.roundRect(margin + 238, y - 8, 18, 9, 2, fill=1, stroke=0)
+            c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 262, y, "Présentiel au centre — 113h")
+            y -= 20
+        current_part = None
         for day in page_days:
+            day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
+            if planning_mode == "elearning_presentiel" and day_part and day_part != current_part:
+                current_part = day_part
+                band_color = "#6d28d9" if "E-LEARNING" in day_part else "#0d9488"
+                c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, width - 2 * margin, 24, 6, fill=1, stroke=0)
+                c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 11); c.drawString(margin + 10, y - 12, day_part)
+                y -= 34
             c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, width - 2 * margin, 22, 6, fill=1, stroke=0)
             c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, day.get("dayLabel") or day.get("date"))
             y -= 30
             for slot in day.get("slots", []):
                 h = 44
                 c.setFillColor(colors.white); c.roundRect(margin, y - h + 5, width - 2 * margin, h, 6, fill=1, stroke=1)
-                modality_color = "#7c3aed" if slot.get("modality") == "elearning" else "#1b9aaa"
-                c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 5, h, 2, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor("#111827"))
+                modality_color = "#6d28d9" if slot.get("modality") == "elearning" else "#0d9488"
+                c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
                 modality_label = "E-learning" if slot.get("modality") == "elearning" else "Présentiel"
-                draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')} — {modality_label}", margin + 14, y - 8, width - 215, "Helvetica-Bold", 8.2, 9)
+                c.setFillColor(colors.HexColor(modality_color)); c.roundRect(width - margin - 86, y - 38, 76, 14, 4, fill=1, stroke=0)
+                c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7); c.drawCentredString(width - margin - 48, y - 34, modality_label)
+                c.setFillColor(colors.HexColor("#111827"))
+                draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')}", margin + 16, y - 8, width - 225, "Helvetica-Bold", 8.2, 9)
                 c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
                 c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({slot.get('duration'):g}h)")
                 c.drawString(margin + 14, y - 32, f"Salle : {slot.get('room') or '—'} • Formateur : {slot.get('trainer') or '—'}")
@@ -790,17 +945,27 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     y = height - 105
     c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
     y -= 18
-    c.setFont("Helvetica", 8.5)
-    for row in summary["uv_rows"]:
-        c.drawString(margin, y, f"{row['uv']} — {row['label']} — {row['hours']:g}h")
-        y -= 13
     if planning_mode == "elearning_presentiel":
-        y -= 4
         modality_totals = summary.get("modality_totals", {})
-        c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"E-learning : {modality_totals.get('elearning', 0):g}h")
-        y -= 13
-        c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h")
-        y -= 13
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. Récapitulatif par modalité")
+        y -= 14
+        c.setFont("Helvetica", 9); c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h")
+        y -= 13; c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h")
+        y -= 13; c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
+        y -= 20; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Récapitulatif détaillé")
+        y -= 14; c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Partie"); c.drawString(margin+145, y, "Module"); c.drawString(width-margin-140, y, "Modalité"); c.drawRightString(width-margin, y, "Heures")
+        y -= 12; c.setFont("Helvetica", 7.2)
+        for module in APS_ELEARNING_PRESENTIEL_MODULES:
+            c.drawString(margin, y, "Période 1" if module["modality"] == "elearning" else "Période 2")
+            draw_wrapped_text(c, module["title"], margin+145, y, width-margin-300, "Helvetica", 7.2, 8)
+            c.drawString(width-margin-140, y, "E-learning" if module["modality"] == "elearning" else "Présentiel")
+            c.drawRightString(width-margin, y, format_duration_from_minutes(module["durationMinutes"]))
+            y -= 12
+    else:
+        c.setFont("Helvetica", 8.5)
+        for row in summary["uv_rows"]:
+            c.drawString(margin, y, f"{row['uv']} — {row['label']} — {row['hours']:g}h")
+            y -= 13
     c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, f"TOTAL : {summary['total_hours']:g}h")
     y -= 34
     c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
@@ -3586,7 +3751,8 @@ def update_aps_planning_api(sid):
     planning_data = payload.get("planningData")
     if not isinstance(planning_data, list) or not planning_data:
         return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
-    errors, summary = validate_aps_planning_data(planning_data)
+    planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
+    errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if errors:
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400
     session_data["apsPlanningData"] = planning_data
@@ -3597,7 +3763,6 @@ def update_aps_planning_api(sid):
         filename = f"planning_aps_session_{sid}.pdf"
         output_path = os.path.join(PLANNING_DIR, filename)
         temp_path = f"{output_path}.tmp"
-        planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
         result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode)
         if os.path.exists(output_path):
             archive = os.path.join(PLANNING_DIR, f"planning_aps_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")

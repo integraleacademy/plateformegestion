@@ -17,6 +17,8 @@ from io import BytesIO
 from datetime import datetime, timedelta, date, time as dt_time
 from functools import wraps
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 import logging
 import threading
 
@@ -399,6 +401,8 @@ PLANNING_DIR = os.path.join(DATA_DIR, "plannings")
 os.makedirs(PLANNING_DIR, exist_ok=True)
 CONVOCATION_DIR = os.path.join(DATA_DIR, "convocations")
 os.makedirs(CONVOCATION_DIR, exist_ok=True)
+APS_CONTRACT_DIR = os.path.join(DATA_DIR, "aps_trainer_contracts")
+os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
 APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
 
 APS_TOTAL_HOURS = 175
@@ -815,6 +819,142 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     c.save()
     return {"planning_data": planning_data, "totals": summary["uv_totals"], "total_hours": summary["total_hours"], "summary": summary}
 
+
+def _money(value):
+    try:
+        return f"{float(value):,.2f} €".replace(",", " ").replace(".", ",")
+    except Exception:
+        return "0,00 €"
+
+
+def aps_is_contract_billable_slot(slot):
+    return (slot.get("modality") or "presentiel").strip().lower() != "elearning"
+
+
+def aps_detect_trainers(planning_data):
+    return sorted({
+        (slot.get("trainer") or "").strip()
+        for day in planning_data or []
+        for slot in day.get("slots", [])
+        if aps_is_contract_billable_slot(slot) and (slot.get("trainer") or "").strip()
+    })
+
+
+def aps_trainer_interventions(planning_data, trainer_name):
+    interventions = []
+    total_hours = 0.0
+    dates = set()
+    for day in planning_data or []:
+        day_date = day.get("date") or ""
+        for slot in day.get("slots", []):
+            if not aps_is_contract_billable_slot(slot):
+                continue
+            if (slot.get("trainer") or "").strip() != trainer_name:
+                continue
+            duration = round(float(slot.get("duration") or 0), 2)
+            total_hours = round(total_hours + duration, 2)
+            dates.add(day_date)
+            interventions.append({
+                "date": day_date,
+                "dateLabel": format_date(day_date),
+                "hours": duration,
+                "start": slot.get("start") or "",
+                "end": slot.get("end") or "",
+                "module": f"{slot.get('uv') or ''} {slot.get('title') or ''}".strip(),
+                "modality": "E-learning" if slot.get("modality") == "elearning" else "Présentiel",
+                "room": slot.get("room") or "—",
+            })
+    calculated_days = round(total_hours / 7, 2) if total_hours else 0
+    return {"interventions": interventions, "totalHours": total_hours, "calendarDays": len(dates), "calculatedDays": calculated_days}
+
+
+def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except ImportError as exc:
+        raise RuntimeError("La dépendance reportlab est requise pour générer le contrat PDF.") from exc
+    c = canvas.Canvas(output_path, pagesize=A4)
+    width, height = A4
+    margin = 36
+    logo_path = aps_pdf_logo_path()
+    generated = datetime.now().strftime("%d/%m/%Y à %H:%M")
+    pages = [contract.get("interventions", [])[i:i+12] for i in range(0, len(contract.get("interventions", [])), 12)] or [[]]
+    total_pages = len(pages)
+    def header(page):
+        if logo_path:
+            c.drawImage(logo_path, margin, height-70, width=70, height=46, preserveAspectRatio=True, mask="auto")
+        c.setFont("Helvetica-Bold", 16); c.setFillColor(colors.HexColor("#111827"))
+        c.drawString(margin+86, height-38, "CONTRAT D’INTERVENTION FORMATEUR")
+        c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#6b7280"))
+        c.drawString(margin+86, height-54, f"Session APS — généré le {generated}")
+        c.line(margin, height-82, width-margin, height-82)
+        c.drawRightString(width-margin, 24, f"Page {page} / {total_pages}")
+    def new_page(page):
+        header(page); return height-100
+    for page_no, rows in enumerate(pages, 1):
+        y = new_page(page_no)
+        if page_no == 1:
+            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. Informations du centre"); y-=14
+            center = ["Intégrale Academy", "54 chemin du Carreou, 83480 Puget-sur-Argens", "Téléphone : 04 22 47 07 68 — Email : ecole@integraleacademy.com", "SIRET : 840 899 884 00026"] + APS_LEGAL_LINES
+            for line in center:
+                y = draw_wrapped_text(c, line, margin, y, width-2*margin, "Helvetica", 8, 10)
+            y-=8; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Informations session"); y-=14
+            mode = "E-learning + présentiel" if session_data.get("apsPlanningMode") == "elearning_presentiel" else "100% présentiel"
+            sess_lines = [f"Formation : APS / Agent de Prévention et de Sécurité", f"Nom de la session : {session_data.get('display_name') or session_data.get('name') or session_data.get('formation')}", f"Dates : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", f"Date d’examen : {format_date(session_data.get('date_exam'))}", f"Modalité du planning : {mode}"]
+            for line in sess_lines: c.setFont("Helvetica", 8); c.drawString(margin, y, line); y-=11
+            y-=6; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "C. Informations formateur"); y-=14
+            for line in [contract.get('trainerName'), contract.get('trainerEmail'), contract.get('address'), contract.get('siret'), contract.get('status')]:
+                if line: c.setFont("Helvetica", 8); c.drawString(margin, y, str(line)); y-=11
+            y-=6; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "D. Mission confiée"); y-=14
+            y = draw_wrapped_text(c, "Le formateur interviendra dans le cadre de la session de formation Agent de Prévention et de Sécurité (APS), selon le planning d’intervention annexé au présent contrat.", margin, y, width-2*margin, "Helvetica", 8, 10)
+            y-=8
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "E. Tableau des interventions / annexe planning"); y-=18
+        c.setFont("Helvetica-Bold", 7); headers=["Date","Horaires","Durée","Module / UV","Modalité","Lieu"]; xs=[margin,92,150,198,408,472]
+        for x,h in zip(xs,headers): c.drawString(x,y,h)
+        y-=10; c.line(margin,y,width-margin,y); y-=10
+        c.setFont("Helvetica", 7)
+        for r in rows:
+            if y < 80: break
+            c.drawString(xs[0], y, r.get('dateLabel') or r.get('date') or '')
+            c.drawString(xs[1], y, f"{r.get('start')}-{r.get('end')}")
+            c.drawString(xs[2], y, f"{r.get('hours'):g}h")
+            c.drawString(xs[3], y, (r.get('module') or '')[:42])
+            c.drawString(xs[4], y, r.get('modality') or '')
+            c.drawString(xs[5], y, (r.get('room') or '')[:18])
+            y-=12
+        if page_no == total_pages:
+            y-=12; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "F. Récapitulatif financier"); y-=15
+            vat_txt = f"TVA {contract.get('vatRate', 20):g}% : {_money(contract.get('vatAmount', 0))}" if contract.get('vatEnabled') else "TVA non applicable"
+            for line in [f"Nombre total d’heures : {contract.get('calculatedHours'):g}h", f"Jours calculés : {contract.get('calculatedDays'):g}", f"Jours facturés retenus : {contract.get('billedDays'):g}", f"Tarif journalier HT : {_money(contract.get('dailyRate'))} HT", f"Total HT : {_money(contract.get('totalHT'))} HT", vat_txt, f"Total TTC : {_money(contract.get('totalTTC'))}"]:
+                c.setFont("Helvetica", 8); c.drawString(margin, y, line); y-=11
+            y-=6; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "G. Conditions de règlement"); y-=14
+            y = draw_wrapped_text(c, "Le règlement interviendra sur présentation d’une facture conforme, après réalisation de la prestation et validation des feuilles d’émargement.", margin, y, width-2*margin, "Helvetica", 8, 10)
+            y-=18; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "H. Signatures"); y-=18
+            c.setFont("Helvetica", 8); c.drawString(margin, y, "Pour Intégrale Academy — Monsieur Clément VAILLANT, Directeur général"); c.drawString(width/2+10, y, f"Pour le formateur — {contract.get('trainerName')}"); y-=18
+            c.rect(margin, y-55, 230, 55); c.rect(width/2+10, y-55, 230, 55); c.drawString(width/2+20, y-12, "Lu et approuvé")
+        c.showPage()
+    c.save()
+
+
+def send_email_with_attachments(to_email, subject, body, attachments):
+    smtp_config = get_smtp_config() if 'get_smtp_config' in globals() else {"server": SMTP_SERVER, "port": SMTP_PORT, "username": FROM_EMAIL, "password": EMAIL_PASSWORD, "from_email": FROM_EMAIL}
+    if not smtp_config.get("from_email") or not smtp_config.get("username") or not smtp_config.get("password"):
+        return False, "SMTP non configuré."
+    msg = MIMEMultipart(); msg["From"] = smtp_config["from_email"]; msg["To"] = to_email; msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+    for path, filename in attachments:
+        with open(path, "rb") as f:
+            part = MIMEApplication(f.read(), _subtype="pdf")
+        part.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(part)
+    try:
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
+            server.starttls(); server.login(smtp_config["username"], smtp_config["password"]); server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
+        return True, "Email envoyé"
+    except Exception as exc:
+        return False, f"Erreur email: {exc}"
 
 # -----------------------
 # Convocation APS depuis modèle Word officiel
@@ -3332,6 +3472,87 @@ def generate_aps_planning_route(sid):
         app.logger.exception("Erreur génération planning APS session=%s", sid)
         return jsonify({"ok": False, "error": str(exc)}), 500
 
+
+@app.get("/api/sessions/<sid>/aps-trainer-contracts/preview")
+def preview_aps_trainer_contracts(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    planning_data = session_data.get("apsPlanningData") or []
+    if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
+    trainers = []
+    for name in aps_detect_trainers(planning_data):
+        calc = aps_trainer_interventions(planning_data, name)
+        trainers.append({"name": name, **calc})
+    return jsonify({"ok": True, "trainers": trainers})
+
+
+@app.get("/sessions/<sid>/aps-trainer-contracts/<contract_id>/view")
+def view_aps_trainer_contract(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: abort(404)
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract or not contract.get("pdfFilename"): abort(404)
+    path = os.path.join(APS_CONTRACT_DIR, os.path.basename(contract["pdfFilename"]))
+    if not os.path.exists(path): abort(404)
+    return send_file(path, mimetype="application/pdf", as_attachment=False)
+
+
+@app.post("/api/sessions/<sid>/aps-trainer-contracts/generate")
+def generate_aps_trainer_contracts(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    planning_data = session_data.get("apsPlanningData") or []
+    if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
+    payload = request.get_json(silent=True) or {}; trainers = payload.get("trainers") or []
+    if not trainers: return jsonify({"ok": False, "error": "Aucun formateur sélectionné."}), 400
+    saved = []
+    for trainer in trainers:
+        name = (trainer.get("name") or "").strip(); daily_rate = float(trainer.get("dailyRate") or 0)
+        if not name or daily_rate <= 0: return jsonify({"ok": False, "error": "Le nom et un tarif journalier HT supérieur à 0 sont obligatoires."}), 400
+        calc = aps_trainer_interventions(planning_data, name)
+        if not calc["interventions"]: return jsonify({"ok": False, "error": f"Aucun créneau trouvé pour {name}."}), 400
+        billed_days = float(trainer.get("billedDays") or calc["calculatedDays"] or 0)
+        vat_enabled = bool(trainer.get("vatEnabled")); vat_rate = float(trainer.get("vatRate") or 20)
+        total_ht = round(billed_days * daily_rate, 2); vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0; total_ttc = round(total_ht + vat_amount, 2)
+        contract_id = str(uuid.uuid4()); filename = f"contrat_formateur_aps_{sid}_{contract_id}.pdf"; path = os.path.join(APS_CONTRACT_DIR, filename)
+        contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
+        generate_aps_trainer_contract_pdf(session_data, contract, path)
+        session_data.setdefault("apsTrainerContracts", []).append(contract); saved.append(contract)
+    save_sessions(data)
+    return jsonify({"ok": True, "contracts": saved})
+
+
+@app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/send")
+def send_aps_trainer_contract(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    if not contract.get("trainerEmail"): return jsonify({"ok": False, "error": "Email formateur manquant."}), 400
+    contract_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(contract.get("pdfFilename") or "")); planning_name = session_data.get("planning_pdf"); planning_path = os.path.join(PLANNING_DIR, os.path.basename(planning_name or ""))
+    if not os.path.exists(contract_path): return jsonify({"ok": False, "error": "PDF contrat introuvable."}), 400
+    if not planning_name or not os.path.exists(planning_path): return jsonify({"ok": False, "error": "PDF planning APS complet introuvable."}), 400
+    payload = request.get_json(silent=True) or {}; subject = payload.get("emailSubject") or "Contrat d’intervention formateur — Session APS"; body = payload.get("emailBody") or ""
+    ok, message = send_email_with_attachments(contract["trainerEmail"], subject, body, [(contract_path, os.path.basename(contract_path)), (planning_path, os.path.basename(planning_path))])
+    if not ok: return jsonify({"ok": False, "error": message}), 500
+    contract["sentAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
+    return jsonify({"ok": True, "sentAt": contract["sentAt"]})
+
+
+@app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")
+def delete_aps_trainer_contract(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contracts = session_data.get("apsTrainerContracts", []); contract = next((c for c in contracts if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    if contract.get("pdfFilename"):
+        try: os.remove(os.path.join(APS_CONTRACT_DIR, os.path.basename(contract["pdfFilename"])))
+        except FileNotFoundError: pass
+    session_data["apsTrainerContracts"] = [c for c in contracts if c.get("id") != contract_id]
+    save_sessions(data)
+    return jsonify({"ok": True})
 
 @app.get("/sessions/<sid>/aps-planning/edit")
 def edit_aps_planning_page(sid):

@@ -37,6 +37,22 @@ def _day_label(iso: str) -> str:
     d = datetime.strptime(iso, "%Y-%m-%d").date()
     return ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][d.weekday()]
 
+def _day_training_slots(day):
+    start = day.get("dayStart") or day.get("morningStart")
+    end = day.get("dayEnd") or day.get("afternoonEnd") or day.get("morningEnd")
+    if not start or not end:
+        raise ValueError(f"Horaires incomplets pour le {day.get('date')}")
+    start_m, end_m = _minutes(start), _minutes(end)
+    if end_m <= start_m:
+        raise ValueError(f"L’heure de fin est avant l’heure de début pour le {day.get('date')}")
+    if end_m - start_m < 120:
+        raise ValueError(f"La journée du {day.get('date')} doit durer au moins 2h pour intégrer la pause automatique d’1h")
+    training = end_m - start_m - 60
+    first = training // 2
+    pause_start = start_m + first
+    pause_end = pause_start + 60
+    return [(start, _hhmm(pause_start)), (_hhmm(pause_end), end)]
+
 def a3p_empty_module_totals():
     return {m["code"]: 0 for m in A3P_MODULES}
 
@@ -75,16 +91,9 @@ def generateA3pSchedule(config):
     for day in days:
         if day.get("date") == config.get("examDate"): continue
         slots=[]
-        for period in (("morningStart","morningEnd"),("afternoonStart","afternoonEnd")):
-            start, end = day.get(period[0]), day.get(period[1])
-            if bool(start) != bool(end):
-                raise ValueError(f"Horaires incomplets pour le {day.get('date')}")
-            if not start and not end:
-                continue
+        for start, end in _day_training_slots(day):
             _slot_minutes(start,end)
             slots.append({"start":start,"end":end,"free":True})
-        if not slots:
-            raise ValueError(f"Aucun horaire renseigné pour le {day.get('date')}")
         for code, dates in locked.items():
             if day.get("date") in set(dates or []):
                 for s in slots:

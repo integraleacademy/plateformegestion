@@ -408,9 +408,12 @@ os.makedirs(APS_ATTENDANCE_DIR, exist_ok=True)
 APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
 
 APS_TOTAL_HOURS = 175
-APS_TOTAL_MINUTES = 10500
-APS_ELEARNING_MINUTES = 3720
-APS_PRESENTIEL_MINUTES = 6780
+APS_TOTAL_MINUTES = APS_TOTAL_HOURS * 60
+APS_ELEARNING_HOURS = 62
+APS_ELEARNING_MINUTES = APS_ELEARNING_HOURS * 60
+APS_PRESENTIEL_HOURS = APS_TOTAL_HOURS - APS_ELEARNING_HOURS
+APS_PRESENTIEL_MINUTES = APS_PRESENTIEL_HOURS * 60
+APS_MAX_DAILY_MINUTES = 7 * 60
 
 APS_EXPECTED_UV_TOTALS = {
     "UV1": 14,
@@ -589,6 +592,39 @@ def format_duration_from_minutes(minutes):
     rest = minutes % 60
     return f"{hours:g}h" if rest == 0 else f"{hours:g}h{rest:02d}"
 
+def aps_working_days_between(start_date, end_date, exam_iso=""):
+    if not start_date or not end_date or start_date > end_date:
+        return []
+    days = []
+    current = start_date
+    while current <= end_date:
+        if is_aps_training_day(current, exam_iso):
+            days.append(current)
+        current += timedelta(days=1)
+    return days
+
+def aps_impossible_period_message(start_date, end_date, available_minutes, required_minutes):
+    return (
+        "Impossible de générer le planning : "
+        f"{available_minutes / 60:g} heures disponibles entre le {format_date(start_date)} "
+        f"et le {format_date(end_date)}, mais {required_minutes / 60:g} heures nécessaires."
+    )
+
+def log_aps_generation_diagnostics(session_id=None, planning_mode="full_presentiel", start_date=None, end_date=None, exam_iso="", available_days=0, available_minutes=0, elearning_minutes=0, presentiel_minutes=0, total_minutes=0):
+    app.logger.error(
+        "Diagnostic planning APS impossible session_id=%s planning_mode=%s start_date=%s end_date=%s exam_iso=%s jours_ouvres_disponibles=%s heures_disponibles=%s heures_elearning=%s heures_presentiel=%s total_heures_attendu=%s",
+        session_id,
+        planning_mode,
+        start_date.isoformat() if hasattr(start_date, "isoformat") else start_date,
+        end_date.isoformat() if hasattr(end_date, "isoformat") else end_date,
+        exam_iso,
+        available_days,
+        available_minutes / 60,
+        elearning_minutes / 60,
+        presentiel_minutes / 60,
+        total_minutes / 60,
+    )
+
 def build_aps_planning(start_date, end_date=None, exam_iso=""):
     modules = [{"name": name, "hours": float(hours), "remaining": float(hours)} for name, hours in APS_MODULES]
     module_idx = 0
@@ -710,59 +746,116 @@ def generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=Non
     days, totals, total_hours = build_aps_planning(start_date, end_date=end_date, exam_iso=exam_iso)
     return aps_blocks_to_planning_data(days, formateur, salle, "full_presentiel"), totals, total_hours
 
-def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=None, exam_iso=""):
+def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=None, exam_iso="", session_id=None):
     sequence = [dict(item, remainingMinutes=int(item["durationMinutes"])) for item in APS_ELEARNING_PRESENTIEL_MODULES]
+    expected_elearning = sum(item["durationMinutes"] for item in sequence if item["modality"] == "elearning")
+    expected_presentiel = sum(item["durationMinutes"] for item in sequence if item["modality"] == "presentiel")
+    if expected_elearning != APS_ELEARNING_MINUTES or expected_presentiel != APS_PRESENTIEL_MINUTES:
+        raise ValueError("Configuration APS incohérente : la répartition e-learning / présentiel ne correspond pas au total attendu.")
+
     idx = 0
     current_day = start_date
     planning = []
     totals = {}
-    for modality in ("elearning", "presentiel"):
-        if modality == "presentiel" and planning:
-            current_day = next_aps_training_day(datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date(), exam_iso)
-        while idx < len(sequence) and sequence[idx]["modality"] == modality:
-            if end_date and current_day > end_date:
-                raise ValueError("La période disponible avant l’examen ne permet pas de placer toutes les heures de formation APS. Merci d’avancer la date de début ou de reculer la date d’examen.")
-            if not is_aps_training_day(current_day, exam_iso):
-                current_day += timedelta(days=1)
-                continue
-            slots = []
-            for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
-                cursor = slot_start
-                remaining_slot = slot_minutes
-                while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == modality:
-                    module = sequence[idx]
-                    duration_minutes = min(remaining_slot, module["remainingMinutes"])
-                    end_time = add_minutes_to_time(cursor, duration_minutes)
-                    duration_hours = round(duration_minutes / 60, 2)
-                    slots.append({
-                        "start": cursor.strftime("%H:%M"),
-                        "end": end_time.strftime("%H:%M"),
-                        "duration": duration_hours,
-                        "durationMinutes": duration_minutes,
-                        "uv": module["uv"],
-                        "title": module["title"],
-                        "part": module["part"],
-                        "room": "" if modality == "elearning" else (salle or "Salle à définir"),
-                        "trainer": "" if modality == "elearning" else (formateur or ""),
-                        "modality": modality,
-                    })
-                    module["remainingMinutes"] -= duration_minutes
-                    remaining_slot -= duration_minutes
-                    cursor = end_time
-                    totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
-                    if module["remainingMinutes"] == 0:
-                        idx += 1
-                if idx >= len(sequence) or sequence[idx]["modality"] != modality:
-                    break
-            if slots:
-                planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
+
+    # 1) Les 62h e-learning sont placées au début de session, sans salle ni formateur.
+    while idx < len(sequence) and sequence[idx]["modality"] == "elearning":
+        if end_date and current_day > end_date:
+            available_days = aps_working_days_between(start_date, end_date, exam_iso)
+            log_aps_generation_diagnostics(session_id, "elearning_presentiel", start_date, end_date, exam_iso, len(available_days), len(available_days) * APS_MAX_DAILY_MINUTES, APS_ELEARNING_MINUTES, APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES)
+            raise ValueError(aps_impossible_period_message(start_date, end_date, len(available_days) * APS_MAX_DAILY_MINUTES, APS_TOTAL_MINUTES))
+        if not is_aps_training_day(current_day, exam_iso):
             current_day += timedelta(days=1)
+            continue
+        slots = []
+        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
+            cursor = slot_start
+            remaining_slot = slot_minutes
+            while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == "elearning":
+                module = sequence[idx]
+                duration_minutes = min(remaining_slot, module["remainingMinutes"])
+                end_time = add_minutes_to_time(cursor, duration_minutes)
+                slots.append({
+                    "start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"),
+                    "duration": round(duration_minutes / 60, 2), "durationMinutes": duration_minutes,
+                    "uv": module["uv"], "title": module["title"], "part": module["part"],
+                    "room": "", "trainer": "", "modality": "elearning",
+                })
+                module["remainingMinutes"] -= duration_minutes
+                remaining_slot -= duration_minutes
+                cursor = end_time
+                totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
+                if module["remainingMinutes"] == 0:
+                    idx += 1
+            if idx >= len(sequence) or sequence[idx]["modality"] != "elearning":
+                break
+        if slots:
+            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
+        current_day += timedelta(days=1)
+
+    # 2) Le présentiel démarre après l'e-learning et doit tenir jusqu'à la fin réelle de formation.
+    presentiel_start = current_day
+    while not is_aps_training_day(presentiel_start, exam_iso):
+        presentiel_start += timedelta(days=1)
+    presentiel_end = end_date
+    if not presentiel_end:
+        presentiel_end = presentiel_start + timedelta(days=60)
+    presentiel_days = aps_working_days_between(presentiel_start, presentiel_end, exam_iso)
+    available_presentiel_minutes = len(presentiel_days) * APS_MAX_DAILY_MINUTES
+    if available_presentiel_minutes < APS_PRESENTIEL_MINUTES:
+        all_days = aps_working_days_between(start_date, presentiel_end, exam_iso)
+        log_aps_generation_diagnostics(session_id, "elearning_presentiel", start_date, presentiel_end, exam_iso, len(all_days), len(all_days) * APS_MAX_DAILY_MINUTES, APS_ELEARNING_MINUTES, APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES)
+        raise ValueError(aps_impossible_period_message(presentiel_start, presentiel_end, available_presentiel_minutes, APS_PRESENTIEL_MINUTES))
+
+    # Si la plage présentielle est plus large que nécessaire, on conserve des journées de formation
+    # au début et à la fin pour terminer explicitement à date_fin_session.
+    for current_day in presentiel_days:
+        if idx >= len(sequence):
+            break
+        days_after = [d for d in presentiel_days if d > current_day]
+        remaining_presentiel = sum(item["remainingMinutes"] for item in sequence[idx:] if item["modality"] == "presentiel")
+        min_today = max(0, remaining_presentiel - (len(days_after) * APS_MAX_DAILY_MINUTES))
+        is_last_training_day = current_day == presentiel_days[-1]
+        if is_last_training_day:
+            daily_limit = remaining_presentiel
+        else:
+            # Répartition souple : le présentiel commence dès le prochain jour ouvré,
+            # tout en gardant assez d'heures à placer pour finir sur date_fin_session.
+            average_today = ((remaining_presentiel + len(days_after)) // (len(days_after) + 1) + 59) // 60 * 60
+            daily_limit = min(APS_MAX_DAILY_MINUTES, max(min_today, min(average_today, remaining_presentiel)))
+        if daily_limit <= 0:
+            continue
+        slots = []
+        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
+            cursor = slot_start
+            remaining_slot = min(slot_minutes, daily_limit - sum(s["durationMinutes"] for s in slots))
+            while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == "presentiel":
+                module = sequence[idx]
+                duration_minutes = min(remaining_slot, module["remainingMinutes"])
+                end_time = add_minutes_to_time(cursor, duration_minutes)
+                slots.append({
+                    "start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"),
+                    "duration": round(duration_minutes / 60, 2), "durationMinutes": duration_minutes,
+                    "uv": module["uv"], "title": module["title"], "part": module["part"],
+                    "room": salle or "Salle à définir", "trainer": formateur or "", "modality": "presentiel",
+                })
+                module["remainingMinutes"] -= duration_minutes
+                remaining_slot -= duration_minutes
+                cursor = end_time
+                totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
+                if module["remainingMinutes"] == 0:
+                    idx += 1
+            if idx >= len(sequence) or sequence[idx]["modality"] != "presentiel":
+                break
+        if slots:
+            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
+
     total_hours = sum(slot["durationMinutes"] for day in planning for slot in day["slots"]) / 60
     return planning, {k: round(v / 60, 2) for k, v in totals.items()}, total_hours
 
-def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel", end_date=None, exam_iso=""):
+def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel", end_date=None, exam_iso="", session_id=None):
     if planning_mode == "elearning_presentiel":
-        return generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso)
+        return generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso, session_id=session_id)
     return generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso)
 
 def aps_summary_from_data(planning_data):
@@ -851,7 +944,7 @@ def validate_aps_elearning_presentiel_rules(planning_data, summary=None):
         if first_start != "08:30":
             errors.append("Le présentiel doit commencer sur un nouveau jour ouvré à 08h30.")
         try:
-            expected = next_french_working_day(datetime.strptime(last_elearning_day, "%Y-%m-%d").date()).isoformat()
+            expected = next_aps_training_day(datetime.strptime(last_elearning_day, "%Y-%m-%d").date()).isoformat()
             if first_date != expected:
                 errors.append(f"Le présentiel doit commencer le prochain jour ouvré complet ({expected}) après la période e-learning.")
         except Exception:
@@ -912,11 +1005,11 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     salle = session_data.get("salle") or session_data.get("room") or "Salle à définir"
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
     session_end = parse_date(session_data.get("date_fin"))
-    latest_training_date = exam_dt.date() - timedelta(days=1)
-    if session_end and session_end.date() < latest_training_date:
-        latest_training_date = session_end.date()
+    latest_training_date = session_end.date() if session_end else (exam_dt.date() - timedelta(days=1))
+    if latest_training_date >= exam_dt.date():
+        raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
-        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso)
+        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id"))
     errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if any(day.get("date") == exam_iso for day in planning_data or []):
         errors.append(f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est exclue des journées de formation. Aucun créneau ne peut être généré ce jour-là.")
@@ -4086,9 +4179,10 @@ def generate_aps_planning_route(sid):
         session_data["planning_generated_at"] = append_planning_history(session_data, "planning généré")
         save_sessions(data)
         app.logger.info(
-            "Planning APS généré session=%s date_debut=%s date_exam=%s jours=%s total=%sh uv_totals=%s",
+            "Planning APS généré session=%s date_debut=%s date_fin=%s date_exam=%s jours=%s total=%sh uv_totals=%s",
             sid,
             session_data.get("date_debut"),
+            session_data.get("date_fin"),
             session_data.get("date_exam"),
             len(result["planning_data"]),
             result["total_hours"],
@@ -4100,6 +4194,11 @@ def generate_aps_planning_route(sid):
             "filename": filename,
             "generated_at": session_data["planning_generated_at"],
         })
+    except ValueError as exc:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        app.logger.warning("Génération planning APS impossible session=%s erreur=%s", sid, exc)
+        return jsonify({"ok": False, "error": str(exc)}), 400
     except Exception as exc:
         if os.path.exists(temp_path):
             os.remove(temp_path)

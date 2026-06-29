@@ -1606,6 +1606,8 @@ def generate_aps_attendance_pdf(session_data, output_path):
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.pdfbase.pdfmetrics import stringWidth
         from reportlab.pdfgen import canvas
     except ImportError as exc:
         raise RuntimeError("La dépendance reportlab est requise pour générer le PDF.") from exc
@@ -1620,6 +1622,10 @@ def generate_aps_attendance_pdf(session_data, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     margin = 30
+    footer_reserved_h = 20 * mm
+    footer_y = 10 * mm
+    footer_top_y = footer_reserved_h
+    min_signature_footer_gap = 14 * mm
     logo_path = aps_pdf_logo_path()
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
@@ -1627,15 +1633,27 @@ def generate_aps_attendance_pdf(session_data, output_path):
     session_name = session_data.get("display_name") or session_data.get("name") or f"Session {session_data.get('id', '')}"
 
     def footer(page_no):
-        c.setFont("Helvetica", 6.5); c.setFillColor(colors.HexColor("#6b7280"))
-        c.drawString(margin, 20, " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:]))
-        c.drawRightString(width - margin, 20, f"Page {page_no} / {total_pages}")
+        c.saveState()
+        c.setStrokeColor(colors.HexColor("#e5e7eb"))
+        c.line(margin, footer_top_y, width - margin, footer_top_y)
+        page_label = f"Page {page_no} / {total_pages}"
+        c.setFillColor(colors.HexColor("#6b7280"))
+        c.setFont("Helvetica", 6.2)
+        page_width = stringWidth(page_label, "Helvetica", 6.2)
+        legal_text = " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:])
+        legal_max_width = width - 2 * margin - page_width - 22
+        while legal_text and stringWidth(legal_text, "Helvetica", 6.2) > legal_max_width:
+            legal_text = legal_text[:-2].rstrip() + "…"
+        legal_center_x = margin + legal_max_width / 2
+        c.drawCentredString(legal_center_x, footer_y, legal_text)
+        c.drawRightString(width - margin, footer_y, page_label)
+        c.restoreState()
 
     for page_no, day in enumerate(presentiel_days, 1):
         slots = day.get("slots") or []
         date_label = format_date(day.get("date"))
         if logo_path:
-            c.drawImage(logo_path, margin, height - 65, width=70, height=42, preserveAspectRatio=True, mask="auto")
+            c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
         c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
         c.setFont("Helvetica", 9)
@@ -1648,23 +1666,26 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.drawString(margin, height - 112, f"Formateur : {', '.join(trainers)}")
         c.drawString(margin + 300, height - 112, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
         y = height - 136
-        modules = []
+        c.setFont("Helvetica-Bold", 8.5)
+        c.drawString(margin, y, "Modules et horaires du jour")
+        y -= 11
         for slot in slots:
-            label = f"{slot.get('uv') or ''} — {slot.get('title') or ''}".strip(" —")
-            if label and label not in modules:
-                modules.append(label)
-        y = draw_wrapped_text(c, "Modules du jour : " + " ; ".join(modules), margin, y, width - 2 * margin, "Helvetica-Bold", 8, 10)
-        y -= 6
+            label = f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('uv') or ''} — {slot.get('title') or ''}".strip(" —")
+            y = draw_wrapped_text(c, label, margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
+        y -= 5
         c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin, y - 18, width - 2 * margin, 18, fill=1, stroke=1)
         headers = ["N°", "Nom", "Prénom", "Signature matin", "Signature après-midi"]
         xs = [margin + 4, margin + 32, margin + 158, margin + 265, margin + 410]
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8)
         for x, h in zip(xs, headers): c.drawString(x, y - 12, h)
         y -= 18
-        row_h = max(24, min(38, int((y - 150) / max(len(students), 1))))
+        signature_block_h = 92
+        signature_top_y = footer_top_y + min_signature_footer_gap + signature_block_h
+        available_table_h = max(24, y - signature_top_y)
+        row_h = max(22, min(34, int(available_table_h / max(len(students), 1))))
         c.setFont("Helvetica", 8)
         for idx, student in enumerate(students, 1):
-            if y - row_h < 145:
+            if y - row_h < signature_top_y:
                 break
             c.rect(margin, y - row_h, width - 2 * margin, row_h)
             for x in [margin + 28, margin + 154, margin + 260, margin + 405]:
@@ -1673,13 +1694,28 @@ def generate_aps_attendance_pdf(session_data, output_path):
             c.drawString(margin + 36, y - 15, student.get("lastName", ""))
             c.drawString(margin + 162, y - 15, student.get("firstName", ""))
             y -= row_h
-        y = 118
-        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Signature du formateur")
-        c.drawString(margin + 190, y, "Observations éventuelles")
-        c.drawString(margin + 395, y, "Cachet du centre")
-        c.rect(margin, y - 62, 160, 55); c.rect(margin + 190, y - 62, 180, 55); c.rect(margin + 395, y - 62, 140, 55)
-        if signature_image: c.drawImage(signature_image, margin + 8, y - 56, width=140, height=42, preserveAspectRatio=True, mask="auto")
-        if stamp_image: c.drawImage(stamp_image, margin + 403, y - 56, width=120, height=42, preserveAspectRatio=True, mask="auto")
+        y = footer_top_y + min_signature_footer_gap + signature_block_h
+        block_w = (width - 2 * margin - 12) / 2
+        block_h = 34
+        row_gap = 12
+        left_x = margin
+        right_x = margin + block_w + 12
+        top_box_y = y - 8 - block_h
+        bottom_label_y = top_box_y - row_gap
+        bottom_box_y = bottom_label_y - 8 - block_h
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(left_x, y, "Signature formateur matin")
+        c.drawString(right_x, y, "Signature formateur après-midi")
+        c.rect(left_x, top_box_y, block_w, block_h)
+        c.rect(right_x, top_box_y, block_w, block_h)
+        c.drawString(left_x, bottom_label_y, "Observations éventuelles")
+        c.drawString(right_x, bottom_label_y, "Cachet du centre")
+        c.rect(left_x, bottom_box_y, block_w, block_h)
+        c.rect(right_x, bottom_box_y, block_w, block_h)
+        if signature_image:
+            c.drawImage(signature_image, left_x + 8, top_box_y + 4, width=block_w - 16, height=block_h - 8, preserveAspectRatio=True, mask="auto")
+        if stamp_image:
+            c.drawImage(stamp_image, right_x + 8, bottom_box_y + 4, width=block_w - 16, height=block_h - 8, preserveAspectRatio=True, mask="auto")
         footer(page_no); c.showPage()
 
     footer(total_pages)

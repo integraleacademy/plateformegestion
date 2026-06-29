@@ -3375,6 +3375,70 @@ def update_aps_planning_api(sid):
     return jsonify({"ok": True, "pdfUrl": pdf_url, "summary": session_data.get("apsPlanningSummary"), "modifiedAt": session_data.get("planning_modified_at")})
 
 
+@app.delete("/api/sessions/<sid>/aps-planning")
+def reset_aps_planning_api(sid):
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        return jsonify({"success": False, "message": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS":
+        return jsonify({"success": False, "message": "Cette action est disponible uniquement pour les sessions APS."}), 400
+
+    planning_keys = (
+        "apsPlanningData",
+        "apsPlanningMode",
+        "apsPlanningPdfUrl",
+        "apsPlanningGeneratedAt",
+        "apsPlanningUpdatedAt",
+        "apsPlanningModifiedAt",
+        "apsPlanningSummary",
+        "apsPlanningHistory",
+        "planning_pdf",
+        "planning_generated_at",
+        "planning_modified_at",
+        "planning_pdf_regenerated_at",
+        "planning_updated_at",
+        "planning_history",
+    )
+    existing_values = {key: session_data.get(key) for key in planning_keys if session_data.get(key) not in (None, "", [], {})}
+    if not existing_values:
+        return jsonify({"success": True, "message": "Aucun planning APS à réinitialiser."})
+
+    old_pdf = session_data.get("planning_pdf") or session_data.get("apsPlanningPdfUrl")
+    deleted_pdf = None
+    pdf_delete_error = None
+    if old_pdf:
+        pdf_name = os.path.basename(str(old_pdf))
+        pdf_path = os.path.join(PLANNING_DIR, pdf_name)
+        if os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+                deleted_pdf = pdf_name
+            except OSError as exc:
+                pdf_delete_error = str(exc)
+                app.logger.warning("Réinitialisation planning APS: suppression PDF impossible session=%s pdf=%s erreur=%s", sid, pdf_name, exc)
+        else:
+            app.logger.info("Réinitialisation planning APS: PDF déjà absent session=%s pdf=%s", sid, pdf_name)
+
+    for key in planning_keys:
+        session_data.pop(key, None)
+
+    reset_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    admin_user = session.get("admin_email") or session.get("admin_user") or (ADMIN_USER if session.get("admin_logged") else "")
+    save_sessions(data)
+    app.logger.info(
+        "Planning APS réinitialisé session=%s reset_at=%s admin=%s ancien_pdf=%s pdf_supprime=%s pdf_erreur=%s champs=%s",
+        sid,
+        reset_at,
+        admin_user or "inconnu",
+        old_pdf or "aucun",
+        deleted_pdf or "non",
+        pdf_delete_error or "aucune",
+        sorted(existing_values.keys()),
+    )
+    return jsonify({"success": True, "message": "Planning APS réinitialisé avec succès"})
+
+
 @app.get("/sessions/<sid>/planning/view")
 def view_planning_pdf(sid):
     name = get_planning_for_session(sid)

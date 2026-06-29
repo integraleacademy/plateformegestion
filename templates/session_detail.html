@@ -540,6 +540,7 @@ a.back:hover{ background:#d9a848 !important; }
     }
     .btn.edit,.btn.gold { background:var(--session-gold) !important; border-color:var(--session-gold-dark) !important; color:#17191f !important; }
     .btn.danger { background:#fff1f0 !important; border-color:#f0cbc8 !important; color:#a33a32 !important; }
+    .btn.danger:hover { background:#ffe4df !important; border-color:#f28b82 !important; color:#84251f !important; }
     .flash-messages { margin-top:0; }
     .jury-panel,.planning-box,.filter-bar,.sommaire-ssi {
       border:1px solid var(--session-line); border-radius:18px; background:#fff;
@@ -777,6 +778,9 @@ a.back:hover{ background:#d9a848 !important; }
           {% if planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
       {% endif %}
+      {% if s.formation == "APS" and planning_pdf %}
+        <button type="button" class="btn small danger" id="openResetApsPlanningModal">🗑️ Réinitialiser le planning</button>
+      {% endif %}
       {% if planning_pdf %}
         <a class="btn small" href="{{ url_for('download_planning_pdf', sid=s.id) }}">⬇️ Télécharger</a>
       {% endif %}
@@ -835,6 +839,25 @@ a.back:hover{ background:#d9a848 !important; }
     </form>
   </div>
 </div>
+{% if planning_pdf %}
+<div class="modal" id="resetApsPlanningModal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div>
+        <h3 style="margin:0;">🗑️ Réinitialiser le planning APS</h3>
+        <p class="muted" style="margin:6px 0 0;">Cette action est définitive.</p>
+      </div>
+      <button class="modal-close" type="button" id="closeResetApsPlanningModal">✕</button>
+    </div>
+    <p style="line-height:1.6;margin-top:18px;">Êtes-vous sûr de vouloir réinitialiser le planning APS ? Cette action supprimera le planning généré, les modifications enregistrées, le PDF associé et remettra la session comme si aucun planning n’avait été généré.</p>
+    <div id="resetApsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
+    <div class="planning-actions" style="justify-content:flex-end;margin-top:18px;">
+      <button type="button" class="btn" id="cancelResetApsPlanning">Annuler</button>
+      <button type="button" class="btn danger" id="confirmResetApsPlanning">Oui, réinitialiser le planning</button>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endif %}
 <div id="planningToast" class="toast" role="status" aria-live="polite"></div>
 <!-- ========================================================= -->
@@ -1222,6 +1245,12 @@ const apsFormateur = document.getElementById("apsFormateur");
 const apsPlanningError = document.getElementById("apsPlanningError");
 const submitApsPlanning = document.getElementById("submitApsPlanning");
 const planningToast = document.getElementById("planningToast");
+const resetApsPlanningModal = document.getElementById("resetApsPlanningModal");
+const openResetApsPlanningModal = document.getElementById("openResetApsPlanningModal");
+const closeResetApsPlanningModal = document.getElementById("closeResetApsPlanningModal");
+const cancelResetApsPlanning = document.getElementById("cancelResetApsPlanning");
+const confirmResetApsPlanning = document.getElementById("confirmResetApsPlanning");
+const resetApsPlanningError = document.getElementById("resetApsPlanningError");
 
 function showPlanningToast(message, type="success"){
   if(!planningToast) return;
@@ -1245,6 +1274,51 @@ cancelApsPlanning?.addEventListener("click", closeApsModal);
 apsPlanningModal?.addEventListener("click", (event) => {
   if(event.target === apsPlanningModal) closeApsModal();
 });
+function closeResetApsModal(){
+  resetApsPlanningModal?.classList.remove("open");
+  resetApsPlanningModal?.setAttribute("aria-hidden", "true");
+}
+openResetApsPlanningModal?.addEventListener("click", () => {
+  if(resetApsPlanningError){
+    resetApsPlanningError.style.display = "none";
+    resetApsPlanningError.textContent = "";
+  }
+  resetApsPlanningModal?.classList.add("open");
+  resetApsPlanningModal?.setAttribute("aria-hidden", "false");
+});
+closeResetApsPlanningModal?.addEventListener("click", closeResetApsModal);
+cancelResetApsPlanning?.addEventListener("click", closeResetApsModal);
+resetApsPlanningModal?.addEventListener("click", (event) => {
+  if(event.target === resetApsPlanningModal) closeResetApsModal();
+});
+confirmResetApsPlanning?.addEventListener("click", async () => {
+  if(resetApsPlanningError){
+    resetApsPlanningError.style.display = "none";
+    resetApsPlanningError.textContent = "";
+  }
+  confirmResetApsPlanning.disabled = true;
+  confirmResetApsPlanning.textContent = "Réinitialisation...";
+  try{
+    const response = await fetch("{{ url_for('reset_aps_planning_api', sid=s.id) }}", { method: "DELETE" });
+    const payload = await response.json();
+    if(!response.ok || !payload.success){
+      throw new Error(payload.message || "Erreur pendant la réinitialisation du planning.");
+    }
+    closeResetApsModal();
+    showPlanningToast("Planning APS réinitialisé avec succès.", "success");
+    setTimeout(() => window.location.reload(), 800);
+  }catch(error){
+    if(resetApsPlanningError){
+      resetApsPlanningError.textContent = error.message;
+      resetApsPlanningError.style.display = "block";
+    }
+    showPlanningToast(error.message, "error");
+  }finally{
+    confirmResetApsPlanning.disabled = false;
+    confirmResetApsPlanning.textContent = "Oui, réinitialiser le planning";
+  }
+});
+
 apsPlanningForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formateur = apsFormateur.value.trim();

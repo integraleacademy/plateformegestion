@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 from io import BytesIO
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time as dt_time
 from functools import wraps
 from email.mime.text import MIMEText
 import logging
@@ -395,6 +395,431 @@ PRICE_ADAPTATOR_ALLOWED_FORMATIONS = {
 PLANNING_DIR = os.path.join(DATA_DIR, "plannings")
 os.makedirs(PLANNING_DIR, exist_ok=True)
 
+APS_TOTAL_HOURS = 175
+APS_MODULES = [
+    ("UV2 ENVIRONNEMENT JURIDIQUE DE LA SÉCURITÉ PRIVÉE", 22),
+    ("UV8 PROFESSIONNEL", 6),
+    ("UV14 INDUSTRIEL SPÉCIFIQUE", 7),
+    ("UV1 SECOURISTE SAUVETEUR DU TRAVAIL (SST)", 14),
+    ("UV7 RISQUES TERRORISTES", 13),
+    ("UV8 PROFESSIONNEL", 1),
+    ("UV9 PALPATION DE SÉCURITÉ ET INSPECTION VISUELLE DES BAGAGES", 7),
+    ("UV3 GESTION DES CONFLITS", 14),
+    ("UV4 STRATÉGIQUE", 7),
+    ("UV6 APPRÉHENSION AU COURS DE L’EXERCICE", 7),
+    ("UV5 PRÉVENTION DES RISQUES INCENDIE", 7),
+    ("UV10 SURVEILLANCE PAR MOYENS ÉLECTRONIQUES", 7),
+    ("UV12 ÉVÉNEMENTIEL SPÉCIFIQUE", 7),
+    ("UV11 GESTION DES RISQUES", 11),
+    ("UV8 PROFESSIONNEL", 31),
+    ("UV13 GESTION DES SITUATIONS CONFLICTUELLES DÉGRADÉES", 7),
+    ("UV8 PROFESSIONNEL", 7),
+]
+
+APS_RECAP_ROWS = [
+    ("UV1", "Secouriste Sauveteur du Travail (SST)"),
+    ("UV2", "Environnement juridique de la sécurité privée"),
+    ("UV3", "Gestion des conflits"),
+    ("UV4", "Stratégique"),
+    ("UV5", "Prévention des risques incendie"),
+    ("UV6", "Appréhension au cours de l’exercice"),
+    ("UV7", "Risques terroristes"),
+    ("UV8", "Professionnel"),
+    ("UV9", "Palpation de sécurité et inspection visuelle des bagages"),
+    ("UV10", "Surveillance par moyens électroniques"),
+    ("UV11", "Gestion des risques"),
+    ("UV12", "Événementiel spécifique"),
+    ("UV13", "Gestion des situations conflictuelles dégradées"),
+    ("UV14", "Industriel spécifique"),
+]
+
+def easter_date(year):
+    """Retourne la date du dimanche de Pâques (algorithme de Meeus/Jones/Butcher)."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+def french_holidays(year):
+    easter = easter_date(year)
+    return {
+        easter + timedelta(days=1),
+        date(year, 5, 1),
+        date(year, 5, 8),
+        easter + timedelta(days=39),
+        easter + timedelta(days=50),
+        date(year, 7, 14),
+        date(year, 8, 15),
+        date(year, 11, 1),
+        date(year, 11, 11),
+        date(year, 12, 25),
+    }
+
+def is_french_working_day(day):
+    return day.weekday() < 5 and day not in french_holidays(day.year)
+
+def add_hours_to_time(start_time, hours):
+    base = datetime.combine(date.today(), start_time)
+    return (base + timedelta(hours=hours)).time()
+
+def build_aps_planning(start_date):
+    modules = [{"name": name, "hours": float(hours), "remaining": float(hours)} for name, hours in APS_MODULES]
+    module_idx = 0
+    days = []
+    totals = {}
+    total_hours = 0.0
+    current_day = start_date
+
+    while round(total_hours, 2) < APS_TOTAL_HOURS:
+        if not is_french_working_day(current_day):
+            current_day += timedelta(days=1)
+            continue
+
+        day_blocks = []
+        for slot_start, slot_hours in ((dt_time(8, 30), 4.0), (dt_time(13, 30), 3.0)):
+            cursor = slot_start
+            remaining_slot = slot_hours
+            while remaining_slot > 0 and module_idx < len(modules):
+                module = modules[module_idx]
+                duration = min(remaining_slot, module["remaining"])
+                end_time = add_hours_to_time(cursor, duration)
+                day_blocks.append({
+                    "uv": module["name"],
+                    "start": cursor,
+                    "end": end_time,
+                    "hours": duration,
+                })
+                module["remaining"] = round(module["remaining"] - duration, 2)
+                remaining_slot = round(remaining_slot - duration, 2)
+                total_hours = round(total_hours + duration, 2)
+                totals[module["name"]] = round(totals.get(module["name"], 0) + duration, 2)
+                cursor = end_time
+                if module["remaining"] == 0:
+                    module_idx += 1
+                if round(total_hours, 2) == APS_TOTAL_HOURS:
+                    break
+            if round(total_hours, 2) == APS_TOTAL_HOURS:
+                break
+        if day_blocks:
+            days.append({"date": current_day, "blocks": day_blocks})
+        current_day += timedelta(days=1)
+
+    return days, totals, total_hours
+
+def find_center_image(*keywords):
+    image_dir = os.path.join(BASE_DIR, "static", "img")
+    if not os.path.isdir(image_dir):
+        return None
+    for entry in os.scandir(image_dir):
+        if not entry.is_file():
+            continue
+        name = entry.name.lower()
+        if any(keyword in name for keyword in keywords) and name.rsplit(".", 1)[-1] in {"png", "jpg", "jpeg"}:
+            return entry.path
+    return None
+
+def draw_wrapped_text(canvas, text, x, y, max_width, font="Helvetica", size=9, leading=11):
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if stringWidth(candidate, font, size) <= max_width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    canvas.setFont(font, size)
+    for line in lines:
+        canvas.drawString(x, y, line)
+        y -= leading
+    return y
+
+def uv_code_from_name(module_name):
+    return (module_name or "").split(" ", 1)[0].upper()
+
+
+def build_aps_recap_from_days(days):
+    hours_by_uv = {code: 0.0 for code, _ in APS_RECAP_ROWS}
+    for day in days:
+        for block in day.get("blocks", []):
+            code = uv_code_from_name(block.get("uv"))
+            if code in hours_by_uv:
+                hours_by_uv[code] = round(hours_by_uv[code] + float(block.get("hours", 0)), 2)
+    total = round(sum(hours_by_uv.values()), 2)
+    return [
+        {"uv": code, "label": label, "hours": hours_by_uv.get(code, 0.0)}
+        for code, label in APS_RECAP_ROWS
+    ], total
+
+
+def format_pdf_hours(value):
+    return f"{int(value)}h" if float(value).is_integer() else f"{value:g}h"
+
+
+def generate_aps_planning_pdf(session_data, formateur, output_path):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except ImportError as exc:
+        raise RuntimeError("La dépendance reportlab est requise pour générer le PDF APS.") from exc
+
+    start_dt = parse_date(session_data.get("date_debut"))
+    exam_dt = parse_date(session_data.get("date_exam"))
+    if not start_dt:
+        raise ValueError("La date de début de session est obligatoire.")
+    if not exam_dt:
+        raise ValueError("La date d'examen est obligatoire pour générer le planning APS.")
+
+    days, totals, total_hours = build_aps_planning(start_dt.date())
+    recap_rows, recap_total = build_aps_recap_from_days(days)
+    if round(total_hours, 2) != APS_TOTAL_HOURS or round(recap_total, 2) != APS_TOTAL_HOURS:
+        raise ValueError(
+            f"Total APS invalide: planning={total_hours}h, récapitulatif={recap_total}h, attendu={APS_TOTAL_HOURS}h."
+        )
+
+    c = canvas.Canvas(output_path, pagesize=A4)
+    width, height = A4
+    margin = 34
+    header_height = 88
+    footer_height = 34
+    content_top = height - header_height
+    content_bottom = footer_height + 8
+    accent = colors.HexColor("#1b9aaa")
+    dark = colors.HexColor("#111827")
+    muted = colors.HexColor("#6b7280")
+    light_line = colors.HexColor("#e5e7eb")
+    pale = colors.HexColor("#f3f4f6")
+    exam_bg = colors.HexColor("#eef7fb")
+    title = session_data.get("display_name") or session_data.get("nom") or "Session APS"
+    salle = session_data.get("salle") or session_data.get("room") or "Salle à définir"
+    edited = datetime.now().strftime("%d/%m/%Y")
+    weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
+    def day_label(day_date):
+        return f"{weekdays[day_date.weekday()]} {day_date.day} {months[day_date.month - 1]} {day_date.year}"
+
+    def wrapped_lines(text, max_width, font="Helvetica", size=8.5):
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        words = (text or "").split()
+        lines, current = [], ""
+        for word in words:
+            candidate = f"{current} {word}".strip()
+            if stringWidth(candidate, font, size) <= max_width:
+                current = candidate
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+        return lines or [""]
+
+    def day_height(day):
+        total = 25
+        for block in day["blocks"]:
+            total += max(25, 15 + 9 * len(wrapped_lines(block["uv"], 245, "Helvetica-Bold", 8.3)))
+        return total + 8
+
+    pages = []
+    current_page = []
+    remaining = content_top - content_bottom
+    for day in days:
+        needed = day_height(day)
+        if current_page and needed > remaining:
+            pages.append(current_page)
+            current_page = []
+            remaining = content_top - content_bottom
+        current_page.append(day)
+        remaining -= needed
+    if current_page:
+        pages.append(current_page)
+    pages.append([{"synthesis": True}])
+    total_pages = len(pages)
+
+    signature_image = find_center_image("signature", "sign")
+    stamp_image = find_center_image("tampon", "cachet", "stamp")
+
+    def draw_header(page_index):
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 15)
+        c.drawString(margin, height - 32, "PLANNING DE FORMATION APS")
+        c.setFont("Helvetica", 10)
+        c.setFillColor(muted)
+        c.drawString(margin, height - 49, "Agent de Prévention et de Sécurité — 175 heures")
+        c.setFont("Helvetica", 8)
+        details = (
+            f"Session : {title}  •  Période : {format_date(session_data.get('date_debut'))}"
+            f" au {format_date(session_data.get('date_fin')) if session_data.get('date_fin') else '—'}  •  "
+            f"Examen : {format_date(session_data.get('date_exam'))}  •  Formateur : {formateur}  •  Salle : {salle}"
+        )
+        c.drawString(margin, height - 68, details[:155])
+        c.setStrokeColor(light_line)
+        c.setLineWidth(0.6)
+        c.line(margin, height - 80, width - margin, height - 80)
+
+    def draw_footer(page_index):
+        c.setStrokeColor(light_line)
+        c.setLineWidth(0.5)
+        c.line(margin, 34, width - margin, 34)
+        c.setFont("Helvetica", 8)
+        c.setFillColor(muted)
+        c.drawString(margin, 20, f"Édité le {edited}, sous réserve de modification.")
+        c.drawRightString(width - margin, 20, f"Page {page_index} / {total_pages}")
+
+    def draw_day(day, y):
+        c.setFillColor(pale)
+        c.roundRect(margin, y - 17, width - 2 * margin, 18, 4, fill=1, stroke=0)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 9.5)
+        c.drawString(margin + 9, y - 12, day_label(day["date"]))
+        y -= 27
+
+        table_x = margin
+        col_time = table_x + 14
+        col_duration = table_x + 92
+        col_module = table_x + 132
+        col_room = width - margin - 138
+        col_trainer = width - margin - 80
+
+        c.setFont("Helvetica-Bold", 7)
+        c.setFillColor(muted)
+        c.drawString(col_time, y, "HEURE")
+        c.drawString(col_duration, y, "DURÉE")
+        c.drawString(col_module, y, "MODULE / UV")
+        c.drawString(col_room, y, "SALLE")
+        c.drawString(col_trainer, y, "FORMATEUR")
+        y -= 8
+        c.setStrokeColor(light_line)
+        c.line(table_x, y, width - margin, y)
+        y -= 5
+
+        for block in day["blocks"]:
+            lines = wrapped_lines(block["uv"], col_room - col_module - 12, "Helvetica-Bold", 8.2)
+            row_h = max(25, 14 + 9 * len(lines))
+            c.setFillColor(accent)
+            c.roundRect(table_x, y - row_h + 3, 3.5, row_h - 4, 1.2, fill=1, stroke=0)
+            c.setStrokeColor(light_line)
+            c.setLineWidth(0.35)
+            c.line(table_x + 7, y - row_h + 2, width - margin, y - row_h + 2)
+
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 8.2)
+            time_label = f"{block['start'].strftime('%Hh%M')} - {block['end'].strftime('%Hh%M')}"
+            c.drawString(col_time, y - 10, time_label)
+            c.setFont("Helvetica", 8)
+            c.setFillColor(muted)
+            c.drawString(col_duration, y - 10, format_pdf_hours(block["hours"]))
+            c.drawString(col_room, y - 10, salle[:12])
+            c.drawString(col_trainer, y - 10, formateur[:18])
+
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 8.2)
+            text_y = y - 10
+            for line in lines:
+                c.drawString(col_module, text_y, line)
+                text_y -= 9
+            y -= row_h
+        return y - 10
+
+    def draw_synthesis():
+        y = content_top
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(margin, y, "Synthèse du planning APS")
+        y -= 24
+
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin, y, "Récapitulatif des heures de formation")
+        y -= 16
+        table_x = margin
+        table_w = width - 2 * margin
+        row_h = 17
+        c.setFillColor(colors.HexColor("#f8fafc"))
+        c.roundRect(table_x, y - row_h + 3, table_w, row_h, 4, fill=1, stroke=0)
+        c.setFillColor(muted)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(table_x + 8, y - 8, "UV")
+        c.drawString(table_x + 55, y - 8, "INTITULÉ")
+        c.drawRightString(table_x + table_w - 10, y - 8, "NOMBRE D’HEURES")
+        y -= row_h
+        c.setStrokeColor(light_line)
+        c.setLineWidth(0.35)
+        for row in recap_rows:
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 8)
+            c.drawString(table_x + 8, y - 8, row["uv"])
+            c.setFont("Helvetica", 8)
+            c.drawString(table_x + 55, y - 8, row["label"][:82])
+            c.drawRightString(table_x + table_w - 10, y - 8, format_pdf_hours(row["hours"]))
+            c.line(table_x, y - row_h + 3, table_x + table_w, y - row_h + 3)
+            y -= row_h
+        c.setFillColor(colors.HexColor("#f3f4f6"))
+        c.roundRect(table_x, y - row_h + 3, table_w, row_h, 4, fill=1, stroke=0)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawRightString(table_x + table_w - 10, y - 8, f"TOTAL : {format_pdf_hours(recap_total)}")
+        y -= row_h + 18
+
+        c.setFillColor(exam_bg)
+        c.roundRect(margin, y - 45, width - 2 * margin, 45, 7, fill=1, stroke=0)
+        c.setFillColor(accent)
+        c.roundRect(margin, y - 45, 5, 45, 2, fill=1, stroke=0)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin + 14, y - 17, "Examen APS")
+        c.setFont("Helvetica", 10)
+        c.drawString(margin + 14, y - 34, f"Date : {format_date(session_data.get('date_exam'))}")
+
+        box_y = 145
+        box_h = 88
+        box_w = (width - 2 * margin - 18) / 2
+        for idx, (label, image_path) in enumerate((("Signature du centre de formation", signature_image), ("Tampon du centre de formation", stamp_image))):
+            x = margin + idx * (box_w + 18)
+            c.setFillColor(colors.white)
+            c.setStrokeColor(light_line)
+            c.setLineWidth(0.7)
+            c.roundRect(x, box_y, box_w, box_h, 7, fill=1, stroke=1)
+            c.setFillColor(dark)
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(x + 10, box_y + box_h - 18, label)
+            if image_path:
+                c.drawImage(image_path, x + 16, box_y + 18, width=box_w - 32, height=42, preserveAspectRatio=True, mask="auto")
+            else:
+                c.setFillColor(colors.HexColor("#9ca3af"))
+                c.setFont("Helvetica", 12)
+                c.drawCentredString(x + box_w / 2, box_y + 39, "Signature" if idx == 0 else "Tampon")
+
+    for page_index, page_days in enumerate(pages, start=1):
+        draw_header(page_index)
+        if page_days and page_days[0].get("synthesis"):
+            draw_synthesis()
+        else:
+            y = content_top
+            for day in page_days:
+                y = draw_day(day, y)
+        draw_footer(page_index)
+        c.showPage()
+    c.save()
+    return {"days": days, "totals": totals, "recap": recap_rows, "total_hours": total_hours}
+
 def get_planning_for_session(sid):
     data = load_sessions()
     s = find_session(data, sid)
@@ -408,6 +833,7 @@ def set_planning_for_session(sid, filename):
     if not s:
         return False
     s["planning_pdf"] = filename
+    s["planning_generated_at"] = datetime.now().strftime("%Y-%m-%d")
     save_sessions(data)
     return True
 
@@ -2674,6 +3100,56 @@ def upload_planning_pdf(sid):
     set_planning_for_session(sid, saved_name)
     flash("✅ Planning PDF enregistré.", "ok")
     return redirect(url_for("session_detail", sid=sid))
+
+@app.post("/api/sessions/<sid>/generate-aps-planning")
+def generate_aps_planning_route(sid):
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS":
+        return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    formateur = (payload.get("formateur") or "").strip()
+    if not formateur:
+        return jsonify({"ok": False, "error": "Le nom et prénom du formateur sont obligatoires."}), 400
+    if not parse_date(session_data.get("date_exam")):
+        return jsonify({"ok": False, "error": "La date d'examen est obligatoire pour générer le planning APS."}), 400
+
+    filename = f"planning_aps_session_{sid}.pdf"
+    output_path = os.path.join(PLANNING_DIR, filename)
+    temp_path = f"{output_path}.tmp"
+    try:
+        result = generate_aps_planning_pdf(session_data, formateur, temp_path)
+        if round(result["total_hours"], 2) != APS_TOTAL_HOURS:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify({"ok": False, "error": "Le total généré n'est pas exactement de 175h."}), 500
+        os.replace(temp_path, output_path)
+        session_data["planning_pdf"] = filename
+        session_data["planning_generated_at"] = datetime.now().strftime("%Y-%m-%d")
+        save_sessions(data)
+        app.logger.info(
+            "Planning APS généré session=%s date_debut=%s date_exam=%s jours=%s total=%sh uv_totals=%s",
+            sid,
+            session_data.get("date_debut"),
+            session_data.get("date_exam"),
+            len(result["days"]),
+            result["total_hours"],
+            result["totals"],
+        )
+        return jsonify({
+            "ok": True,
+            "url": url_for("view_planning_pdf", sid=sid),
+            "filename": filename,
+            "generated_at": session_data["planning_generated_at"],
+        })
+    except Exception as exc:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        app.logger.exception("Erreur génération planning APS session=%s", sid)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.get("/sessions/<sid>/planning/view")

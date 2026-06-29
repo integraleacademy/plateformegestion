@@ -1331,43 +1331,86 @@ def _period_label(slots, morning=True):
     return " / ".join(f"{_hhmm_to_fr(s.get('start'))} - {_hhmm_to_fr(s.get('end'))}" for s in selected)
 
 
+def _aps_normalize_student_name(value, uppercase=False):
+    cleaned = re.sub(r"[^A-Za-zÀ-ÿ' ,\-]", "", value or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,\t;-')(")
+    if uppercase:
+        return cleaned.upper()
+    return cleaned
+
+
+def _aps_extract_phone_from_line(line):
+    phone_pattern = re.compile(r"(?<!\d)((?:\+33|0)\s*[1-9](?:[\s.\-]*\d{2}){4})(?!\d)")
+    match = phone_pattern.search(line)
+    if not match:
+        return "", line
+    phone = re.sub(r"\D+", "", match.group(1))
+    if phone.startswith("33") and len(phone) == 11:
+        phone = "0" + phone[2:]
+    if len(phone) == 10:
+        phone = " ".join([phone[:2], phone[2:4], phone[4:6], phone[6:8], phone[8:]])
+    remaining = (line[:match.start()] + " " + line[match.end():]).strip()
+    return phone, remaining
+
+
 def aps_extract_students_from_text(text):
     students = []
     seen = set()
+    email_pattern = re.compile(r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", re.IGNORECASE)
+
     for raw_line in (text or "").splitlines():
         line = re.sub(r"\s+", " ", raw_line).strip(" -\t;")
-        line = re.sub(r"^\d+[\).\-\s]+", "", line)
-        if not line or len(line) < 4:
+        if not line:
             continue
-        lowered = line.lower()
-        if any(word in lowered for word in ("feuille", "présence", "signature", "formation", "session", "stagiaire", "nom prénom")):
+
+        numbered_match = re.match(r"^(\d{1,3})\s+(.+)$", line)
+        if not numbered_match:
             continue
-        parts = line.split()
-        if len(parts) < 2 or len(parts) > 5:
+
+        candidate = numbered_match.group(2).strip()
+        lowered = candidate.lower()
+        if any(fragment in lowered for fragment in (
+            "numéros trouvés", "numero trouves", "numéro trouvé", "# nom", "nom prénom",
+            "email téléphone", "liste stagiaires", "http://", "https://", "page "
+        )):
             continue
-        if "," in line:
-            last, first = [p.strip() for p in line.split(",", 1)]
-        else:
-            upper_prefix = []
-            for part in parts:
-                if part.replace("-", "").isupper():
-                    upper_prefix.append(part)
-                else:
-                    break
-            if upper_prefix and len(upper_prefix) < len(parts):
-                last = " ".join(upper_prefix)
-                first = " ".join(parts[len(upper_prefix):])
+
+        email = ""
+        email_match = email_pattern.search(candidate)
+        if email_match:
+            email = email_match.group(0).strip()
+            candidate = (candidate[:email_match.start()] + " " + candidate[email_match.end():]).strip()
+
+        phone, candidate = _aps_extract_phone_from_line(candidate)
+        name_part = re.sub(r"\s+", " ", candidate).strip(" -\t;")
+        parts = name_part.split()
+        if len(parts) < 2:
+            continue
+
+        last_parts = []
+        for part in parts:
+            comparable = re.sub(r"[^A-Za-zÀ-ÿ]", "", part)
+            if comparable and comparable.upper() == comparable:
+                last_parts.append(part)
             else:
-                first = parts[0]
-                last = " ".join(parts[1:])
-        last = re.sub(r"[^A-Za-zÀ-ÿ' -]", "", last).strip().upper()
-        first = re.sub(r"[^A-Za-zÀ-ÿ' -]", "", first).strip().title()
+                break
+        if not last_parts or len(last_parts) >= len(parts):
+            continue
+
+        last = _aps_normalize_student_name(" ".join(last_parts), uppercase=True)
+        first = _aps_normalize_student_name(" ".join(parts[len(last_parts):]))
         if not last or not first:
             continue
-        key = (last, first)
+
+        student = {"lastName": last, "firstName": first}
+        if email:
+            student["email"] = email
+        if phone:
+            student["phone"] = phone
+        key = (last, first, email, phone)
         if key not in seen:
             seen.add(key)
-            students.append({"lastName": last, "firstName": first})
+            students.append(student)
     return students
 
 

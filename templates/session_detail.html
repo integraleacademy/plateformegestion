@@ -964,7 +964,7 @@ a.back:hover{ background:#d9a848 !important; }
   <div class="planning-header">
     <div>
       <h2 style="margin:0;">📝 Contrats formateurs</h2>
-      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention APS.</p>
+      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention APS. Les heures e-learning sont exclues.</p>
     </div>
     {% if planning_pdf and s.apsPlanningData %}
       <button type="button" class="btn small gold" id="openApsContractModal">Générer contrat formateur</button>
@@ -991,7 +991,7 @@ a.back:hover{ background:#d9a848 !important; }
   {% endfor %}
 </section>
 <div class="modal" id="apsContractModal" aria-hidden="true"><div class="modal-content" style="max-width:980px;max-height:90vh;overflow:auto;">
-  <div class="modal-header"><div><h3 style="margin:0;">Générer contrat formateur</h3><p class="muted">Sélectionnez le ou les formateurs pour lesquels générer un contrat.</p></div><button class="modal-close" type="button" id="closeApsContractModal">✕</button></div>
+  <div class="modal-header"><div><h3 style="margin:0;">Générer contrat formateur</h3><p class="muted">Sélectionnez le ou les formateurs pour lesquels générer un contrat. Les créneaux e-learning sont exclus du contrat car ils ne sont pas rattachés à un formateur.</p></div><button class="modal-close" type="button" id="closeApsContractModal">✕</button></div>
   <form id="apsContractForm"><div id="apsContractTrainerList"></div><div id="apsContractError" class="flash error" style="display:none;margin-top:12px;"></div><div class="planning-actions" style="justify-content:flex-end;margin-top:18px;"><button type="button" class="btn" id="cancelApsContract">Annuler</button><button type="submit" class="btn gold" id="submitApsContract">Générer le contrat</button></div></form>
 </div></div>
 <div class="modal" id="sendContractModal" aria-hidden="true"><div class="modal-content">

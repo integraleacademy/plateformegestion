@@ -992,8 +992,17 @@ def _money(value):
         return "0,00 €"
 
 
+def aps_is_contract_billable_slot(slot):
+    return (slot.get("modality") or "presentiel").strip().lower() != "elearning"
+
+
 def aps_detect_trainers(planning_data):
-    return sorted({(slot.get("trainer") or "").strip() for day in planning_data or [] for slot in day.get("slots", []) if (slot.get("trainer") or "").strip()})
+    return sorted({
+        (slot.get("trainer") or "").strip()
+        for day in planning_data or []
+        for slot in day.get("slots", [])
+        if aps_is_contract_billable_slot(slot) and (slot.get("trainer") or "").strip()
+    })
 
 
 def aps_trainer_interventions(planning_data, trainer_name):
@@ -1003,6 +1012,8 @@ def aps_trainer_interventions(planning_data, trainer_name):
     for day in planning_data or []:
         day_date = day.get("date") or ""
         for slot in day.get("slots", []):
+            if not aps_is_contract_billable_slot(slot):
+                continue
             if (slot.get("trainer") or "").strip() != trainer_name:
                 continue
             duration = round(float(slot.get("duration") or 0), 2)

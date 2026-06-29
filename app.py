@@ -676,8 +676,8 @@ def aps_blocks_to_planning_data(days, formateur, salle, planning_mode="full_pres
                 "duration": duration,
                 "uv": uv,
                 "title": title,
-                "room": "E-learning / distanciel" if modality == "elearning" else (salle or "Salle à définir"),
-                "trainer": formateur or "",
+                "room": "" if modality == "elearning" else (salle or "Salle à définir"),
+                "trainer": "" if modality == "elearning" else (formateur or ""),
                 "modality": modality,
             })
         planning.append({"date": day_date.isoformat(), "dayLabel": aps_day_label(day_date), "slots": slots})
@@ -717,8 +717,8 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle):
                         "uv": module["uv"],
                         "title": module["title"],
                         "part": module["part"],
-                        "room": "Plateforme e-learning" if modality == "elearning" else (salle or "Salle à définir"),
-                        "trainer": formateur or "",
+                        "room": "" if modality == "elearning" else (salle or "Salle à définir"),
+                        "trainer": "" if modality == "elearning" else (formateur or ""),
                         "modality": modality,
                     })
                     module["remainingMinutes"] -= duration_minutes
@@ -847,6 +847,26 @@ def append_planning_history(session_data, label):
         session_data["planning_history"] = session_data["planning_history"][-20:]
     return now
 
+def aps_modality_ranges(planning_data):
+    ranges = {}
+    for day in planning_data or []:
+        day_date = day.get("date")
+        if not day_date:
+            continue
+        for slot in day.get("slots", []):
+            modality = (slot.get("modality") or "presentiel").strip()
+            if modality not in {"elearning", "presentiel"}:
+                continue
+            ranges.setdefault(modality, {"start": day_date, "end": day_date})
+            ranges[modality]["start"] = min(ranges[modality]["start"], day_date)
+            ranges[modality]["end"] = max(ranges[modality]["end"], day_date)
+    return ranges
+
+def aps_format_range(range_data):
+    if not range_data:
+        return ""
+    return f"du {format_date(range_data.get('start'))} au {format_date(range_data.get('end'))}"
+
 def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel"):
     if planning_mode not in {"full_presentiel", "elearning_presentiel"}:
         raise ValueError("Le type de planning APS est obligatoire.")
@@ -868,6 +888,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     if planning_data is None:
         planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode)
     errors, summary = validate_aps_planning_data(planning_data, planning_mode)
+    exam_iso = exam_dt.date().isoformat()
+    if any(day.get("date") == exam_iso for day in planning_data or []):
+        errors.append(f"La date d'examen ({format_date(exam_iso)}) ne doit pas contenir de créneau de formation.")
     if errors:
         raise ValueError(" ".join(errors))
 
@@ -878,34 +901,82 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     title = "PLANNING DE FORMATION APS"
     edited = datetime.now().strftime("%d/%m/%Y à %H:%M")
     period = f"Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin')) if session_data.get('date_fin') else '—'}"
-    trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("trainer") or "").strip()})
+    trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and (slot.get("trainer") or "").strip()})
     trainer_label = ", ".join(trainers[:4]) + ("…" if len(trainers) > 4 else "") if trainers else "—"
-    pages = [planning_data[i:i + 4] for i in range(0, len(planning_data), 4)] or [[]]
+    modality_ranges = aps_modality_ranges(planning_data)
+    modality_totals = summary.get("modality_totals", {})
+
+    def period_title(part):
+        modality = "elearning" if "E-LEARNING" in (part or "") else "presentiel"
+        base = "PÉRIODE 1 — E-LEARNING / DISTANCIEL" if modality == "elearning" else "PÉRIODE 2 — PRÉSENTIEL AU CENTRE"
+        hours = modality_totals.get(modality, 0)
+        date_range = aps_format_range(modality_ranges.get(modality))
+        return f"{base} — {date_range} — {hours:g}h" if date_range else f"{base} — {hours:g}h"
+
+    def day_height(day, current_part):
+        needed = 30 + (len(day.get("slots", [])) * 49) + 2
+        day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
+        if planning_mode == "elearning_presentiel" and day_part and day_part != current_part:
+            needed += 34
+        return needed, day_part
+
+    def build_pages():
+        built_pages, current_page, current_part = [], [], None
+        y = height - (128 if planning_mode == "elearning_presentiel" else 104)
+        bottom_limit = 84
+        for day in planning_data or []:
+            needed, day_part = day_height(day, current_part)
+            if current_page and y - needed < bottom_limit:
+                built_pages.append(current_page)
+                current_page, current_part = [], None
+                y = height - 104
+                needed, day_part = day_height(day, current_part)
+            current_page.append(day)
+            y -= needed
+            if day_part:
+                current_part = day_part
+        if current_page or not built_pages:
+            built_pages.append(current_page)
+        return built_pages
+
+    pages = build_pages()
     total_pages = len(pages) + 1
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
 
     def draw_header_footer(page_no):
         if logo_path:
-            c.drawImage(logo_path, margin, height - 66, width=62, height=42, preserveAspectRatio=True, mask="auto")
+            c.drawImage(logo_path, margin, height - 72, width=72, height=49, preserveAspectRatio=True, mask="auto")
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
-        c.drawString(margin + 78, height - 35, title)
+        c.drawString(margin + 88, height - 35, title)
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
-        c.drawString(margin + 78, height - 50, "Agent de Prévention et de Sécurité — 175 heures")
-        c.drawString(margin + 78, height - 64, f"{period} • Examen {format_date(session_data.get('date_exam'))} • Formateur(s) : {trainer_label}")
+        c.drawString(margin + 88, height - 50, "Agent de Prévention et de Sécurité — 175 heures")
+        c.drawString(margin + 88, height - 64, f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}")
         if planning_mode == "elearning_presentiel":
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-            c.drawString(margin + 78, height - 75, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
-        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 78, width - margin, height - 78)
-        c.setFont("Helvetica", 7); c.setFillColor(colors.HexColor("#6b7280"))
-        c.drawString(margin, 28, f"Édité le {edited}, sous réserve de modification.")
-        c.drawCentredString(width / 2, 16, " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:]))
-        c.drawRightString(width - margin, 28, f"Page {page_no} / {total_pages}")
+            c.drawString(margin + 88, height - 77, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
+        else:
+            c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
+            c.drawString(margin + 88, height - 77, "Modalité : 100% présentiel • Présentiel : 175h")
+        y_dates = height - 90
+        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
+        date_lines = []
+        if modality_ranges.get("elearning"):
+            date_lines.append(f"Période e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
+        if modality_ranges.get("presentiel"):
+            date_lines.append(f"Période présentiel : {aps_format_range(modality_ranges.get('presentiel'))}")
+        c.drawString(margin + 88, y_dates, " • ".join(date_lines))
+        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 96, width - margin, height - 96)
+        c.setFont("Helvetica", 6.2); c.setFillColor(colors.HexColor("#6b7280"))
+        c.drawString(margin, 40, f"Édité le {edited}, sous réserve de modification.")
+        legal = " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:])
+        draw_wrapped_text(c, legal, margin, 28, width - 2 * margin - 78, "Helvetica", 6.2, 8)
+        c.drawRightString(width - margin, 40, f"Page {page_no} / {total_pages}")
 
     page_no = 1
     for page_days in pages:
         draw_header_footer(page_no)
-        y = height - 108 if planning_mode == "elearning_presentiel" else height - 100
+        y = height - 128 if planning_mode == "elearning_presentiel" else height - 104
         if page_no == 1 and planning_mode == "elearning_presentiel":
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Légende :")
             c.setFillColor(colors.HexColor("#6d28d9")); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
@@ -920,7 +991,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 current_part = day_part
                 band_color = "#6d28d9" if "E-LEARNING" in day_part else "#0d9488"
                 c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, width - 2 * margin, 24, 6, fill=1, stroke=0)
-                c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 11); c.drawString(margin + 10, y - 12, day_part)
+                c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(day_part))
                 y -= 34
             c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, width - 2 * margin, 22, 6, fill=1, stroke=0)
             c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, day.get("dayLabel") or day.get("date"))
@@ -937,7 +1008,10 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')}", margin + 16, y - 8, width - 225, "Helvetica-Bold", 8.2, 9)
                 c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
                 c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({slot.get('duration'):g}h)")
-                c.drawString(margin + 14, y - 32, f"Salle : {slot.get('room') or '—'} • Formateur : {slot.get('trainer') or '—'}")
+                if slot.get("modality") == "elearning":
+                    c.drawString(margin + 14, y - 32, "Modalité : E-learning / distanciel")
+                else:
+                    c.drawString(margin + 14, y - 32, f"Salle : {slot.get('room') or 'Salle à définir'} • Formateur : {slot.get('trainer') or '—'}")
                 y -= h + 5
             y -= 2
         page_no += 1
@@ -948,11 +1022,10 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
     y -= 18
     if planning_mode == "elearning_presentiel":
-        modality_totals = summary.get("modality_totals", {})
         c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. Récapitulatif par modalité")
         y -= 14
-        c.setFont("Helvetica", 9); c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h")
-        y -= 13; c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h")
+        c.setFont("Helvetica", 9); c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}")
+        y -= 13; c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h — {aps_format_range(modality_ranges.get('presentiel'))}")
         y -= 13; c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
         y -= 20; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Récapitulatif détaillé")
         y -= 14; c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Partie"); c.drawString(margin+145, y, "Module"); c.drawString(width-margin-140, y, "Modalité"); c.drawRightString(width-margin, y, "Heures")

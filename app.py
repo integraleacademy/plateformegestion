@@ -414,6 +414,7 @@ APS_ELEARNING_MINUTES = APS_ELEARNING_HOURS * 60
 APS_PRESENTIEL_HOURS = APS_TOTAL_HOURS - APS_ELEARNING_HOURS
 APS_PRESENTIEL_MINUTES = APS_PRESENTIEL_HOURS * 60
 APS_MAX_DAILY_MINUTES = 7 * 60
+APS_EXTENDED_DAILY_MINUTES = 8 * 60
 
 APS_EXPECTED_UV_TOTALS = {
     "UV1": 14,
@@ -603,26 +604,38 @@ def aps_working_days_between(start_date, end_date, exam_iso=""):
         current += timedelta(days=1)
     return days
 
-def aps_impossible_period_message(start_date, end_date, available_minutes, required_minutes):
+def aps_impossible_period_message(start_date, end_date, available_minutes, required_minutes, extended_minutes=None):
+    if extended_minutes is not None:
+        return (
+            "Impossible de générer le planning : "
+            f"{available_minutes / 60:g} heures disponibles à 7h/jour "
+            f"({extended_minutes / 60:g} heures maximum à 8h/jour) entre le {format_date(start_date)} "
+            f"et le {format_date(end_date)}, mais {required_minutes / 60:g} heures nécessaires."
+        )
     return (
         "Impossible de générer le planning : "
         f"{available_minutes / 60:g} heures disponibles entre le {format_date(start_date)} "
         f"et le {format_date(end_date)}, mais {required_minutes / 60:g} heures nécessaires."
     )
 
-def log_aps_generation_diagnostics(session_id=None, planning_mode="full_presentiel", start_date=None, end_date=None, exam_iso="", available_days=0, available_minutes=0, elearning_minutes=0, presentiel_minutes=0, total_minutes=0):
-    app.logger.error(
-        "Diagnostic planning APS impossible session_id=%s planning_mode=%s start_date=%s end_date=%s exam_iso=%s jours_ouvres_disponibles=%s heures_disponibles=%s heures_elearning=%s heures_presentiel=%s total_heures_attendu=%s",
+def log_aps_generation_diagnostics(session_id=None, planning_mode="full_presentiel", start_date=None, end_date=None, exam_iso="", available_days=0, available_minutes=0, elearning_minutes=0, presentiel_minutes=0, total_minutes=0, extended_minutes=None, elongated_days=0, day_distribution=None, level="error"):
+    logger = app.logger.error if level == "error" else app.logger.info
+    logger(
+        "Diagnostic planning APS session_id=%s planning_mode=%s start_date=%s end_date=%s exam_iso=%s heures_necessaires=%s jours_disponibles=%s capacite_7h=%s capacite_8h=%s heures_elearning=%s heures_presentiel=%s total_heures_attendu=%s journees_allongees=%s repartition_heures_par_jour=%s",
         session_id,
         planning_mode,
         start_date.isoformat() if hasattr(start_date, "isoformat") else start_date,
         end_date.isoformat() if hasattr(end_date, "isoformat") else end_date,
         exam_iso,
+        presentiel_minutes / 60 if planning_mode == "elearning_presentiel" else total_minutes / 60,
         available_days,
         available_minutes / 60,
+        (extended_minutes if extended_minutes is not None else available_minutes) / 60,
         elearning_minutes / 60,
         presentiel_minutes / 60,
         total_minutes / 60,
+        elongated_days,
+        day_distribution or [],
     )
 
 def build_aps_planning(start_date, end_date=None, exam_iso=""):
@@ -801,32 +814,57 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
     if not presentiel_end:
         presentiel_end = presentiel_start + timedelta(days=60)
     presentiel_days = aps_working_days_between(presentiel_start, presentiel_end, exam_iso)
-    available_presentiel_minutes = len(presentiel_days) * APS_MAX_DAILY_MINUTES
-    if available_presentiel_minutes < APS_PRESENTIEL_MINUTES:
-        all_days = aps_working_days_between(start_date, presentiel_end, exam_iso)
-        log_aps_generation_diagnostics(session_id, "elearning_presentiel", start_date, presentiel_end, exam_iso, len(all_days), len(all_days) * APS_MAX_DAILY_MINUTES, APS_ELEARNING_MINUTES, APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES)
-        raise ValueError(aps_impossible_period_message(presentiel_start, presentiel_end, available_presentiel_minutes, APS_PRESENTIEL_MINUTES))
+    standard_presentiel_minutes = len(presentiel_days) * APS_MAX_DAILY_MINUTES
+    extended_presentiel_minutes = len(presentiel_days) * APS_EXTENDED_DAILY_MINUTES
+    if APS_PRESENTIEL_MINUTES > extended_presentiel_minutes:
+        log_aps_generation_diagnostics(
+            session_id, "elearning_presentiel", start_date, presentiel_end, exam_iso,
+            len(presentiel_days), standard_presentiel_minutes, APS_ELEARNING_MINUTES,
+            APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES, extended_presentiel_minutes,
+        )
+        raise ValueError(aps_impossible_period_message(presentiel_start, presentiel_end, standard_presentiel_minutes, APS_PRESENTIEL_MINUTES, extended_presentiel_minutes))
+
+    # Capacité journalière réelle : 7h par défaut, puis jusqu'à 8h seulement si la
+    # période présentielle est trop courte à 7h/jour. Le dépassement est posé en
+    # priorité sur les derniers jours afin de garder un maximum de journées à 7h.
+    day_capacities = {day: APS_MAX_DAILY_MINUTES for day in presentiel_days}
+    missing_minutes = max(0, APS_PRESENTIEL_MINUTES - standard_presentiel_minutes)
+    for day in reversed(presentiel_days):
+        if missing_minutes <= 0:
+            break
+        extra = min(APS_EXTENDED_DAILY_MINUTES - APS_MAX_DAILY_MINUTES, missing_minutes)
+        day_capacities[day] += extra
+        missing_minutes -= extra
+    elongated_days = sum(1 for minutes in day_capacities.values() if minutes > APS_MAX_DAILY_MINUTES)
+    log_aps_generation_diagnostics(
+        session_id, "elearning_presentiel", presentiel_start, presentiel_end, exam_iso,
+        len(presentiel_days), standard_presentiel_minutes, APS_ELEARNING_MINUTES,
+        APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES, extended_presentiel_minutes, elongated_days,
+        [(day.isoformat(), day_capacities[day] / 60) for day in presentiel_days], level="info",
+    )
 
     # Si la plage présentielle est plus large que nécessaire, on conserve des journées de formation
     # au début et à la fin pour terminer explicitement à date_fin_session.
+    final_day_distribution = []
     for current_day in presentiel_days:
         if idx >= len(sequence):
             break
         days_after = [d for d in presentiel_days if d > current_day]
         remaining_presentiel = sum(item["remainingMinutes"] for item in sequence[idx:] if item["modality"] == "presentiel")
-        min_today = max(0, remaining_presentiel - (len(days_after) * APS_MAX_DAILY_MINUTES))
+        future_capacity = sum(day_capacities[d] for d in days_after)
+        min_today = max(0, remaining_presentiel - future_capacity)
         is_last_training_day = current_day == presentiel_days[-1]
         if is_last_training_day:
-            daily_limit = remaining_presentiel
+            daily_limit = min(remaining_presentiel, day_capacities[current_day])
         else:
             # Répartition souple : le présentiel commence dès le prochain jour ouvré,
             # tout en gardant assez d'heures à placer pour finir sur date_fin_session.
             average_today = ((remaining_presentiel + len(days_after)) // (len(days_after) + 1) + 59) // 60 * 60
-            daily_limit = min(APS_MAX_DAILY_MINUTES, max(min_today, min(average_today, remaining_presentiel)))
+            daily_limit = min(day_capacities[current_day], max(min_today, min(average_today, remaining_presentiel)))
         if daily_limit <= 0:
             continue
         slots = []
-        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
+        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180), (dt_time(16, 30), 60)):
             cursor = slot_start
             remaining_slot = min(slot_minutes, daily_limit - sum(s["durationMinutes"] for s in slots))
             while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == "presentiel":
@@ -848,8 +886,15 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
             if idx >= len(sequence) or sequence[idx]["modality"] != "presentiel":
                 break
         if slots:
+            day_minutes = sum(slot["durationMinutes"] for slot in slots)
+            final_day_distribution.append((current_day.isoformat(), day_minutes / 60))
             planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
 
+    app.logger.info(
+        "Planning APS e-learning + présentiel généré session_id=%s heures_necessaires=%s jours_disponibles=%s capacite_7h=%s capacite_8h=%s journees_allongees=%s repartition_finale_heures_par_jour=%s",
+        session_id, APS_PRESENTIEL_MINUTES / 60, len(presentiel_days), standard_presentiel_minutes / 60,
+        extended_presentiel_minutes / 60, sum(1 for _, hours in final_day_distribution if hours > 7), final_day_distribution,
+    )
     total_hours = sum(slot["durationMinutes"] for day in planning for slot in day["slots"]) / 60
     return planning, {k: round(v / 60, 2) for k, v in totals.items()}, total_hours
 
@@ -1116,7 +1161,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(day_part))
                 y -= 34
             c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, width - 2 * margin, 22, 6, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, day.get("dayLabel") or day.get("date"))
+            day_total_minutes = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", []))
+            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{day.get('dayLabel') or day.get('date')} — {format_duration_from_minutes(day_total_minutes)}")
             y -= 30
             for slot in day.get("slots", []):
                 h = 44

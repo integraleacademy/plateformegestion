@@ -1285,7 +1285,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     try:
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER
-        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.pagesizes import A4, landscape
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import mm
         from reportlab.platypus import (
@@ -1299,11 +1299,15 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
             Spacer,
             Table,
             TableStyle,
+            KeepTogether,
+            CondPageBreak,
+            NextPageTemplate,
         )
     except ImportError as exc:
         raise RuntimeError("La dépendance reportlab est requise pour générer le contrat PDF.") from exc
 
     width, height = A4
+    landscape_width, landscape_height = landscape(A4)
     logo_path = aps_pdf_logo_path()
     generated_dt = datetime.now()
     generated = generated_dt.strftime("%d/%m/%Y")
@@ -1327,42 +1331,59 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     doc = BaseDocTemplate(
         output_path,
         pagesize=A4,
-        leftMargin=16 * mm,
-        rightMargin=16 * mm,
-        topMargin=27 * mm,
-        bottomMargin=16 * mm,
+        leftMargin=19 * mm,
+        rightMargin=19 * mm,
+        topMargin=24 * mm,
+        bottomMargin=17 * mm,
         title="Contrat d’intervention formateur",
         author="Intégrale Academy",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="normal")
+    landscape_frame = Frame(doc.leftMargin, doc.bottomMargin, landscape_width - doc.leftMargin - doc.rightMargin, landscape_height - doc.topMargin - doc.bottomMargin, id="landscape")
 
     def page_canvas(canvas, document):
+        page_width, page_height = document.pagesize
         canvas.saveState()
         if logo_path:
-            canvas.drawImage(logo_path, doc.leftMargin, height - 21 * mm, width=28 * mm, height=16 * mm, preserveAspectRatio=True, mask="auto")
-        canvas.setFillColor(colors.HexColor("#111827")); canvas.setFont("Helvetica-Bold", 10)
-        canvas.drawString(doc.leftMargin + 34 * mm, height - 12 * mm, "CONTRAT D’INTERVENTION FORMATEUR")
-        canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 7.5)
-        canvas.drawString(doc.leftMargin + 34 * mm, height - 17 * mm, f"{formation_name} — {session_name} — généré le {generated_full}")
-        canvas.setStrokeColor(colors.HexColor("#d1d5db")); canvas.line(doc.leftMargin, height - 24 * mm, width - doc.rightMargin, height - 24 * mm)
+            canvas.drawImage(logo_path, doc.leftMargin, page_height - 18 * mm, width=24 * mm, height=12 * mm, preserveAspectRatio=True, mask="auto")
+        canvas.setFillColor(colors.HexColor("#111827")); canvas.setFont("Helvetica-Bold", 9.5)
+        canvas.drawString(doc.leftMargin + 29 * mm, page_height - 10 * mm, "CONTRAT D’INTERVENTION FORMATEUR")
+        canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 7.2)
+        canvas.drawString(doc.leftMargin + 29 * mm, page_height - 15 * mm, f"{formation_name} — {session_name} — généré le {generated_full}")
+        canvas.setStrokeColor(colors.HexColor("#d1d5db")); canvas.line(doc.leftMargin, page_height - 20 * mm, page_width - doc.rightMargin, page_height - 20 * mm)
         canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 8)
-        canvas.drawCentredString(width / 2, 8 * mm, f"Page {document.page}")
+        canvas.drawCentredString(page_width / 2, 8 * mm, f"Page {document.page}")
         canvas.restoreState()
 
-    doc.addPageTemplates([PageTemplate(id="contrat", frames=[frame], onPage=page_canvas)])
+    doc.addPageTemplates([
+        PageTemplate(id="contrat", frames=[frame], pagesize=A4, onPage=page_canvas),
+        PageTemplate(id="planning_landscape", frames=[landscape_frame], pagesize=landscape(A4), onPage=page_canvas),
+    ])
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle("TitlePremium", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=19, leading=23, textColor=colors.HexColor("#0f172a"), alignment=TA_CENTER, spaceAfter=8))
-    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#64748b")))
-    styles.add(ParagraphStyle("Body", parent=styles["Normal"], fontSize=8.6, leading=11.5, textColor=colors.HexColor("#1f2937"), spaceAfter=5))
-    styles.add(ParagraphStyle("H", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=11.5, leading=14, textColor=colors.HexColor("#7c2d12"), spaceBefore=8, spaceAfter=6))
-    styles.add(ParagraphStyle("Small", parent=styles["Normal"], fontSize=7.2, leading=9, textColor=colors.HexColor("#334155")))
-    styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7, leading=8.5, textColor=colors.HexColor("#111827")))
+    styles.add(ParagraphStyle("TitlePremium", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=21, leading=25, textColor=colors.HexColor("#0f172a"), alignment=TA_CENTER, spaceAfter=8))
+    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=9.5, leading=12, textColor=colors.HexColor("#64748b")))
+    styles.add(ParagraphStyle("Body", parent=styles["Normal"], fontSize=11.2, leading=14.5, textColor=colors.HexColor("#1f2937"), spaceAfter=5))
+    styles.add(ParagraphStyle("H", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=15, leading=18, textColor=colors.HexColor("#7c2d12"), spaceBefore=8, spaceAfter=6))
+    styles.add(ParagraphStyle("Small", parent=styles["Normal"], fontSize=10, leading=12.5, textColor=colors.HexColor("#334155")))
+    styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=10, leading=12, textColor=colors.HexColor("#111827")))
 
     def p(txt, style="Body"):
         return Paragraph(str(txt or "—").replace("\n", "<br/>"), styles[style])
 
     def section(title):
-        return Paragraph(title, styles["H"])
+        return KeepTogether([CondPageBreak(28 * mm), Paragraph(title, styles["H"])])
+
+    def compact_module_label(module):
+        text = str(module or "Module non renseigné").strip()
+        import re
+        match = re.search(r"\b(UV\s*\d+)\b\s*[-—:]?\s*(.*)", text, re.IGNORECASE)
+        if not match:
+            return text[:70] + ("…" if len(text) > 70 else "")
+        uv = match.group(1).upper().replace(" ", "")
+        label = match.group(2).strip(" -—:")
+        label = re.sub(r"^(MODULE|UNIT[ÉE] DE VALEUR)\s*[:\-—]?\s*", "", label, flags=re.IGNORECASE)
+        label = label[:44].rstrip() + ("…" if len(label) > 44 else "")
+        return f"{uv} — {label}" if label else uv
 
     def bullet(items):
         return ListFlowable([ListItem(p(i, "Body"), leftIndent=8) for i in items], bulletType="bullet", start="•", leftIndent=12, bulletFontSize=7)
@@ -1385,13 +1406,13 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         ("Centre de formation", "Intégrale Academy<br/>54 chemin du Carreou, 83480 Puget-sur-Argens<br/>04 22 47 07 68 — ecole@integraleacademy.com<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT, Directeur général<br/>Qualiopi — Autorisation d’exercice CNAPS — Agrément ADEF APS"),
         ("Formation concernée", f"{formation_name} / Agent de Prévention et de Sécurité<br/>{session_name}<br/>Modalité : {modality_label}"),
         ("Période d’intervention", f"Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Lieu : {room_label}"),
-    ], [42 * mm, 74 * mm])
+    ], [44 * mm, doc.width - 44 * mm])
     summary_right = kv_table([
         ("Formateur / prestataire", f"{contract.get('trainerName')}<br/>{contract.get('status') or 'Statut juridique à compléter'}<br/>SIRET : {contract.get('siret') or 'à compléter'}<br/>{contract.get('address') or 'Adresse à compléter'}<br/>{contract.get('trainerEmail') or 'Email à compléter'} — {contract.get('trainerPhone') or 'Téléphone à compléter'}"),
         ("Montant total", f"{_money(total_ht)} HT<br/>{tva_label} : {_money(contract.get('vatAmount') or 0)}<br/>{_money(contract.get('totalTTC') or total_ht)} TTC"),
         ("Pièces administratives", "SIRET, RC Pro, RIB, CV, diplômes/habilitations, justificatifs APS/CNAPS/ADEF, vigilance URSSAF si ≥ 5 000 € HT."),
-    ], [42 * mm, 74 * mm])
-    grid = Table([[summary_left, summary_right]], colWidths=[88 * mm, 88 * mm])
+    ], [44 * mm, doc.width - 44 * mm])
+    grid = Table([[summary_left], [summary_right]], colWidths=[doc.width])
     grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 4)]))
     story += [grid, Spacer(1, 6)]
 
@@ -1422,23 +1443,23 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
 
     story += [section("5. Traçabilité pédagogique et qualité"), p("Le formateur reconnaît que la traçabilité des interventions constitue une obligation essentielle du présent contrat. À ce titre, il s’engage à compléter, signer et remettre l’ensemble des documents nécessaires au suivi de l’action de formation : feuilles d’émargement par demi-journée, planning journalier, évaluations formatives, observations pédagogiques, relevés d’incidents, justificatifs d’absence et tout document demandé par Intégrale Academy dans le cadre de ses obligations qualité, réglementaires ou financeurs."), bullet(["Toute feuille d’émargement incomplète, incohérente ou non signée peut suspendre le paiement de la prestation concernée jusqu’à régularisation.", "Toute absence de traçabilité peut entraîner une retenue, une non-validation de la journée concernée ou la résiliation du contrat si cela met en risque la conformité de la formation."])]
     if has_elearning:
-        story += [section("6. Modalités e-learning"), bullet(["Le formateur respecte les modalités de suivi prévues par Intégrale Academy.", "Les temps e-learning sont tracés selon les outils mis à disposition.", "Les preuves de réalisation, connexions, accompagnements, évaluations ou échanges pédagogiques sont conservées ou transmises au centre.", "Pour une séquence purement e-learning, la traçabilité attendue est une preuve de suivi / traçabilité e-learning ; si la session est mixte, présentiel et distanciel sont distingués dans les documents."])]
+        story += [section("Note — Modalités e-learning"), bullet(["Le formateur respecte les modalités de suivi prévues par Intégrale Academy.", "Les temps e-learning sont tracés selon les outils mis à disposition.", "Les preuves de réalisation, connexions, accompagnements, évaluations ou échanges pédagogiques sont conservées ou transmises au centre.", "Pour une séquence purement e-learning, la traçabilité attendue est une preuve de suivi / traçabilité e-learning ; si la session est mixte, présentiel et distanciel sont distingués dans les documents."])]
 
-    story += [section("7. Rémunération"), kv_table([
+    story += [section("6. Rémunération"), kv_table([
         ("Nombre total d’heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Nombre de jours calculés", f"{float(contract.get('calculatedDays') or 0):g}"), ("Nombre de jours facturés retenus", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht)),
     ], [55 * mm, 121 * mm]), bullet(["Le paiement intervient uniquement sur présentation d’une facture conforme mentionnant SIRET, détail de la prestation, période d’intervention, montant HT, TVA ou franchise de TVA si applicable.", "Le règlement intervient après réalisation de la prestation et validation des feuilles d’émargement, du planning journalier et des éléments de suivi pédagogique.", "En cas de prestation partiellement réalisée, le paiement est proratisé selon les demi-journées réellement effectuées et validées.", "Les frais de déplacement, repas ou hébergement ne sont pas inclus sauf mention expresse contraire."])]
 
-    story += [section("8. Annulation, report, absence"), bullet(["Le centre peut modifier le planning en cas de nécessité pédagogique, administrative, réglementaire ou organisationnelle et en informe le formateur dès que possible.", "Si le formateur annule ou ne se présente pas, il prévient immédiatement le centre ; les heures non réalisées ne sont pas dues.", "Si l’absence met en danger la session, la conformité réglementaire ou l’examen, le centre peut résilier le contrat et rechercher un autre intervenant.", "En cas de force majeure, les parties conviennent d’un report ou d’une adaptation."])]
+    story += [section("7. Annulation, report, absence"), bullet(["Le centre peut modifier le planning en cas de nécessité pédagogique, administrative, réglementaire ou organisationnelle et en informe le formateur dès que possible.", "Si le formateur annule ou ne se présente pas, il prévient immédiatement le centre ; les heures non réalisées ne sont pas dues.", "Si l’absence met en danger la session, la conformité réglementaire ou l’examen, le centre peut résilier le contrat et rechercher un autre intervenant.", "En cas de force majeure, les parties conviennent d’un report ou d’une adaptation."])]
     social = ["être régulièrement immatriculé ;", "être à jour de ses obligations sociales et fiscales ;", "exercer son activité de manière indépendante ;", "fournir les justificatifs demandés ;", "informer immédiatement Intégrale Academy de tout changement de statut, radiation, suspension, interdiction d’exercer, perte d’habilitation ou difficulté administrative ;", "garantir Intégrale Academy contre tout recours lié à un manquement à ses obligations sociales, fiscales ou réglementaires."]
     if total_ht >= 5000:
         social.append("Compte tenu du montant de la prestation, le formateur devra fournir une attestation de vigilance URSSAF de moins de six mois, dont l’authenticité pourra être vérifiée par Intégrale Academy avant tout règlement.")
-    story += [section("9. Conformité administrative, sociale et fiscale"), p("Le formateur déclare :"), bullet(social)]
-    story += [section("10. Responsabilité et assurance"), bullet(["Le formateur est responsable de la qualité pédagogique de ses interventions.", "Il doit disposer d’une assurance responsabilité civile professionnelle couvrant son activité de formation.", "Il est responsable des dommages causés par sa faute, négligence ou manquement.", "Il utilise avec soin les locaux, matériels et équipements mis à disposition."])]
-    story += [section("11. Confidentialité et protection des données"), bullet(["Confidentialité sur les informations internes du centre, stagiaires, entreprises, documents pédagogiques, procédures, tarifs et supports.", "Interdiction de diffuser les documents internes sans autorisation.", "Respect des données personnelles des stagiaires.", "Utilisation des informations uniquement pour la mission confiée."])]
-    story += [section("12. Contrôles, audits et conformité"), bullet(["Le formateur accepte que ses interventions fassent l’objet de contrôles internes, audits Qualiopi, contrôles financeurs, ADEF, CNAPS ou toute autorité compétente.", "Il coopère, fournit les documents demandés et corrige rapidement toute non-conformité liée à son intervention."])]
+    story += [section("8. Conformité administrative, sociale et fiscale"), p("Le formateur déclare :"), bullet(social)]
+    story += [section("9. Responsabilité et assurance"), bullet(["Le formateur est responsable de la qualité pédagogique de ses interventions.", "Il doit disposer d’une assurance responsabilité civile professionnelle couvrant son activité de formation.", "Il est responsable des dommages causés par sa faute, négligence ou manquement.", "Il utilise avec soin les locaux, matériels et équipements mis à disposition."])]
+    story += [section("10. Confidentialité et protection des données"), bullet(["Confidentialité sur les informations internes du centre, stagiaires, entreprises, documents pédagogiques, procédures, tarifs et supports.", "Interdiction de diffuser les documents internes sans autorisation.", "Respect des données personnelles des stagiaires.", "Utilisation des informations uniquement pour la mission confiée."])]
+    story += [section("11. Contrôles, audits et conformité"), bullet(["Le formateur accepte que ses interventions fassent l’objet de contrôles internes, audits Qualiopi, contrôles financeurs, ADEF, CNAPS ou toute autorité compétente.", "Il coopère, fournit les documents demandés et corrige rapidement toute non-conformité liée à son intervention."])]
 
-    story += [PageBreak(), section("Annexe 1 : Planning détaillé des interventions")]
-    planning_rows = [[p("Date", "Small"), p("Demi-journée", "Small"), p("Horaires", "Small"), p("Durée", "Small"), p("UV / module", "Small"), p("Modalité", "Small"), p("Lieu", "Small"), p("Signature / traçabilité", "Small")]]
+    story += [NextPageTemplate("planning_landscape"), PageBreak(), section("Annexe 1 : Planning détaillé des interventions")]
+    planning_rows = [[p("Date", "Small"), p("Demi-journée", "Small"), p("Horaires", "Small"), p("Durée", "Small"), p("UV / module", "Small"), p("Lieu", "Small"), p("Signature formateur", "Small")]]
     for r in interventions:
         try:
             hour = int((r.get("start") or "12:00").split(":")[0])
@@ -1446,15 +1467,16 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
             hour = 12
         half_day = "Matin" if hour < 12 else "Après-midi"
         modality = r.get("modality") or "Présentiel"
-        trace = "Preuve de suivi / traçabilité e-learning" if "learning" in modality.lower() else "Signature formateur"
-        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(r.get("module"), "Cell"), p(modality, "Cell"), p(r.get("room"), "Cell"), p(trace, "Cell")])
-    table = Table(planning_rows, colWidths=[18*mm, 20*mm, 19*mm, 13*mm, 40*mm, 19*mm, 21*mm, 28*mm], repeatRows=1)
+        trace = "Traçabilité e-learning" if "learning" in modality.lower() else ""
+        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(r.get("room"), "Cell"), p(trace, "Cell")])
+    table = Table(planning_rows, colWidths=[24*mm, 26*mm, 25*mm, 18*mm, 76*mm, 38*mm, 52*mm], repeatRows=1)
     table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#7c2d12")), ("TEXTCOLOR", (0,0), (-1,0), colors.white), ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#cbd5e1")), ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f8fafc")]), ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3), ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4)]))
-    story += [table, Spacer(1, 8), section("Annexe 2 : Récapitulatif financier"), kv_table([("Total heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [55*mm, 121*mm])]
+    story += [table, NextPageTemplate("contrat"), PageBreak(), section("Annexe 2 : Récapitulatif financier"), kv_table([("Total heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [55*mm, 121*mm])]
     checklist = ["☐ SIRET / justificatif d’immatriculation", "☐ Attestation de vigilance URSSAF de moins de 6 mois si contrat ≥ 5 000 € HT", "☐ Assurance responsabilité civile professionnelle", "☐ RIB", "☐ CV formateur à jour", "☐ Diplômes / titres / habilitations nécessaires", "☐ Justificatifs spécifiques APS / CNAPS / ADEF si nécessaires"]
-    story += [section("Annexe 3 : Liste des pièces administratives à fournir"), bullet(checklist), section("Annexe 4 : Engagement qualité et traçabilité pédagogique"), p("Le formateur s’engage à remettre sans délai tout élément demandé par Intégrale Academy permettant d’établir la réalité, la conformité et la qualité de l’action de formation : émargements, évaluations, observations, incidents, justificatifs et preuves de suivi e-learning le cas échéant.")]
+    story += [KeepTogether([section("Annexe 3 : Liste des pièces administratives à fournir"), bullet(checklist)]), KeepTogether([section("Annexe 4 : Engagement qualité et traçabilité pédagogique"), p("Le formateur s’engage à remettre sans délai tout élément demandé par Intégrale Academy permettant d’établir la réalité, la conformité et la qualité de l’action de formation : émargements, évaluations, observations, incidents, justificatifs et preuves de suivi e-learning le cas échéant.")])]
 
     story += [Spacer(1, 8), p(f"Fait à Puget-sur-Argens, le {generated}.", "Body"), p("Le présent contrat comporte les pages numérotées automatiquement et 4 annexes. Chaque partie reconnaît en avoir pris connaissance.", "Body")]
+    story.append(CondPageBreak(80 * mm))
     sign_table = Table([
         [p("<b>Pour Intégrale Academy</b><br/>Monsieur Clément VAILLANT<br/>Directeur général<br/><br/>Signature précédée de la mention “Lu et approuvé”", "Body"), p(f"<b>Pour le formateur / prestataire</b><br/>{contract.get('trainerName')}<br/><br/>Signature précédée de la mention “Lu et approuvé”", "Body")],
         [p("<br/><br/><br/><br/><br/>", "Body"), p("<br/><br/><br/><br/><br/>", "Body")],

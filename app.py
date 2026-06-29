@@ -29,6 +29,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from prospecting import prospecting_bp
+from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning
 
 
 
@@ -405,6 +406,8 @@ APS_CONTRACT_DIR = os.path.join(DATA_DIR, "aps_trainer_contracts")
 os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
 APS_ATTENDANCE_DIR = os.path.join(DATA_DIR, "aps_attendance_sheets")
 os.makedirs(APS_ATTENDANCE_DIR, exist_ok=True)
+A3P_DOC_DIR = os.path.join(DATA_DIR, "a3p_documents")
+os.makedirs(A3P_DOC_DIR, exist_ok=True)
 APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
 
 APS_TOTAL_HOURS = 175
@@ -897,6 +900,65 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
     )
     total_hours = sum(slot["durationMinutes"] for day in planning for slot in day["slots"]) / 60
     return planning, {k: round(v / 60, 2) for k, v in totals.items()}, total_hours
+
+
+def _a3p_contract_days(planning_data):
+    return len([d for d in planning_data or [] if d.get("slots")])
+
+def _assert_a3p_pdf_text_safe(*parts):
+    text = "\n".join(str(p or "") for p in parts)
+    forbidden = [term for term in A3P_FORBIDDEN_TERMS if term in text]
+    if forbidden:
+        raise ValueError("Document A3P invalide: mentions interdites détectées (" + ", ".join(forbidden) + ").")
+
+def generate_a3p_simple_pdf(session_data, output_path, kind="planning", contract=None):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    planning = session_data.get("a3pPlanningData") or []
+    errors, summary = validate_a3p_planning(planning, session_data.get("date_exam"))
+    if errors:
+        raise ValueError(" ".join(errors))
+    c = canvas.Canvas(output_path, pagesize=A4); w,h=A4; m=36; y=h-46
+    logo=aps_pdf_logo_path()
+    if logo: c.drawImage(logo,m,h-76,width=84,height=52,preserveAspectRatio=True,mask="auto")
+    c.setFont("Helvetica-Bold",16); c.drawString(m+98,h-44,{"planning":"Planning de formation A3P","attendance":"Feuilles de présence A3P","contract":"Contrat formateur A3P"}[kind])
+    c.setFont("Helvetica",9); c.drawString(m+98,h-59,"TFP Agent de Protection Physique des Personnes — 328 heures")
+    c.drawString(m+98,h-73,f"Formation 100 % présentiel — 328 heures hors examen • Examen: {format_date(session_data.get('date_exam'))}")
+    y=h-105
+    trainer=session_data.get("a3pTrainerName") or "—"; room=session_data.get("a3pRoom") or session_data.get("salle") or "—"
+    c.setFont("Helvetica",9); c.drawString(m,y,f"Dates: du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))} • Formateur: {trainer} • Lieu: {room}"); y-=20
+    if kind=="contract":
+        daily=float((contract or {}).get("dailyRate") or 0); days=_a3p_contract_days(planning); ht=round(daily*days,2); vat=20 if (contract or {}).get("vatEnabled") else 0; ttc=round(ht*(1+vat/100),2)
+        lines=[f"Durée totale: 328h hors examen.",f"Nombre de jours réels d’intervention formateur: {days}.",f"Montant journalier HT: {daily:g} €. Total HT: {ht:g} €. TVA: {vat:g} %. Total TTC: {ttc:g} €.","Obligations du formateur: respecter le planning validé, les horaires, le référentiel A3P et les exigences de l’organisme; signer et faire signer les feuilles matin et après-midi; signaler toute absence ou retard; réaliser les évaluations formatives lorsque nécessaire.","Obligations du centre: fournir les moyens pédagogiques, la salle et les informations nécessaires. Modalités de paiement selon accord entre les parties. Confidentialité, responsabilité, annulation/remplacement.","Signatures: formateur / centre de formation (cachet). Planning en annexe."]
+        for line in lines:
+            c.drawString(m,y,line[:118]); y-=18
+    elif kind=="attendance":
+        students=session_data.get("a3pAttendanceStudents") or session_data.get("apsAttendanceStudents") or []
+        for day in planning:
+            if y<150: c.showPage(); y=h-50
+            mods=", ".join(dict.fromkeys(s.get("title") for s in day.get("slots",[]) if s.get("title")))
+            c.setFont("Helvetica-Bold",10); c.drawString(m,y,f"{format_date(day.get('date'))} — {mods[:80]}"); y-=14
+            c.setFont("Helvetica",8); c.drawString(m,y,"Signatures stagiaires matin / après-midi — Signature formateur matin / après-midi: " + trainer); y-=12
+            for st in students[:18]: c.drawString(m+10,y,f"{st.get('lastName','')} {st.get('firstName','')}  | matin: __________ | après-midi: __________"); y-=11
+            y-=8
+        c.setFont("Helvetica-Bold",10); c.drawString(m,70,f"Synthèse: {summary['totalHours']:g} heures prévues • {_a3p_contract_days(planning)} journées • Session A3P • Formateur {trainer}")
+    else:
+        cumul=0
+        for day in planning:
+            if y<120: c.showPage(); y=h-50
+            day_minutes=sum(int(s.get("durationMinutes") or 0) for s in day.get("slots",[])); cumul+=day_minutes
+            c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(m,y-16,w-2*m,20,5,fill=1,stroke=0); c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold",10); c.drawString(m+8,y-10,f"{format_date(day.get('date'))} — total jour {day_minutes/60:g}h — cumul {cumul/60:g}h")
+            y-=28; c.setFont("Helvetica",8)
+            for sl in day.get("slots",[]): c.drawString(m+10,y,f"{sl.get('start')}-{sl.get('end')} • {sl.get('code')} — {sl.get('title')} • {int(sl.get('durationMinutes') or 0)/60:g}h • {room} • {trainer}"); y-=12
+            y-=4
+        if y<180: c.showPage(); y=h-50
+        c.setFont("Helvetica-Bold",12); c.drawString(m,y,"Synthèse par module"); y-=18; c.setFont("Helvetica",9)
+        for row in summary["rows"]: c.drawString(m,y,f"{row['code']} — {row['title']} : {row['actualHours']:g}h / {row['hours']}h"); y-=12
+        c.setFont("Helvetica-Bold",10); c.drawString(m,y-6,"Total général : 328h • Bloc signature / tampon • Informations légales de l’organisme")
+    _assert_a3p_pdf_text_safe(kind, session_data.get("a3pTrainerName"), room)
+    c.save()
 
 def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel", end_date=None, exam_iso="", session_id=None):
     if planning_mode == "elearning_presentiel":
@@ -4536,6 +4598,47 @@ def view_aps_attendance_sheets(sid):
     path = os.path.join(APS_ATTENDANCE_DIR, os.path.basename(filename))
     if not os.path.exists(path): abort(404)
     return send_file(path, mimetype="application/pdf", as_attachment=False)
+
+
+@app.post("/api/sessions/<sid>/a3p-documents/generate")
+def generate_a3p_documents(sid):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
+    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
+    payload=request.get_json(silent=True) or {}
+    try:
+        cfg=payload.get("scheduleConfig") or payload
+        result=generateA3pSchedule(cfg)
+        trainer=((cfg.get("trainerFirstName") or "")+" "+(cfg.get("trainerLastName") or "")).strip() or cfg.get("trainerName") or ""
+        if not trainer: return jsonify({"ok":False,"error":"Nom et prénom du formateur obligatoires."}),400
+        session_data.update({"a3pPlanningData":result["planning"],"a3pPlanningSummary":result["summary"],"a3pTrainerName":trainer,"a3pRoom":cfg.get("room") or "Salle à définir","date_debut":cfg.get("startDate") or session_data.get("date_debut"),"date_fin":cfg.get("endDate") or session_data.get("date_fin"),"date_exam":cfg.get("examDate") or session_data.get("date_exam")})
+        now=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        docs=[]
+        for kind, key, fname in (("planning","a3pPlanningPdfUrl",f"planning_a3p_session_{sid}.pdf"),("attendance","a3pAttendanceSheetsPdfUrl",f"feuilles_presence_a3p_{sid}.pdf")):
+            path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_simple_pdf(session_data,path,kind=kind)
+            session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname; docs.append(kind)
+        contract_payload=payload.get("contract") or cfg
+        cid=str(uuid.uuid4()); cf=f"contrat_formateur_a3p_{sid}_{cid}.pdf"; cp=os.path.join(A3P_DOC_DIR,cf)
+        generate_a3p_simple_pdf(session_data,cp,kind="contract",contract=contract_payload)
+        session_data["a3pTrainerContract"]={"id":cid,"pdfFilename":cf,"pdfUrl":url_for("view_a3p_document",sid=sid,kind="contract"),"generatedAt":now,"dailyRate":contract_payload.get("dailyRate"),"vatEnabled":bool(contract_payload.get("vatEnabled"))}
+        session_data["a3pDocumentsGeneratedAt"]=now; save_sessions(data)
+        return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"],"contractUrl":session_data["a3pTrainerContract"]["pdfUrl"]})
+    except ValueError as exc:
+        return jsonify({"ok":False,"error":str(exc)}),400
+    except Exception as exc:
+        app.logger.exception("Erreur génération documents A3P session=%s", sid); return jsonify({"ok":False,"error":str(exc)}),500
+
+@app.get("/sessions/<sid>/a3p-documents/<kind>/view")
+def view_a3p_document(sid, kind):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: abort(404)
+    mapping={"planning":"a3pPlanningFilename","attendance":"a3pAttendanceSheetsFilename","contract":None}
+    if kind=="contract": filename=(session_data.get("a3pTrainerContract") or {}).get("pdfFilename")
+    else: filename=session_data.get(mapping.get(kind))
+    if not filename: abort(404)
+    path=os.path.join(A3P_DOC_DIR, os.path.basename(filename))
+    if not os.path.exists(path): abort(404)
+    return send_file(path,mimetype="application/pdf",as_attachment=False)
 
 @app.get("/sessions/<sid>/aps-planning/edit")
 def edit_aps_planning_page(sid):

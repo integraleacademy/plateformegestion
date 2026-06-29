@@ -1009,6 +1009,28 @@ a.back:hover{ background:#d9a848 !important; }
 {% endif %}
 {% endif %}
 
+
+{% if s.formation == "A3P" %}
+<section class="planning-box" id="a3p-documents-section">
+  <div class="planning-header"><div><h2 style="margin:0;">📘 Documents A3P</h2><p class="muted" style="margin:6px 0 0;">Planning, feuilles de présence et contrat formateur A3P — 328h 100 % présentiel hors examen.</p></div><button type="button" class="btn small gold" id="openA3pModal">Paramétrer / générer les documents A3P</button></div>
+  <div class="contract-grid">
+    {% set a3p_items=[('Planning A3P',s.a3pPlanningPdfUrl),('Feuilles de présence A3P',s.a3pAttendanceSheetsPdfUrl),('Contrat formateur A3P',(s.a3pTrainerContract or {}).pdfUrl)] %}
+    {% for label,url in a3p_items %}<div class="contract-card"><strong>{{ label }}</strong><div>{% if url %}<span class="planning-status">✅ généré le {{ s.a3pDocumentsGeneratedAt|datetimefr }}</span>{% else %}<span class="flash error" style="display:inline-block;margin-top:8px;">🔴 en attente</span>{% endif %}</div><div class="planning-actions" style="margin-top:10px;">{% if url %}<a class="btn small" target="_blank" href="{{ url }}">Voir</a>{% endif %}<button type="button" class="btn small gold" id="regenA3pDocs">Regénérer</button></div></div>{% endfor %}
+  </div>
+</section>
+<div class="modal" id="a3pModal" aria-hidden="true"><div class="modal-content" style="max-width:1180px;max-height:92vh;overflow:auto;">
+  <div class="modal-header"><div><h3 style="margin:0;">Paramétrage documents A3P</h3><p class="muted">Choisissez les dates importantes, les horaires, les modules imposés, puis générez automatiquement le reste.</p></div><button class="modal-close" type="button" id="closeA3pModal">✕</button></div>
+  <form id="a3pForm">
+    <h4>Étape 1 — Formateur</h4><div class="contract-grid"><input name="trainerLastName" placeholder="Nom du formateur" required><input name="trainerFirstName" placeholder="Prénom du formateur" required><input name="trainerEmail" placeholder="Email"><input name="trainerAddress" placeholder="Adresse"><input name="trainerCompany" placeholder="SIRET ou société"><input name="dailyRate" type="number" step="0.01" placeholder="Tarif journalier HT"><label><input name="vatEnabled" type="checkbox"> TVA applicable</label></div>
+    <h4>Étape 2 — Dates générales</h4><div class="contract-grid"><input name="startDate" type="date" value="{{ s.date_debut }}" required><input name="endDate" type="date" value="{{ s.date_fin }}" required><input name="examDate" type="date" value="{{ s.date_exam }}" required><input name="room" placeholder="Salle / lieu de formation" value="{{ s.salle or 'Salle à définir' }}"></div>
+    <h4>Étape 3 — Horaires par jour</h4><div class="planning-actions"><label>Matin <input id="a3pDefaultMorningStart" type="time" value="08:30"> - <input id="a3pDefaultMorningEnd" type="time" value="12:30"></label><label>Après-midi <input id="a3pDefaultAfternoonStart" type="time" value="13:30"> - <input id="a3pDefaultAfternoonEnd" type="time" value="16:30"></label><button class="btn small" type="button" id="a3pBuildDays">Appliquer à tous les jours ouvrés</button><button class="btn small" type="button" id="a3pAddDay">Ajouter une journée</button></div>
+    <div id="a3pProgress" class="flash warning" style="margin-top:10px;">0h / 328h</div><table class="contract-table"><thead><tr><th>Date</th><th>Jour</th><th>Module affecté</th><th>Matin début</th><th>Matin fin</th><th>Après-midi début</th><th>Après-midi fin</th><th>Total jour</th><th>Cumul</th><th>Reste</th><th></th></tr></thead><tbody id="a3pDaysBody"></tbody></table>
+    <h4>Étape 4 — Modules à dates imposées</h4><div class="contract-grid" id="a3pLockedCards"></div>
+    <h4>Étape 5 — Génération automatique du reste</h4><button class="btn small" type="button" id="a3pAutoFill">Générer automatiquement le reste du planning</button><div id="a3pError" class="flash error" style="display:none;margin-top:12px;"></div><div class="planning-actions" style="justify-content:flex-end;margin-top:18px;"><button type="button" class="btn" id="cancelA3p">Annuler</button><button type="submit" class="btn gold" id="submitA3p" disabled>Générer les documents A3P</button></div>
+  </form>
+</div></div>
+{% endif %}
+
 {% if s.formation == "APS" %}
 <section class="planning-box" id="aps-contracts-section">
   <div class="planning-header">
@@ -1752,6 +1774,22 @@ document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListe
 sendContractForm?.addEventListener("submit", async (event) => { event.preventDefault(); const err = document.getElementById("sendContractError"); err.style.display = "none"; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${currentSendContractId}/send`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({emailSubject:document.getElementById("sendContractSubject").value, emailBody:document.getElementById("sendContractBody").value})}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi impossible."); closeSendModal(); showPlanningToast("Contrat envoyé par mail.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ err.textContent = error.message; err.style.display = "block"; } });
 
 </script>
+
+
+{% if s.formation == "A3P" %}
+<script>
+const A3P_TOTAL=328, lockedDefs=[['UV1','SST',14],['UV5','Risques terroristes',13],['UV6A','Déplacements et accompagnements',45],['UV9','Secourisme tactique d’urgence',14]]; let a3pDays=[];
+function hdiff(a,b){if(!a||!b)return 0; const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number); return Math.max(0,(bh*60+bm)-(ah*60+am))/60}
+function dayName(iso){return ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][new Date(iso+'T00:00:00').getDay()]}
+function a3pDayTotal(d){return hdiff(d.morningStart,d.morningEnd)+hdiff(d.afternoonStart,d.afternoonEnd)}
+function renderA3p(){let cum=0; a3pDaysBody.innerHTML=a3pDays.map((d,i)=>{cum+=a3pDayTotal(d);return `<tr><td><input type="date" data-i="${i}" data-f="date" value="${d.date||''}"></td><td>${dayName(d.date)}</td><td>${(d.module||'Automatique/libre')}</td><td><input type="time" data-i="${i}" data-f="morningStart" value="${d.morningStart||''}"></td><td><input type="time" data-i="${i}" data-f="morningEnd" value="${d.morningEnd||''}"></td><td><input type="time" data-i="${i}" data-f="afternoonStart" value="${d.afternoonStart||''}"></td><td><input type="time" data-i="${i}" data-f="afternoonEnd" value="${d.afternoonEnd||''}"></td><td>${a3pDayTotal(d)}h</td><td>${cum}h</td><td>${A3P_TOTAL-cum}h</td><td><button type="button" class="btn small danger" data-del="${i}">Supprimer cette journée</button></td></tr>`}).join(''); a3pDaysBody.querySelectorAll('input[data-i]').forEach(inp=>inp.oninput=e=>{a3pDays[e.target.dataset.i][e.target.dataset.f]=e.target.value; renderA3p();}); a3pDaysBody.querySelectorAll('button[data-del]').forEach(b=>b.onclick=()=>{a3pDays.splice(+b.dataset.del,1); renderA3p();}); let left=A3P_TOTAL-cum; a3pProgress.textContent=`${cum}h / 328h — `+(left>0?`Il manque ${left} heures`:left<0?`Il y a ${-left} heures en trop`:'Total exact'); a3pProgress.className='flash '+(left===0?'success':left>0?'warning':'error'); submitA3p.disabled = left!==0; renderLocked();}
+function renderLocked(){a3pLockedCards.innerHTML=lockedDefs.map(([code,label,h])=>{let selected=(document.getElementById('lock_'+code)?.value||'').split(',').map(x=>x.trim()).filter(Boolean); let total=a3pDays.filter(d=>selected.includes(d.date)).reduce((s,d)=>s+a3pDayTotal(d),0); let diff=h-total; return `<div class="contract-card"><strong>${label} — ${h}h</strong><p class="muted">Dates séparées par virgules ou période à saisir en dates individuelles.</p><input id="lock_${code}" placeholder="YYYY-MM-DD, YYYY-MM-DD" value="${selected.join(', ')}"><div class="planning-status" style="background:${diff===0?'#dcfce7':'#fff7ed'};color:#111!important;">${total}h / ${h}h ${diff>0?'— Il manque '+diff+'h':diff<0?'— Il y a '+(-diff)+'h en trop':''}</div></div>`}).join(''); lockedDefs.forEach(([code])=>document.getElementById('lock_'+code).oninput=renderLocked)}
+document.getElementById('openA3pModal')?.addEventListener('click',()=>{a3pModal.classList.add('open'); renderA3p();}); document.getElementById('regenA3pDocs')?.addEventListener('click',()=>openA3pModal.click()); closeA3pModal.onclick=cancelA3p.onclick=()=>a3pModal.classList.remove('open');
+a3pBuildDays.onclick=()=>{const fd=new FormData(a3pForm), start=new Date(fd.get('startDate')+'T00:00:00'), end=new Date(fd.get('endDate')+'T00:00:00'); a3pDays=[]; for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){if(d.getDay()>0&&d.getDay()<6){a3pDays.push({date:d.toISOString().slice(0,10),morningStart:a3pDefaultMorningStart.value,morningEnd:a3pDefaultMorningEnd.value,afternoonStart:a3pDefaultAfternoonStart.value,afternoonEnd:a3pDefaultAfternoonEnd.value})}} renderA3p();};
+a3pAddDay.onclick=()=>{a3pDays.push({date:'',morningStart:a3pDefaultMorningStart.value,morningEnd:a3pDefaultMorningEnd.value,afternoonStart:a3pDefaultAfternoonStart.value,afternoonEnd:a3pDefaultAfternoonEnd.value}); renderA3p();}; a3pAutoFill.onclick=()=>{alert('Le remplissage automatique final sera appliqué côté serveur à la génération, sans écraser les modules verrouillés.');};
+a3pForm.onsubmit=async(e)=>{e.preventDefault(); const fd=new FormData(a3pForm), locked={}; lockedDefs.forEach(([code])=>locked[code]=(document.getElementById('lock_'+code).value||'').split(',').map(x=>x.trim()).filter(Boolean)); const payload={scheduleConfig:Object.fromEntries(fd.entries())}; payload.scheduleConfig.days=a3pDays; payload.scheduleConfig.lockedModules=locked; payload.contract={dailyRate:fd.get('dailyRate'),vatEnabled:fd.get('vatEnabled')==='on'}; try{const r=await fetch(`/api/sessions/{{ s.id }}/a3p-documents/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const j=await r.json(); if(!r.ok||!j.ok)throw new Error(j.error||'Erreur'); location.reload();}catch(err){a3pError.textContent=err.message; a3pError.style.display='block';}};
+</script>
+{% endif %}
 
 </body>
 </html>

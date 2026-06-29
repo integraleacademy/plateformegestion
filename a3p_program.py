@@ -37,6 +37,22 @@ def _day_label(iso: str) -> str:
     d = datetime.strptime(iso, "%Y-%m-%d").date()
     return ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][d.weekday()]
 
+def _day_training_slots(day):
+    start = day.get("dayStart") or day.get("morningStart")
+    end = day.get("dayEnd") or day.get("afternoonEnd") or day.get("morningEnd")
+    if not start or not end:
+        raise ValueError(f"Horaires incomplets pour le {day.get('date')}")
+    start_m, end_m = _minutes(start), _minutes(end)
+    if end_m <= start_m:
+        raise ValueError(f"L’heure de fin est avant l’heure de début pour le {day.get('date')}")
+    if end_m - start_m < 120:
+        raise ValueError(f"La journée du {day.get('date')} doit durer au moins 2h pour intégrer la pause automatique d’1h")
+    training = end_m - start_m - 60
+    first = training // 2
+    pause_start = start_m + first
+    pause_end = pause_start + 60
+    return [(start, _hhmm(pause_start)), (_hhmm(pause_end), end)]
+
 def a3p_empty_module_totals():
     return {m["code"]: 0 for m in A3P_MODULES}
 
@@ -84,39 +100,16 @@ def generateA3pSchedule(config):
     for day in days:
         if day.get("date") == config.get("examDate"): continue
         slots=[]
-        for period, fields in period_fields.items():
-            start, end = day.get(fields[0]), day.get(fields[1])
-            if bool(start) != bool(end):
-                raise ValueError(f"Horaires incomplets pour le {day.get('date')}")
-            if not start and not end:
-                continue
+        for start, end in _day_training_slots(day):
             _slot_minutes(start,end)
-            slots.append({"start":start,"end":end,"period":period,"free":True})
-        if not slots:
-            raise ValueError(f"Aucun horaire renseigné pour le {day.get('date')}")
-        day_slots = []
-        for slot in slots:
-            entry = locked_by_slot.get((day.get("date"), slot.get("period")))
-            if not entry:
-                day_slots.append(slot)
-                continue
-            code = entry.get("code")
-            if code not in A3P_MODULE_BY_CODE:
-                continue
-            start = entry.get("startTime") or slot["start"]
-            hours = float(entry.get("hours") or (_slot_minutes(slot["start"], slot["end"]) / 60))
-            duration = int(round(hours * 60))
-            end = entry.get("endTime") or _hhmm(_minutes(start) + duration)
-            if _minutes(start) < _minutes(slot["start"]) or _minutes(end) > _minutes(slot["end"]):
-                raise ValueError(f"Le créneau verrouillé dépasse la demi-journée du {day.get('date')}")
-            day_slots.append({"free":False,"start":start,"end":end,"period":slot.get("period"),"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":duration})
-            locked_totals[code] += duration
-            if _minutes(slot["start"]) < _minutes(start):
-                day_slots.append({"start":slot["start"],"end":start,"period":slot.get("period"),"free":True})
-            if _minutes(end) < _minutes(slot["end"]):
-                day_slots.append({"start":end,"end":slot["end"],"period":slot.get("period"),"free":True})
-        day_slots.sort(key=lambda item: _minutes(item["start"]))
-        planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":day_slots})
+            slots.append({"start":start,"end":end,"free":True})
+        for code, dates in locked.items():
+            if day.get("date") in set(dates or []):
+                for s in slots:
+                    if s.get("free"):
+                        s.update({"free":False,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":_slot_minutes(s["start"],s["end"])})
+                        locked_totals[code]+=s["durationMinutes"]
+        planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":slots})
     unknown = set(locked) - set(A3P_MODULE_BY_CODE)
     if unknown:
         raise ValueError(f"Module inconnu: {', '.join(sorted(unknown))}")

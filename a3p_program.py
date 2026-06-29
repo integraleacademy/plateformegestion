@@ -88,6 +88,15 @@ def generateA3pSchedule(config):
     room = config.get("room") or "Salle à définir"
     planning=[]
     locked_totals = a3p_empty_module_totals()
+    period_fields = {"morning": ("morningStart", "morningEnd"), "afternoon": ("afternoonStart", "afternoonEnd")}
+    locked_by_slot = {}
+    for code, entries in locked.items():
+        for entry in entries or []:
+            if isinstance(entry, str):
+                locked_by_slot[(entry, "morning")] = {"code": code}
+                locked_by_slot[(entry, "afternoon")] = {"code": code}
+            else:
+                locked_by_slot[(entry.get("date"), entry.get("period"))] = {"code": code, **entry}
     for day in days:
         if day.get("date") == config.get("examDate"): continue
         slots=[]

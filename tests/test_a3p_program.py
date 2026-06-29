@@ -44,3 +44,32 @@ def test_a3p_forbidden_terms_not_in_program_constants():
     import a3p_program
     text="\n".join(str(v) for k,v in vars(a3p_program).items() if k.startswith("A3P_") and k != "A3P_FORBIDDEN_TERMS")
     assert not any(term in text for term in A3P_FORBIDDEN_TERMS)
+
+def test_a3p_accepts_locked_half_day_slots_with_adjusted_last_slot():
+    import datetime as dt
+    ds=[]; d=dt.date(2026,6,8)
+    for i in range(47):
+        ds.append({"date":(d+dt.timedelta(days=i)).isoformat(),"morningStart":"09:00","morningEnd":"12:30","afternoonStart":"13:30","afternoonEnd":"17:00"})
+    ds[-1]["afternoonEnd"]="16:00"
+    locked={"UV1":[],"UV5":[],"UV6A":[],"UV9":[]}
+    def add(code, index, period, hours=3.5):
+        start = "09:00" if period == "morning" else "13:30"
+        end_minutes = (9 * 60 if period == "morning" else 13 * 60 + 30) + int(hours * 60)
+        locked[code].append({"date":ds[index]["date"],"period":period,"startTime":start,"endTime":f"{end_minutes//60:02d}:{end_minutes%60:02d}","hours":hours,"moduleId":code})
+    for index in (0, 1):
+        add("UV1", index, "morning"); add("UV1", index, "afternoon")
+    add("UV5", 2, "morning"); add("UV5", 2, "afternoon"); add("UV5", 3, "morning"); add("UV5", 3, "afternoon", 2.5)
+    remaining = 45; index = 4
+    while remaining > 0:
+        for period in ("morning", "afternoon"):
+            if remaining <= 0: break
+            take = min(3.5, remaining); add("UV6A", index, period, take); remaining -= take
+        index += 1
+    for period_index in range(4):
+        add("UV9", index + period_index // 2, "morning" if period_index % 2 == 0 else "afternoon")
+
+    result = generateA3pSchedule({"trainerFirstName":"Jean","trainerLastName":"Dupont","room":"Salle 1","days":ds,"lockedModules":locked})
+
+    assert result["summary"]["totalHours"] == 328
+    assert result["summary"]["moduleTotals"]["UV5"] == 13
+    assert any(slot["end"] == "16:00" and slot["free"] is False for day in result["planning"] for slot in day["slots"] if slot.get("code") == "UV5")

@@ -403,6 +403,8 @@ CONVOCATION_DIR = os.path.join(DATA_DIR, "convocations")
 os.makedirs(CONVOCATION_DIR, exist_ok=True)
 APS_CONTRACT_DIR = os.path.join(DATA_DIR, "aps_trainer_contracts")
 os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
+APS_ATTENDANCE_DIR = os.path.join(DATA_DIR, "aps_attendance_sheets")
+os.makedirs(APS_ATTENDANCE_DIR, exist_ok=True)
 APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
 
 APS_TOTAL_HOURS = 175
@@ -1089,6 +1091,206 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
             c.setFont("Helvetica", 8); c.drawString(margin, y, "Pour Intégrale Academy — Monsieur Clément VAILLANT, Directeur général"); c.drawString(width/2+10, y, f"Pour le formateur — {contract.get('trainerName')}"); y-=18
             c.rect(margin, y-55, 230, 55); c.rect(width/2+10, y-55, 230, 55); c.drawString(width/2+20, y-12, "Lu et approuvé")
         c.showPage()
+    c.save()
+
+
+def _aps_presentiel_days(planning_data, planning_mode):
+    days = []
+    for day in planning_data or []:
+        slots = day.get("slots") or []
+        if planning_mode == "elearning_presentiel":
+            slots = [slot for slot in slots if slot.get("modality") == "presentiel"]
+        if slots:
+            copied = dict(day)
+            copied["slots"] = slots
+            days.append(copied)
+    return days
+
+
+def _minutes_from_hhmm(value):
+    try:
+        h, m = str(value).split(":")
+        return int(h) * 60 + int(m)
+    except Exception:
+        return 0
+
+
+def _hhmm_to_fr(value):
+    return str(value or "").replace(":", "h")
+
+
+def _period_label(slots, morning=True):
+    selected = []
+    for slot in slots:
+        midpoint = (_minutes_from_hhmm(slot.get("start")) + _minutes_from_hhmm(slot.get("end"))) / 2
+        if (morning and midpoint < 13 * 60) or (not morning and midpoint >= 13 * 60):
+            selected.append(slot)
+    if not selected:
+        return "—"
+    return " / ".join(f"{_hhmm_to_fr(s.get('start'))} - {_hhmm_to_fr(s.get('end'))}" for s in selected)
+
+
+def aps_extract_students_from_text(text):
+    students = []
+    seen = set()
+    for raw_line in (text or "").splitlines():
+        line = re.sub(r"\s+", " ", raw_line).strip(" -\t;")
+        line = re.sub(r"^\d+[\).\-\s]+", "", line)
+        if not line or len(line) < 4:
+            continue
+        lowered = line.lower()
+        if any(word in lowered for word in ("feuille", "présence", "signature", "formation", "session", "stagiaire", "nom prénom")):
+            continue
+        parts = line.split()
+        if len(parts) < 2 or len(parts) > 5:
+            continue
+        if "," in line:
+            last, first = [p.strip() for p in line.split(",", 1)]
+        else:
+            upper_prefix = []
+            for part in parts:
+                if part.replace("-", "").isupper():
+                    upper_prefix.append(part)
+                else:
+                    break
+            if upper_prefix and len(upper_prefix) < len(parts):
+                last = " ".join(upper_prefix)
+                first = " ".join(parts[len(upper_prefix):])
+            else:
+                first = parts[0]
+                last = " ".join(parts[1:])
+        last = re.sub(r"[^A-Za-zÀ-ÿ' -]", "", last).strip().upper()
+        first = re.sub(r"[^A-Za-zÀ-ÿ' -]", "", first).strip().title()
+        if not last or not first:
+            continue
+        key = (last, first)
+        if key not in seen:
+            seen.add(key)
+            students.append({"lastName": last, "firstName": first})
+    return students
+
+
+def aps_extract_students_from_pdf(file_storage):
+    suffix = os.path.splitext(file_storage.filename or "")[-1].lower()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix or ".pdf") as tmp:
+        file_storage.save(tmp.name)
+        tmp_path = tmp.name
+    try:
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise RuntimeError("La dépendance pypdf est requise pour lire le texte PDF.") from exc
+        reader = PdfReader(tmp_path)
+        text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        return aps_extract_students_from_text(text), bool(text.strip())
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+
+def generate_aps_attendance_pdf(session_data, output_path):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except ImportError as exc:
+        raise RuntimeError("La dépendance reportlab est requise pour générer le PDF.") from exc
+
+    planning_data = session_data.get("apsPlanningData") or []
+    planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
+    students = session_data.get("apsAttendanceStudents") or []
+    presentiel_days = _aps_presentiel_days(planning_data, planning_mode)
+    if not presentiel_days:
+        raise ValueError("Aucun jour présentiel n'est trouvé dans le planning APS.")
+
+    c = canvas.Canvas(output_path, pagesize=A4)
+    width, height = A4
+    margin = 30
+    logo_path = aps_pdf_logo_path()
+    signature_image = find_center_image("signature", "sign")
+    stamp_image = find_center_image("tampon", "cachet", "stamp")
+    total_pages = len(presentiel_days) + 1
+    session_name = session_data.get("display_name") or session_data.get("name") or f"Session {session_data.get('id', '')}"
+
+    def footer(page_no):
+        c.setFont("Helvetica", 6.5); c.setFillColor(colors.HexColor("#6b7280"))
+        c.drawString(margin, 20, " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:]))
+        c.drawRightString(width - margin, 20, f"Page {page_no} / {total_pages}")
+
+    for page_no, day in enumerate(presentiel_days, 1):
+        slots = day.get("slots") or []
+        date_label = format_date(day.get("date"))
+        if logo_path:
+            c.drawImage(logo_path, margin, height - 65, width=70, height=42, preserveAspectRatio=True, mask="auto")
+        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
+        c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
+        c.setFont("Helvetica", 9)
+        c.drawCentredString(width / 2, height - 54, "Agent de Prévention et de Sécurité (APS)")
+        c.setFont("Helvetica", 8)
+        c.drawString(margin, height - 84, f"Session : {session_name}")
+        c.drawString(margin, height - 98, f"Date : {date_label}")
+        c.drawString(margin + 210, height - 98, f"Lieu / salle : {slots[0].get('room') or session_data.get('salle') or '—'}")
+        trainers = sorted({(s.get("trainer") or "—").strip() for s in slots})
+        c.drawString(margin, height - 112, f"Formateur : {', '.join(trainers)}")
+        c.drawString(margin + 300, height - 112, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
+        y = height - 136
+        modules = []
+        for slot in slots:
+            label = f"{slot.get('uv') or ''} — {slot.get('title') or ''}".strip(" —")
+            if label and label not in modules:
+                modules.append(label)
+        y = draw_wrapped_text(c, "Modules du jour : " + " ; ".join(modules), margin, y, width - 2 * margin, "Helvetica-Bold", 8, 10)
+        y -= 6
+        c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin, y - 18, width - 2 * margin, 18, fill=1, stroke=1)
+        headers = ["N°", "Nom", "Prénom", "Signature matin", "Signature après-midi"]
+        xs = [margin + 4, margin + 32, margin + 158, margin + 265, margin + 410]
+        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8)
+        for x, h in zip(xs, headers): c.drawString(x, y - 12, h)
+        y -= 18
+        row_h = max(24, min(38, int((y - 150) / max(len(students), 1))))
+        c.setFont("Helvetica", 8)
+        for idx, student in enumerate(students, 1):
+            if y - row_h < 145:
+                break
+            c.rect(margin, y - row_h, width - 2 * margin, row_h)
+            for x in [margin + 28, margin + 154, margin + 260, margin + 405]:
+                c.line(x, y, x, y - row_h)
+            c.drawString(margin + 8, y - 15, str(idx))
+            c.drawString(margin + 36, y - 15, student.get("lastName", ""))
+            c.drawString(margin + 162, y - 15, student.get("firstName", ""))
+            y -= row_h
+        y = 118
+        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Signature du formateur")
+        c.drawString(margin + 190, y, "Observations éventuelles")
+        c.drawString(margin + 395, y, "Cachet du centre")
+        c.rect(margin, y - 62, 160, 55); c.rect(margin + 190, y - 62, 180, 55); c.rect(margin + 395, y - 62, 140, 55)
+        if signature_image: c.drawImage(signature_image, margin + 8, y - 56, width=140, height=42, preserveAspectRatio=True, mask="auto")
+        if stamp_image: c.drawImage(stamp_image, margin + 403, y - 56, width=120, height=42, preserveAspectRatio=True, mask="auto")
+        footer(page_no); c.showPage()
+
+    footer(total_pages)
+    y = height - 60
+    c.setFont("Helvetica-Bold", 16); c.drawString(margin, y, "Synthèse des feuilles de présence"); y -= 28
+    total_hours = round(sum(float(slot.get("duration") or 0) for day in presentiel_days for slot in day.get("slots", [])), 2)
+    mode_label = "e-learning + présentiel" if planning_mode == "elearning_presentiel" else "100% présentiel"
+    summary_lines = [
+        f"Nombre total de stagiaires : {len(students)}",
+        f"Nombre de journées présentielles : {len(presentiel_days)}",
+        f"Nombre total d’heures présentielles : {total_hours:g}h",
+        f"Période de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}",
+        f"Date d’examen : {format_date(session_data.get('date_exam'))}",
+        f"Mode de planning : {mode_label}",
+    ]
+    if planning_mode == "elearning_presentiel":
+        summary_lines += ["E-learning : 62h", "Présentiel : 113h", "Total : 175h"]
+    c.setFont("Helvetica", 10)
+    for line in summary_lines:
+        c.drawString(margin, y, line); y -= 18
+    y -= 16; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "Informations légales"); y -= 16
+    for line in APS_LEGAL_LINES:
+        y = draw_wrapped_text(c, line, margin, y, width - 2 * margin, "Helvetica", 8, 11)
     c.save()
 
 
@@ -3707,6 +3909,108 @@ def delete_aps_trainer_contract(sid, contract_id):
     session_data["apsTrainerContracts"] = [c for c in contracts if c.get("id") != contract_id]
     save_sessions(data)
     return jsonify({"ok": True})
+
+
+@app.post("/api/sessions/<sid>/aps-attendance/import-students")
+def import_aps_attendance_students(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    uploaded = request.files.get("file")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"ok": False, "error": "Veuillez importer un fichier PDF."}), 400
+    if not uploaded.filename.lower().endswith(".pdf"):
+        return jsonify({"ok": False, "error": "Le fichier doit être un PDF."}), 400
+    try:
+        students, has_text = aps_extract_students_from_pdf(uploaded)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    message = None
+    if not has_text or not students:
+        message = "Impossible d’extraire automatiquement les noms depuis ce PDF. Merci de saisir ou corriger la liste manuellement."
+    return jsonify({"ok": True, "students": students, "message": message})
+
+
+@app.put("/api/sessions/<sid>/aps-attendance/students")
+def save_aps_attendance_students(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    payload = request.get_json(silent=True) or {}
+    students = []
+    for item in payload.get("students") or []:
+        last = (item.get("lastName") or "").strip().upper()
+        first = (item.get("firstName") or "").strip()
+        if last and first:
+            students.append({"lastName": last, "firstName": first})
+    if not students:
+        return jsonify({"ok": False, "error": "Veuillez enregistrer au moins un stagiaire."}), 400
+    session_data["apsAttendanceStudents"] = students
+    session_data["apsAttendanceSheetsUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_sessions(data)
+    return jsonify({"ok": True, "students": students})
+
+
+@app.post("/api/sessions/<sid>/aps-attendance/generate")
+def generate_aps_attendance_sheets(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    if not session_data.get("apsPlanningData"):
+        return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer les feuilles de présence."}), 400
+    if not session_data.get("apsAttendanceStudents"):
+        return jsonify({"ok": False, "error": "Aucune liste de stagiaires n’est enregistrée."}), 400
+    if not _aps_presentiel_days(session_data.get("apsPlanningData"), session_data.get("apsPlanningMode") or "full_presentiel"):
+        return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
+    filename = f"feuilles_presence_aps_{sid}.pdf"
+    output_path = os.path.join(APS_ATTENDANCE_DIR, filename)
+    temp_path = f"{output_path}.tmp"
+    try:
+        generate_aps_attendance_pdf(session_data, temp_path)
+        if not os.path.exists(temp_path) or os.path.getsize(temp_path) <= 0:
+            raise ValueError("Le PDF généré est vide.")
+        os.replace(temp_path, output_path)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        session_data["apsAttendanceSheetsPdfUrl"] = url_for("view_aps_attendance_sheets", sid=sid)
+        session_data["apsAttendanceSheetsFilename"] = filename
+        session_data["apsAttendanceSheetsGeneratedAt"] = session_data.get("apsAttendanceSheetsGeneratedAt") or now
+        session_data["apsAttendanceSheetsUpdatedAt"] = now
+        save_sessions(data)
+        return jsonify({"ok": True, "pdfUrl": session_data["apsAttendanceSheetsPdfUrl"], "generatedAt": now})
+    except Exception as exc:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        app.logger.exception("Erreur génération feuilles présence APS session=%s", sid)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.delete("/api/sessions/<sid>/aps-attendance")
+def reset_aps_attendance_sheets(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    payload = request.get_json(silent=True) or {}
+    filename = session_data.get("apsAttendanceSheetsFilename")
+    if filename:
+        try: os.remove(os.path.join(APS_ATTENDANCE_DIR, os.path.basename(filename)))
+        except FileNotFoundError: pass
+    for key in ("apsAttendanceSheetsPdfUrl", "apsAttendanceSheetsFilename", "apsAttendanceSheetsGeneratedAt", "apsAttendanceSheetsUpdatedAt"):
+        session_data.pop(key, None)
+    if payload.get("deleteStudents"):
+        session_data.pop("apsAttendanceStudents", None)
+    save_sessions(data)
+    return jsonify({"ok": True})
+
+
+@app.get("/sessions/<sid>/aps-attendance/view")
+def view_aps_attendance_sheets(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: abort(404)
+    filename = session_data.get("apsAttendanceSheetsFilename")
+    if not filename: abort(404)
+    path = os.path.join(APS_ATTENDANCE_DIR, os.path.basename(filename))
+    if not os.path.exists(path): abort(404)
+    return send_file(path, mimetype="application/pdf", as_attachment=False)
 
 @app.get("/sessions/<sid>/aps-planning/edit")
 def edit_aps_planning_page(sid):

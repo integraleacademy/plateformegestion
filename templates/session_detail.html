@@ -896,6 +896,56 @@ a.back:hover{ background:#d9a848 !important; }
   </form>
 </section>
 {% if s.formation == "APS" %}
+<section class="planning-box" id="aps-attendance-section">
+  <div class="planning-header">
+    <div>
+      <h2 style="margin:0;">📄 Feuilles de présence</h2>
+      <p class="muted" style="margin:6px 0 0;">Importez les stagiaires puis générez les feuilles d’émargement à partir du planning APS.</p>
+    </div>
+    <div class="planning-actions">
+      <button type="button" class="btn small" id="openApsAttendanceImport">Importer la liste des stagiaires</button>
+      <button type="button" class="btn small gold" id="generateApsAttendance">Générer les feuilles de présence</button>
+      {% if s.apsAttendanceSheetsPdfUrl %}
+        <a class="btn small" href="{{ s.apsAttendanceSheetsPdfUrl }}" target="_blank">Voir les feuilles de présence</a>
+        <button type="button" class="btn small gold" id="regenerateApsAttendance">Régénérer les feuilles de présence</button>
+      {% endif %}
+      <button type="button" class="btn small danger" id="openResetApsAttendance">Réinitialiser les feuilles de présence</button>
+    </div>
+  </div>
+  {% if s.apsAttendanceSheetsGeneratedAt %}
+    <div class="planning-status">✅ Feuilles de présence générées le {{ s.apsAttendanceSheetsGeneratedAt|datetimefr }}</div>
+  {% endif %}
+  <p class="muted" style="margin-top:8px;"><strong>{{ (s.apsAttendanceStudents or [])|length }}</strong> stagiaire(s) enregistré(s).</p>
+  {% if not s.apsPlanningData %}
+    <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning APS avant de générer les feuilles de présence.</div>
+  {% endif %}
+</section>
+
+<div class="modal" id="apsAttendanceModal" aria-hidden="true"><div class="modal-content" style="max-width:900px;max-height:90vh;overflow:auto;">
+  <div class="modal-header"><div><h3 style="margin:0;">Importer la liste des stagiaires</h3><p class="muted">Le PDF est analysé, puis vous pouvez corriger la liste avant enregistrement.</p></div><button class="modal-close" type="button" id="closeApsAttendanceModal">✕</button></div>
+  <form id="apsAttendanceImportForm" style="margin-top:14px;">
+    <input type="file" id="apsAttendancePdf" accept="application/pdf" required>
+    <button class="btn" type="submit">Extraire les noms</button>
+  </form>
+  <div id="apsAttendanceMessage" class="flash warning" style="display:none;margin-top:12px;"></div>
+  <table class="contract-table" style="margin-top:14px;"><thead><tr><th>Nom</th><th>Prénom</th><th>Action</th></tr></thead><tbody id="apsAttendanceStudentsBody"></tbody></table>
+  <div class="planning-actions" style="justify-content:space-between;margin-top:18px;">
+    <button type="button" class="btn" id="addApsAttendanceStudent">Ajouter un stagiaire manuellement</button>
+    <div><button type="button" class="btn" id="cancelApsAttendance">Annuler</button> <button type="button" class="btn gold" id="saveApsAttendanceStudents">Enregistrer la liste</button></div>
+  </div>
+</div></div>
+
+<div class="modal" id="resetApsAttendanceModal" aria-hidden="true"><div class="modal-content">
+  <div class="modal-header"><h3 style="margin:0;">Réinitialiser les feuilles de présence</h3><button class="modal-close" type="button" id="closeResetApsAttendance">✕</button></div>
+  <p>Voulez-vous réinitialiser les feuilles de présence ? Le PDF généré sera supprimé. La liste des stagiaires peut être conservée ou supprimée.</p>
+  <div class="planning-actions" style="justify-content:flex-end;margin-top:18px;">
+    <button type="button" class="btn" id="cancelResetApsAttendance">Annuler</button>
+    <button type="button" class="btn danger" id="resetApsAttendancePdf">Réinitialiser seulement le PDF</button>
+    <button type="button" class="btn danger" id="resetApsAttendanceAll">Réinitialiser le PDF et la liste des stagiaires</button>
+  </div>
+</div></div>
+{% endif %}
+{% if s.formation == "APS" %}
 <div class="modal" id="apsPlanningModal" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
@@ -1502,6 +1552,90 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     submitApsPlanning.textContent = "Générer le planning";
   }
 });
+// Feuilles de présence APS
+const apsAttendanceModal = document.getElementById("apsAttendanceModal");
+const apsAttendanceImportForm = document.getElementById("apsAttendanceImportForm");
+const apsAttendanceStudentsBody = document.getElementById("apsAttendanceStudentsBody");
+const apsAttendanceMessage = document.getElementById("apsAttendanceMessage");
+const resetApsAttendanceModal = document.getElementById("resetApsAttendanceModal");
+let apsAttendanceStudents = {{ (s.apsAttendanceStudents or [])|tojson }};
+function closeApsAttendanceModal(){ apsAttendanceModal?.classList.remove("open"); apsAttendanceModal?.setAttribute("aria-hidden", "true"); }
+function renderApsAttendanceStudents(){
+  apsAttendanceStudentsBody.innerHTML = apsAttendanceStudents.map((student, index) => `<tr>
+    <td><input data-index="${index}" data-field="lastName" value="${(student.lastName || "").replaceAll('"','&quot;')}" style="width:100%;padding:8px;"></td>
+    <td><input data-index="${index}" data-field="firstName" value="${(student.firstName || "").replaceAll('"','&quot;')}" style="width:100%;padding:8px;"></td>
+    <td><button type="button" class="btn small danger" data-delete-student="${index}">Supprimer</button></td>
+  </tr>`).join("");
+}
+function syncApsAttendanceStudents(){
+  apsAttendanceStudentsBody?.querySelectorAll("input[data-index]").forEach(input => {
+    const idx = Number(input.dataset.index);
+    apsAttendanceStudents[idx][input.dataset.field] = input.value;
+  });
+}
+renderApsAttendanceStudents();
+document.getElementById("openApsAttendanceImport")?.addEventListener("click", () => { renderApsAttendanceStudents(); apsAttendanceModal?.classList.add("open"); apsAttendanceModal?.setAttribute("aria-hidden", "false"); });
+document.getElementById("closeApsAttendanceModal")?.addEventListener("click", closeApsAttendanceModal);
+document.getElementById("cancelApsAttendance")?.addEventListener("click", closeApsAttendanceModal);
+document.getElementById("addApsAttendanceStudent")?.addEventListener("click", () => { syncApsAttendanceStudents(); apsAttendanceStudents.push({lastName:"", firstName:""}); renderApsAttendanceStudents(); });
+apsAttendanceStudentsBody?.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-delete-student]");
+  if(!btn) return;
+  syncApsAttendanceStudents();
+  apsAttendanceStudents.splice(Number(btn.dataset.deleteStudent), 1);
+  renderApsAttendanceStudents();
+});
+apsAttendanceImportForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const file = document.getElementById("apsAttendancePdf").files[0];
+  if(!file) return;
+  const body = new FormData(); body.append("file", file);
+  apsAttendanceMessage.style.display = "none";
+  try{
+    const response = await fetch(`/api/sessions/{{ s.id }}/aps-attendance/import-students`, {method:"POST", body});
+    const payload = await response.json();
+    if(!response.ok || !payload.ok) throw new Error(payload.error || "Import impossible.");
+    apsAttendanceStudents = payload.students || [];
+    renderApsAttendanceStudents();
+    if(payload.message){ apsAttendanceMessage.textContent = payload.message; apsAttendanceMessage.style.display = "block"; }
+  }catch(error){ apsAttendanceMessage.textContent = error.message; apsAttendanceMessage.style.display = "block"; }
+});
+document.getElementById("saveApsAttendanceStudents")?.addEventListener("click", async () => {
+  syncApsAttendanceStudents();
+  const students = apsAttendanceStudents.map(s => ({lastName:(s.lastName || "").trim(), firstName:(s.firstName || "").trim()})).filter(s => s.lastName && s.firstName);
+  try{
+    const response = await fetch(`/api/sessions/{{ s.id }}/aps-attendance/students`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({students})});
+    const payload = await response.json();
+    if(!response.ok || !payload.ok) throw new Error(payload.error || "Enregistrement impossible.");
+    closeApsAttendanceModal(); showPlanningToast("Liste des stagiaires enregistrée.", "success"); setTimeout(()=>window.location.reload(), 700);
+  }catch(error){ apsAttendanceMessage.textContent = error.message; apsAttendanceMessage.style.display = "block"; }
+});
+async function generateApsAttendance(){
+  try{
+    const response = await fetch(`/api/sessions/{{ s.id }}/aps-attendance/generate`, {method:"POST"});
+    const payload = await response.json();
+    if(!response.ok || !payload.ok) throw new Error(payload.error || "Génération impossible.");
+    showPlanningToast("Feuilles de présence générées.", "success");
+    window.open(payload.pdfUrl, "_blank", "noopener");
+    setTimeout(()=>window.location.reload(), 800);
+  }catch(error){ showPlanningToast(error.message, "error"); }
+}
+document.getElementById("generateApsAttendance")?.addEventListener("click", generateApsAttendance);
+document.getElementById("regenerateApsAttendance")?.addEventListener("click", generateApsAttendance);
+document.getElementById("openResetApsAttendance")?.addEventListener("click", () => { resetApsAttendanceModal?.classList.add("open"); resetApsAttendanceModal?.setAttribute("aria-hidden", "false"); });
+function closeResetAttendance(){ resetApsAttendanceModal?.classList.remove("open"); resetApsAttendanceModal?.setAttribute("aria-hidden", "true"); }
+document.getElementById("closeResetApsAttendance")?.addEventListener("click", closeResetAttendance);
+document.getElementById("cancelResetApsAttendance")?.addEventListener("click", closeResetAttendance);
+async function resetApsAttendance(deleteStudents){
+  try{
+    const response = await fetch(`/api/sessions/{{ s.id }}/aps-attendance`, {method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify({deleteStudents})});
+    const payload = await response.json();
+    if(!response.ok || !payload.ok) throw new Error(payload.error || "Réinitialisation impossible.");
+    closeResetAttendance(); showPlanningToast("Feuilles de présence réinitialisées.", "success"); setTimeout(()=>window.location.reload(), 700);
+  }catch(error){ showPlanningToast(error.message, "error"); }
+}
+document.getElementById("resetApsAttendancePdf")?.addEventListener("click", () => resetApsAttendance(false));
+document.getElementById("resetApsAttendanceAll")?.addEventListener("click", () => resetApsAttendance(true));
 // Contrats formateurs APS
 const apsContractModal = document.getElementById("apsContractModal");
 const openApsContractModal = document.getElementById("openApsContractModal");
@@ -1577,8 +1711,6 @@ sendContractForm?.addEventListener("submit", async (event) => { event.preventDef
 
 </body>
 </html>
-
-
 
 
 

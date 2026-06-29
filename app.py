@@ -549,6 +549,27 @@ def french_holidays(year):
 def is_french_working_day(day):
     return day.weekday() < 5 and day not in french_holidays(day.year)
 
+def aps_local_date_iso(value):
+    """Return a YYYY-MM-DD string without timezone conversion."""
+    if not value:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, date):
+        return value.isoformat()
+    text = str(value).strip()
+    parsed = parse_date(text)
+    return parsed.strftime("%Y-%m-%d") if parsed else text[:10]
+
+def is_aps_training_day(day, exam_iso=""):
+    return is_french_working_day(day) and day.isoformat() != exam_iso
+
+def next_aps_training_day(day, exam_iso=""):
+    day += timedelta(days=1)
+    while not is_aps_training_day(day, exam_iso):
+        day += timedelta(days=1)
+    return day
+
 def add_hours_to_time(start_time, hours):
     base = datetime.combine(date.today(), start_time)
     return (base + timedelta(hours=hours)).time()
@@ -568,7 +589,7 @@ def format_duration_from_minutes(minutes):
     rest = minutes % 60
     return f"{hours:g}h" if rest == 0 else f"{hours:g}h{rest:02d}"
 
-def build_aps_planning(start_date):
+def build_aps_planning(start_date, end_date=None, exam_iso=""):
     modules = [{"name": name, "hours": float(hours), "remaining": float(hours)} for name, hours in APS_MODULES]
     module_idx = 0
     days = []
@@ -577,7 +598,9 @@ def build_aps_planning(start_date):
     current_day = start_date
 
     while round(total_hours, 2) < APS_TOTAL_HOURS:
-        if not is_french_working_day(current_day):
+        if end_date and current_day > end_date:
+            raise ValueError("La période disponible avant l’examen ne permet pas de placer toutes les heures de formation APS. Merci d’avancer la date de début ou de reculer la date d’examen.")
+        if not is_aps_training_day(current_day, exam_iso):
             current_day += timedelta(days=1)
             continue
 
@@ -683,11 +706,11 @@ def aps_blocks_to_planning_data(days, formateur, salle, planning_mode="full_pres
         planning.append({"date": day_date.isoformat(), "dayLabel": aps_day_label(day_date), "slots": slots})
     return planning
 
-def generateApsFullPresentielPlanning(start_date, formateur, salle):
-    days, totals, total_hours = build_aps_planning(start_date)
+def generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=None, exam_iso=""):
+    days, totals, total_hours = build_aps_planning(start_date, end_date=end_date, exam_iso=exam_iso)
     return aps_blocks_to_planning_data(days, formateur, salle, "full_presentiel"), totals, total_hours
 
-def generateApsElearningPresentielPlanning(start_date, formateur, salle):
+def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=None, exam_iso=""):
     sequence = [dict(item, remainingMinutes=int(item["durationMinutes"])) for item in APS_ELEARNING_PRESENTIEL_MODULES]
     idx = 0
     current_day = start_date
@@ -695,9 +718,11 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle):
     totals = {}
     for modality in ("elearning", "presentiel"):
         if modality == "presentiel" and planning:
-            current_day = next_french_working_day(datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date())
+            current_day = next_aps_training_day(datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date(), exam_iso)
         while idx < len(sequence) and sequence[idx]["modality"] == modality:
-            if not is_french_working_day(current_day):
+            if end_date and current_day > end_date:
+                raise ValueError("La période disponible avant l’examen ne permet pas de placer toutes les heures de formation APS. Merci d’avancer la date de début ou de reculer la date d’examen.")
+            if not is_aps_training_day(current_day, exam_iso):
                 current_day += timedelta(days=1)
                 continue
             slots = []
@@ -735,10 +760,10 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle):
     total_hours = sum(slot["durationMinutes"] for day in planning for slot in day["slots"]) / 60
     return planning, {k: round(v / 60, 2) for k, v in totals.items()}, total_hours
 
-def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel"):
+def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel", end_date=None, exam_iso=""):
     if planning_mode == "elearning_presentiel":
-        return generateApsElearningPresentielPlanning(start_date, formateur, salle)
-    return generateApsFullPresentielPlanning(start_date, formateur, salle)
+        return generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso)
+    return generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso)
 
 def aps_summary_from_data(planning_data):
     uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
@@ -885,12 +910,16 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         raise ValueError("La date d'examen est obligatoire pour générer le planning APS.")
 
     salle = session_data.get("salle") or session_data.get("room") or "Salle à définir"
+    exam_iso = aps_local_date_iso(session_data.get("date_exam"))
+    session_end = parse_date(session_data.get("date_fin"))
+    latest_training_date = exam_dt.date() - timedelta(days=1)
+    if session_end and session_end.date() < latest_training_date:
+        latest_training_date = session_end.date()
     if planning_data is None:
-        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode)
+        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso)
     errors, summary = validate_aps_planning_data(planning_data, planning_mode)
-    exam_iso = exam_dt.date().isoformat()
     if any(day.get("date") == exam_iso for day in planning_data or []):
-        errors.append(f"La date d'examen ({format_date(exam_iso)}) ne doit pas contenir de créneau de formation.")
+        errors.append(f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est exclue des journées de formation. Aucun créneau ne peut être généré ce jour-là.")
     if errors:
         raise ValueError(" ".join(errors))
 
@@ -3884,6 +3913,11 @@ def generate_aps_planning_route(sid):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             return jsonify({"ok": False, "error": "Le total généré n'est pas exactement de 175h."}), 500
+        exam_iso = aps_local_date_iso(session_data.get("date_exam"))
+        if any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
         os.replace(temp_path, output_path)
         session_data["planning_pdf"] = filename
         session_data["apsPlanningData"] = result["planning_data"]
@@ -4140,6 +4174,9 @@ def update_aps_planning_api(sid):
     if not isinstance(planning_data, list) or not planning_data:
         return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
     planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
+    exam_iso = aps_local_date_iso(session_data.get("date_exam"))
+    if exam_iso and any(day.get("date") == exam_iso for day in planning_data):
+        return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
     errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if errors:
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400

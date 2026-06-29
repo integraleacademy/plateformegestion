@@ -468,7 +468,7 @@ a.back:hover{ background:#d9a848 !important; }
   font-weight:800;
 }
 
-    
+
     /* Modern SaaS layout shared with the sessions dashboard */
     :root {
       --session-gold:#F4C45A;
@@ -766,13 +766,18 @@ a.back:hover{ background:#d9a848 !important; }
     <h2 style="margin:0;">📅 Planning de formation (PDF)</h2>
 
     <div class="planning-actions">
+      {% if planning_pdf %}
+        <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
+      {% endif %}
+      {% if s.formation == "APS" and planning_pdf and s.apsPlanningData %}
+        <a class="btn small gold" href="{{ url_for('edit_aps_planning_page', sid=s.id) }}">✏️ Modifier le planning généré</a>
+      {% endif %}
       {% if s.formation == "APS" %}
         <button type="button" class="btn small gold" id="openApsPlanningModal">
           {% if planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
       {% endif %}
       {% if planning_pdf %}
-        <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
         <a class="btn small" href="{{ url_for('download_planning_pdf', sid=s.id) }}">⬇️ Télécharger</a>
       {% endif %}
     </div>
@@ -780,7 +785,18 @@ a.back:hover{ background:#d9a848 !important; }
 
   {% if planning_pdf %}
     {% if s.planning_generated_at %}
-      <div class="planning-status">✅ Planning généré le {{ s.planning_generated_at|datefr }}</div>
+      <div class="planning-status">✅ Planning généré le {{ s.planning_generated_at|datetimefr }}</div>
+    {% endif %}
+    {% if s.planning_modified_at %}
+      <div class="planning-status">✏️ Planning modifié le {{ s.planning_modified_at|datetimefr }}</div>
+    {% endif %}
+    {% if s.formation == "APS" and planning_pdf and not s.apsPlanningData %}
+      <div class="flash warning" style="margin-top:10px;">Ce PDF n'a pas encore de données modifiables. Régénérez le planning APS pour créer la structure de modification.</div>
+    {% endif %}
+    {% if s.planning_history %}
+      <div class="muted" style="margin-top:8px;"><strong>Historique planning :</strong>
+        {% for h in s.planning_history[-3:] %}{{ h.label }} le {{ h.at|datetimefr }}{% if not loop.last %} · {% endif %}{% endfor %}
+      </div>
     {% endif %}
     <p class="muted" style="margin-top:8px;">
       Fichier actuel : <strong>{{ planning_pdf }}</strong>

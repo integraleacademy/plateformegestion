@@ -4755,30 +4755,42 @@ def generate_a3p_documents(sid):
     if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
     if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
     payload=request.get_json(silent=True) or {}
+    app.logger.info("Début génération documents A3P session_id=%s", sid)
     try:
         cfg=payload.get("scheduleConfig") or payload
         if session_data.get("a3pTrainerModulesStatus") != "validated":
+            app.logger.warning("Génération documents A3P refusée session_id=%s statut_modules=%s", sid, session_data.get("a3pTrainerModulesStatus"))
             return jsonify({"ok":False,"error":"Les modules formateur A3P doivent être complétés puis validés par l’admin avant génération."}),400
         cfg=dict(cfg); cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
-        result=generateA3pSchedule(cfg)
-        trainer=((cfg.get("trainerFirstName") or "")+" "+(cfg.get("trainerLastName") or "")).strip() or cfg.get("trainerName") or ""
-        if not trainer: return jsonify({"ok":False,"error":"Nom et prénom du formateur obligatoires."}),400
-        session_data.update({"a3pPlanningData":result["planning"],"a3pPlanningSummary":result["summary"],"a3pTrainerName":trainer,"a3pRoom":cfg.get("room") or "Salle à définir","date_debut":cfg.get("startDate") or session_data.get("date_debut"),"date_fin":cfg.get("endDate") or session_data.get("date_fin"),"date_exam":cfg.get("examDate") or session_data.get("date_exam")})
+        supplied_planning = payload.get("planning") if isinstance(payload.get("planning"), list) else None
+        if supplied_planning:
+            planning = supplied_planning
+            errors, summary = validate_a3p_planning(planning, cfg.get("examDate") or session_data.get("date_exam"))
+            if errors: raise ValueError(" ".join(errors))
+        else:
+            result=generateA3pSchedule(cfg); planning=result["planning"]; summary=result["summary"]
+        trainer=((cfg.get("trainerFirstName") or "")+" "+(cfg.get("trainerLastName") or "")).strip() or cfg.get("trainerName") or session_data.get("a3pTrainerName") or ""
+        if not trainer: return jsonify({"ok":False,"error":"Nom et prénom du formateur obligatoires pour le contrat formateur."}),400
+        session_data.update({"a3pPlanningData":planning,"a3pPlanningSummary":summary,"a3pTrainerName":trainer,"a3pRoom":cfg.get("room") or session_data.get("a3pRoom") or "Salle à définir","date_debut":cfg.get("startDate") or session_data.get("date_debut"),"date_fin":cfg.get("endDate") or session_data.get("date_fin"),"date_exam":cfg.get("examDate") or session_data.get("date_exam")})
+        app.logger.info("Génération documents A3P session_id=%s lignes_planning=%s", sid, sum(len(d.get("slots", [])) for d in planning))
         now=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         docs=[]
         for kind, key, fname in (("planning","a3pPlanningPdfUrl",f"planning_a3p_session_{sid}.pdf"),("attendance","a3pAttendanceSheetsPdfUrl",f"feuilles_presence_a3p_{sid}.pdf")):
             path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_simple_pdf(session_data,path,kind=kind)
-            session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname; docs.append(kind)
+            session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname; docs.append({"kind":kind,"path":path})
         contract_payload=payload.get("contract") or cfg
         cid=str(uuid.uuid4()); cf=f"contrat_formateur_a3p_{sid}_{cid}.pdf"; cp=os.path.join(A3P_DOC_DIR,cf)
         generate_a3p_simple_pdf(session_data,cp,kind="contract",contract=contract_payload)
         session_data["a3pTrainerContract"]={"id":cid,"pdfFilename":cf,"pdfUrl":url_for("view_a3p_document",sid=sid,kind="contract"),"generatedAt":now,"dailyRate":contract_payload.get("dailyRate"),"vatEnabled":bool(contract_payload.get("vatEnabled"))}
+        docs.append({"kind":"contract","path":cp})
         session_data["a3pDocumentsGeneratedAt"]=now; save_sessions(data)
+        app.logger.info("Documents A3P créés session_id=%s documents=%s chemins_sauvegardés=%s", sid, [d["kind"] for d in docs], docs)
         return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"],"contractUrl":session_data["a3pTrainerContract"]["pdfUrl"]})
     except ValueError as exc:
+        app.logger.warning("Erreur validation génération documents A3P session_id=%s erreur=%s", sid, exc)
         return jsonify({"ok":False,"error":str(exc)}),400
     except Exception as exc:
-        app.logger.exception("Erreur génération documents A3P session=%s", sid); return jsonify({"ok":False,"error":str(exc)}),500
+        app.logger.exception("Erreur précise génération documents A3P session_id=%s", sid); return jsonify({"ok":False,"error":str(exc)}),500
 
 
 

@@ -916,7 +916,85 @@ def _assert_a3p_pdf_text_safe(*parts):
     if forbidden:
         raise ValueError("Document A3P invalide: mentions interdites détectées (" + ", ".join(forbidden) + ").")
 
+def _a3p_slot_to_aps_slot(slot):
+    minutes = int(slot.get("durationMinutes") or (_minutes_from_hhmm(slot.get("end")) - _minutes_from_hhmm(slot.get("start"))))
+    return {"start": slot.get("start") or "", "end": slot.get("end") or "", "duration": round(minutes / 60, 2), "durationMinutes": minutes, "uv": slot.get("code") or slot.get("uv") or "", "title": slot.get("title") or "", "trainer": (slot.get("trainer") or "").strip(), "room": (slot.get("room") or "").strip(), "modality": "presentiel"}
+
+def _a3p_planning_as_aps_data(planning):
+    converted = []
+    for day in planning or []:
+        parsed = parse_date(day.get("date"))
+        converted.append({"date": day.get("date"), "dayLabel": day.get("dayLabel") or (aps_day_label(parsed.date()) if parsed else day.get("date")), "slots": [_a3p_slot_to_aps_slot(slot) for slot in day.get("slots", [])]})
+    return converted
+
+def _a3p_document_profile(summary=None, planning=None):
+    summary = summary or {}
+    module_totals = summary.get("moduleTotals") or {}
+    rows = [{"uv": m["code"], "label": m["title"], "hours": module_totals.get(m["code"], m["hours"]), "expected": m["hours"]} for m in A3P_MODULES]
+    total = summary.get("totalHours", A3P_TOTAL_HOURS)
+    return {"validate": "a3p", "source_planning": planning or [], "short_label": "A3P", "planning_title": "PLANNING DE FORMATION A3P", "subtitle": f"Agent de protection physique des personnes — {A3P_TOTAL_HOURS} heures hors examen", "modality_line": f"Modalité : 100% présentiel • Présentiel : {A3P_TOTAL_HOURS}h • Examen séparé", "summary": {"total_hours": total, "uv_totals": module_totals, "uv_rows": rows, "modality_totals": {"presentiel": total}, "days_count": len(planning or []), "slots_count": sum(len(d.get("slots", [])) for d in planning or []), "errors": []}}
+
+def _a3p_session_for_shared_docs(session_data):
+    planning = session_data.get("a3pPlanningData") or []
+    converted = _a3p_planning_as_aps_data(planning)
+    fallback_trainer = (session_data.get("a3pTrainerName") or "").strip()
+    fallback_room = (session_data.get("a3pRoom") or session_data.get("salle") or session_data.get("room") or "").strip()
+    for day in converted:
+        for slot in day.get("slots", []):
+            if fallback_trainer and not slot.get("trainer"):
+                slot["trainer"] = fallback_trainer
+            if fallback_room and not slot.get("room"):
+                slot["room"] = fallback_room
+    copied = dict(session_data)
+    copied.update({"formation": "A3P", "apsPlanningMode": "full_presentiel", "apsPlanningData": converted, "apsAttendanceStudents": session_data.get("a3pAttendanceStudents") or session_data.get("apsAttendanceStudents") or [], "salle": session_data.get("a3pRoom") or session_data.get("salle") or session_data.get("room") or ""})
+    return copied, converted
+
+def generate_a3p_planning_pdf(session_data, output_path):
+    planning = session_data.get("a3pPlanningData") or []
+    errors, summary = validate_a3p_planning(planning, session_data.get("date_exam"))
+    if errors:
+        raise ValueError(" ".join(errors))
+    _assert_a3p_pdf_text_safe(session_data.get("a3pTrainerName"), session_data.get("a3pRoom"))
+    shared_session, converted = _a3p_session_for_shared_docs(session_data)
+    return generate_aps_planning_pdf(shared_session, session_data.get("a3pTrainerName") or "", output_path, planning_data=converted, planning_mode="full_presentiel", document_profile=_a3p_document_profile(summary, planning))
+
+def generate_a3p_attendance_pdf(session_data, output_path):
+    planning = session_data.get("a3pPlanningData") or []
+    errors, _summary = validate_a3p_planning(planning, session_data.get("date_exam"))
+    if errors:
+        raise ValueError(" ".join(errors))
+    shared_session, _converted = _a3p_session_for_shared_docs(session_data)
+    return generate_aps_attendance_pdf(shared_session, output_path)
+
+def _a3p_trainer_contract_data(session_data, contract):
+    shared_session, converted = _a3p_session_for_shared_docs(session_data)
+    trainer_name = session_data.get("a3pTrainerName") or contract.get("trainerName") or ""
+    interventions = aps_trainer_interventions(converted, trainer_name)
+    daily = float(contract.get("dailyRate") or 0)
+    billed_days = float(contract.get("billedDays") or interventions["calendarDays"] or _a3p_contract_days(session_data.get("a3pPlanningData") or []))
+    total_ht = round(daily * billed_days, 2)
+    vat_enabled = bool(contract.get("vatEnabled"))
+    vat_rate = float(contract.get("vatRate") or 20)
+    vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0
+    payload = dict(contract)
+    payload.update({"trainerName": trainer_name, "interventions": interventions["interventions"], "calculatedHours": interventions["totalHours"], "calculatedDays": interventions["calculatedDays"], "billedDays": billed_days, "dailyRate": daily, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": round(total_ht + vat_amount, 2)})
+    return shared_session, payload
+
+def generate_a3p_trainer_contract_pdf(session_data, contract, output_path):
+    errors, _summary = validate_a3p_planning(session_data.get("a3pPlanningData") or [], session_data.get("date_exam"))
+    if errors:
+        raise ValueError(" ".join(errors))
+    shared_session, payload = _a3p_trainer_contract_data(session_data, contract or {})
+    return generate_aps_trainer_contract_pdf(shared_session, payload, output_path)
+
 def generate_a3p_simple_pdf(session_data, output_path, kind="planning", contract=None):
+    if kind == "planning":
+        return generate_a3p_planning_pdf(session_data, output_path)
+    if kind == "attendance":
+        return generate_a3p_attendance_pdf(session_data, output_path)
+    if kind == "contract":
+        return generate_a3p_trainer_contract_pdf(session_data, contract or {}, output_path)
+    raise ValueError("Type de document A3P invalide.")
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
     from reportlab.lib import colors
@@ -1097,7 +1175,8 @@ def aps_format_range(range_data):
         return ""
     return f"du {format_date(range_data.get('start'))} au {format_date(range_data.get('end'))}"
 
-def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel"):
+def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel", document_profile=None):
+    document_profile = document_profile or {}
     if planning_mode not in {"full_presentiel", "elearning_presentiel"}:
         raise ValueError("Le type de planning APS est obligatoire.")
     try:
@@ -1122,9 +1201,13 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
         planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id"))
-    errors, summary = validate_aps_planning_data(planning_data, planning_mode)
+    if document_profile.get("validate") == "a3p":
+        errors, a3p_summary = validate_a3p_planning(document_profile.get("source_planning") or [], exam_iso)
+        summary = document_profile.get("summary") or {"total_hours": a3p_summary.get("totalHours", 0), "uv_totals": a3p_summary.get("moduleTotals", {}), "uv_rows": document_profile.get("summary_rows", []), "modality_totals": {"presentiel": a3p_summary.get("totalHours", 0)}}
+    else:
+        errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if any(day.get("date") == exam_iso for day in planning_data or []):
-        errors.append(f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est exclue des journées de formation. Aucun créneau ne peut être généré ce jour-là.")
+        errors.append(f"Sécurité planning {document_profile.get('short_label', 'APS')}: la date d'examen ({format_date(exam_iso)}) est exclue des journées de formation. Aucun créneau ne peut être généré ce jour-là.")
     if errors:
         raise ValueError(" ".join(errors))
 
@@ -1132,7 +1215,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     width, height = A4
     margin = 36
     logo_path = aps_pdf_logo_path()
-    title = "PLANNING DE FORMATION APS"
+    title = document_profile.get("planning_title") or "PLANNING DE FORMATION APS"
     edited = datetime.now().strftime("%d/%m/%Y à %H:%M")
     period = f"Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin')) if session_data.get('date_fin') else '—'}"
     trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and (slot.get("trainer") or "").strip()})
@@ -1184,14 +1267,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
         c.drawString(margin + 88, height - 35, title)
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
-        c.drawString(margin + 88, height - 50, "Agent de Prévention et de Sécurité — 175 heures")
+        c.drawString(margin + 88, height - 50, document_profile.get("subtitle") or "Agent de Prévention et de Sécurité — 175 heures")
         c.drawString(margin + 88, height - 64, f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}")
         if planning_mode == "elearning_presentiel":
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
             c.drawString(margin + 88, height - 77, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
         else:
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-            c.drawString(margin + 88, height - 77, "Modalité : 100% présentiel • Présentiel : 175h")
+            c.drawString(margin + 88, height - 77, document_profile.get("modality_line") or "Modalité : 100% présentiel • Présentiel : 175h")
         y_dates = height - 90
         c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
         date_lines = []
@@ -1242,7 +1325,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 c.setFillColor(colors.HexColor("#111827"))
                 draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')}", margin + 16, y - 8, width - 225, "Helvetica-Bold", 8.2, 9)
                 c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
-                c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({slot.get('duration'):g}h)")
+                c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({float(slot.get('duration') or 0):g}h)")
                 if slot.get("modality") == "elearning":
                     c.drawString(margin + 14, y - 32, "Modalité : E-learning / distanciel")
                 else:
@@ -1274,7 +1357,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     else:
         c.setFont("Helvetica", 8.5)
         for row in summary["uv_rows"]:
-            c.drawString(margin, y, f"{row['uv']} — {row['label']} — {row['hours']:g}h")
+            if y < 120:
+                c.showPage(); page_no += 1; draw_header_footer(page_no); y = height - 105
+            c.drawString(margin, y, f"{row['uv']} — {row['label']} — {float(row['hours']):g}h")
             y -= 13
     c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, f"TOTAL : {summary['total_hours']:g}h")
     y -= 34
@@ -1470,8 +1555,8 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     story = []
     story += [p("CONTRAT D’INTERVENTION FORMATEUR", "TitlePremium"), p("Contrat de prestation de services / sous-traitance pédagogique prêt à imprimer et à signer.", "Subtle"), Spacer(1, 5)]
     summary_left = kv_table([
-        ("Centre de formation", "Intégrale Academy<br/>54 chemin du Carreou, 83480 Puget-sur-Argens<br/>04 22 47 07 68 — ecole@integraleacademy.com<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT, Directeur général<br/>Qualiopi — Autorisation d’exercice CNAPS — Agrément ADEF APS"),
-        ("Formation concernée", f"{formation_name} / Agent de Prévention et de Sécurité<br/>{session_name}<br/>Modalité : {modality_label}"),
+        ("Centre de formation", f"Intégrale Academy<br/>54 chemin du Carreou, 83480 Puget-sur-Argens<br/>04 22 47 07 68 — ecole@integraleacademy.com<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT, Directeur général<br/>Qualiopi — Autorisation d’exercice CNAPS — Agrément ADEF {'A3P' if str(formation_name).upper()=='A3P' else 'APS'}"),
+        ("Formation concernée", f"{formation_name} / {'Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité'}<br/>{session_name}<br/>Modalité : {modality_label}"),
         ("Période d’intervention", f"Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Lieu : {room_label}"),
     ], [44 * mm, doc.width - 44 * mm])
     summary_right = kv_table([
@@ -1497,11 +1582,11 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     story += [section("1. Nature juridique du contrat"), p("Le présent contrat est un contrat de prestation de services / sous-traitance pédagogique. Le formateur intervient en qualité de prestataire indépendant. Il ne s’agit pas d’un contrat de travail et aucun lien de subordination permanent n’est créé. Le formateur reste libre dans l’organisation de ses moyens pédagogiques, tout en respectant le référentiel, le programme, les horaires, les procédures qualité, les consignes de sécurité et les exigences réglementaires de la formation. Le respect du planning, des feuilles d’émargement, du référentiel pédagogique, des règles CNAPS/ADEF/Qualiopi et des exigences de traçabilité ne constitue pas un lien de subordination, mais une obligation contractuelle liée à la conformité de l’action de formation.")]
 
     story += [section("2. Objet de la mission"), kv_table([
-        ("Formation", f"{formation_name} / Agent de Prévention et de Sécurité"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label), ("Sanction", "Examen / certification / attestation selon la formation"),
+        ("Formation", f"{formation_name} / {'Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité'}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label), ("Sanction", "Examen / certification / attestation selon la formation"),
     ], [45 * mm, 131 * mm]), p("Le présent contrat a pour objet de définir les conditions dans lesquelles le formateur intervient pour le compte d’Intégrale Academy dans le cadre de l’action de formation mentionnée ci-dessus. Le formateur s’engage à assurer les séquences pédagogiques qui lui sont confiées conformément au référentiel applicable, au programme de formation, au planning annexé et aux procédures qualité du centre.")]
 
     story += [section("3. Obligations du formateur"), bullet([
-        "assurer personnellement les interventions prévues au planning ;", "respecter les dates, horaires, durées, modules et lieux indiqués dans le planning annexé ;", "prévenir immédiatement le centre en cas de retard, absence, impossibilité d’intervention ou difficulté pédagogique ;", "ne pas se faire remplacer ni sous-traiter la mission sans accord écrit préalable d’Intégrale Academy ;", "respecter le référentiel APS, les exigences CNAPS/ADEF et le programme pédagogique transmis ;", "préparer ses interventions, adapter sa pédagogie au niveau des stagiaires et réaliser des évaluations formatives ;", "transmettre les résultats des évaluations, observations pédagogiques et difficultés rencontrées ;", "faire signer les feuilles d’émargement par les stagiaires et signer chaque demi-journée d’intervention ;", "signer le planning journalier par demi-journée si le centre le demande ;", "vérifier la cohérence entre présences réelles, feuilles d’émargement et planning ;", "signaler immédiatement toute absence, retard ou départ anticipé d’un stagiaire ;", "respecter et faire respecter le règlement intérieur, les règles de sécurité, d’hygiène, d’utilisation des locaux et du matériel ;", "utiliser uniquement des supports pédagogiques conformes, à jour et adaptés ;", "remettre, si demandé, les supports, exercices, QCM, mises en situation, grilles d’évaluation ou éléments nécessaires à la traçabilité qualité ;", "participer aux contrôles qualité, audits, contrôles ADEF/CNAPS/financeurs/Qualiopi liés à son intervention ;", "respecter la confidentialité, la protection des données personnelles et adopter une attitude professionnelle conforme à l’image du centre ;", "ne pas solliciter directement les stagiaires, clients ou partenaires du centre pour son propre compte sans accord écrit préalable.",
+        "assurer personnellement les interventions prévues au planning ;", "respecter les dates, horaires, durées, modules et lieux indiqués dans le planning annexé ;", "prévenir immédiatement le centre en cas de retard, absence, impossibilité d’intervention ou difficulté pédagogique ;", "ne pas se faire remplacer ni sous-traiter la mission sans accord écrit préalable d’Intégrale Academy ;", f"respecter le référentiel {formation_name}, les exigences CNAPS/ADEF et le programme pédagogique transmis ;", "préparer ses interventions, adapter sa pédagogie au niveau des stagiaires et réaliser des évaluations formatives ;", "transmettre les résultats des évaluations, observations pédagogiques et difficultés rencontrées ;", "faire signer les feuilles d’émargement par les stagiaires et signer chaque demi-journée d’intervention ;", "signer le planning journalier par demi-journée si le centre le demande ;", "vérifier la cohérence entre présences réelles, feuilles d’émargement et planning ;", "signaler immédiatement toute absence, retard ou départ anticipé d’un stagiaire ;", "respecter et faire respecter le règlement intérieur, les règles de sécurité, d’hygiène, d’utilisation des locaux et du matériel ;", "utiliser uniquement des supports pédagogiques conformes, à jour et adaptés ;", "remettre, si demandé, les supports, exercices, QCM, mises en situation, grilles d’évaluation ou éléments nécessaires à la traçabilité qualité ;", "participer aux contrôles qualité, audits, contrôles ADEF/CNAPS/financeurs/Qualiopi liés à son intervention ;", "respecter la confidentialité, la protection des données personnelles et adopter une attitude professionnelle conforme à l’image du centre ;", "ne pas solliciter directement les stagiaires, clients ou partenaires du centre pour son propre compte sans accord écrit préalable.",
     ])]
 
     story += [section("4. Obligations d’Intégrale Academy"), bullet([
@@ -1539,7 +1624,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     table = Table(planning_rows, colWidths=[24*mm, 26*mm, 25*mm, 18*mm, 76*mm, 38*mm, 52*mm], repeatRows=1)
     table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#7c2d12")), ("TEXTCOLOR", (0,0), (-1,0), colors.white), ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#cbd5e1")), ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f8fafc")]), ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3), ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4)]))
     story += [table, NextPageTemplate("contrat"), PageBreak(), section("Annexe 2 : Récapitulatif financier"), kv_table([("Total heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [55*mm, 121*mm])]
-    checklist = ["☐ SIRET / justificatif d’immatriculation", "☐ Attestation de vigilance URSSAF de moins de 6 mois si contrat ≥ 5 000 € HT", "☐ Assurance responsabilité civile professionnelle", "☐ RIB", "☐ CV formateur à jour", "☐ Diplômes / titres / habilitations nécessaires", "☐ Justificatifs spécifiques APS / CNAPS / ADEF si nécessaires"]
+    checklist = ["☐ SIRET / justificatif d’immatriculation", "☐ Attestation de vigilance URSSAF de moins de 6 mois si contrat ≥ 5 000 € HT", "☐ Assurance responsabilité civile professionnelle", "☐ RIB", "☐ CV formateur à jour", "☐ Diplômes / titres / habilitations nécessaires", f"☐ Justificatifs spécifiques {formation_name} / CNAPS / ADEF si nécessaires"]
     story += [KeepTogether([section("Annexe 3 : Liste des pièces administratives à fournir"), bullet(checklist)]), KeepTogether([section("Annexe 4 : Engagement qualité et traçabilité pédagogique"), p("Le formateur s’engage à remettre sans délai tout élément demandé par Intégrale Academy permettant d’établir la réalité, la conformité et la qualité de l’action de formation : émargements, évaluations, observations, incidents, justificatifs et preuves de suivi e-learning le cas échéant.")])]
 
     story += [Spacer(1, 8), p(f"Fait à Puget-sur-Argens, le {generated}.", "Body"), p("Le présent contrat comporte les pages numérotées automatiquement et 4 annexes. Chaque partie reconnaît en avoir pris connaissance.", "Body")]
@@ -1780,7 +1865,7 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
         c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
         c.setFont("Helvetica", 9)
-        c.drawCentredString(width / 2, height - 54, "Agent de Prévention et de Sécurité (APS)")
+        c.drawCentredString(width / 2, height - 54, "Agent de protection physique des personnes (A3P)" if (session_data.get("formation") or "").upper() == "A3P" else "Agent de Prévention et de Sécurité (APS)")
         c.setFont("Helvetica", 8)
         c.drawString(margin, height - 84, f"Session : {session_name}")
         c.drawString(margin, height - 98, f"Date : {date_label}")
@@ -4845,13 +4930,13 @@ def generate_a3p_documents(sid):
         docs=[]
         a3p_documents = {}
         for kind, key, fname in (("planning","a3pPlanningPdfUrl",f"planning_a3p_session_{sid}.pdf"),("attendance","a3pAttendanceSheetsPdfUrl",f"feuilles_presence_a3p_{sid}.pdf")):
-            path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_simple_pdf(session_data,path,kind=kind)
+            path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_planning_pdf(session_data, path) if kind == "planning" else generate_a3p_attendance_pdf(session_data, path)
             session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname
             a3p_documents[kind] = {"path": path, "generated_at": now}
             docs.append({"kind":kind,"path":path})
         contract_payload=payload.get("contract") or cfg
         cid=str(uuid.uuid4()); cf=f"contrat_formateur_a3p_{sid}_{cid}.pdf"; cp=os.path.join(A3P_DOC_DIR,cf)
-        generate_a3p_simple_pdf(session_data,cp,kind="contract",contract=contract_payload)
+        generate_a3p_trainer_contract_pdf(session_data, contract_payload, cp)
         session_data["a3pTrainerContract"]={"id":cid,"pdfFilename":cf,"pdfUrl":url_for("view_a3p_document",sid=sid,kind="contract"),"generatedAt":now,"dailyRate":contract_payload.get("dailyRate"),"vatEnabled":bool(contract_payload.get("vatEnabled"))}
         a3p_documents["contract"] = {"path": cp, "generated_at": now}
         docs.append({"kind":"contract","path":cp})

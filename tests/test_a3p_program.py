@@ -34,7 +34,7 @@ def test_a3p_schedule_totals_and_locked_modules():
     assert not validate_a3p_planning(result["planning"], config()["examDate"])[0]
 
 def test_a3p_rejects_bad_total_and_bad_locked_module():
-    bad=config(); bad["days"]=bad["days"][:-1]
+    bad=config(); bad["days"]=bad["days"][:-20]
     with pytest.raises(ValueError): generateA3pSchedule(bad)
     bad=config(); bad["lockedModules"]["UV1"]=[bad["days"][0]["date"]]
     with pytest.raises(ValueError): generateA3pSchedule(bad)
@@ -85,3 +85,30 @@ def test_a3p_legacy_full_day_locked_dates_still_supported():
     cfg["lockedModules"]["UV5"] = [cfg["days"][2]["date"], cfg["days"][3]["date"]]
     with pytest.raises(ValueError, match="Risques terroristes = 14h / 13h"):
         generateA3pSchedule(cfg)
+
+def test_a3p_auto_completion_extends_standard_days_up_to_eight_hours():
+    cfg = config()
+    cfg["days"] = cfg["days"][:-6]
+    result = generateA3pSchedule(cfg)
+    errors, summary = validate_a3p_planning(result["planning"], cfg["examDate"])
+    assert not errors
+    assert summary["totalHours"] == 328
+    assert any(
+        slot["end"] == "17:30" and slot["locked"] is False
+        for day in result["planning"]
+        for slot in day["slots"]
+    )
+    assert all(sum(slot["durationMinutes"] for slot in day["slots"]) <= 480 for day in result["planning"])
+
+
+def test_a3p_final_error_reports_missing_hours_after_eight_hour_capacity():
+    cfg = config()
+    cfg["days"] = cfg["days"][:-20]
+    with pytest.raises(ValueError, match="Impossible de générer entièrement le planning : il manque .* heures"):
+        generateA3pSchedule(cfg)
+
+
+def test_a3p_validation_rejects_days_over_eight_hours():
+    planning = [{"date":"2026-01-05","slots":[{"code":"UV2","start":"08:30","end":"17:31","durationMinutes":481}]}]
+    errors, _ = validate_a3p_planning(planning)
+    assert any("dépasse 8h" in error for error in errors)

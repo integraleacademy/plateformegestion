@@ -81,35 +81,59 @@ def validate_a3p_planning(planning, exam_date=None):
     if exam_date and any(d.get("date") == exam_date for d in planning or []): errors.append("La date d’examen ne doit pas être comptée dans les 328h.")
     return errors, summary
 
+def _subtract_busy(slot, busy):
+    free = [slot]
+    for b_start, b_end in sorted(busy):
+        next_free = []
+        for f_start, f_end in free:
+            if b_end <= f_start or b_start >= f_end:
+                next_free.append((f_start, f_end)); continue
+            if b_start > f_start:
+                next_free.append((f_start, b_start))
+            if b_end < f_end:
+                next_free.append((b_end, f_end))
+        free = next_free
+    return free
+
+def _legacy_full_day_entries(code, date, day):
+    return [
+        {"code": code, "date": date, "start": start, "end": end, "durationMinutes": _slot_minutes(start, end)}
+        for start, end in _day_training_slots(day)
+    ]
+
+def _normalize_locked_entries(locked, day_by_date):
+    normalized = []
+    for code, entries in (locked or {}).items():
+        if code not in A3P_MODULE_BY_CODE:
+            continue
+        for entry in entries or []:
+            if isinstance(entry, str):
+                day = day_by_date.get(entry)
+                if day:
+                    normalized.extend(_legacy_full_day_entries(code, entry, day))
+                continue
+            date_value = entry.get("date")
+            start, end = entry.get("start"), entry.get("end")
+            if not (date_value and start and end):
+                day = day_by_date.get(date_value)
+                if day:
+                    normalized.extend(_legacy_full_day_entries(code, date_value, day))
+                continue
+            normalized.append({
+                "code": code,
+                "date": date_value,
+                "start": start,
+                "end": end,
+                "durationMinutes": int(entry.get("durationMinutes") or _slot_minutes(start, end)),
+            })
+    return normalized
+
 def generateA3pSchedule(config):
     days = config.get("days") or []
     locked = config.get("lockedModules") or {}
     trainer = ((config.get("trainerFirstName") or "") + " " + (config.get("trainerLastName") or "")).strip() or config.get("trainerName") or ""
     room = config.get("room") or "Salle à définir"
-    planning=[]
-    locked_totals = a3p_empty_module_totals()
-    period_fields = {"morning": ("morningStart", "morningEnd"), "afternoon": ("afternoonStart", "afternoonEnd")}
-    locked_by_slot = {}
-    for code, entries in locked.items():
-        for entry in entries or []:
-            if isinstance(entry, str):
-                locked_by_slot[(entry, "morning")] = {"code": code}
-                locked_by_slot[(entry, "afternoon")] = {"code": code}
-            else:
-                locked_by_slot[(entry.get("date"), entry.get("period"))] = {"code": code, **entry}
-    for day in days:
-        if day.get("date") == config.get("examDate"): continue
-        slots=[]
-        for start, end in _day_training_slots(day):
-            _slot_minutes(start,end)
-            slots.append({"start":start,"end":end,"free":True})
-        for code, dates in locked.items():
-            if day.get("date") in set(dates or []):
-                for s in slots:
-                    if s.get("free"):
-                        s.update({"free":False,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room,"durationMinutes":_slot_minutes(s["start"],s["end"])})
-                        locked_totals[code]+=s["durationMinutes"]
-        planning.append({"date":day.get("date"),"dayLabel":_day_label(day.get("date")),"slots":slots})
+    day_by_date = {d.get("date"): d for d in days if d.get("date") != config.get("examDate")}
     unknown = set(locked) - set(A3P_MODULE_BY_CODE)
     if unknown:
         raise ValueError(f"Module inconnu: {', '.join(sorted(unknown))}")
@@ -117,25 +141,57 @@ def generateA3pSchedule(config):
     if invalid_manual:
         labels = ", ".join(A3P_MODULE_BY_CODE[c]["title"] for c in invalid_manual)
         raise ValueError(f"Seuls les 4 modules imposés peuvent être verrouillés manuellement: {labels}")
+
+    locked_entries = _normalize_locked_entries(locked, day_by_date)
+    locked_totals = a3p_empty_module_totals()
+    busy_by_date = {}
+    for entry in sorted(locked_entries, key=lambda e: (e["date"], _minutes(e["start"]), _minutes(e["end"]))):
+        if entry["date"] not in day_by_date:
+            continue
+        start_m, end_m = _minutes(entry["start"]), _minutes(entry["end"])
+        if entry["durationMinutes"] != end_m - start_m:
+            raise ValueError(f"Durée invalide pour {entry['date']} {entry['start']}-{entry['end']}")
+        for b_start, b_end in busy_by_date.get(entry["date"], []):
+            if start_m < b_end and b_start < end_m:
+                raise ValueError(f"Chevauchement le {entry['date']} {entry['start']}-{entry['end']}")
+        busy_by_date.setdefault(entry["date"], []).append((start_m, end_m))
+        locked_totals[entry["code"]] += entry["durationMinutes"]
     for code in A3P_LOCKED_CODES:
         expected=A3P_MODULE_BY_CODE[code]["hours"]*60
         if locked_totals[code] != expected:
             raise ValueError(f"Module manuel invalide: {A3P_MODULE_BY_CODE[code]['title']} = {locked_totals[code]/60:g}h / {expected/60:g}h")
+
+    planning=[]
+    entries_by_date = {}
+    for entry in locked_entries:
+        entries_by_date.setdefault(entry["date"], []).append(entry)
+    for day in days:
+        if day.get("date") == config.get("examDate"): continue
+        date_value = day.get("date")
+        slots=[]
+        for entry in entries_by_date.get(date_value, []):
+            code = entry["code"]
+            slots.append({"start":entry["start"],"end":entry["end"],"durationMinutes":entry["durationMinutes"],"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room})
+        free_slots=[]
+        for start, end in _day_training_slots(day):
+            for f_start, f_end in _subtract_busy((_minutes(start), _minutes(end)), busy_by_date.get(date_value, [])):
+                if f_end > f_start:
+                    free_slots.append((f_start, f_end))
+        planning.append({"date":date_value,"dayLabel":_day_label(date_value),"slots":slots,"freeSlots":free_slots})
+
     modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60} for c in A3P_AUTO_ORDER if c not in A3P_LOCKED_CODES]
     idx=0
     for day in planning:
-        new=[]
-        for slot in day["slots"]:
-            if not slot.get("free"):
-                new.append(slot); continue
-            cursor=_minutes(slot["start"]); endm=_minutes(slot["end"])
-            while cursor < endm and idx < len(modules):
-                take=min(endm-cursor, modules[idx]["remaining"]); code=modules[idx]["code"]
-                new.append({"start":_hhmm(cursor),"end":_hhmm(cursor+take),"durationMinutes":take,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":False,"trainer":trainer,"room":room})
+        for start_m, end_m in day.pop("freeSlots"):
+            cursor=start_m
+            while cursor < end_m and idx < len(modules):
+                take=min(end_m-cursor, modules[idx]["remaining"]); code=modules[idx]["code"]
+                day["slots"].append({"start":_hhmm(cursor),"end":_hhmm(cursor+take),"durationMinutes":take,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":False,"trainer":trainer,"room":room})
                 cursor += take; modules[idx]["remaining"] -= take
                 if modules[idx]["remaining"] == 0: idx += 1
-            if cursor < endm: raise ValueError("Il y a plus d’heures disponibles que les 328h A3P à planifier.")
-        day["slots"] = new
+            if cursor < end_m:
+                raise ValueError("Il y a plus d’heures disponibles que les 328h A3P à planifier.")
+        day["slots"].sort(key=lambda s: _minutes(s["start"]))
     if any(m["remaining"] for m in modules): raise ValueError("Le reste automatique ne peut pas être entièrement généré: heures insuffisantes.")
     errors, summary = validate_a3p_planning(planning, config.get("examDate"))
     if errors: raise ValueError(" ".join(errors))

@@ -964,7 +964,7 @@ def generate_a3p_attendance_pdf(session_data, output_path):
     if errors:
         raise ValueError(" ".join(errors))
     shared_session, _converted = _a3p_session_for_shared_docs(session_data)
-    return generate_aps_attendance_pdf(shared_session, output_path)
+    return generate_attendance_pdf_common(shared_session, output_path, training_type="A3P", subtitle="TFP Agent de Protection Physique des Personnes (A3P)")
 
 def _a3p_trainer_contract_data(session_data, contract):
     shared_session, converted = _a3p_session_for_shared_docs(session_data)
@@ -995,53 +995,6 @@ def generate_a3p_simple_pdf(session_data, output_path, kind="planning", contract
     if kind == "contract":
         return generate_a3p_trainer_contract_pdf(session_data, contract or {}, output_path)
     raise ValueError("Type de document A3P invalide.")
-    from reportlab.lib.pagesizes import A4
-    from reportlab.pdfgen import canvas
-    from reportlab.lib import colors
-    planning = session_data.get("a3pPlanningData") or []
-    errors, summary = validate_a3p_planning(planning, session_data.get("date_exam"))
-    if errors:
-        raise ValueError(" ".join(errors))
-    c = canvas.Canvas(output_path, pagesize=A4); w,h=A4; m=36; y=h-46
-    logo=aps_pdf_logo_path()
-    if logo: c.drawImage(logo,m,h-76,width=84,height=52,preserveAspectRatio=True,mask="auto")
-    c.setFont("Helvetica-Bold",16); c.drawString(m+98,h-44,{"planning":"Planning de formation A3P","attendance":"Feuilles de présence A3P","contract":"Contrat formateur A3P"}[kind])
-    c.setFont("Helvetica",9); c.drawString(m+98,h-59,"TFP Agent de Protection Physique des Personnes — 328 heures")
-    c.drawString(m+98,h-73,f"Formation 100 % présentiel — 328 heures hors examen • Examen: {format_date(session_data.get('date_exam'))}")
-    y=h-105
-    trainer=session_data.get("a3pTrainerName") or "—"; room=session_data.get("a3pRoom") or session_data.get("salle") or "—"
-    c.setFont("Helvetica",9); c.drawString(m,y,f"Dates: du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))} • Formateur: {trainer} • Lieu: {room}"); y-=20
-    if kind=="contract":
-        daily=float((contract or {}).get("dailyRate") or 0); days=_a3p_contract_days(planning); ht=round(daily*days,2); vat=20 if (contract or {}).get("vatEnabled") else 0; ttc=round(ht*(1+vat/100),2)
-        lines=[f"Durée totale: 328h hors examen.",f"Nombre de jours réels d’intervention formateur: {days}.",f"Montant journalier HT: {daily:g} €. Total HT: {ht:g} €. TVA: {vat:g} %. Total TTC: {ttc:g} €.","Obligations du formateur: respecter le planning validé, les horaires, le référentiel A3P et les exigences de l’organisme; signer et faire signer les feuilles matin et après-midi; signaler toute absence ou retard; réaliser les évaluations formatives lorsque nécessaire.","Obligations du centre: fournir les moyens pédagogiques, la salle et les informations nécessaires. Modalités de paiement selon accord entre les parties. Confidentialité, responsabilité, annulation/remplacement.","Signatures: formateur / centre de formation (cachet). Planning en annexe."]
-        for line in lines:
-            c.drawString(m,y,line[:118]); y-=18
-    elif kind=="attendance":
-        students=session_data.get("a3pAttendanceStudents") or session_data.get("apsAttendanceStudents") or []
-        for day in planning:
-            if y<150: c.showPage(); y=h-50
-            mods=", ".join(dict.fromkeys(s.get("title") for s in day.get("slots",[]) if s.get("title")))
-            c.setFont("Helvetica-Bold",10); c.drawString(m,y,f"{format_date(day.get('date'))} — {mods[:80]}"); y-=14
-            c.setFont("Helvetica",8); c.drawString(m,y,"Signatures stagiaires matin / après-midi — Signature formateur matin / après-midi: " + trainer); y-=12
-            for st in students[:18]: c.drawString(m+10,y,f"{st.get('lastName','')} {st.get('firstName','')}  | matin: __________ | après-midi: __________"); y-=11
-            y-=8
-        c.setFont("Helvetica-Bold",10); c.drawString(m,70,f"Synthèse: {summary['totalHours']:g} heures prévues • {_a3p_contract_days(planning)} journées • Session A3P • Formateur {trainer}")
-    else:
-        cumul=0
-        for day in planning:
-            if y<120: c.showPage(); y=h-50
-            day_minutes=sum(int(s.get("durationMinutes") or 0) for s in day.get("slots",[])); cumul+=day_minutes
-            c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(m,y-16,w-2*m,20,5,fill=1,stroke=0); c.setFillColor(colors.black)
-            c.setFont("Helvetica-Bold",10); c.drawString(m+8,y-10,f"{format_date(day.get('date'))} — total jour {day_minutes/60:g}h — cumul {cumul/60:g}h")
-            y-=28; c.setFont("Helvetica",8)
-            for sl in day.get("slots",[]): c.drawString(m+10,y,f"{sl.get('start')}-{sl.get('end')} • {sl.get('code')} — {sl.get('title')} • {int(sl.get('durationMinutes') or 0)/60:g}h • {room} • {trainer}"); y-=12
-            y-=4
-        if y<180: c.showPage(); y=h-50
-        c.setFont("Helvetica-Bold",12); c.drawString(m,y,"Synthèse par module"); y-=18; c.setFont("Helvetica",9)
-        for row in summary["rows"]: c.drawString(m,y,f"{row['code']} — {row['title']} : {row['actualHours']:g}h / {row['hours']}h"); y-=12
-        c.setFont("Helvetica-Bold",10); c.drawString(m,y-6,"Total général : 328h • Bloc signature / tampon • Informations légales de l’organisme")
-    _assert_a3p_pdf_text_safe(kind, session_data.get("a3pTrainerName"), room)
-    c.save()
 
 def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel", end_date=None, exam_iso="", session_id=None):
     if planning_mode == "elearning_presentiel":
@@ -1776,7 +1729,7 @@ def aps_extract_students_from_pdf(file_storage):
             pass
 
 
-def generate_aps_attendance_pdf(session_data, output_path):
+def generate_attendance_pdf_common(session_data, output_path, training_type=None, subtitle=None):
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -1786,6 +1739,7 @@ def generate_aps_attendance_pdf(session_data, output_path):
     except ImportError as exc:
         raise RuntimeError("La dépendance reportlab est requise pour générer le PDF.") from exc
 
+    training_type = (training_type or session_data.get("formation") or "APS").upper()
     planning_data = session_data.get("apsPlanningData") or []
     planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
     students = session_data.get("apsAttendanceStudents") or []
@@ -1865,7 +1819,8 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
         c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
         c.setFont("Helvetica", 9)
-        c.drawCentredString(width / 2, height - 54, "Agent de protection physique des personnes (A3P)" if (session_data.get("formation") or "").upper() == "A3P" else "Agent de Prévention et de Sécurité (APS)")
+        formation_subtitle = subtitle or ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)")
+        c.drawCentredString(width / 2, height - 54, formation_subtitle)
         c.setFont("Helvetica", 8)
         c.drawString(margin, height - 84, f"Session : {session_name}")
         c.drawString(margin, height - 98, f"Date : {date_label}")
@@ -1873,7 +1828,7 @@ def generate_aps_attendance_pdf(session_data, output_path):
         c.setFont("Helvetica-Bold", 8)
         c.drawString(margin, height - 112, formation_period_label)
         c.setFont("Helvetica", 8)
-        trainers = sorted({(s.get("trainer") or "—").strip() for s in slots})
+        trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
         c.drawString(margin, height - 126, f"Formateur : {', '.join(trainers)}")
         c.drawString(margin + 300, height - 126, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
         y = height - 150
@@ -1901,15 +1856,16 @@ def generate_aps_attendance_pdf(session_data, output_path):
         signature_bottom_y = content_bottom_y
         table_bottom_limit_y = signature_bottom_y + signature_section_h + table_signature_gap
         available_table_h = max(24, y - table_bottom_limit_y)
-        row_h = max(20, min(34, int(available_table_h / max(len(students), 1))))
-        c.setFont("Helvetica", 8)
+        row_h = max(13, min(34, int(available_table_h / max(len(students), 1))))
+        body_font_size = 8 if row_h >= 18 else 6.5
+        c.setFont("Helvetica", body_font_size)
         for idx, student in enumerate(students, 1):
             if y - row_h < table_bottom_limit_y:
                 break
             c.rect(margin, y - row_h, width - 2 * margin, row_h)
             for x in [margin + 28, margin + 154, margin + 260, margin + 405]:
                 c.line(x, y, x, y - row_h)
-            text_y = y - min(15, row_h - 7)
+            text_y = y - max(8, min(15, row_h - 4))
             c.drawString(margin + 8, text_y, str(idx))
             c.drawString(margin + 36, text_y, student.get("lastName", ""))
             c.drawString(margin + 162, text_y, student.get("firstName", ""))
@@ -1958,6 +1914,10 @@ def generate_aps_attendance_pdf(session_data, output_path):
     for line in APS_LEGAL_LINES:
         y = draw_wrapped_text(c, line, margin, y, width - 2 * margin, "Helvetica", 8, 11)
     c.save()
+
+
+def generate_aps_attendance_pdf(session_data, output_path):
+    return generate_attendance_pdf_common(session_data, output_path, training_type="APS")
 
 
 def send_email_with_attachments(to_email, subject, body, attachments):

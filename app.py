@@ -4843,14 +4843,19 @@ def generate_a3p_documents(sid):
         app.logger.info("Génération documents A3P session_id=%s lignes_planning=%s", sid, sum(len(d.get("slots", [])) for d in planning))
         now=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         docs=[]
+        a3p_documents = {}
         for kind, key, fname in (("planning","a3pPlanningPdfUrl",f"planning_a3p_session_{sid}.pdf"),("attendance","a3pAttendanceSheetsPdfUrl",f"feuilles_presence_a3p_{sid}.pdf")):
             path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_simple_pdf(session_data,path,kind=kind)
-            session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname; docs.append({"kind":kind,"path":path})
+            session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname
+            a3p_documents[kind] = {"path": path, "generated_at": now}
+            docs.append({"kind":kind,"path":path})
         contract_payload=payload.get("contract") or cfg
         cid=str(uuid.uuid4()); cf=f"contrat_formateur_a3p_{sid}_{cid}.pdf"; cp=os.path.join(A3P_DOC_DIR,cf)
         generate_a3p_simple_pdf(session_data,cp,kind="contract",contract=contract_payload)
         session_data["a3pTrainerContract"]={"id":cid,"pdfFilename":cf,"pdfUrl":url_for("view_a3p_document",sid=sid,kind="contract"),"generatedAt":now,"dailyRate":contract_payload.get("dailyRate"),"vatEnabled":bool(contract_payload.get("vatEnabled"))}
+        a3p_documents["contract"] = {"path": cp, "generated_at": now}
         docs.append({"kind":"contract","path":cp})
+        session_data["a3p_documents"] = a3p_documents
         session_data["a3pDocumentsGeneratedAt"]=now; save_sessions(data)
         app.logger.info("Documents A3P créés session_id=%s documents=%s chemins_sauvegardés=%s", sid, [d["kind"] for d in docs], docs)
         return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"],"contractUrl":session_data["a3pTrainerContract"]["pdfUrl"]})
@@ -4862,9 +4867,29 @@ def generate_a3p_documents(sid):
 
 
 
+def a3p_document_path(session_data, kind):
+    if kind not in {"planning", "attendance", "contract"}:
+        return None
+    doc = (session_data.get("a3p_documents") or {}).get(kind) or {}
+    path = doc.get("path")
+    if path:
+        return path
+    # Compatibilité avec les sessions générées avant la persistance de a3p_documents.
+    if kind == "planning" and session_data.get("a3pPlanningFilename"):
+        return os.path.join(A3P_DOC_DIR, os.path.basename(session_data["a3pPlanningFilename"]))
+    if kind == "attendance" and session_data.get("a3pAttendanceSheetsFilename"):
+        return os.path.join(A3P_DOC_DIR, os.path.basename(session_data["a3pAttendanceSheetsFilename"]))
+    if kind == "contract" and (session_data.get("a3pTrainerContract") or {}).get("pdfFilename"):
+        return os.path.join(A3P_DOC_DIR, os.path.basename(session_data["a3pTrainerContract"]["pdfFilename"]))
+    return None
+
+def a3p_document_exists(session_data, kind):
+    path = a3p_document_path(session_data, kind)
+    return bool(path and os.path.exists(path))
+
 @app.context_processor
 def inject_a3p_trainer_helpers():
-    return {"a3p_trainer_status": a3p_trainer_status}
+    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists}
 
 @app.post("/api/admin/sessions/<sid>/a3p/trainer-link")
 def generate_a3p_trainer_link(sid):
@@ -4955,14 +4980,25 @@ def complete_public_a3p_planning(token):
 @app.get("/sessions/<sid>/a3p-documents/<kind>/view")
 def view_a3p_document(sid, kind):
     data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: abort(404)
-    mapping={"planning":"a3pPlanningFilename","attendance":"a3pAttendanceSheetsFilename","contract":None}
-    if kind=="contract": filename=(session_data.get("a3pTrainerContract") or {}).get("pdfFilename")
-    else: filename=session_data.get(mapping.get(kind))
-    if not filename: abort(404)
-    path=os.path.join(A3P_DOC_DIR, os.path.basename(filename))
-    if not os.path.exists(path): abort(404)
-    return send_file(path,mimetype="application/pdf",as_attachment=False)
+    if not session_data:
+        return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "A3P":
+        return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
+    if kind not in {"planning", "attendance", "contract"}:
+        return jsonify({"ok": False, "error": "Type de document A3P invalide."}), 404
+
+    path = a3p_document_path(session_data, kind)
+    exists = bool(path and os.path.exists(path))
+    app.logger.info("Téléchargement document A3P session_id=%s kind=%s path=%s exists=%s", sid, kind, path, exists)
+    if not exists:
+        return jsonify({"ok": False, "error": "Document introuvable, veuillez régénérer les documents."}), 404
+
+    download_names = {
+        "planning": f"planning_a3p_session_{sid}.pdf",
+        "attendance": f"feuilles_presence_a3p_{sid}.pdf",
+        "contract": f"contrat_formateur_a3p_{sid}.pdf",
+    }
+    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=download_names[kind])
 
 @app.get("/sessions/<sid>/aps-planning/edit")
 def edit_aps_planning_page(sid):

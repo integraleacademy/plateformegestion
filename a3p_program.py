@@ -74,12 +74,51 @@ def a3p_summary_from_planning(planning):
 
 def validate_a3p_planning(planning, exam_date=None):
     summary = a3p_summary_from_planning(planning); errors=list(summary["errors"])
+    for day in planning or []:
+        daily_minutes = sum(int(slot.get("durationMinutes") or _slot_minutes(slot.get("start"), slot.get("end"))) for slot in day.get("slots", []))
+        if daily_minutes > 8 * 60:
+            errors.append(f"La journée du {day.get('date')} dépasse 8h de formation (actuel: {daily_minutes/60:g}h).")
     if round(summary["totalHours"],2) != A3P_TOTAL_HOURS: errors.append(f"Le total A3P doit être exactement de {A3P_TOTAL_HOURS}h (actuel: {summary['totalHours']}h).")
     for m in A3P_MODULES:
         actual = round(summary["moduleTotals"].get(m["code"],0),2)
         if actual != m["hours"]: errors.append(f"{m['title']} doit totaliser {m['hours']}h (actuel: {actual}h).")
     if exam_date and any(d.get("date") == exam_date for d in planning or []): errors.append("La date d’examen ne doit pas être comptée dans les 328h.")
     return errors, summary
+
+
+def _is_available_training_day(day, exam_date=None):
+    if not day or day.get("training") is False or not day.get("date") or day.get("date") == exam_date:
+        return False
+    try:
+        return datetime.strptime(day.get("date"), "%Y-%m-%d").date().weekday() < 5
+    except Exception:
+        return False
+
+def _max_day_training_slots(day):
+    standard_slots = _day_training_slots(day)
+    first_start = _minutes(standard_slots[0][0])
+    pause_start = _minutes(standard_slots[0][1])
+    pause_end = _minutes(standard_slots[1][0])
+    max_end = first_start + 9 * 60
+    return [(first_start, pause_start), (pause_end, max_end)]
+
+def _remaining_minutes(modules):
+    return sum(m["remaining"] for m in modules)
+
+def _place_modules_in_free_slots(day, free_slots, modules, idx, trainer, room):
+    for start_m, end_m in free_slots:
+        cursor = start_m
+        while cursor < end_m and idx < len(modules):
+            take = min(end_m - cursor, modules[idx]["remaining"])
+            code = modules[idx]["code"]
+            day["slots"].append({"start": _hhmm(cursor), "end": _hhmm(cursor + take), "durationMinutes": take, "code": code, "title": A3P_MODULE_BY_CODE[code]["title"], "locked": False, "trainer": trainer, "room": room})
+            cursor += take
+            modules[idx]["remaining"] -= take
+            if modules[idx]["remaining"] == 0:
+                idx += 1
+        if cursor < end_m:
+            raise ValueError("Il y a plus d’heures disponibles que les 328h A3P à planifier.")
+    return idx
 
 def _subtract_busy(slot, busy):
     free = [slot]
@@ -133,7 +172,7 @@ def generateA3pSchedule(config):
     locked = config.get("lockedModules") or {}
     trainer = ((config.get("trainerFirstName") or "") + " " + (config.get("trainerLastName") or "")).strip() or config.get("trainerName") or ""
     room = config.get("room") or "Salle à définir"
-    day_by_date = {d.get("date"): d for d in days if d.get("date") != config.get("examDate")}
+    day_by_date = {d.get("date"): d for d in days if _is_available_training_day(d, config.get("examDate"))}
     unknown = set(locked) - set(A3P_MODULE_BY_CODE)
     if unknown:
         raise ValueError(f"Module inconnu: {', '.join(sorted(unknown))}")
@@ -166,7 +205,8 @@ def generateA3pSchedule(config):
     for entry in locked_entries:
         entries_by_date.setdefault(entry["date"], []).append(entry)
     for day in days:
-        if day.get("date") == config.get("examDate"): continue
+        if not _is_available_training_day(day, config.get("examDate")):
+            continue
         date_value = day.get("date")
         slots=[]
         for entry in entries_by_date.get(date_value, []):
@@ -182,17 +222,36 @@ def generateA3pSchedule(config):
     modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60} for c in A3P_AUTO_ORDER if c not in A3P_LOCKED_CODES]
     idx=0
     for day in planning:
-        for start_m, end_m in day.pop("freeSlots"):
-            cursor=start_m
-            while cursor < end_m and idx < len(modules):
-                take=min(end_m-cursor, modules[idx]["remaining"]); code=modules[idx]["code"]
-                day["slots"].append({"start":_hhmm(cursor),"end":_hhmm(cursor+take),"durationMinutes":take,"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":False,"trainer":trainer,"room":room})
-                cursor += take; modules[idx]["remaining"] -= take
-                if modules[idx]["remaining"] == 0: idx += 1
-            if cursor < end_m:
-                raise ValueError("Il y a plus d’heures disponibles que les 328h A3P à planifier.")
+        idx = _place_modules_in_free_slots(day, day.pop("freeSlots"), modules, idx, trainer, room)
         day["slots"].sort(key=lambda s: _minutes(s["start"]))
-    if any(m["remaining"] for m in modules): raise ValueError("Le reste automatique ne peut pas être entièrement généré: heures insuffisantes.")
+
+    if any(m["remaining"] for m in modules):
+        day_config_by_date = {d.get("date"): d for d in days}
+        for day in planning:
+            if idx >= len(modules):
+                break
+            date_value = day.get("date")
+            day_config = day_config_by_date.get(date_value)
+            if not _is_available_training_day(day_config, config.get("examDate")):
+                continue
+            busy = [(_minutes(slot["start"]), _minutes(slot["end"])) for slot in day.get("slots", [])]
+            used = sum(slot.get("durationMinutes") or (_minutes(slot["end"]) - _minutes(slot["start"])) for slot in day.get("slots", []))
+            if used >= 8 * 60:
+                continue
+            capacity = 8 * 60 - used
+            free_slots = []
+            for start_m, end_m in _max_day_training_slots(day_config):
+                for f_start, f_end in _subtract_busy((start_m, end_m), busy):
+                    if f_end > f_start and capacity > 0:
+                        take_end = min(f_end, f_start + capacity)
+                        free_slots.append((f_start, take_end))
+                        capacity -= take_end - f_start
+            idx = _place_modules_in_free_slots(day, free_slots, modules, idx, trainer, room)
+            day["slots"].sort(key=lambda s: _minutes(s["start"]))
+
+    if any(m["remaining"] for m in modules):
+        missing = round(_remaining_minutes(modules) / 60, 2)
+        raise ValueError(f"Impossible de générer entièrement le planning : il manque {missing:g} heures. Ajoutez des dates disponibles ou libérez des créneaux.")
     errors, summary = validate_a3p_planning(planning, config.get("examDate"))
     if errors: raise ValueError(" ".join(errors))
     return {"planning": planning, "summary": summary}

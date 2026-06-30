@@ -178,3 +178,57 @@ def test_a3p_planning_pdf_day_titles_include_exact_dates(tmp_path):
     text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
     assert "Lundi 05/01/2026 — 7h" in text
     assert "Lundi — 7h" not in text
+
+
+def test_a3p_july_14_2026_is_excluded_and_schedule_reaches_august_4():
+    import datetime as dt
+    from a3p_program import is_a3p_non_working_day
+
+    start, end = dt.date(2026, 6, 8), dt.date(2026, 8, 4)
+    ds, cur = [], start
+    while cur <= end:
+        ds.append({"date": cur.isoformat(), "dayStart": "08:30", "dayEnd": "17:30"})
+        cur += dt.timedelta(days=1)
+
+    training_dates = [d["date"] for d in ds if not is_a3p_non_working_day(dt.date.fromisoformat(d["date"]))]
+    assert "2026-07-14" not in training_dates
+    assert len(training_dates) == 41
+
+    locked = {"UV1": [], "UV5": [], "UV6A": [], "UV9": []}
+    cursor = 0
+    half_day_slots = ((8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 17 * 60 + 30))
+    for code in ("UV1", "UV5", "UV6A", "UV9"):
+        remaining = int(next(m for m in __import__("a3p_program").A3P_MODULES if m["code"] == code)["hours"] * 60)
+        while remaining:
+            day = training_dates[cursor // 2]
+            slot_start, slot_end = half_day_slots[cursor % 2]
+            take = min(slot_end - slot_start, remaining)
+            locked[code].append({"date": day, "start": hhmm_for_test(slot_start), "end": hhmm_for_test(slot_start + take), "durationMinutes": take})
+            remaining -= take
+            cursor += 1
+
+    result = generateA3pSchedule({
+        "trainerFirstName": "Jean",
+        "trainerLastName": "Dupont",
+        "room": "Salle 1",
+        "examDate": "2026-08-05",
+        "days": ds,
+        "lockedModules": locked,
+    })
+    planned_dates = [day["date"] for day in result["planning"] if day.get("slots")]
+    assert "2026-07-13" in planned_dates
+    assert "2026-07-14" not in planned_dates
+    assert "2026-07-15" in planned_dates
+    assert planned_dates[-1] == "2026-08-04"
+    assert result["summary"]["totalHours"] == 328
+    assert all(sum(slot["durationMinutes"] for slot in day["slots"]) <= 480 for day in result["planning"])
+
+
+def hhmm_for_test(total_minutes):
+    return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+
+
+def test_a3p_validation_rejects_french_public_holiday():
+    planning = [{"date":"2026-07-14","slots":[{"code":"UV2","start":"08:30","end":"16:30","durationMinutes":420}]}]
+    errors, _ = validate_a3p_planning(planning)
+    assert any("jour non travaillé" in error for error in errors)

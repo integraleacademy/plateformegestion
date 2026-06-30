@@ -98,9 +98,23 @@ def a3p_summary_from_planning(planning):
     rows = [{**m, "actualHours": round(totals[m["code"]]/60,2)} for m in A3P_MODULES]
     return {"totalHours": round(total/60,2), "moduleTotals": {k: round(v/60,2) for k,v in totals.items()}, "rows": rows, "errors": errors}
 
+def is_a3p_non_working_day(day: date) -> bool:
+    """Return True when A3P must not schedule training on this French calendar day."""
+    return day.weekday() >= 5 or day in _french_public_holidays(day.year)
+
+def is_a3p_training_day(day: date) -> bool:
+    return not is_a3p_non_working_day(day)
+
 def validate_a3p_planning(planning, exam_date=None):
     summary = a3p_summary_from_planning(planning); errors=list(summary["errors"])
     for day in planning or []:
+        day_iso = day.get("date")
+        try:
+            parsed_day = datetime.strptime(day_iso, "%Y-%m-%d").date()
+            if is_a3p_non_working_day(parsed_day):
+                errors.append(f"La journée du {day_iso} est un jour non travaillé (week-end ou jour férié français).")
+        except Exception:
+            errors.append(f"Date invalide: {day_iso}")
         daily_minutes = sum(int(slot.get("durationMinutes") or _slot_minutes(slot.get("start"), slot.get("end"))) for slot in day.get("slots", []))
         if daily_minutes > 8 * 60:
             errors.append(f"La journée du {day.get('date')} dépasse 8h de formation (actuel: {daily_minutes/60:g}h).")
@@ -117,10 +131,7 @@ def _is_available_training_day(day, exam_date=None):
         return False
     try:
         parsed = datetime.strptime(day.get("date"), "%Y-%m-%d").date()
-        forced = bool(day.get("forceHoliday") or day.get("forced") or day.get("adminForced"))
-        if parsed in _french_public_holidays(parsed.year) and not forced:
-            return False
-        return parsed.weekday() < 5
+        return is_a3p_training_day(parsed)
     except Exception:
         return False
 

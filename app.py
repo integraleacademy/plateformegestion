@@ -30,7 +30,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from prospecting import prospecting_bp
-from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning
+from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
 
 
 
@@ -2205,6 +2205,11 @@ def validate_a3p_trainer_manual_data(session_data, modules_data):
             if not d or not st or not en:
                 errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : date et horaires obligatoires."); continue
             if (start and d < start) or (end and d > end): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} hors période de formation.")
+            try:
+                parsed_day = datetime.strptime(d, "%Y-%m-%d").date()
+                if is_a3p_non_working_day(parsed_day): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} est un jour non travaillé (week-end ou jour férié français).")
+            except Exception:
+                errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : date invalide.")
             if exam and d == exam: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : impossible le jour de l’examen.")
             try:
                 sm = int(st[:2])*60 + int(st[3:5]); em = int(en[:2])*60 + int(en[3:5])

@@ -116,8 +116,7 @@ def _place_modules_in_free_slots(day, free_slots, modules, idx, trainer, room):
             modules[idx]["remaining"] -= take
             if modules[idx]["remaining"] == 0:
                 idx += 1
-        if cursor < end_m:
-            raise ValueError("Il y a plus d’heures disponibles que les 328h A3P à planifier.")
+        # Surplus capacity is intentionally left free once the 328h program is fully placed.
     return idx
 
 def _subtract_busy(slot, busy):

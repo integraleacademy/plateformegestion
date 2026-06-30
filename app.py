@@ -4703,6 +4703,18 @@ def put_a3p_planning_builder(sid):
     if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
     payload = request.get_json(silent=True) or {}
     state = payload.get("state") if isinstance(payload.get("state"), dict) else payload
+    previous_state = session_data.get("a3pPlanningBuilder") or session_data.get("a3pPlanningDraftJson") or {}
+
+    def _has_builder_content(value):
+        if not isinstance(value, dict) or not value:
+            return False
+        if value.get("days") or (value.get("scheduleConfig") or {}).get("days"):
+            return True
+        locked = (value.get("scheduleConfig") or value).get("lockedModules") or {}
+        return any(locked.get(code) for code in locked)
+
+    if _has_builder_content(previous_state) and not _has_builder_content(state):
+        return jsonify({"ok": False, "error": "Sauvegarde A3P refusée : état vide ou incomplet, conservation du dernier état valide."}), 400
     session_data["a3pPlanningBuilder"] = state
     session_data["a3pPlanningBuilderSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_sessions(data)

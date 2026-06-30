@@ -35,7 +35,8 @@ def _slot_minutes(start: str, end: str) -> int:
 
 def _day_label(iso: str) -> str:
     d = datetime.strptime(iso, "%Y-%m-%d").date()
-    return ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][d.weekday()]
+    weekday = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][d.weekday()]
+    return f"{weekday} {d.strftime('%d/%m/%Y')}"
 
 def _easter_date(year: int) -> date:
     a = year % 19

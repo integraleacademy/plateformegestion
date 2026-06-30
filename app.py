@@ -920,11 +920,19 @@ def _a3p_slot_to_aps_slot(slot):
     minutes = int(slot.get("durationMinutes") or (_minutes_from_hhmm(slot.get("end")) - _minutes_from_hhmm(slot.get("start"))))
     return {"start": slot.get("start") or "", "end": slot.get("end") or "", "duration": round(minutes / 60, 2), "durationMinutes": minutes, "uv": slot.get("code") or slot.get("uv") or "", "title": slot.get("title") or "", "trainer": (slot.get("trainer") or "").strip(), "room": (slot.get("room") or "").strip(), "modality": "presentiel"}
 
+def _a3p_full_day_label(iso_date):
+    parsed = parse_date(iso_date)
+    if not parsed:
+        return iso_date or "—"
+    day_date = parsed.date()
+    weekday = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"][day_date.weekday()]
+    return f"{weekday} {day_date.strftime('%d/%m/%Y')}"
+
+
 def _a3p_planning_as_aps_data(planning):
     converted = []
     for day in planning or []:
-        parsed = parse_date(day.get("date"))
-        converted.append({"date": day.get("date"), "dayLabel": day.get("dayLabel") or (aps_day_label(parsed.date()) if parsed else day.get("date")), "slots": [_a3p_slot_to_aps_slot(slot) for slot in day.get("slots", [])]})
+        converted.append({"date": day.get("date"), "dayLabel": _a3p_full_day_label(day.get("date")), "slots": [_a3p_slot_to_aps_slot(slot) for slot in day.get("slots", [])]})
     return converted
 
 def _a3p_document_profile(summary=None, planning=None):
@@ -1265,7 +1273,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 y -= 34
             c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, width - 2 * margin, 22, 6, fill=1, stroke=0)
             day_total_minutes = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", []))
-            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{day.get('dayLabel') or day.get('date')} — {format_duration_from_minutes(day_total_minutes)}")
+            day_title = _a3p_full_day_label(day.get("date")) if document_profile.get("validate") == "a3p" else (day.get("dayLabel") or day.get("date"))
+            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{day_title} — {format_duration_from_minutes(day_total_minutes)}")
             y -= 30
             for slot in day.get("slots", []):
                 h = 44

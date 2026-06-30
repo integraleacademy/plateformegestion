@@ -32,6 +32,7 @@ def test_a3p_schedule_totals_and_locked_modules():
     assert s["moduleTotals"]["UV9"] == 14
     assert s["moduleTotals"]["UV2"] == 22
     assert not validate_a3p_planning(result["planning"], config()["examDate"])[0]
+    assert result["planning"][0]["dayLabel"] == "Lundi 05/01/2026"
 
 def test_a3p_rejects_bad_total_and_bad_locked_module():
     bad=config(); bad["days"]=bad["days"][:-20]
@@ -149,3 +150,31 @@ def test_a3p_attendance_pdf_uses_aps_signature_template(tmp_path):
     assert first_slot["code"] in text
     assert first_slot["title"] in text
     assert "e-learning" not in text.lower()
+
+
+def test_a3p_planning_pdf_day_titles_include_exact_dates(tmp_path):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    from app import generate_a3p_planning_pdf
+
+    result = generateA3pSchedule(config())
+    # Simulate an older stored planning whose dayLabel only contains the weekday:
+    # the PDF must still use the exact ISO date from the generated A3P slots.
+    result["planning"][0]["dayLabel"] = "Lundi"
+    output = tmp_path / "planning_a3p.pdf"
+
+    generate_a3p_planning_pdf({
+        "id": "A3P-TEST",
+        "formation": "A3P",
+        "display_name": "Session A3P test",
+        "date_debut": config()["days"][0]["date"],
+        "date_fin": config()["days"][-1]["date"],
+        "date_exam": config()["examDate"],
+        "a3pPlanningData": result["planning"],
+        "a3pRoom": "Salle A",
+        "a3pTrainerName": "Jean Dupont",
+    }, str(output))
+
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
+    assert "Lundi 05/01/2026 — 7h" in text
+    assert "Lundi — 7h" not in text

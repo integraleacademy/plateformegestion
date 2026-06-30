@@ -13,6 +13,7 @@ import urllib.error
 import re
 import shutil
 import subprocess
+import secrets
 from io import BytesIO
 from datetime import datetime, timedelta, date, time as dt_time
 from functools import wraps
@@ -305,6 +306,10 @@ def protect_all_routes():
 
     # ✅ autoriser réponses jury (lien email)
     if path.startswith("/jury-response/"):
+        return None
+
+    # ✅ autoriser lien public A3P formateur
+    if path.startswith("/public/a3p-planning/") or path.startswith("/api/public/a3p-planning/"):
         return None
 
     # ✅ autoriser accès préfecture (auth basic gérée dans la route)
@@ -2101,6 +2106,84 @@ BREVO_SMS_SENDER = os.environ.get("BREVO_SMS_SENDER")
 # -----------------------
 # Utils persistance
 # -----------------------
+
+
+A3P_TRAINER_MANUAL_CODES = {"UV1", "UV5", "UV6A", "UV9"}
+A3P_TRAINER_MODULE_LABELS = {m["code"]: m for m in A3P_MODULES if m["code"] in A3P_TRAINER_MANUAL_CODES}
+A3P_TRAINER_STATUS_LABELS = {
+    "no_link": "Lien non généré",
+    "waiting": "En attente formateur",
+    "sent": "Lien envoyé",
+    "in_progress": "En cours de complétion",
+    "incomplete": "Incomplet",
+    "completed": "Modules complétés",
+    "validated": "Validé",
+    "disabled": "Lien désactivé",
+}
+
+def a3p_trainer_public_url(token):
+    return url_for("public_a3p_planning_page", token=token, _external=True)
+
+def a3p_trainer_status(session_data):
+    token = session_data.get("a3pTrainerPublicToken")
+    status = session_data.get("a3pTrainerModulesStatus") or ("waiting" if token else "no_link")
+    return {"code": status, "label": A3P_TRAINER_STATUS_LABELS.get(status, status), "url": a3p_trainer_public_url(token) if token and status != "disabled" else ""}
+
+def find_a3p_public_session(data, token):
+    for s in data.get("sessions", []):
+        if (s.get("formation") or "").upper() == "A3P" and s.get("a3pTrainerPublicToken") == token and s.get("a3pTrainerModulesStatus") != "disabled":
+            return s
+    return None
+
+def validate_a3p_trainer_manual_data(session_data, modules_data):
+    cfg = session_data.get("a3pPlanningDraftJson") or {}
+    start = cfg.get("startDate") or session_data.get("date_debut")
+    end = cfg.get("endDate") or session_data.get("date_fin")
+    exam = cfg.get("examDate") or session_data.get("date_exam")
+    errors = []
+    by_day = {}
+    for code in A3P_TRAINER_MANUAL_CODES:
+        expected = int(A3P_TRAINER_MODULE_LABELS[code]["hours"] * 60)
+        rows = (modules_data or {}).get(code) or []
+        total = 0
+        for row in rows:
+            d, st, en = row.get("date"), row.get("start"), row.get("end")
+            if not d or not st or not en:
+                errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : date et horaires obligatoires."); continue
+            if (start and d < start) or (end and d > end): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} hors période de formation.")
+            if exam and d == exam: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : impossible le jour de l’examen.")
+            try:
+                sm = int(st[:2])*60 + int(st[3:5]); em = int(en[:2])*60 + int(en[3:5])
+            except Exception:
+                errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : horaires invalides."); continue
+            if em <= sm: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : heure de fin avant début."); continue
+            total += em - sm
+            by_day.setdefault(d, []).append((sm, em, code))
+        if total != expected:
+            errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {round(total/60,2)}h saisies / {expected/60:g}h attendues.")
+    for d, slots in by_day.items():
+        if sum(e-s for s,e,_ in slots) > 480: errors.append(f"{format_date(d)} : plus de 8h de formation.")
+        slots = sorted(slots)
+        for prev, cur in zip(slots, slots[1:]):
+            if cur[0] < prev[1]: errors.append(f"{format_date(d)} : chevauchement entre modules imposés.")
+    return errors
+
+def a3p_public_payload(session_data):
+    cfg = session_data.get("a3pPlanningDraftJson") or {}
+    return {
+        "sessionId": session_data.get("id"), "formation": "A3P",
+        "startDate": cfg.get("startDate") or session_data.get("date_debut"),
+        "endDate": cfg.get("endDate") or session_data.get("date_fin"),
+        "examDate": cfg.get("examDate") or session_data.get("date_exam"),
+        "room": cfg.get("room") or session_data.get("a3pRoom") or session_data.get("salle") or "",
+        "trainerName": session_data.get("a3pTrainerName") or (cfg.get("trainerFirstName", "") + " " + cfg.get("trainerLastName", "")).strip(),
+        "showWeekends": bool(cfg.get("showWeekends")),
+        "days": cfg.get("days") or [],
+        "modules": [{"code": c, "title": A3P_TRAINER_MODULE_LABELS[c]["title"], "hours": A3P_TRAINER_MODULE_LABELS[c]["hours"]} for c in ("UV1","UV5","UV6A","UV9")],
+        "modulesData": session_data.get("a3pTrainerManualModulesData") or {},
+        "status": a3p_trainer_status(session_data),
+    }
+
 def load_sessions():
     if os.path.exists(SESSIONS_FILE):
         try:
@@ -4633,6 +4716,8 @@ def save_a3p_documents_draft(sid):
     payload=request.get_json(silent=True) or {}
     cfg=payload.get("scheduleConfig") or payload
     session_data["a3pPlanningDraftJson"] = cfg
+    session_data["a3pTrainerEmail"] = cfg.get("trainerEmail") or session_data.get("a3pTrainerEmail")
+    session_data["a3pTrainerName"] = ((cfg.get("trainerFirstName") or "") + " " + (cfg.get("trainerLastName") or "")).strip() or session_data.get("a3pTrainerName")
     session_data["a3pPlanningDraftSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_sessions(data)
     return jsonify({"ok":True,"savedAt":session_data["a3pPlanningDraftSavedAt"]})
@@ -4644,7 +4729,10 @@ def preview_a3p_documents(sid):
     if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
     payload=request.get_json(silent=True) or {}
     try:
-        result=generateA3pSchedule(payload.get("scheduleConfig") or payload)
+        cfg=payload.get("scheduleConfig") or payload
+        if session_data.get("a3pTrainerModulesStatus") in {"completed","validated"}:
+            cfg=dict(cfg); cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
+        result=generateA3pSchedule(cfg)
         return jsonify({"ok":True,"planning":result["planning"],"summary":result["summary"]})
     except ValueError as exc:
         return jsonify({"ok":False,"error":str(exc)}),400
@@ -4657,6 +4745,9 @@ def generate_a3p_documents(sid):
     payload=request.get_json(silent=True) or {}
     try:
         cfg=payload.get("scheduleConfig") or payload
+        if session_data.get("a3pTrainerModulesStatus") != "validated":
+            return jsonify({"ok":False,"error":"Les modules formateur A3P doivent être complétés puis validés par l’admin avant génération."}),400
+        cfg=dict(cfg); cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
         result=generateA3pSchedule(cfg)
         trainer=((cfg.get("trainerFirstName") or "")+" "+(cfg.get("trainerLastName") or "")).strip() or cfg.get("trainerName") or ""
         if not trainer: return jsonify({"ok":False,"error":"Nom et prénom du formateur obligatoires."}),400
@@ -4676,6 +4767,92 @@ def generate_a3p_documents(sid):
         return jsonify({"ok":False,"error":str(exc)}),400
     except Exception as exc:
         app.logger.exception("Erreur génération documents A3P session=%s", sid); return jsonify({"ok":False,"error":str(exc)}),500
+
+
+
+@app.context_processor
+def inject_a3p_trainer_helpers():
+    return {"a3p_trainer_status": a3p_trainer_status}
+
+@app.post("/api/admin/sessions/<sid>/a3p/trainer-link")
+def generate_a3p_trainer_link(sid):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
+    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
+    session_data["a3pTrainerPublicToken"] = secrets.token_urlsafe(48)
+    session_data["a3pTrainerPublicLinkCreatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session_data["a3pTrainerModulesStatus"] = "waiting"
+    session_data.pop("a3pTrainerPublicLinkDisabledAt", None)
+    save_sessions(data)
+    status=a3p_trainer_status(session_data)
+    return jsonify({"ok":True,"url":status["url"],"status":status,"createdAt":session_data["a3pTrainerPublicLinkCreatedAt"]})
+
+@app.post("/api/admin/sessions/<sid>/a3p/trainer-link/send")
+def send_a3p_trainer_link(sid):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
+    cfg=session_data.get("a3pPlanningDraftJson") or {}
+    email=(cfg.get("trainerEmail") or session_data.get("a3pTrainerEmail") or "").strip()
+    if not email: return jsonify({"ok":False,"error":"Email formateur non renseigné."}),400
+    if not session_data.get("a3pTrainerPublicToken"):
+        session_data["a3pTrainerPublicToken"] = secrets.token_urlsafe(48)
+        session_data["a3pTrainerPublicLinkCreatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    url=a3p_trainer_public_url(session_data["a3pTrainerPublicToken"])
+    first=(cfg.get("trainerFirstName") or session_data.get("a3pTrainerName") or "formateur").split()[0]
+    body=f"Bonjour {first},\n\nDans le cadre de la préparation de la session A3P, merci de compléter les dates des modules imposés dont vous avez la charge.\n\nVous pouvez accéder au formulaire via le lien sécurisé ci-dessous :\n{url}\n\nDates de formation : du {format_date(cfg.get('startDate') or session_data.get('date_debut'))} au {format_date(cfg.get('endDate') or session_data.get('date_fin'))}.\nDate d’examen : {format_date(cfg.get('examDate') or session_data.get('date_exam'))}.\n\nMerci de compléter les 4 modules puis de cliquer sur “J’ai terminé” afin que nous puissions finaliser le planning.\n\nBien cordialement,\nIntégrale Academy"
+    smtp_config=get_smtp_config()
+    if not smtp_config.get("login") or not smtp_config.get("password"):
+        return jsonify({"ok":False,"error":"Email non configuré.","url":url}),400
+    msg=MIMEText(body,"plain",_charset="utf-8"); msg["Subject"]="Modules imposés A3P à compléter"; msg["From"]=smtp_config["from_email"]; msg["To"]=email
+    with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
+        server.starttls(); server.login(smtp_config["login"], smtp_config["password"]); server.sendmail(smtp_config["from_email"],[email],msg.as_string())
+    session_data["a3pTrainerModulesStatus"]="sent"; session_data["a3pTrainerPublicLinkSentAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
+    return jsonify({"ok":True,"url":url,"status":a3p_trainer_status(session_data)})
+
+@app.post("/api/admin/sessions/<sid>/a3p/trainer-modules/validate")
+def validate_a3p_trainer_modules_admin(sid):
+    data=load_sessions(); session_data=find_session(data,sid)
+    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
+    errors=validate_a3p_trainer_manual_data(session_data, session_data.get("a3pTrainerManualModulesData") or {})
+    if errors: return jsonify({"ok":False,"errors":errors,"error":"Modules formateur incomplets."}),400
+    session_data["a3pTrainerModulesStatus"]="validated"; session_data["a3pTrainerModulesValidatedAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    draft=session_data.setdefault("a3pPlanningDraftJson", {})
+    draft["lockedModules"] = session_data.get("a3pTrainerManualModulesData") or {}
+    save_sessions(data)
+    return jsonify({"ok":True,"status":a3p_trainer_status(session_data)})
+
+@app.get("/public/a3p-planning/<token>")
+def public_a3p_planning_page(token):
+    return render_template("public_a3p_planning.html", token=token)
+
+@app.get("/api/public/a3p-planning/<token>")
+def get_public_a3p_planning(token):
+    data=load_sessions(); session_data=find_a3p_public_session(data, token)
+    if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou désactivé."}),404
+    session_data["a3pTrainerPublicLinkLastAccessAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
+    return jsonify({"ok":True,"data":a3p_public_payload(session_data)})
+
+@app.put("/api/public/a3p-planning/<token>")
+def save_public_a3p_planning(token):
+    data=load_sessions(); session_data=find_a3p_public_session(data, token)
+    if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou désactivé."}),404
+    payload=request.get_json(silent=True) or {}; modules=payload.get("modulesData") or {}
+    session_data["a3pTrainerManualModulesData"] = {c: modules.get(c, []) for c in A3P_TRAINER_MANUAL_CODES}
+    if session_data.get("a3pTrainerModulesStatus") not in {"completed","validated"}: session_data["a3pTrainerModulesStatus"]="in_progress"
+    save_sessions(data)
+    return jsonify({"ok":True,"status":a3p_trainer_status(session_data),"errors":validate_a3p_trainer_manual_data(session_data, session_data["a3pTrainerManualModulesData"])})
+
+@app.post("/api/public/a3p-planning/<token>/complete")
+def complete_public_a3p_planning(token):
+    data=load_sessions(); session_data=find_a3p_public_session(data, token)
+    if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou désactivé."}),404
+    modules=(request.get_json(silent=True) or {}).get("modulesData") or session_data.get("a3pTrainerManualModulesData") or {}
+    session_data["a3pTrainerManualModulesData"]={c: modules.get(c, []) for c in A3P_TRAINER_MANUAL_CODES}
+    errors=validate_a3p_trainer_manual_data(session_data, session_data["a3pTrainerManualModulesData"])
+    session_data["a3pTrainerModulesStatus"]="incomplete" if errors else "completed"
+    if not errors: session_data["a3pTrainerModulesCompletedAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_sessions(data)
+    return (jsonify({"ok":not bool(errors),"status":a3p_trainer_status(session_data),"errors":errors}), 400 if errors else 200)
 
 @app.get("/sessions/<sid>/a3p-documents/<kind>/view")
 def view_a3p_document(sid, kind):

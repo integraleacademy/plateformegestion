@@ -4733,7 +4733,8 @@ def delete_aps_trainer_contract(sid, contract_id):
 def import_aps_attendance_students(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    formation = (session_data.get("formation") or "").upper()
+    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
         return jsonify({"ok": False, "error": "Veuillez importer un fichier PDF."}), 400
@@ -4753,7 +4754,8 @@ def import_aps_attendance_students(sid):
 def save_aps_attendance_students(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    formation = (session_data.get("formation") or "").upper()
+    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
     payload = request.get_json(silent=True) or {}
     students = []
     for item in payload.get("students") or []:
@@ -4763,8 +4765,10 @@ def save_aps_attendance_students(sid):
             students.append({"lastName": last, "firstName": first})
     if not students:
         return jsonify({"ok": False, "error": "Veuillez enregistrer au moins un stagiaire."}), 400
-    session_data["apsAttendanceStudents"] = students
-    session_data["apsAttendanceSheetsUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
+    updated_key = "a3pAttendanceSheetsUpdatedAt" if formation == "A3P" else "apsAttendanceSheetsUpdatedAt"
+    session_data[student_key] = students
+    session_data[updated_key] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_sessions(data)
     return jsonify({"ok": True, "students": students})
 
@@ -4773,32 +4777,49 @@ def save_aps_attendance_students(sid):
 def generate_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
-    if not session_data.get("apsPlanningData"):
-        return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer les feuilles de présence."}), 400
-    if not session_data.get("apsAttendanceStudents"):
+    formation = (session_data.get("formation") or "").upper()
+    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
+    planning_key = "a3pPlanningData" if formation == "A3P" else "apsPlanningData"
+    student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
+    if not session_data.get(planning_key):
+        return jsonify({"ok": False, "error": f"Veuillez générer le planning {formation} avant de générer les feuilles de présence."}), 400
+    if not session_data.get(student_key):
         return jsonify({"ok": False, "error": "Aucune liste de stagiaires n’est enregistrée."}), 400
-    if not _aps_presentiel_days(session_data.get("apsPlanningData"), session_data.get("apsPlanningMode") or "full_presentiel"):
+    shared_session = session_data
+    if formation == "A3P":
+        shared_session, converted = _a3p_session_for_shared_docs(session_data)
+        if not _aps_presentiel_days(converted, "full_presentiel"):
+            return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
+    elif not _aps_presentiel_days(session_data.get("apsPlanningData"), session_data.get("apsPlanningMode") or "full_presentiel"):
         return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
-    filename = f"feuilles_presence_aps_{sid}.pdf"
-    output_path = os.path.join(APS_ATTENDANCE_DIR, filename)
+    filename = f"feuilles_presence_{formation.lower()}_{sid}.pdf"
+    output_dir = A3P_DOC_DIR if formation == "A3P" else APS_ATTENDANCE_DIR
+    output_path = os.path.join(output_dir, filename)
     temp_path = f"{output_path}.tmp"
     try:
-        generate_aps_attendance_pdf(session_data, temp_path)
+        generate_a3p_attendance_pdf(session_data, temp_path) if formation == "A3P" else generate_aps_attendance_pdf(session_data, temp_path)
         if not os.path.exists(temp_path) or os.path.getsize(temp_path) <= 0:
             raise ValueError("Le PDF généré est vide.")
         os.replace(temp_path, output_path)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        session_data["apsAttendanceSheetsPdfUrl"] = url_for("view_aps_attendance_sheets", sid=sid)
-        session_data["apsAttendanceSheetsFilename"] = filename
-        session_data["apsAttendanceSheetsGeneratedAt"] = session_data.get("apsAttendanceSheetsGeneratedAt") or now
-        session_data["apsAttendanceSheetsUpdatedAt"] = now
+        if formation == "A3P":
+            session_data["a3pAttendanceSheetsPdfUrl"] = url_for("view_a3p_document", sid=sid, kind="attendance")
+            session_data["a3pAttendanceSheetsFilename"] = filename
+            session_data["a3pAttendanceSheetsGeneratedAt"] = session_data.get("a3pAttendanceSheetsGeneratedAt") or now
+            session_data["a3pAttendanceSheetsUpdatedAt"] = now
+            docs = session_data.setdefault("a3p_documents", {})
+            docs["attendance"] = {"path": output_path, "generated_at": now}
+        else:
+            session_data["apsAttendanceSheetsPdfUrl"] = url_for("view_aps_attendance_sheets", sid=sid)
+            session_data["apsAttendanceSheetsFilename"] = filename
+            session_data["apsAttendanceSheetsGeneratedAt"] = session_data.get("apsAttendanceSheetsGeneratedAt") or now
+            session_data["apsAttendanceSheetsUpdatedAt"] = now
         save_sessions(data)
-        return jsonify({"ok": True, "pdfUrl": session_data["apsAttendanceSheetsPdfUrl"], "generatedAt": now})
+        return jsonify({"ok": True, "pdfUrl": session_data["a3pAttendanceSheetsPdfUrl"] if formation == "A3P" else session_data["apsAttendanceSheetsPdfUrl"], "generatedAt": now})
     except Exception as exc:
         if os.path.exists(temp_path):
             os.remove(temp_path)
-        app.logger.exception("Erreur génération feuilles présence APS session=%s", sid)
+        app.logger.exception("Erreur génération feuilles présence %s session=%s", formation, sid)
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
@@ -4806,16 +4827,20 @@ def generate_aps_attendance_sheets(sid):
 def reset_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    formation = (session_data.get("formation") or "").upper()
+    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
     payload = request.get_json(silent=True) or {}
-    filename = session_data.get("apsAttendanceSheetsFilename")
+    filename = session_data.get("a3pAttendanceSheetsFilename" if formation == "A3P" else "apsAttendanceSheetsFilename")
     if filename:
-        try: os.remove(os.path.join(APS_ATTENDANCE_DIR, os.path.basename(filename)))
+        try: os.remove(os.path.join(A3P_DOC_DIR if formation == "A3P" else APS_ATTENDANCE_DIR, os.path.basename(filename)))
         except FileNotFoundError: pass
-    for key in ("apsAttendanceSheetsPdfUrl", "apsAttendanceSheetsFilename", "apsAttendanceSheetsGeneratedAt", "apsAttendanceSheetsUpdatedAt"):
+    keys = ("a3pAttendanceSheetsPdfUrl", "a3pAttendanceSheetsFilename", "a3pAttendanceSheetsGeneratedAt", "a3pAttendanceSheetsUpdatedAt") if formation == "A3P" else ("apsAttendanceSheetsPdfUrl", "apsAttendanceSheetsFilename", "apsAttendanceSheetsGeneratedAt", "apsAttendanceSheetsUpdatedAt")
+    for key in keys:
         session_data.pop(key, None)
+    if formation == "A3P":
+        (session_data.get("a3p_documents") or {}).pop("attendance", None)
     if payload.get("deleteStudents"):
-        session_data.pop("apsAttendanceStudents", None)
+        session_data.pop("a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents", None)
     save_sessions(data)
     return jsonify({"ok": True})
 
@@ -5083,7 +5108,7 @@ def view_a3p_document(sid, kind):
         "attendance": f"feuilles_presence_a3p_{sid}.pdf",
         "contract": f"contrat_formateur_a3p_{sid}.pdf",
     }
-    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=download_names[kind])
+    return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=download_names[kind])
 
 @app.get("/sessions/<sid>/aps-planning/edit")
 def edit_aps_planning_page(sid):

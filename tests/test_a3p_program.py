@@ -112,3 +112,40 @@ def test_a3p_validation_rejects_days_over_eight_hours():
     planning = [{"date":"2026-01-05","slots":[{"code":"UV2","start":"08:30","end":"17:31","durationMinutes":481}]}]
     errors, _ = validate_a3p_planning(planning)
     assert any("dépasse 8h" in error for error in errors)
+
+
+def test_a3p_attendance_pdf_uses_aps_signature_template(tmp_path):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    from app import generate_a3p_attendance_pdf
+
+    result = generateA3pSchedule(config())
+    first_day = result["planning"][0]
+    first_day["slots"][0]["trainer"] = "Jean Dupont"
+
+    output = tmp_path / "attendance_a3p.pdf"
+    generate_a3p_attendance_pdf({
+        "id": "A3P-TEST",
+        "formation": "A3P",
+        "display_name": "Session A3P test",
+        "date_debut": config()["days"][0]["date"],
+        "date_fin": config()["days"][-1]["date"],
+        "date_exam": config()["examDate"],
+        "a3pPlanningData": result["planning"],
+        "a3pRoom": "Salle A",
+        "a3pTrainerName": "Jean Dupont",
+        "a3pAttendanceStudents": [{"lastName": "DURAND", "firstName": "Alice"}],
+    }, str(output))
+
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
+    assert "FEUILLE DE PRÉSENCE" in text
+    assert "TFP Agent de Protection Physique des Personnes (A3P)" in text
+    assert "Signature matin" in text
+    assert "Signature après-midi" in text
+    assert "Signature formateur matin" in text
+    assert "Observations éventuelles" in text
+    assert "Cachet du centre" in text
+    first_slot = first_day["slots"][0]
+    assert first_slot["code"] in text
+    assert first_slot["title"] in text
+    assert "e-learning" not in text.lower()

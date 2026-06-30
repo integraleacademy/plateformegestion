@@ -2168,6 +2168,65 @@ def validate_a3p_trainer_manual_data(session_data, modules_data):
             if cur[0] < prev[1]: errors.append(f"{format_date(d)} : chevauchement entre modules imposés.")
     return errors
 
+
+
+def _a3p_manual_modules_from_state(state):
+    if not isinstance(state, dict):
+        return {}
+    cfg = state.get("scheduleConfig") if isinstance(state.get("scheduleConfig"), dict) else state
+    return cfg.get("lockedModules") or state.get("lockedModules") or {}
+
+def are_a3p_manual_modules_complete(state):
+    modules_data = _a3p_manual_modules_from_state(state)
+    for code in A3P_TRAINER_MANUAL_CODES:
+        expected = int(A3P_TRAINER_MODULE_LABELS[code]["hours"] * 60)
+        total = 0
+        for row in modules_data.get(code) or []:
+            if row.get("durationMinutes") is not None:
+                try:
+                    total += int(float(row.get("durationMinutes") or 0))
+                    continue
+                except (TypeError, ValueError):
+                    pass
+            try:
+                st, en = row.get("start"), row.get("end")
+                if not st or not en:
+                    continue
+                total += (int(en[:2]) * 60 + int(en[3:5])) - (int(st[:2]) * 60 + int(st[3:5]))
+            except Exception:
+                continue
+        if total != expected:
+            return False
+    return True
+
+def _a3p_planning_total_minutes(planning):
+    if not isinstance(planning, list):
+        return 0
+    return sum(int(float(slot.get("durationMinutes") or 0)) for day in planning for slot in (day.get("slots") or []))
+
+def can_generate_a3p_documents_state(state):
+    planning = state.get("planning") or state.get("preview") or state.get("generatedPlanning") or [] if isinstance(state, dict) else []
+    total_minutes = _a3p_planning_total_minutes(planning)
+    total_hours = total_minutes / 60
+    remaining_hours = A3P_TOTAL_HOURS - total_hours
+    return (
+        are_a3p_manual_modules_complete(state)
+        and round(total_minutes) == A3P_TOTAL_HOURS * 60
+        and round(remaining_hours * 60) == 0
+        and bool(planning)
+    )
+
+def mark_a3p_manual_modules_admin_validated(session_data, modules_data=None):
+    now = datetime.now().isoformat()
+    session_data["manual_modules_source"] = "admin"
+    session_data["manual_modules_completed"] = True
+    session_data["manual_modules_validated"] = True
+    session_data["manual_modules_validated_at"] = now
+    session_data["a3pTrainerModulesStatus"] = "validated"
+    session_data["a3pTrainerModulesValidatedAt"] = now
+    if modules_data is not None:
+        session_data["a3pTrainerManualModulesData"] = modules_data
+
 def a3p_public_payload(session_data):
     cfg = session_data.get("a3pPlanningDraftJson") or {}
     return {
@@ -4716,6 +4775,9 @@ def put_a3p_planning_builder(sid):
     if _has_builder_content(previous_state) and not _has_builder_content(state):
         return jsonify({"ok": False, "error": "Sauvegarde A3P refusée : état vide ou incomplet, conservation du dernier état valide."}), 400
     session_data["a3pPlanningBuilder"] = state
+    modules_data = _a3p_manual_modules_from_state(state)
+    if are_a3p_manual_modules_complete(state):
+        mark_a3p_manual_modules_admin_validated(session_data, modules_data)
     session_data["a3pPlanningBuilderSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_sessions(data)
     return jsonify({"ok": True, "savedAt": session_data["a3pPlanningBuilderSavedAt"]})
@@ -4728,6 +4790,8 @@ def save_a3p_documents_draft(sid):
     payload=request.get_json(silent=True) or {}
     cfg=payload.get("scheduleConfig") or payload
     session_data["a3pPlanningDraftJson"] = cfg
+    if are_a3p_manual_modules_complete({"scheduleConfig": cfg, "planning": payload.get("planning") or []}):
+        mark_a3p_manual_modules_admin_validated(session_data, cfg.get("lockedModules") or {})
     session_data["a3pTrainerEmail"] = cfg.get("trainerEmail") or session_data.get("a3pTrainerEmail")
     session_data["a3pTrainerName"] = ((cfg.get("trainerFirstName") or "") + " " + (cfg.get("trainerLastName") or "")).strip() or session_data.get("a3pTrainerName")
     session_data["a3pPlanningDraftSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -4758,10 +4822,14 @@ def generate_a3p_documents(sid):
     app.logger.info("Début génération documents A3P session_id=%s", sid)
     try:
         cfg=payload.get("scheduleConfig") or payload
-        if session_data.get("a3pTrainerModulesStatus") != "validated":
+        admin_ready = can_generate_a3p_documents_state({"scheduleConfig": cfg, "planning": payload.get("planning") or []})
+        if session_data.get("a3pTrainerModulesStatus") != "validated" and not admin_ready:
             app.logger.warning("Génération documents A3P refusée session_id=%s statut_modules=%s", sid, session_data.get("a3pTrainerModulesStatus"))
             return jsonify({"ok":False,"error":"Les modules formateur A3P doivent être complétés puis validés par l’admin avant génération."}),400
-        cfg=dict(cfg); cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
+        cfg=dict(cfg)
+        if admin_ready:
+            mark_a3p_manual_modules_admin_validated(session_data, cfg.get("lockedModules") or {})
+        cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
         supplied_planning = payload.get("planning") if isinstance(payload.get("planning"), list) else None
         if supplied_planning:
             planning = supplied_planning
@@ -4839,7 +4907,7 @@ def validate_a3p_trainer_modules_admin(sid):
     if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
     errors=validate_a3p_trainer_manual_data(session_data, session_data.get("a3pTrainerManualModulesData") or {})
     if errors: return jsonify({"ok":False,"errors":errors,"error":"Modules formateur incomplets."}),400
-    session_data["a3pTrainerModulesStatus"]="validated"; session_data["a3pTrainerModulesValidatedAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session_data["a3pTrainerModulesStatus"]="validated"; session_data["a3pTrainerModulesValidatedAt"]=datetime.now().isoformat(); session_data["manual_modules_validated"] = True; session_data["manual_modules_validated_at"] = session_data["a3pTrainerModulesValidatedAt"]
     draft=session_data.setdefault("a3pPlanningDraftJson", {})
     draft["lockedModules"] = session_data.get("a3pTrainerManualModulesData") or {}
     save_sessions(data)
@@ -4862,6 +4930,9 @@ def save_public_a3p_planning(token):
     if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou désactivé."}),404
     payload=request.get_json(silent=True) or {}; modules=payload.get("modulesData") or {}
     session_data["a3pTrainerManualModulesData"] = {c: modules.get(c, []) for c in A3P_TRAINER_MANUAL_CODES}
+    session_data["manual_modules_source"] = "trainer"
+    session_data["manual_modules_completed"] = False
+    session_data["manual_modules_validated"] = False
     if session_data.get("a3pTrainerModulesStatus") not in {"completed","validated"}: session_data["a3pTrainerModulesStatus"]="in_progress"
     save_sessions(data)
     return jsonify({"ok":True,"status":a3p_trainer_status(session_data),"errors":validate_a3p_trainer_manual_data(session_data, session_data["a3pTrainerManualModulesData"])})
@@ -4874,7 +4945,10 @@ def complete_public_a3p_planning(token):
     session_data["a3pTrainerManualModulesData"]={c: modules.get(c, []) for c in A3P_TRAINER_MANUAL_CODES}
     errors=validate_a3p_trainer_manual_data(session_data, session_data["a3pTrainerManualModulesData"])
     session_data["a3pTrainerModulesStatus"]="incomplete" if errors else "completed"
-    if not errors: session_data["a3pTrainerModulesCompletedAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session_data["manual_modules_source"] = "trainer"
+    session_data["manual_modules_completed"] = not bool(errors)
+    session_data["manual_modules_validated"] = False
+    if not errors: session_data["a3pTrainerModulesCompletedAt"]=datetime.now().isoformat()
     save_sessions(data)
     return (jsonify({"ok":not bool(errors),"status":a3p_trainer_status(session_data),"errors":errors}), 400 if errors else 200)
 

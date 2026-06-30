@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 A3P_TOTAL_HOURS = 328
 A3P_FORBIDDEN_TERMS = ("APS", "e-learning", "distanciel", "175h")
@@ -36,6 +36,31 @@ def _slot_minutes(start: str, end: str) -> int:
 def _day_label(iso: str) -> str:
     d = datetime.strptime(iso, "%Y-%m-%d").date()
     return ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][d.weekday()]
+
+def _easter_date(year: int) -> date:
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+def _french_public_holidays(year: int) -> set[date]:
+    easter = _easter_date(year)
+    return {
+        date(year, 1, 1), date(year, 5, 1), date(year, 5, 8), date(year, 7, 14),
+        date(year, 8, 15), date(year, 11, 1), date(year, 11, 11), date(year, 12, 25),
+        easter + timedelta(days=1), easter + timedelta(days=39), easter + timedelta(days=50),
+    }
 
 def _day_training_slots(day):
     start = day.get("dayStart") or day.get("morningStart")
@@ -90,7 +115,11 @@ def _is_available_training_day(day, exam_date=None):
     if not day or day.get("training") is False or not day.get("date") or day.get("date") == exam_date:
         return False
     try:
-        return datetime.strptime(day.get("date"), "%Y-%m-%d").date().weekday() < 5
+        parsed = datetime.strptime(day.get("date"), "%Y-%m-%d").date()
+        forced = bool(day.get("forceHoliday") or day.get("forced") or day.get("adminForced"))
+        if parsed in _french_public_holidays(parsed.year) and not forced:
+            return False
+        return parsed.weekday() < 5
     except Exception:
         return False
 

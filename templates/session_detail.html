@@ -912,29 +912,33 @@ a.back:hover{ background:#d9a848 !important; }
     </form>
   {% endif %}
 </section>
-{% if s.formation == "APS" %}
+{% if s.formation in ["APS", "A3P"] %}
 <section class="planning-box" id="aps-attendance-section">
   <div class="planning-header">
     <div>
       <h2 style="margin:0;">📄 Feuilles de présence</h2>
-      <p class="muted" style="margin:6px 0 0;">Importez les stagiaires puis générez les feuilles d’émargement à partir du planning APS.</p>
+      <p class="muted" style="margin:6px 0 0;">Importez les stagiaires puis générez les feuilles d’émargement à partir du planning {{ s.formation }}.</p>
     </div>
     <div class="planning-actions">
       <button type="button" class="btn small" id="openApsAttendanceImport">Importer la liste des stagiaires</button>
       <button type="button" class="btn small gold" id="generateApsAttendance">Générer les feuilles de présence</button>
-      {% if s.apsAttendanceSheetsPdfUrl %}
-        <a class="btn small" href="{{ s.apsAttendanceSheetsPdfUrl }}" target="_blank">Voir les feuilles de présence</a>
+      {% set attendance_pdf_url = (url_for("view_a3p_document", sid=s.id, kind="attendance") if a3p_document_exists(s, "attendance") else s.a3pAttendanceSheetsPdfUrl) if s.formation == "A3P" else s.apsAttendanceSheetsPdfUrl %}
+      {% if attendance_pdf_url %}
+        <a class="btn small" href="{{ attendance_pdf_url }}" target="_blank">Voir les feuilles de présence</a>
         <button type="button" class="btn small gold" id="regenerateApsAttendance">Régénérer les feuilles de présence</button>
       {% endif %}
       <button type="button" class="btn small danger" id="openResetApsAttendance">Réinitialiser les feuilles de présence</button>
     </div>
   </div>
-  {% if s.apsAttendanceSheetsGeneratedAt %}
-    <div class="planning-status">✅ Feuilles de présence générées le {{ s.apsAttendanceSheetsGeneratedAt|datetimefr }}</div>
+  {% set attendance_generated_at = (s.a3pAttendanceSheetsGeneratedAt or ((s.a3p_documents or {}).get("attendance") or {}).get("generated_at") or s.a3pDocumentsGeneratedAt) if s.formation == "A3P" else s.apsAttendanceSheetsGeneratedAt %}
+  {% set attendance_students = s.a3pAttendanceStudents if s.formation == "A3P" else s.apsAttendanceStudents %}
+  {% set attendance_planning_data = s.a3pPlanningData if s.formation == "A3P" else s.apsPlanningData %}
+  {% if attendance_generated_at %}
+    <div class="planning-status">✅ Feuilles de présence générées le {{ attendance_generated_at|datetimefr }}</div>
   {% endif %}
-  <p class="muted" style="margin-top:8px;"><strong>{{ (s.apsAttendanceStudents or [])|length }}</strong> stagiaire(s) enregistré(s).</p>
-  {% if not s.apsPlanningData %}
-    <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning APS avant de générer les feuilles de présence.</div>
+  <p class="muted" style="margin-top:8px;"><strong>{{ (attendance_students or [])|length }}</strong> stagiaire(s) enregistré(s).</p>
+  {% if not attendance_planning_data %}
+    <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning {{ s.formation }} avant de générer les feuilles de présence.</div>
   {% endif %}
 </section>
 
@@ -1025,33 +1029,6 @@ a.back:hover{ background:#d9a848 !important; }
 </div>
 {% endif %}
 {% endif %}
-
-
-{% if s.formation == "A3P" %}
-<section class="planning-box" id="a3p-attendance-section">
-  <div class="planning-header">
-    <div>
-      <h2 style="margin:0;">📄 Feuilles de présence</h2>
-      <p class="muted" style="margin:6px 0 0;">Générez les feuilles d’émargement à partir du planning A3P.</p>
-    </div>
-    <div class="planning-actions">
-      <button type="button" class="btn small gold" data-regen-a3p-docs>Générer les feuilles de présence</button>
-      {% if a3p_document_exists(s, 'attendance') %}
-        <a class="btn small" href="{{ url_for('view_a3p_document', sid=s.id, kind='attendance') }}" target="_blank">Voir les feuilles de présence</a>
-        <button type="button" class="btn small gold" data-regen-a3p-docs>Régénérer les feuilles de présence</button>
-      {% endif %}
-    </div>
-  </div>
-  {% if a3p_document_exists(s, 'attendance') %}
-    <div class="planning-status">✅ Feuilles de présence générées le {{ ((s.a3p_documents or {}).get('attendance') or {}).get('generated_at', s.a3pDocumentsGeneratedAt)|datetimefr }}</div>
-  {% elif s.a3pDocumentsGeneratedAt %}
-    <div class="flash error" style="display:inline-block;margin-top:8px;">Document introuvable, veuillez régénérer les documents A3P.</div>
-  {% else %}
-    <p class="muted" style="margin-top:8px;">Aucune feuille de présence générée.</p>
-  {% endif %}
-</section>
-{% endif %}
-
 
 
 {% if s.formation == "A3P" %}
@@ -1670,7 +1647,7 @@ const apsAttendanceImportForm = document.getElementById("apsAttendanceImportForm
 const apsAttendanceStudentsBody = document.getElementById("apsAttendanceStudentsBody");
 const apsAttendanceMessage = document.getElementById("apsAttendanceMessage");
 const resetApsAttendanceModal = document.getElementById("resetApsAttendanceModal");
-let apsAttendanceStudents = {{ (s.apsAttendanceStudents or [])|tojson }};
+let apsAttendanceStudents = {{ ((s.a3pAttendanceStudents if s.formation == "A3P" else s.apsAttendanceStudents) or [])|tojson }};
 function closeApsAttendanceModal(){ apsAttendanceModal?.classList.remove("open"); apsAttendanceModal?.setAttribute("aria-hidden", "true"); }
 function renderApsAttendanceStudents(){
   const container = document.getElementById("apsAttendanceStudentsBody");

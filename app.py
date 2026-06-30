@@ -2198,8 +2198,12 @@ def load_sessions():
     return {"sessions": [], "jurys": []}
 
 def save_sessions(data):
-    with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
+    tmp_path = SESSIONS_FILE + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, SESSIONS_FILE)
 
 def load_price_adaptator_data():
     if os.path.exists(PRICE_ADAPTATOR_FILE):
@@ -4682,6 +4686,27 @@ def view_aps_attendance_sheets(sid):
     if not os.path.exists(path): abort(404)
     return send_file(path, mimetype="application/pdf", as_attachment=False)
 
+
+
+@app.get("/api/admin/sessions/<sid>/a3p-planning-builder")
+def get_a3p_planning_builder(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
+    state = session_data.get("a3pPlanningBuilder") or session_data.get("a3pPlanningDraftJson") or {}
+    return jsonify({"ok": True, "state": state, "savedAt": session_data.get("a3pPlanningBuilderSavedAt") or session_data.get("a3pPlanningDraftSavedAt")})
+
+@app.put("/api/admin/sessions/<sid>/a3p-planning-builder")
+def put_a3p_planning_builder(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
+    payload = request.get_json(silent=True) or {}
+    state = payload.get("state") if isinstance(payload.get("state"), dict) else payload
+    session_data["a3pPlanningBuilder"] = state
+    session_data["a3pPlanningBuilderSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_sessions(data)
+    return jsonify({"ok": True, "savedAt": session_data["a3pPlanningBuilderSavedAt"]})
 
 @app.post("/api/sessions/<sid>/a3p-documents/draft")
 def save_a3p_documents_draft(sid):

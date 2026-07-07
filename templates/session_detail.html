@@ -526,6 +526,44 @@ a.back:hover{ background:#d9a848 !important; }
 .contract-form-card input,.contract-form-card textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:10px;margin-top:5px;}
 .contract-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;}
 .contract-table th,.contract-table td{border-bottom:1px solid #e5e7eb;padding:6px;text-align:left;}
+
+.attendance-students-panel{
+  margin-top:14px;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  background:#f9fafb;
+  padding:14px;
+}
+.attendance-students-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.attendance-students-header h3{margin:0;font-size:16px;}
+.attendance-students-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:8px;
+}
+.attendance-student-chip{
+  border:1px solid #e5e7eb;
+  border-radius:999px;
+  background:#fff;
+  padding:8px 12px;
+  font-size:13px;
+}
+.attendance-empty-state{
+  margin-top:14px;
+  border:1px dashed #d1d5db;
+  border-radius:14px;
+  background:#f9fafb;
+  padding:14px;
+  color:#4b5563 !important;
+  font-weight:700;
+}
 .planning-form{
   display:flex;
   gap:10px;
@@ -921,6 +959,7 @@ a.back:hover{ background:#d9a848 !important; }
     </div>
     <div class="planning-actions">
       <button type="button" class="btn small" id="openApsAttendanceImport">Importer la liste des stagiaires</button>
+      <button type="button" class="btn small" id="openApsAttendanceManage">Voir / modifier les stagiaires</button>
       <button type="button" class="btn small gold" id="generateApsAttendance">Générer les feuilles de présence</button>
       {% set attendance_pdf_url = (url_for("view_a3p_document", sid=s.id, kind="attendance") if a3p_document_exists(s, "attendance") else s.a3pAttendanceSheetsPdfUrl) if s.formation == "A3P" else s.apsAttendanceSheetsPdfUrl %}
       {% if attendance_pdf_url %}
@@ -937,13 +976,30 @@ a.back:hover{ background:#d9a848 !important; }
     <div class="planning-status">✅ Feuilles de présence générées le {{ attendance_generated_at|datetimefr }}</div>
   {% endif %}
   <p class="muted" style="margin-top:8px;"><strong>{{ (attendance_students or [])|length }}</strong> stagiaire(s) enregistré(s).</p>
+  {% if attendance_students %}
+    <div class="attendance-students-panel" aria-labelledby="attendance-students-title">
+      <div class="attendance-students-header">
+        <h3 id="attendance-students-title">Liste des stagiaires</h3>
+        <button type="button" class="btn small" id="openApsAttendanceManageFromList">Ajouter / supprimer</button>
+      </div>
+      <div class="attendance-students-list" role="list">
+        {% for student in attendance_students %}
+          <div class="attendance-student-chip" role="listitem">
+            <strong>{{ student.lastName }}</strong> {{ student.firstName }}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="attendance-empty-state">Aucun stagiaire enregistré pour le moment. Importez une liste ou ajoutez-les manuellement.</div>
+  {% endif %}
   {% if not attendance_planning_data %}
     <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning {{ s.formation }} avant de générer les feuilles de présence.</div>
   {% endif %}
 </section>
 
 <div class="modal" id="apsAttendanceModal" aria-hidden="true"><div class="modal-content" style="max-width:900px;max-height:90vh;overflow:auto;">
-  <div class="modal-header"><div><h3 style="margin:0;">Importer la liste des stagiaires</h3><p class="muted">Le PDF est analysé, puis vous pouvez corriger la liste avant enregistrement.</p></div><button class="modal-close" type="button" id="closeApsAttendanceModal" data-modal-close aria-label="Fermer">×</button></div>
+  <div class="modal-header"><div><h3 style="margin:0;">Gérer la liste des stagiaires</h3><p class="muted">Importez un PDF, ajoutez un stagiaire manuellement ou supprimez une ligne avant d’enregistrer.</p></div><button class="modal-close" type="button" id="closeApsAttendanceModal" data-modal-close aria-label="Fermer">×</button></div>
   <form id="apsAttendanceImportForm" style="margin-top:14px;">
     <input type="file" id="apsAttendancePdf" accept="application/pdf" required>
     <button class="btn" type="submit">Extraire les noms</button>
@@ -1686,7 +1742,10 @@ function syncApsAttendanceStudents(){
   });
 }
 try { renderApsAttendanceStudents(); } catch(error) { console.error("Initialisation APS attendance impossible", error); }
-document.getElementById("openApsAttendanceImport")?.addEventListener("click", () => { renderApsAttendanceStudents(); apsAttendanceModal?.classList.add("open"); apsAttendanceModal?.setAttribute("aria-hidden", "false"); });
+function openApsAttendanceModal(){ renderApsAttendanceStudents(); apsAttendanceModal?.classList.add("open"); apsAttendanceModal?.setAttribute("aria-hidden", "false"); }
+document.getElementById("openApsAttendanceImport")?.addEventListener("click", openApsAttendanceModal);
+document.getElementById("openApsAttendanceManage")?.addEventListener("click", openApsAttendanceModal);
+document.getElementById("openApsAttendanceManageFromList")?.addEventListener("click", openApsAttendanceModal);
 document.getElementById("closeApsAttendanceModal")?.addEventListener("click", closeApsAttendanceModal);
 document.getElementById("cancelApsAttendance")?.addEventListener("click", closeApsAttendanceModal);
 document.getElementById("addApsAttendanceStudent")?.addEventListener("click", () => { syncApsAttendanceStudents(); apsAttendanceStudents.push({lastName:"", firstName:""}); renderApsAttendanceStudents(); });

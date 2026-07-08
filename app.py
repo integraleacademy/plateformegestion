@@ -693,6 +693,18 @@ def build_aps_planning(start_date, end_date=None, exam_iso=""):
     return days, totals, total_hours
 
 def find_center_image(*keywords):
+    normalized_keywords = tuple((keyword or "").lower() for keyword in keywords)
+    explicit_assets = (
+        os.path.join(BASE_DIR, "templates", "signature"),
+        os.path.join(BASE_DIR, "templates", "signature.png"),
+        os.path.join(BASE_DIR, "templates", "Tampon.png"),
+        os.path.join(BASE_DIR, "templates", "tampon.png"),
+    )
+    for asset_path in explicit_assets:
+        name = os.path.basename(asset_path).lower()
+        if os.path.isfile(asset_path) and any(keyword in name for keyword in normalized_keywords):
+            return asset_path
+
     image_dir = os.path.join(BASE_DIR, "static", "img")
     if not os.path.isdir(image_dir):
         return None
@@ -700,7 +712,8 @@ def find_center_image(*keywords):
         if not entry.is_file():
             continue
         name = entry.name.lower()
-        if any(keyword in name for keyword in keywords) and name.rsplit(".", 1)[-1] in {"png", "jpg", "jpeg"}:
+        extension = name.rsplit(".", 1)[-1] if "." in name else ""
+        if any(keyword in name for keyword in normalized_keywords) and extension in {"png", "jpg", "jpeg"}:
             return entry.path
     return None
 
@@ -1200,14 +1213,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     def build_pages():
         built_pages, current_page, current_part = [], [], None
-        y = height - (128 if planning_mode == "elearning_presentiel" else 104)
+        y = height - (146 if planning_mode == "elearning_presentiel" else 122)
         bottom_limit = 84
         for day in planning_data or []:
             needed, day_part = day_height(day, current_part)
             if current_page and y - needed < bottom_limit:
                 built_pages.append(current_page)
                 current_page, current_part = [], None
-                y = height - 104
+                y = height - 122
                 needed, day_part = day_height(day, current_part)
             current_page.append(day)
             y -= needed
@@ -1229,22 +1242,32 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.drawString(margin + 88, height - 35, title)
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
         c.drawString(margin + 88, height - 50, document_profile.get("subtitle") or "Agent de Prévention et de Sécurité — 175 heures")
-        c.drawString(margin + 88, height - 64, f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}")
+        info_y = draw_wrapped_text(
+            c,
+            f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}",
+            margin + 88,
+            height - 64,
+            width - margin - (margin + 88),
+            "Helvetica",
+            9,
+            11,
+        )
+        modality_y = info_y - 1
         if planning_mode == "elearning_presentiel":
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-            c.drawString(margin + 88, height - 77, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
+            c.drawString(margin + 88, modality_y, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
         else:
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-            c.drawString(margin + 88, height - 77, document_profile.get("modality_line") or "Modalité : 100% présentiel • Présentiel : 175h")
-        y_dates = height - 90
+            c.drawString(margin + 88, modality_y, document_profile.get("modality_line") or "Modalité : 100% présentiel • Présentiel : 175h")
+        y_dates = modality_y - 13
         c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
         date_lines = []
         if modality_ranges.get("elearning"):
             date_lines.append(f"Période e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
         if modality_ranges.get("presentiel"):
             date_lines.append(f"Période présentiel : {aps_format_range(modality_ranges.get('presentiel'))}")
-        c.drawString(margin + 88, y_dates, " • ".join(date_lines))
-        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 96, width - margin, height - 96)
+        draw_wrapped_text(c, " • ".join(date_lines), margin + 88, y_dates, width - margin - (margin + 88), "Helvetica-Bold", 8, 10)
+        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 112, width - margin, height - 112)
         c.setFont("Helvetica", 6.2); c.setFillColor(colors.HexColor("#6b7280"))
         c.drawString(margin, 40, f"Édité le {edited}, sous réserve de modification.")
         legal = " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:])
@@ -1254,7 +1277,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     page_no = 1
     for page_days in pages:
         draw_header_footer(page_no)
-        y = height - 128 if planning_mode == "elearning_presentiel" else height - 104
+        y = height - 146 if planning_mode == "elearning_presentiel" else height - 122
         if page_no == 1 and planning_mode == "elearning_presentiel":
             c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Légende :")
             c.setFillColor(colors.HexColor("#6d28d9")); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
@@ -1298,7 +1321,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.showPage()
 
     draw_header_footer(page_no)
-    y = height - 105
+    y = height - 122
     c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
     y -= 18
     if planning_mode == "elearning_presentiel":
@@ -1328,12 +1351,25 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
     y -= 24
     box_w = (width - 2 * margin - 18) / 2
+    signature_box_h = 92
+    signature_label_h = 18
+    image_padding_x = 12
+    image_padding_bottom = 8
     for idx, (label, image_path) in enumerate((("Signature", signature_image), ("Tampon", stamp_image))):
         x = margin + idx * (box_w + 18)
-        c.setFillColor(colors.white); c.roundRect(x, y - 70, box_w, 70, 6, fill=1, stroke=1)
+        c.setFillColor(colors.white); c.roundRect(x, y - signature_box_h, box_w, signature_box_h, 6, fill=1, stroke=1)
         c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold", 9); c.drawString(x + 10, y - 16, label)
-        if image_path: c.drawImage(image_path, x + 10, y - 62, width=box_w - 20, height=38, preserveAspectRatio=True, mask="auto")
-    y -= 95
+        if image_path:
+            c.drawImage(
+                image_path,
+                x + image_padding_x,
+                y - signature_box_h + image_padding_bottom,
+                width=box_w - (image_padding_x * 2),
+                height=signature_box_h - signature_label_h - image_padding_bottom - 2,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+    y -= signature_box_h + 25
     c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "Informations légales")
     y -= 14
     for line in APS_LEGAL_LINES:
@@ -2140,6 +2176,58 @@ def set_planning_for_session(sid, filename):
     s["planning_generated_at"] = datetime.now().strftime("%Y-%m-%d")
     save_sessions(data)
     return True
+
+
+def refresh_aps_planning_pdf_file(session_data, sid):
+    if (session_data.get("formation") or "").upper() != "APS":
+        return session_data.get("planning_pdf")
+    planning_data = session_data.get("apsPlanningData") or []
+    if not planning_data:
+        return session_data.get("planning_pdf")
+
+    filename = f"planning_aps_session_{sid}.pdf"
+    output_path = os.path.join(PLANNING_DIR, filename)
+    temp_path = f"{output_path}.tmp"
+    planning_mode = session_data.get("apsPlanningMode") or (
+        "elearning_presentiel"
+        if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
+        else "full_presentiel"
+    )
+    try:
+        result = generate_aps_planning_pdf(
+            session_data,
+            "",
+            temp_path,
+            planning_data=planning_data,
+            planning_mode=planning_mode,
+        )
+        os.replace(temp_path, output_path)
+        session_data["planning_pdf"] = filename
+        session_data["apsPlanningSummary"] = result["summary"]
+        session_data["apsPlanningMode"] = planning_mode
+        session_data["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return filename
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
+def send_planning_pdf_file(path, *, as_attachment, download_name=None):
+    response = send_file(
+        path,
+        mimetype="application/pdf",
+        as_attachment=as_attachment,
+        download_name=download_name,
+        conditional=False,
+        max_age=0,
+    )
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 FROM_EMAIL = os.environ.get("FROM_EMAIL")
@@ -5225,28 +5313,47 @@ def reset_aps_planning_api(sid):
 
 @app.get("/sessions/<sid>/planning/view")
 def view_planning_pdf(sid):
-    name = get_planning_for_session(sid)
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        abort(404)
+    try:
+        name = refresh_aps_planning_pdf_file(session_data, sid)
+        save_sessions(data)
+    except Exception as exc:
+        app.logger.exception("Impossible de rafraîchir le planning APS avant affichage session=%s", sid)
+        abort(500, description=str(exc))
     if not name:
         abort(404)
 
-    path = os.path.join(PLANNING_DIR, name)
+    path = os.path.join(PLANNING_DIR, os.path.basename(str(name)))
     if not os.path.exists(path):
         abort(404)
 
-    return send_file(path, mimetype="application/pdf", as_attachment=False)
+    return send_planning_pdf_file(path, as_attachment=False)
 
 
 @app.get("/sessions/<sid>/planning/download")
 def download_planning_pdf(sid):
-    name = get_planning_for_session(sid)
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        abort(404)
+    try:
+        name = refresh_aps_planning_pdf_file(session_data, sid)
+        save_sessions(data)
+    except Exception as exc:
+        app.logger.exception("Impossible de rafraîchir le planning APS avant téléchargement session=%s", sid)
+        abort(500, description=str(exc))
     if not name:
         abort(404)
 
+    name = os.path.basename(str(name))
     path = os.path.join(PLANNING_DIR, name)
     if not os.path.exists(path):
         abort(404)
 
-    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=name)
+    return send_planning_pdf_file(path, as_attachment=True, download_name=name)
 
 
 

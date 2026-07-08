@@ -2165,6 +2165,58 @@ def set_planning_for_session(sid, filename):
     return True
 
 
+def refresh_aps_planning_pdf_file(session_data, sid):
+    if (session_data.get("formation") or "").upper() != "APS":
+        return session_data.get("planning_pdf")
+    planning_data = session_data.get("apsPlanningData") or []
+    if not planning_data:
+        return session_data.get("planning_pdf")
+
+    filename = f"planning_aps_session_{sid}.pdf"
+    output_path = os.path.join(PLANNING_DIR, filename)
+    temp_path = f"{output_path}.tmp"
+    planning_mode = session_data.get("apsPlanningMode") or (
+        "elearning_presentiel"
+        if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
+        else "full_presentiel"
+    )
+    try:
+        result = generate_aps_planning_pdf(
+            session_data,
+            "",
+            temp_path,
+            planning_data=planning_data,
+            planning_mode=planning_mode,
+        )
+        os.replace(temp_path, output_path)
+        session_data["planning_pdf"] = filename
+        session_data["apsPlanningSummary"] = result["summary"]
+        session_data["apsPlanningMode"] = planning_mode
+        session_data["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return filename
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
+def send_planning_pdf_file(path, *, as_attachment, download_name=None):
+    response = send_file(
+        path,
+        mimetype="application/pdf",
+        as_attachment=as_attachment,
+        download_name=download_name,
+        conditional=False,
+        max_age=0,
+    )
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 FROM_EMAIL = os.environ.get("FROM_EMAIL")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
@@ -5248,28 +5300,47 @@ def reset_aps_planning_api(sid):
 
 @app.get("/sessions/<sid>/planning/view")
 def view_planning_pdf(sid):
-    name = get_planning_for_session(sid)
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        abort(404)
+    try:
+        name = refresh_aps_planning_pdf_file(session_data, sid)
+        save_sessions(data)
+    except Exception as exc:
+        app.logger.exception("Impossible de rafraîchir le planning APS avant affichage session=%s", sid)
+        abort(500, description=str(exc))
     if not name:
         abort(404)
 
-    path = os.path.join(PLANNING_DIR, name)
+    path = os.path.join(PLANNING_DIR, os.path.basename(str(name)))
     if not os.path.exists(path):
         abort(404)
 
-    return send_file(path, mimetype="application/pdf", as_attachment=False)
+    return send_planning_pdf_file(path, as_attachment=False)
 
 
 @app.get("/sessions/<sid>/planning/download")
 def download_planning_pdf(sid):
-    name = get_planning_for_session(sid)
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        abort(404)
+    try:
+        name = refresh_aps_planning_pdf_file(session_data, sid)
+        save_sessions(data)
+    except Exception as exc:
+        app.logger.exception("Impossible de rafraîchir le planning APS avant téléchargement session=%s", sid)
+        abort(500, description=str(exc))
     if not name:
         abort(404)
 
+    name = os.path.basename(str(name))
     path = os.path.join(PLANNING_DIR, name)
     if not os.path.exists(path):
         abort(404)
 
-    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=name)
+    return send_planning_pdf_file(path, as_attachment=True, download_name=name)
 
 
 

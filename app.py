@@ -1488,6 +1488,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         author="Intégrale Academy",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="normal")
+    cover_frame = Frame(17 * mm, 18 * mm, width - 34 * mm, height - 32 * mm, id="cover")
     landscape_frame = Frame(doc.leftMargin, doc.bottomMargin, landscape_width - doc.leftMargin - doc.rightMargin, landscape_height - doc.topMargin - doc.bottomMargin, id="landscape")
 
     def page_canvas(canvas, document):
@@ -1505,21 +1506,22 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         canvas.restoreState()
 
     doc.addPageTemplates([
+        PageTemplate(id="cover", frames=[cover_frame], pagesize=A4),
         PageTemplate(id="contrat", frames=[frame], pagesize=A4, onPage=page_canvas),
         PageTemplate(id="planning_landscape", frames=[landscape_frame], pagesize=landscape(A4), onPage=page_canvas),
     ])
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle("CoverTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=18, leading=22, textColor=colors.HexColor("#111827"), alignment=TA_CENTER, spaceAfter=4))
-    styles.add(ParagraphStyle("CoverSubtitle", parent=styles["Normal"], fontSize=10.5, leading=13, textColor=colors.HexColor("#6b5f4a"), alignment=TA_CENTER, spaceAfter=8))
-    styles.add(ParagraphStyle("CardTitle", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=8.2, leading=10, textColor=colors.HexColor("#8a5a20"), uppercase=True, spaceAfter=3))
-    styles.add(ParagraphStyle("CardText", parent=styles["Normal"], fontSize=9.2, leading=11.5, textColor=colors.HexColor("#1f2937")))
-    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=9, leading=11.5, textColor=colors.HexColor("#64748b"), alignment=TA_CENTER))
+    styles.add(ParagraphStyle("CoverTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=17, leading=20, textColor=colors.HexColor("#111827"), alignment=TA_CENTER, spaceAfter=4))
+    styles.add(ParagraphStyle("CoverSubtitle", parent=styles["Normal"], fontSize=9.4, leading=11.4, textColor=colors.HexColor("#6b5f4a"), alignment=TA_CENTER, spaceAfter=6))
+    styles.add(ParagraphStyle("CardTitle", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#8a5a20"), uppercase=True, spaceAfter=3))
+    styles.add(ParagraphStyle("CardText", parent=styles["Normal"], fontSize=8.2, leading=9.8, textColor=colors.HexColor("#1f2937")))
+    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=8.2, leading=10, textColor=colors.HexColor("#64748b"), alignment=TA_CENTER))
     styles.add(ParagraphStyle("Body", parent=styles["Normal"], fontSize=9.6, leading=12.4, textColor=colors.HexColor("#1f2937"), spaceAfter=4.5))
     styles.add(ParagraphStyle("H", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=11.4, leading=14, textColor=colors.HexColor("#2f2418"), spaceBefore=7, spaceAfter=4, borderPadding=(0, 0, 4, 0), borderColor=colors.HexColor("#d6b26d"), borderWidth=0, borderBottomWidth=0.5))
     styles.add(ParagraphStyle("Small", parent=styles["Normal"], fontSize=8.6, leading=10.5, textColor=colors.HexColor("#334155")))
     styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7.2, leading=8.6, textColor=colors.HexColor("#111827"), wordWrap="CJK"))
     styles.add(ParagraphStyle("CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.3, leading=8.8, textColor=colors.white, alignment=TA_CENTER))
-    styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=8.2, leading=10, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
+    styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
 
     def p(txt, style="Body"):
         return Paragraph(str(txt or "—").replace("\n", "<br/>"), styles[style])
@@ -1555,29 +1557,29 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
 
     def card(title, lines):
         body = [p(title, "CardTitle"), p(lines, "CardText")]
-        tbl = Table([[body]], colWidths=[(doc.width - 6 * mm) / 2], hAlign="LEFT")
+        tbl = Table([[body]], colWidths=[(width - 40 * mm) / 2], hAlign="LEFT")
         tbl.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.45, colors.HexColor("#d7dce3")),
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 7), ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-            ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5.5), ("RIGHTPADDING", (0, 0), (-1, -1), 5.5),
+            ("TOPPADDING", (0, 0), (-1, -1), 5.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5.5),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
         return tbl
 
     story = []
     if logo_path:
-        story.append(Image(logo_path, width=42 * mm, height=20 * mm, kind="proportional", hAlign="CENTER"))
-        story.append(Spacer(1, 4))
+        story.append(Image(logo_path, width=34 * mm, height=16 * mm, kind="proportional", hAlign="CENTER"))
+        story.append(Spacer(1, 3))
     story += [p("Contrat d’intervention formateur", "CoverTitle"), p("Contrat de prestation de services / sous-traitance pédagogique", "CoverSubtitle")]
     cover_cards = [
         [card("Centre de formation", "Intégrale Academy<br/>54 chemin du Carreou<br/>83480 Puget-sur-Argens<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT"), card("Formateur / prestataire", f"{contract.get('trainerName')}<br/>{contract.get('status') or 'Statut juridique à compléter'}<br/>SIRET : {contract.get('siret') or 'à compléter'}<br/>NDA : {contract.get('activityDeclaration') or 'à compléter'}<br/>{contract.get('address') or 'Adresse à compléter'}<br/>{contract.get('trainerEmail') or 'Email à compléter'} — {contract.get('trainerPhone') or 'Téléphone à compléter'}")],
         [card("Mission", f"{formation_name} — {session_name}<br/>Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Modalité : {modality_label}<br/>Volume : {float(contract.get('calculatedHours') or 0):g} h"), card("Rémunération", f"{float(contract.get('billedDays') or 0):g} jour(s) facturé(s)<br/>Tarif journalier : {_money(contract.get('dailyRate'))} HT<br/>Total HT : {_money(total_ht)}<br/>TVA : {tva_label}<br/>Total TTC : {_money(contract.get('totalTTC') or total_ht)}")],
         [card("Lieu d’intervention", room_label), card("Documents contractuels", "Le présent contrat est complété par le planning détaillé des interventions, le récapitulatif financier et l’engagement qualité / traçabilité pédagogique.")],
     ]
-    cover_grid = Table(cover_cards, colWidths=[(doc.width - 6 * mm) / 2, (doc.width - 6 * mm) / 2], rowHeights=None, hAlign="CENTER")
+    cover_grid = Table(cover_cards, colWidths=[(width - 40 * mm) / 2, (width - 40 * mm) / 2], rowHeights=[34 * mm, 34 * mm, 26 * mm], hAlign="CENTER")
     cover_grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
-    story += [cover_grid, Spacer(1, 7), p("Document contractuel généré automatiquement à partir des informations de session et du planning validé.", "Subtle")]
+    story += [cover_grid, Spacer(1, 5), p("Document contractuel généré automatiquement à partir des informations de session et du planning validé.", "Subtle"), NextPageTemplate("contrat"), PageBreak()]
 
     story += [section("1. Nature juridique du contrat et indépendance du prestataire"), p("Le présent contrat est un contrat de prestation de services / sous-traitance pédagogique. Le formateur intervient en qualité de prestataire indépendant, sans lien de subordination avec Intégrale Academy. Il conserve la responsabilité de ses déclarations sociales, fiscales, assurances, autorisations, qualifications, habilitations et obligations professionnelles pendant toute la durée du contrat."), p("Le formateur reste libre dans l’organisation de ses moyens pédagogiques, sous réserve du respect strict du référentiel, du programme validé, des horaires, des procédures qualité, des consignes de sécurité, des exigences réglementaires et des documents de traçabilité.")]
     story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité'}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label)], [43 * mm, 133 * mm]), p("Le formateur s’engage à assurer les séquences pédagogiques confiées conformément au référentiel applicable, au programme de formation, au planning annexé et aux procédures qualité du centre.")]

@@ -7,6 +7,7 @@ sont lus depuis l'environnement et ne doivent jamais être exposés au frontend.
 import json
 import logging
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,6 +18,21 @@ logger = logging.getLogger("yousign")
 
 DEFAULT_YOUSIGN_API_BASE_URL = "https://api.yousign.app/v3"
 YOUSIGN_STATUSES = {"draft", "approval", "ongoing", "done", "declined", "expired", "canceled", "rejected", "error"}
+YOUSIGN_EXTERNAL_ID_MAX_LENGTH = 180
+YOUSIGN_EXTERNAL_ID_FALLBACK = "aps-trainer-contract"
+
+
+def sanitize_yousign_external_id(value: str, fallback: str = YOUSIGN_EXTERNAL_ID_FALLBACK) -> str:
+    """Nettoie un external_id pour respecter les contraintes Yousign.
+
+    Yousign autorise uniquement les lettres, chiffres, espaces et caractères
+    `_ - @ . % +`. Les autres caractères sont remplacés avant l'envoi afin
+    d'éviter un rejet du POST /signature_requests.
+    """
+    cleaned = re.sub(r"[^A-Za-z0-9_\-@.%+ ]+", "-", value or "")
+    cleaned = re.sub(r"-{2,}", "-", cleaned)
+    cleaned = cleaned.strip(" -")
+    return cleaned[:YOUSIGN_EXTERNAL_ID_MAX_LENGTH] or fallback
 
 
 class YousignError(RuntimeError):
@@ -132,7 +148,9 @@ class YousignClient:
     def create_signature_request(self, name: str, external_id: str = "") -> Any:
         payload = {"name": name[:128], "delivery_mode": self.config.delivery_mode}
         if external_id:
-            payload["external_id"] = external_id[:255]
+            sanitized_external_id = sanitize_yousign_external_id(external_id)
+            payload["external_id"] = sanitized_external_id
+            logger.info("Yousign signature_request external_id=%s", sanitized_external_id)
         return self.request("POST", "signature_requests", payload)
 
     def add_signer(self, signature_request_id: str, first_name: str, last_name: str, email: str, document_id: Optional[str] = None, use_text_tags: bool = False) -> Any:

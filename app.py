@@ -30,7 +30,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured
+from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -4870,7 +4870,9 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
     now = datetime.now().isoformat(timespec="seconds")
     try:
         trainer_name = contract.get("trainerName") or email
-        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=f"session:{sid}:aps_contract:{contract_id}")
+        external_id = sanitize_yousign_external_id(f"aps-trainer-contract-{sid}-{contract_id}")
+        app.logger.info("Yousign APS trainer contract external_id=%s", external_id)
+        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
         with open(contract_path, "rb") as pdf_file:
             document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path))
@@ -6650,7 +6652,9 @@ def send_formateur_contract_yousign(fid):
     now = datetime.now().isoformat(timespec="seconds")
     try:
         trainer_name = formateur_full_name(formateur) or email
-        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=f"formateur:{fid}")
+        external_id = sanitize_yousign_external_id(f"formateur-{fid}", fallback="formateur-contract")
+        app.logger.info("Yousign trainer contract external_id=%s", external_id)
+        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
         with open(pdf_path, "rb") as pdf_file:
             document = client.upload_file(signature_request_id, pdf_file.read(), attachment.get("original_name") or "contrat.pdf")

@@ -1157,10 +1157,14 @@ a.back:hover{ background:#d9a848 !important; }
       {% set contract = found.contract %}
       <div class="contract-card" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}">
         <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
-        <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}</div>
+        {% set contract_yousign = contract.yousign|default({}) %}
+        <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}{% if contract_yousign.sentAt %} · Yousign envoyé le {{ contract_yousign.sentAt|datetimefr }}{% endif %}{% if contract_yousign.status %} · Statut Yousign : {{ contract_yousign.status }}{% endif %}</div>
+        {% if contract_yousign.error %}<div class="relance-note" style="color:#b91c1c;margin-top:6px;">Erreur Yousign : {{ contract_yousign.error }}</div>{% endif %}
+        {% if contract_yousign.signatureUrl %}<div style="margin-top:6px;"><a href="{{ contract_yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature Yousign</a></div>{% endif %}
         <div class="planning-actions" style="margin-top:10px;">
           <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">Voir contrat</a>
           <button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
+          <button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer signature Yousign</button>
           <button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>
           <button class="btn small danger delete-contract-btn" type="button">Supprimer contrat</button>
         </div>
@@ -1175,9 +1179,38 @@ a.back:hover{ background:#d9a848 !important; }
     <p class="muted" style="margin-top:10px;">Aucun formateur détecté dans le planning APS.</p>
   {% endfor %}
 </section>
-<div class="modal" id="apsContractModal" aria-hidden="true"><div class="modal-content" style="max-width:980px;max-height:90vh;overflow:auto;">
-  <div class="modal-header"><div><h3 style="margin:0;">Générer contrat formateur</h3><p class="muted">Sélectionnez le ou les formateurs pour lesquels générer un contrat. Les créneaux e-learning sont exclus du contrat car ils ne sont pas rattachés à un formateur.</p></div><button class="modal-close" type="button" id="closeApsContractModal">✕</button></div>
-  <form id="apsContractForm"><div id="apsContractTrainerList"></div><div id="apsContractError" class="flash error" style="display:none;margin-top:12px;"></div><div class="planning-actions" style="justify-content:flex-end;margin-top:18px;"><button type="button" class="btn" id="cancelApsContract">Annuler</button><button type="submit" class="btn gold" id="submitApsContract">Générer le contrat</button></div></form>
+<style>
+  .aps-contract-modal .modal-content{width:min(960px,calc(100vw - 28px));max-width:960px;max-height:85vh;overflow:hidden;padding:0;border-radius:24px;background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 24px 70px rgba(15,23,42,.20);display:flex;flex-direction:column;}
+  .aps-contract-modal__header,.aps-contract-modal__footer{position:sticky;z-index:3;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);}
+  .aps-contract-modal__header{top:0;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:24px 28px 18px;border-bottom:1px solid #eef2f7;}
+  .aps-contract-modal__header h3{margin:0;color:#0f172a;font-size:24px;letter-spacing:-.03em;}
+  .aps-contract-modal__header p{margin:6px 0 0;color:#64748b;line-height:1.45;}
+  .aps-contract-modal__close{width:40px;height:40px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;color:#334155;cursor:pointer;font-size:18px;box-shadow:0 8px 20px rgba(15,23,42,.06);}
+  .aps-contract-modal__body{overflow:auto;padding:22px 28px 28px;background:linear-gradient(180deg,#f8fafc 0,#fff 160px);}
+  .aps-contract-modal__footer{bottom:0;display:flex;justify-content:flex-end;gap:12px;padding:16px 28px;border-top:1px solid #eef2f7;box-shadow:0 -12px 28px rgba(15,23,42,.05);}
+  .aps-contract-section{background:#fff;border:1px solid #e8edf5;border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:0 12px 30px rgba(15,23,42,.045);}
+  .aps-contract-section__title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:#0f172a;font-size:15px;font-weight:800;letter-spacing:-.01em;}
+  .aps-contract-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;}
+  .aps-contract-field{display:flex;flex-direction:column;gap:7px;color:#334155;font-size:12px;font-weight:700;}
+  .aps-contract-field small{font-weight:600;color:#94a3b8;}
+  .aps-contract-field input,.aps-contract-field select{height:44px;width:100%;box-sizing:border-box;border:1px solid #dbe3ef;border-radius:13px;background:#fff;padding:0 13px;color:#0f172a;font:inherit;font-size:14px;font-weight:600;outline:none;transition:border-color .18s,box-shadow .18s,background .18s;}
+  .aps-contract-field input:focus,.aps-contract-field select:focus{border-color:#7c3aed;box-shadow:0 0 0 4px rgba(124,58,237,.12);}
+  .aps-contract-field select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#64748b 50%),linear-gradient(135deg,#64748b 50%,transparent 50%);background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px;}
+  .aps-contract-field--wide{grid-column:1/-1;}
+  .aps-contract-required{color:#7c3aed;margin-left:3px;}
+  .aps-contract-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+  .aps-contract-summary__item{border:1px solid #e8edf5;border-radius:16px;padding:12px;background:linear-gradient(180deg,#fff,#f8fafc);}
+  .aps-contract-summary__item span{display:block;font-size:11px;color:#64748b;font-weight:700;margin-bottom:5px;}
+  .aps-contract-summary__item strong{font-size:15px;color:#0f172a;}
+  .aps-contract-empty{padding:18px;border:1px dashed #cbd5e1;border-radius:18px;color:#64748b;background:#fff;}
+  @media (max-width:720px){.aps-contract-modal__header,.aps-contract-modal__body,.aps-contract-modal__footer{padding-left:18px;padding-right:18px}.aps-contract-grid,.aps-contract-summary{grid-template-columns:1fr}.aps-contract-modal__footer{flex-direction:column-reverse}.aps-contract-modal__footer .btn{width:100%;}}
+</style>
+<div class="modal aps-contract-modal" id="apsContractModal" aria-hidden="true"><div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="apsContractModalTitle">
+  <div class="aps-contract-modal__header"><div><h3 id="apsContractModalTitle">Générer un contrat formateur</h3><p>Sélectionnez un formateur puis complétez les informations nécessaires au contrat.</p></div><button class="aps-contract-modal__close" type="button" id="closeApsContractModal" aria-label="Fermer">✕</button></div>
+  <form id="apsContractForm" class="aps-contract-modal__form">
+    <div class="aps-contract-modal__body"><div id="apsContractTrainerList"></div><div id="apsContractError" class="flash error" style="display:none;margin-top:12px;"></div></div>
+    <div class="aps-contract-modal__footer"><button type="button" class="btn" id="cancelApsContract">Annuler</button><button type="button" class="btn" id="previewApsContract">Aperçu du contrat</button><button type="submit" class="btn gold" id="submitApsContract">Générer le contrat</button></div>
+  </form>
 </div></div>
 <div class="modal" id="sendContractModal" aria-hidden="true"><div class="modal-content">
   <div class="modal-header"><h3 style="margin:0;">Envoyer le contrat par mail</h3><button class="modal-close" type="button" id="closeSendContractModal">✕</button></div>
@@ -1834,65 +1867,93 @@ let currentSendContractId = null;
 function closeContractModal(){ apsContractModal?.classList.remove("open"); apsContractModal?.setAttribute("aria-hidden", "true"); }
 function fmtHours(v){ return `${Number(v||0).toLocaleString("fr-FR", {maximumFractionDigits:2})}h`; }
 function contractAttr(value){ return String(value || "").replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'); }
-function renderContractTrainer(trainer){
+let apsContractTrainers = [];
+function money(value){ return `${Number(value||0).toLocaleString("fr-FR", {minimumFractionDigits:2, maximumFractionDigits:2})} €`; }
+function getSelectedContractCard(){ return apsContractTrainerList?.querySelector(".contract-form-card"); }
+function trainerOptionLabel(trainer){ return `${trainer.name} · ${fmtHours(trainer.totalHours)} · ${trainer.calculatedDays} j`; }
+function renderContractTrainerSelector(trainers, selectedName = ""){
+  const options = trainers.map((trainer, index) => `<option value="${index}" ${trainer.name === selectedName ? "selected" : ""}>${contractAttr(trainerOptionLabel(trainer))}</option>`).join("");
+  return `<section class="aps-contract-section">
+    <label class="aps-contract-field aps-contract-field--wide">Formateur concerné <span><span class="aps-contract-required">*</span></span>
+      <select id="apsContractTrainerSelect" required><option value="" disabled ${selectedName ? "" : "selected"}>Choisir un formateur du planning</option>${options}</select>
+    </label>
+  </section>`;
+}
+function renderContractTrainerForm(trainer){
+  if(!trainer) return `<div class="aps-contract-empty">Sélectionnez un formateur pour afficher les informations du contrat.</div>`;
   const defaults = trainer.defaults || {};
-  const details = (trainer.interventions || []).map(i => `<tr><td>${i.dateLabel}</td><td>${i.start}-${i.end}</td><td>${fmtHours(i.hours)}</td><td>${i.module}</td><td>${i.modality}</td><td>${i.room}</td></tr>`).join("");
-  return `<div class="contract-form-card" data-trainer="${trainer.name.replaceAll('"','&quot;')}">
-    <label><input type="checkbox" class="contract-select" checked> <strong>${trainer.name}</strong></label>
-    <div class="contract-grid">
-      <label>Nom et prénom<input class="contract-name" value="${trainer.name.replaceAll('"','&quot;')}" required></label>
-      <label>Email du formateur<input type="email" class="contract-email" value="${contractAttr(defaults.email)}" placeholder="email@example.com"></label>
-      <label>Téléphone<input class="contract-phone" value="${contractAttr(defaults.phone)}" placeholder="06..."></label>
-      <label>Tarif par jour HT *<input type="number" min="0.01" step="0.01" class="contract-rate" required></label>
-      <label>Jours facturés retenus<input type="number" min="0" step="0.01" class="contract-billed" value="${trainer.calculatedDays}" required></label>
-      <label>Société / nom commercial<input class="contract-commercial-name" placeholder="si applicable"></label>
-      <label>Statut juridique<input class="contract-status" placeholder="Micro-entrepreneur, EI, société..."></label>
-      <label>SIRET<input class="contract-siret" value="${contractAttr(defaults.siret)}"></label>
-      <label>Adresse<input class="contract-address" value="${contractAttr(defaults.address)}"></label>
-      <label>N° déclaration d’activité<input class="contract-activity-declaration" value="${contractAttr(defaults.activityDeclaration)}"></label>
-      <label>N° TVA intracommunautaire<input class="contract-vat-number"></label>
-      <label>TVA applicable <select class="contract-vat"><option value="false">Non</option><option value="true">Oui</option></select></label>
-      <label>Taux TVA<input type="number" step="0.01" class="contract-vat-rate" value="20"></label>
-      <label>Mention TVA<input class="contract-vat-mention" placeholder="TVA non applicable, art. 293 B du CGI"></label>
-      <label>Assurance RC Pro<input class="contract-rc-pro" placeholder="Assureur / police / à fournir"></label>
-      <label>Attestation vigilance URSSAF<input class="contract-urssaf" placeholder="date ou référence si ≥ 5 000 € HT"></label>
-      <label>Extrait RNE / Kbis / SIRENE<input class="contract-rne-kbis"></label>
-      <label>RIB<input class="contract-rib" placeholder="fourni / à fournir"></label>
-      <label>Diplômes / habilitations<input class="contract-diplomas" placeholder="APS, SST, SSIAP, carte pro..."></label>
-      <label>CV formateur<input class="contract-cv" placeholder="à jour / à fournir"></label>
-    </div>
-    <p class="muted"><strong>Heures :</strong> ${fmtHours(trainer.totalHours)} · <strong>Jours calendaires :</strong> ${trainer.calendarDays} · <strong>Jours calculés :</strong> ${trainer.calculatedDays}</p>
-    <p><strong>Total HT estimé :</strong> <span class="contract-total">0,00 €</span></p>
-    <table class="contract-table"><thead><tr><th>Date</th><th>Horaires</th><th>Durée</th><th>Module / UV</th><th>Modalité</th><th>Salle / lieu</th></tr></thead><tbody>${details}</tbody></table>
+  return `<div class="contract-form-card" data-trainer="${contractAttr(trainer.name)}">
+    <section class="aps-contract-section"><h4 class="aps-contract-section__title">Formateur</h4><div class="aps-contract-grid">
+      <label class="aps-contract-field">Nom et prénom <span class="aps-contract-required">*</span><input class="contract-name" value="${contractAttr(trainer.name)}" required></label>
+      <label class="aps-contract-field">Email<input type="email" class="contract-email" value="${contractAttr(defaults.email)}" placeholder="email@example.com"></label>
+      <label class="aps-contract-field">Téléphone<input class="contract-phone" value="${contractAttr(defaults.phone)}" placeholder="06..."></label>
+      <label class="aps-contract-field aps-contract-field--wide">Adresse<input class="contract-address" value="${contractAttr(defaults.address)}"></label>
+    </div></section>
+    <section class="aps-contract-section"><h4 class="aps-contract-section__title">Facturation</h4><div class="aps-contract-grid">
+      <label class="aps-contract-field">Tarif par jour HT <span class="aps-contract-required">*</span><input type="number" min="0.01" step="0.01" class="contract-rate" value="${contractAttr(defaults.dailyRate)}" required></label>
+      <label class="aps-contract-field">Jours facturés retenus <span class="aps-contract-required">*</span><input type="number" min="0" step="0.01" class="contract-billed" value="${contractAttr(trainer.calculatedDays)}" required></label>
+      <label class="aps-contract-field">TVA applicable<select class="contract-vat"><option value="false">Non</option><option value="true">Oui</option></select></label>
+      <label class="aps-contract-field">Taux TVA<input type="number" step="0.01" class="contract-vat-rate" value="20"></label>
+      <label class="aps-contract-field aps-contract-field--wide">Mention TVA<input class="contract-vat-mention" placeholder="TVA non applicable, art. 293 B du CGI"></label>
+      <label class="aps-contract-field">Société / nom commercial<input class="contract-commercial-name" placeholder="si applicable"></label>
+      <label class="aps-contract-field">Statut juridique<input class="contract-status" placeholder="Micro-entrepreneur, EI, société..."></label>
+      <label class="aps-contract-field">SIRET<input class="contract-siret" value="${contractAttr(defaults.siret)}"></label>
+      <label class="aps-contract-field">N° TVA intracommunautaire<input class="contract-vat-number"></label>
+      <label class="aps-contract-field aps-contract-field--wide">N° déclaration d’activité<input class="contract-activity-declaration" value="${contractAttr(defaults.activityDeclaration)}"></label>
+    </div></section>
+    <section class="aps-contract-section"><h4 class="aps-contract-section__title">Documents administratifs</h4><div class="aps-contract-grid">
+      <label class="aps-contract-field">Assurance RC Pro<input class="contract-rc-pro" placeholder="Assureur / police / à fournir"></label>
+      <label class="aps-contract-field">Attestation vigilance URSSAF<input class="contract-urssaf" placeholder="date ou référence si ≥ 5 000 € HT"></label>
+      <label class="aps-contract-field">Extrait RNE / Kbis / SIRENE<input class="contract-rne-kbis"></label>
+      <label class="aps-contract-field">RIB<input class="contract-rib" placeholder="fourni / à fournir"></label>
+      <label class="aps-contract-field">Diplômes / habilitations<input class="contract-diplomas" placeholder="APS, SST, SSIAP, carte pro..."></label>
+      <label class="aps-contract-field">CV formateur<input class="contract-cv" placeholder="à jour / à fournir"></label>
+    </div></section>
+    <section class="aps-contract-section"><h4 class="aps-contract-section__title">Récapitulatif</h4><div class="aps-contract-summary">
+      <div class="aps-contract-summary__item"><span>Heures</span><strong>${fmtHours(trainer.totalHours)}</strong></div><div class="aps-contract-summary__item"><span>Jours calendaires</span><strong>${trainer.calendarDays}</strong></div><div class="aps-contract-summary__item"><span>Jours calculés</span><strong>${trainer.calculatedDays}</strong></div><div class="aps-contract-summary__item"><span>Jours facturés retenus</span><strong class="summary-billed">${trainer.calculatedDays}</strong></div>
+      <div class="aps-contract-summary__item"><span>Tarif journalier HT</span><strong class="summary-rate">0,00 €</strong></div><div class="aps-contract-summary__item"><span>Total HT</span><strong class="summary-ht">0,00 €</strong></div><div class="aps-contract-summary__item"><span>TVA</span><strong class="summary-vat">0,00 €</strong></div><div class="aps-contract-summary__item"><span>Total TTC</span><strong class="summary-ttc">0,00 €</strong></div>
+    </div></section>
   </div>`;
+}
+function renderSelectedContractTrainer(selectedIndex = 0){
+  const trainer = apsContractTrainers[selectedIndex];
+  apsContractTrainerList.innerHTML = renderContractTrainerSelector(apsContractTrainers, trainer?.name || "") + renderContractTrainerForm(trainer);
+  document.getElementById("apsContractTrainerSelect")?.addEventListener("change", event => renderSelectedContractTrainer(Number(event.target.value)));
+  apsContractTrainerList.querySelectorAll(".contract-rate,.contract-billed,.contract-vat,.contract-vat-rate").forEach(input => input.addEventListener("input", updateContractTotals));
+  apsContractTrainerList.querySelector(".contract-vat")?.addEventListener("change", updateContractTotals);
+  updateContractTotals();
 }
 async function loadContractModal(preselectedTrainer = null){
   apsContractError.style.display = "none";
-  apsContractTrainerList.innerHTML = "Chargement des formateurs du planning...";
+  apsContractTrainerList.innerHTML = '<div class="aps-contract-empty">Chargement des formateurs du planning...</div>';
   apsContractModal?.classList.add("open"); apsContractModal?.setAttribute("aria-hidden", "false");
   try{
     const response = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/preview`);
     const payload = await response.json();
     if(!response.ok || !payload.ok) throw new Error(payload.error || "Prévisualisation impossible.");
-    const trainers = payload.trainers || [];
-    apsContractTrainerList.innerHTML = trainers.map(renderContractTrainer).join("") || '<div class="flash error">Aucun formateur détecté dans apsPlanningData.</div>';
-    if(preselectedTrainer){
-      apsContractTrainerList.querySelectorAll(".contract-form-card").forEach(card => {
-        const selected = card.dataset.trainer === preselectedTrainer;
-        card.querySelector(".contract-select").checked = selected;
-        card.classList.toggle("contract-form-card--preselected", selected);
-      });
-    }
-    apsContractTrainerList.querySelectorAll(".contract-rate,.contract-billed").forEach(input => input.addEventListener("input", updateContractTotals));
-    updateContractTotals();
+    apsContractTrainers = payload.trainers || [];
+    if(!apsContractTrainers.length){ apsContractTrainerList.innerHTML = '<div class="flash error">Aucun formateur détecté dans apsPlanningData.</div>'; return; }
+    const selectedIndex = Math.max(0, apsContractTrainers.findIndex(t => t.name === preselectedTrainer));
+    renderSelectedContractTrainer(selectedIndex);
   }catch(error){ apsContractTrainerList.innerHTML = ""; apsContractError.textContent = error.message; apsContractError.style.display = "block"; }
 }
 function updateContractTotals(){
-  apsContractTrainerList?.querySelectorAll(".contract-form-card").forEach(card => {
-    const rate = Number(card.querySelector(".contract-rate").value || 0);
-    const days = Number(card.querySelector(".contract-billed").value || 0);
-    card.querySelector(".contract-total").textContent = `${(rate*days).toLocaleString("fr-FR", {minimumFractionDigits:2, maximumFractionDigits:2})} € HT`;
-  });
+  const card = getSelectedContractCard();
+  if(!card) return;
+  const rate = Number(card.querySelector(".contract-rate").value || 0);
+  const days = Number(card.querySelector(".contract-billed").value || 0);
+  const vatEnabled = card.querySelector(".contract-vat").value === "true";
+  const vatRateInput = card.querySelector(".contract-vat-rate");
+  const vatMention = card.querySelector(".contract-vat-mention");
+  if(!vatEnabled){ vatRateInput.value = ""; vatRateInput.disabled = true; vatMention.value = "TVA non applicable, art. 293 B du CGI"; }
+  else { vatRateInput.disabled = false; if(vatRateInput.value === "") vatRateInput.value = "20"; if(vatMention.value === "TVA non applicable, art. 293 B du CGI") vatMention.value = ""; }
+  const totalHT = rate * days;
+  const vatAmount = vatEnabled ? totalHT * (Number(vatRateInput.value || 0) / 100) : 0;
+  card.querySelector(".summary-billed").textContent = days.toLocaleString("fr-FR", {maximumFractionDigits:2});
+  card.querySelector(".summary-rate").textContent = `${money(rate)} HT`;
+  card.querySelector(".summary-ht").textContent = `${money(totalHT)} HT`;
+  card.querySelector(".summary-vat").textContent = money(vatAmount);
+  card.querySelector(".summary-ttc").textContent = money(totalHT + vatAmount);
 }
 openApsContractModal?.addEventListener("click", () => loadContractModal());
 document.querySelectorAll(".open-aps-contract-modal-again").forEach(btn => btn.addEventListener("click", () => {
@@ -1900,43 +1961,27 @@ document.querySelectorAll(".open-aps-contract-modal-again").forEach(btn => btn.a
   loadContractModal(btn.dataset.planningName || card?.dataset.planningName || card?.dataset.contractName || null);
 }));
 closeApsContractModal?.addEventListener("click", closeContractModal); cancelApsContract?.addEventListener("click", closeContractModal);
+document.getElementById("previewApsContract")?.addEventListener("click", () => {
+  updateContractTotals();
+  const card = getSelectedContractCard();
+  if(!card){ apsContractError.textContent = "Veuillez choisir un formateur."; apsContractError.style.display = "block"; return; }
+  apsContractError.textContent = "Aperçu mis à jour dans la carte Récapitulatif.";
+  apsContractError.style.display = "block";
+});
 apsContractForm?.addEventListener("submit", async (event) => {
   event.preventDefault(); apsContractError.style.display = "none";
-  const trainers = [...apsContractTrainerList.querySelectorAll(".contract-form-card")].filter(c => c.querySelector(".contract-select").checked).map(c => ({
+  const c = getSelectedContractCard();
+  if(!c){ apsContractError.textContent = "Veuillez choisir un formateur."; apsContractError.style.display = "block"; return; }
+  const trainers = [{
     name:c.querySelector(".contract-name").value.trim() || c.dataset.trainer,
     planningName:c.dataset.trainer,
-    email:c.querySelector(".contract-email").value.trim(),
-    phone:c.querySelector(".contract-phone").value.trim(),
-    dailyRate:Number(c.querySelector(".contract-rate").value),
-    billedDays:Number(c.querySelector(".contract-billed").value),
-    vatEnabled:c.querySelector(".contract-vat").value === "true",
-    vatRate:Number(c.querySelector(".contract-vat-rate").value || 20),
-    address:c.querySelector(".contract-address").value.trim(),
-    siret:c.querySelector(".contract-siret").value.trim(),
-    status:c.querySelector(".contract-status").value.trim(),
-    commercialName:c.querySelector(".contract-commercial-name").value.trim(),
-    activityDeclaration:c.querySelector(".contract-activity-declaration").value.trim(),
-    vatNumber:c.querySelector(".contract-vat-number").value.trim(),
-    vatMention:c.querySelector(".contract-vat-mention").value.trim(),
-    rcPro:c.querySelector(".contract-rc-pro").value.trim(),
-    urssafVigilance:c.querySelector(".contract-urssaf").value.trim(),
-    rneKbis:c.querySelector(".contract-rne-kbis").value.trim(),
-    rib:c.querySelector(".contract-rib").value.trim(),
-    diplomas:c.querySelector(".contract-diplomas").value.trim(),
-    cv:c.querySelector(".contract-cv").value.trim()
-  }));
-  if(!trainers.length){ apsContractError.textContent = "Veuillez sélectionner au moins un formateur."; apsContractError.style.display = "block"; return; }
-  if(trainers.some(t => !t.dailyRate || t.dailyRate <= 0)){ apsContractError.textContent = "Le tarif journalier HT est obligatoire."; apsContractError.style.display = "block"; return; }
+    email:c.querySelector(".contract-email").value.trim(), phone:c.querySelector(".contract-phone").value.trim(), dailyRate:Number(c.querySelector(".contract-rate").value), billedDays:Number(c.querySelector(".contract-billed").value), vatEnabled:c.querySelector(".contract-vat").value === "true", vatRate:Number(c.querySelector(".contract-vat-rate").value || 0), address:c.querySelector(".contract-address").value.trim(), siret:c.querySelector(".contract-siret").value.trim(), status:c.querySelector(".contract-status").value.trim(), commercialName:c.querySelector(".contract-commercial-name").value.trim(), activityDeclaration:c.querySelector(".contract-activity-declaration").value.trim(), vatNumber:c.querySelector(".contract-vat-number").value.trim(), vatMention:c.querySelector(".contract-vat-mention").value.trim(), rcPro:c.querySelector(".contract-rc-pro").value.trim(), urssafVigilance:c.querySelector(".contract-urssaf").value.trim(), rneKbis:c.querySelector(".contract-rne-kbis").value.trim(), rib:c.querySelector(".contract-rib").value.trim(), diplomas:c.querySelector(".contract-diplomas").value.trim(), cv:c.querySelector(".contract-cv").value.trim()
+  }];
+  if(!trainers[0].dailyRate || trainers[0].dailyRate <= 0){ apsContractError.textContent = "Le tarif journalier HT est obligatoire."; apsContractError.style.display = "block"; return; }
   const warnings = [];
-  trainers.forEach(t => {
-    const totalHT = Number(t.dailyRate || 0) * Number(t.billedDays || 0);
-    if(!t.siret) warnings.push(`${t.name} : SIRET formateur manquant`);
-    if(!t.address) warnings.push(`${t.name} : adresse formateur manquante`);
-    if(!t.rcPro) warnings.push(`${t.name} : assurance RC Pro non renseignée`);
-    if(totalHT >= 5000 && !t.urssafVigilance) warnings.push(`${t.name} : attestation de vigilance URSSAF non renseignée (≥ 5 000 € HT)`);
-  });
+  trainers.forEach(t => { const totalHT = Number(t.dailyRate || 0) * Number(t.billedDays || 0); if(!t.siret) warnings.push(`${t.name} : SIRET formateur manquant`); if(!t.address) warnings.push(`${t.name} : adresse formateur manquante`); if(!t.rcPro) warnings.push(`${t.name} : assurance RC Pro non renseignée`); if(totalHT >= 5000 && !t.urssafVigilance) warnings.push(`${t.name} : attestation de vigilance URSSAF non renseignée (≥ 5 000 € HT)`); });
   if(warnings.length && !confirm(`Vérifications avant génération :\n\n${warnings.join("\n")}\n\nContinuer ?`)) return;
-  try{ const response = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/generate`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trainers})}); const payload = await response.json(); if(!response.ok || !payload.ok) throw new Error(payload.error || "Génération impossible."); closeContractModal(); showPlanningToast("Contrat(s) généré(s).", "success"); setTimeout(()=>window.location.reload(), 800); }
+  try{ const response = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/generate`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trainers})}); const payload = await response.json(); if(!response.ok || !payload.ok) throw new Error(payload.error || "Génération impossible."); closeContractModal(); showPlanningToast("Contrat généré.", "success"); setTimeout(()=>window.location.reload(), 800); }
   catch(error){ apsContractError.textContent = error.message; apsContractError.style.display = "block"; showPlanningToast(error.message, "error"); }
 });
 
@@ -1947,6 +1992,7 @@ function closeSendModal(){ sendContractModal?.classList.remove("open"); sendCont
 document.getElementById("closeSendContractModal")?.addEventListener("click", closeSendModal); document.getElementById("cancelSendContract")?.addEventListener("click", closeSendModal);
 document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListener("click", () => { const card = btn.closest("[data-contract-id]"); currentSendContractId = card.dataset.contractId; document.getElementById("sendContractRecipient").textContent = card.dataset.contractEmail; document.getElementById("sendContractSubject").value = "Contrat d’intervention formateur — Session APS"; document.getElementById("sendContractBody").value = `Bonjour ${card.dataset.contractName},\n\nVous trouverez en pièce jointe votre contrat d’intervention pour la session APS, ainsi que le planning de formation correspondant.\n\nMerci de nous retourner le contrat signé dès que possible.\n\nBien cordialement,\n\nIntégrale Academy\n04 22 47 07 68`; sendContractModal?.classList.add("open"); sendContractModal?.setAttribute("aria-hidden", "false"); }));
 sendContractForm?.addEventListener("submit", async (event) => { event.preventDefault(); const err = document.getElementById("sendContractError"); err.style.display = "none"; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${currentSendContractId}/send`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({emailSubject:document.getElementById("sendContractSubject").value, emailBody:document.getElementById("sendContractBody").value})}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi impossible."); closeSendModal(); showPlanningToast("Contrat envoyé par mail.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ err.textContent = error.message; err.style.display = "block"; } });
+document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); if(!confirm(`Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`)) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send`, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
 
 </script>
 
@@ -2005,7 +2051,6 @@ document.addEventListener('DOMContentLoaded',init);
 
 </body>
 </html>
-
 
 
 

@@ -66,6 +66,12 @@
     </div>
 
     <div>
+      <label>Tarif par jour HT</label>
+      <input type="number" name="tarif_journalier_ht" value="{{ formateur.tarif_journalier_ht or '' }}" min="0" step="0.01"
+             style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+
+    <div>
       <label style="display:block;margin-bottom:8px;">Profil(s)</label>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
         {% for option in formateur_profile_options %}

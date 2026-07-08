@@ -6692,28 +6692,47 @@ def yousign_webhook():
     raw_body = request.get_data()
     webhook_secret = get_yousign_config().webhook_secret
     signature_header = request.headers.get("X-Yousign-Signature") or request.headers.get("Yousign-Signature") or request.headers.get("X-Hub-Signature-256")
-    if webhook_secret and signature_header:
+    if webhook_secret:
+        if not signature_header:
+            logger.warning("Webhook Yousign rejeté: signature HMAC manquante")
+            return {"ok": False, "error": "signature manquante"}, 401
         expected = hmac.new(webhook_secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
         provided = signature_header.split("=", 1)[-1].strip()
         if not hmac.compare_digest(expected, provided):
             logger.warning("Webhook Yousign rejeté: signature invalide")
             return {"ok": False, "error": "signature invalide"}, 401
     payload = request.get_json(silent=True) or {}
+    event_name = payload.get("event_name") or payload.get("event") or payload.get("type") or "unknown"
     signature_request_id = ((payload.get("data") or {}).get("signature_request") or {}).get("id") or (payload.get("data") or {}).get("signature_request_id") or payload.get("signature_request_id")
+    logger.info("Webhook Yousign reçu event=%s signature_request_id=%s", event_name, signature_request_id or "missing")
     if not signature_request_id:
         return {"ok": False, "error": "signature_request_id manquant"}, 400
-    formateurs = load_formateurs()
-    formateur = next((f for f in formateurs if normalize_yousign_state(f.get("yousign")).get("signatureRequestId") == signature_request_id), None)
-    if not formateur:
-        return {"ok": True, "ignored": True}, 202
+
     status = extract_yousign_status((payload.get("data") or {}).get("signature_request") or payload)
     now = datetime.now().isoformat(timespec="seconds")
     updates = {"status": status, "lastWebhookAt": now, "lastSyncedAt": now, "error": None}
     if status == "done":
         updates["signedAt"] = now
-    update_formateur_yousign_state(formateur, updates)
-    save_formateurs(formateurs)
-    return {"ok": True}
+
+    formateurs = load_formateurs()
+    formateur = next((f for f in formateurs if normalize_yousign_state(f.get("yousign")).get("signatureRequestId") == signature_request_id), None)
+    if formateur:
+        update_formateur_yousign_state(formateur, updates)
+        save_formateurs(formateurs)
+        logger.info("Webhook Yousign appliqué au formateur id=%s status=%s", formateur.get("id"), status)
+        return {"ok": True, "target": "formateur"}
+
+    sessions_data = load_sessions()
+    for session_data in sessions_data.get("sessions", []):
+        for contract in session_data.get("apsTrainerContracts", []):
+            if normalize_yousign_state(contract.get("yousign")).get("signatureRequestId") == signature_request_id:
+                contract["yousign"] = normalize_yousign_state({**contract.get("yousign", {}), **updates})
+                save_sessions(sessions_data)
+                logger.info("Webhook Yousign appliqué au contrat APS session=%s contract=%s status=%s", session_data.get("id"), contract.get("id"), status)
+                return {"ok": True, "target": "aps_trainer_contract"}
+
+    logger.info("Webhook Yousign ignoré: signature_request_id inconnu %s", signature_request_id)
+    return {"ok": True, "ignored": True}, 202
 
 
 @app.route("/formateurs/<fid>/delete", methods=["POST"])

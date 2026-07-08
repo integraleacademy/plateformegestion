@@ -1843,7 +1843,7 @@ function renderContractTrainer(trainer){
       <label>Nom et prénom<input class="contract-name" value="${trainer.name.replaceAll('"','&quot;')}" required></label>
       <label>Email du formateur<input type="email" class="contract-email" value="${contractAttr(defaults.email)}" placeholder="email@example.com"></label>
       <label>Téléphone<input class="contract-phone" value="${contractAttr(defaults.phone)}" placeholder="06..."></label>
-      <label>Tarif par jour HT *<input type="number" min="0.01" step="0.01" class="contract-rate" required></label>
+      <label>Tarif par jour HT *<input type="number" min="0.01" step="0.01" class="contract-rate" value="${contractAttr(defaults.dailyRate)}" required></label>
       <label>Jours facturés retenus<input type="number" min="0" step="0.01" class="contract-billed" value="${trainer.calculatedDays}" required></label>
       <label>Société / nom commercial<input class="contract-commercial-name" placeholder="si applicable"></label>
       <label>Statut juridique<input class="contract-status" placeholder="Micro-entrepreneur, EI, société..."></label>

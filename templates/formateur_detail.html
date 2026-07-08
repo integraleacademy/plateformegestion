@@ -129,6 +129,11 @@
         <input type="text" id="formateur-nda" value="{{ formateur.nda or '' }}" placeholder="N° déclaration d’activité">
       </label>
 
+      <label for="formateur-tarif-journalier" class="field">
+        <span>Tarif par jour HT</span>
+        <input type="number" id="formateur-tarif-journalier" value="{{ formateur.tarif_journalier_ht or '' }}" min="0" step="0.01" placeholder="Ex. 350">
+      </label>
+
       <div class="detail-actions">
         <a href="{{ url_for('export_formateur_dossier', fid=formateur.id) }}" class="btn-premium btn-premium--primary">Exporter le dossier</a>
         <a href="{{ url_for('print_formateur_dossier', fid=formateur.id) }}" target="_blank" class="btn-premium btn-premium--dark">Imprimer</a>
@@ -333,6 +338,7 @@
   const siretInput = document.getElementById("formateur-siret");
   const adresseInput = document.getElementById("formateur-adresse-postale");
   const ndaInput = document.getElementById("formateur-nda");
+  const tarifInput = document.getElementById("formateur-tarif-journalier");
   let nubSaveTimeout = null;
   let identitySaveTimeout = null;
   let lastSavedNub = nubInput ? nubInput.value : "";
@@ -434,7 +440,8 @@ function updateSelectColor(selectEl) {
         nub: sanitized,
         siret: siretInput ? siretInput.value.trim() : "",
         adresse_postale: adresseInput ? adresseInput.value.trim() : "",
-        nda: ndaInput ? ndaInput.value.trim() : ""
+        nda: ndaInput ? ndaInput.value.trim() : "",
+        tarif_journalier_ht: tarifInput ? tarifInput.value.trim() : ""
       })
     })
     .then(async r => {
@@ -458,7 +465,7 @@ function updateSelectColor(selectEl) {
     identitySaveTimeout = setTimeout(() => saveNub(true), 500);
   }
 
-  [siretInput, adresseInput, ndaInput].forEach(input => {
+  [siretInput, adresseInput, ndaInput, tarifInput].forEach(input => {
     if (!input) return;
     input.addEventListener("input", scheduleIdentitySave);
     input.addEventListener("blur", () => {

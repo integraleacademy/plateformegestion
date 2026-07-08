@@ -1800,7 +1800,6 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     footer_top_y = 18 * mm
     min_signature_footer_gap = 16 * mm
     logo_path = aps_pdf_logo_path()
-    signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
     total_pages = len(presentiel_days) + 1
     session_name = session_data.get("display_name") or session_data.get("name") or f"Session {session_data.get('id', '')}"
@@ -1931,8 +1930,6 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         bottom_box_y = bottom_label_y - signature_label_gap - signature_box_h
         c.rect(left_x, bottom_box_y, block_w, signature_box_h)
         c.rect(right_x, bottom_box_y, block_w, signature_box_h)
-        if signature_image:
-            c.drawImage(signature_image, left_x + 8, top_box_y + 4, width=block_w - 16, height=signature_box_h - 8, preserveAspectRatio=True, mask="auto")
         if stamp_image:
             c.drawImage(stamp_image, right_x + 8, bottom_box_y + 4, width=block_w - 16, height=signature_box_h - 8, preserveAspectRatio=True, mask="auto")
         footer(page_no); c.showPage()

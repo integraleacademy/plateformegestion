@@ -141,6 +141,27 @@
       <div class="last-reminder">Dernière relance : {{ last_relance_display }}</div>
       {% endif %}
 
+      {% set yousign = formateur.yousign|default({}) %}
+      <section class="profile-update-card">
+        <div class="profile-update-card__title">Signature électronique Yousign</div>
+        <p class="autosave-note">Statut : <strong>{{ yousign.status|default('non envoyé') }}</strong>{% if yousign.sentAt %} · Envoyé le {{ yousign.sentAt }}{% endif %}{% if yousign.lastSyncedAt %} · Sync {{ yousign.lastSyncedAt }}{% endif %}</p>
+        {% if yousign.error %}<p class="relance-note" style="color:#b91c1c;">Erreur : {{ yousign.error }}</p>{% endif %}
+        {% if yousign.signatureUrl %}<p><a href="{{ yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature</a></p>{% endif %}
+        <div class="detail-actions">
+          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('Envoyer le contrat PDF de ce formateur à Yousign ?');">
+            <button type="submit" class="btn-premium btn-premium--primary">Envoyer pour signature Yousign</button>
+          </form>
+          {% if yousign.signatureRequestId %}
+          <form method="POST" action="{{ url_for('sync_formateur_contract_yousign', fid=formateur.id) }}">
+            <button type="submit" class="btn-premium btn-premium--soft">Voir le statut Yousign</button>
+          </form>
+          <form method="POST" action="{{ url_for('download_formateur_signed_yousign', fid=formateur.id) }}">
+            <button type="submit" class="btn-premium btn-premium--dark">Télécharger le contrat signé</button>
+          </form>
+          {% endif %}
+        </div>
+      </section>
+
       <form method="POST" action="{{ url_for('update_formateur_profils', fid=formateur.id) }}" class="profile-update-card">
         <div class="profile-update-card__title">Qualité / profil du formateur</div>
         <div class="profile-choice-grid">

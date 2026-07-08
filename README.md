@@ -131,3 +131,18 @@ Les signaux reconnus sont notamment : création récente de l'entreprise ou de l
 ### Compteur des dossiers stagiaires
 
 Le tableau de bord récupère le compteur depuis `STAGIAIRES_DOCS_TO_CONTROL_URL`. Si cette route est protégée, définir la même valeur secrète sur les deux services avec `STAGIAIRES_DOCS_TO_CONTROL_TOKEN`. La plateforme transmet ce secret dans les en-têtes `Authorization: Bearer ...` et `X-API-Key`. En cas d'indisponibilité temporaire du service stagiaires, la dernière réponse valide est conservée en mémoire et affichée comme donnée en cache.
+
+## Intégration Yousign — signature électronique des contrats formateurs
+
+L'application peut envoyer un contrat PDF rattaché à une fiche formateur vers Yousign, synchroniser le statut de signature et recevoir les webhooks sur `POST /webhooks/yousign`. La clé API reste exclusivement côté serveur.
+
+Variables d'environnement :
+- `YOUSIGN_API_KEY` : clé API Yousign v3, obligatoire pour activer l'intégration.
+- `YOUSIGN_API_BASE_URL` (optionnel) : URL de l'API, `https://api.yousign.app/v3` par défaut. Utiliser `https://api-sandbox.yousign.app/v3` pour les tests sandbox.
+- `YOUSIGN_WEBHOOK_SECRET` (optionnel) : secret partagé utilisé pour vérifier une signature HMAC SHA-256 si Yousign transmet un en-tête compatible (`X-Yousign-Signature`, `Yousign-Signature` ou `X-Hub-Signature-256`).
+- `YOUSIGN_CONTRACT_TEMPLATE_ID` (optionnel) : identifiant de template conservé en configuration pour une évolution template.
+- `YOUSIGN_SIGNATURE_LEVEL` (optionnel) : niveau de signature envoyé à Yousign, `electronic_signature` par défaut.
+- `YOUSIGN_AUTHENTICATION_MODE` (optionnel) : mode d'authentification, `no_otp` par défaut.
+- `YOUSIGN_DELIVERY_MODE` (optionnel) : mode d'envoi de la demande, `email` par défaut.
+
+Workflow : depuis une fiche formateur, déposer un PDF de contrat dans les documents du formateur, idéalement sur une ligne contenant “Contrat”, puis utiliser **Envoyer pour signature Yousign**. L'application stocke dans `formateurs.json` les identifiants Yousign, le statut, les dates d'envoi/synchronisation/webhook, le lien de signature éventuel et la dernière erreur. Une demande active (`draft`, `approval` ou `ongoing`) n'est pas recréée automatiquement afin d'éviter les doublons.

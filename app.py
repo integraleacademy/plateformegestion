@@ -6,6 +6,7 @@ import time
 import tempfile
 import zipfile
 import hashlib
+import hmac
 import smtplib
 import urllib.parse
 import urllib.request
@@ -28,6 +29,8 @@ from flask import (
     abort, flash, send_file, send_from_directory, session, Response, jsonify
 )
 from werkzeug.utils import secure_filename
+
+from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -5985,6 +5988,55 @@ def apply_profile_document_requirements(formateur, profils_docs_config):
             doc["status"] = "non_concerne"
 
 
+
+def find_formateur_document(formateur, doc_id):
+    return next((d for d in formateur.get("documents", []) if d.get("id") == doc_id), None)
+
+
+def latest_formateur_pdf_attachment(formateur, preferred_doc_id=""):
+    docs = formateur.get("documents", [])
+    ordered_docs = []
+    if preferred_doc_id:
+        preferred = find_formateur_document(formateur, preferred_doc_id)
+        if preferred:
+            ordered_docs.append(preferred)
+    contract_docs = [d for d in docs if d not in ordered_docs and "contrat" in (d.get("label") or "").lower()]
+    other_docs = [d for d in docs if d not in ordered_docs and d not in contract_docs]
+    for doc in ordered_docs + contract_docs + other_docs:
+        for attachment in reversed(doc.get("attachments", [])):
+            original = attachment.get("original_name") or attachment.get("filename") or ""
+            filename = attachment.get("filename") or ""
+            if original.lower().endswith(".pdf") or filename.lower().endswith(".pdf"):
+                path = os.path.join(FORMATEUR_FILES_DIR, formateur.get("id", ""), doc.get("id", ""), os.path.basename(filename))
+                if os.path.exists(path):
+                    return doc, attachment, path
+    return None, None, None
+
+
+def normalize_yousign_state(state=None):
+    defaults = {
+        "signatureRequestId": "", "documentId": "", "signerId": "", "status": "draft",
+        "signatureUrl": "", "sentAt": "", "signedAt": "", "lastSyncedAt": "",
+        "lastWebhookAt": "", "signedDocumentFilename": "", "error": None,
+    }
+    if isinstance(state, dict):
+        defaults.update({k: v for k, v in state.items() if k in defaults})
+    return defaults
+
+
+def extract_yousign_status(payload):
+    if not isinstance(payload, dict):
+        return "error"
+    status = payload.get("status") or payload.get("event_name", "").split(".")[-1]
+    return status if status else "ongoing"
+
+
+def update_formateur_yousign_state(formateur, updates):
+    state = normalize_yousign_state(formateur.get("yousign"))
+    state.update(updates)
+    formateur["yousign"] = state
+    return state
+
 def build_doc_entry(label):
     return {
         "id": str(uuid.uuid4())[:8],
@@ -6454,6 +6506,145 @@ def formateur_detail(fid):
 
 
 
+@app.route("/formateurs/<fid>/yousign/send", methods=["POST"])
+def send_formateur_contract_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    state = normalize_yousign_state(formateur.get("yousign"))
+    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.form.get("force"):
+        flash("Une demande Yousign active existe déjà pour ce formateur. Synchronisez le statut ou forcez un remplacement.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    email = (formateur.get("email") or "").strip()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        flash("Email formateur invalide ou manquant.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    if not is_yousign_configured():
+        flash("Yousign n'est pas configuré: renseignez YOUSIGN_API_KEY côté serveur.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    doc_id = (request.form.get("doc_id") or "").strip()
+    doc, attachment, pdf_path = latest_formateur_pdf_attachment(formateur, doc_id)
+    if not pdf_path:
+        flash("Aucun contrat PDF n'a été trouvé dans les pièces jointes du formateur.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    client = YousignClient()
+    now = datetime.now().isoformat(timespec="seconds")
+    try:
+        trainer_name = formateur_full_name(formateur) or email
+        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=f"formateur:{fid}")
+        signature_request_id = signature_request.get("id")
+        with open(pdf_path, "rb") as pdf_file:
+            document = client.upload_file(signature_request_id, pdf_file.read(), attachment.get("original_name") or "contrat.pdf")
+        document_id = document.get("id")
+        signer = client.add_signer(signature_request_id, formateur.get("prenom") or "", formateur.get("nom") or trainer_name, email, document_id=document_id)
+        activated = client.activate_signature_request(signature_request_id)
+        status = extract_yousign_status(activated) or "ongoing"
+        signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
+        update_formateur_yousign_state(formateur, {
+            "signatureRequestId": signature_request_id,
+            "documentId": document_id or "",
+            "signerId": signer.get("id") or "",
+            "status": status,
+            "signatureUrl": signature_url,
+            "sentAt": now,
+            "lastSyncedAt": now,
+            "error": None,
+        })
+        save_formateurs(formateurs)
+        flash("Contrat envoyé à Yousign pour signature.", "ok")
+    except YousignError as exc:
+        update_formateur_yousign_state(formateur, {"status": "error", "lastSyncedAt": now, "error": str(exc)})
+        save_formateurs(formateurs)
+        flash(f"Erreur Yousign: {exc}", "error")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/yousign/sync", methods=["POST"])
+def sync_formateur_contract_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+    state = normalize_yousign_state(formateur.get("yousign"))
+    signature_request_id = state.get("signatureRequestId")
+    if not signature_request_id:
+        flash("Aucune demande Yousign à synchroniser.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    try:
+        payload = YousignClient().get_signature_request(signature_request_id)
+        status = extract_yousign_status(payload)
+        updates = {"status": status, "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None}
+        if status == "done" and not state.get("signedAt"):
+            updates["signedAt"] = updates["lastSyncedAt"]
+        update_formateur_yousign_state(formateur, updates)
+        save_formateurs(formateurs)
+        flash("Statut Yousign synchronisé.", "ok")
+    except YousignError as exc:
+        update_formateur_yousign_state(formateur, {"lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": str(exc)})
+        save_formateurs(formateurs)
+        flash(f"Erreur de synchronisation Yousign: {exc}", "error")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/yousign/download", methods=["POST"])
+def download_formateur_signed_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+    state = normalize_yousign_state(formateur.get("yousign"))
+    if not state.get("signatureRequestId"):
+        flash("Aucune demande Yousign disponible.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    try:
+        content = YousignClient().download_signed_documents(state["signatureRequestId"])
+        signed_dir = os.path.join(FORMATEUR_FILES_DIR, fid, "_yousign")
+        os.makedirs(signed_dir, exist_ok=True)
+        filename = f"contrat_signe_yousign_{state['signatureRequestId']}.zip"
+        with open(os.path.join(signed_dir, filename), "wb") as f:
+            f.write(content)
+        update_formateur_yousign_state(formateur, {"signedDocumentFilename": filename, "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
+        save_formateurs(formateurs)
+        return send_from_directory(signed_dir, filename, as_attachment=True)
+    except Exception as exc:
+        flash(f"Téléchargement Yousign impossible: {exc}", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/webhooks/yousign", methods=["POST"])
+def yousign_webhook():
+    raw_body = request.get_data()
+    webhook_secret = get_yousign_config().webhook_secret
+    signature_header = request.headers.get("X-Yousign-Signature") or request.headers.get("Yousign-Signature") or request.headers.get("X-Hub-Signature-256")
+    if webhook_secret and signature_header:
+        expected = hmac.new(webhook_secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        provided = signature_header.split("=", 1)[-1].strip()
+        if not hmac.compare_digest(expected, provided):
+            logger.warning("Webhook Yousign rejeté: signature invalide")
+            return {"ok": False, "error": "signature invalide"}, 401
+    payload = request.get_json(silent=True) or {}
+    signature_request_id = ((payload.get("data") or {}).get("signature_request") or {}).get("id") or (payload.get("data") or {}).get("signature_request_id") or payload.get("signature_request_id")
+    if not signature_request_id:
+        return {"ok": False, "error": "signature_request_id manquant"}, 400
+    formateurs = load_formateurs()
+    formateur = next((f for f in formateurs if normalize_yousign_state(f.get("yousign")).get("signatureRequestId") == signature_request_id), None)
+    if not formateur:
+        return {"ok": True, "ignored": True}, 202
+    status = extract_yousign_status((payload.get("data") or {}).get("signature_request") or payload)
+    now = datetime.now().isoformat(timespec="seconds")
+    updates = {"status": status, "lastWebhookAt": now, "lastSyncedAt": now, "error": None}
+    if status == "done":
+        updates["signedAt"] = now
+    update_formateur_yousign_state(formateur, updates)
+    save_formateurs(formateurs)
+    return {"ok": True}
+
+
 @app.route("/formateurs/<fid>/delete", methods=["POST"])
 def delete_formateur(fid):
     formateurs = load_formateurs()
@@ -6779,6 +6970,7 @@ def print_formateur_dossier(fid):
     )
 
 import hashlib
+import hmac
 import time
 
 def generate_upload_token(fid):

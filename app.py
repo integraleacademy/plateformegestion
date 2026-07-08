@@ -4805,6 +4805,57 @@ def send_aps_trainer_contract(sid, contract_id):
     return jsonify({"ok": True, "sentAt": contract["sentAt"]})
 
 
+@app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/send")
+def send_aps_trainer_contract_yousign(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    email = (contract.get("trainerEmail") or "").strip()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email): return jsonify({"ok": False, "error": "Email formateur invalide ou manquant."}), 400
+    if not is_yousign_configured(): return jsonify({"ok": False, "error": "Yousign n'est pas configuré: renseignez YOUSIGN_API_KEY côté serveur."}), 400
+
+    state = normalize_yousign_state(contract.get("yousign"))
+    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.args.get("force"):
+        return jsonify({"ok": False, "error": "Une demande Yousign active existe déjà pour ce contrat."}), 409
+
+    contract_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(contract.get("pdfFilename") or ""))
+    if not os.path.exists(contract_path): return jsonify({"ok": False, "error": "PDF contrat introuvable."}), 400
+
+    client = YousignClient()
+    now = datetime.now().isoformat(timespec="seconds")
+    try:
+        trainer_name = contract.get("trainerName") or email
+        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=f"session:{sid}:aps_contract:{contract_id}")
+        signature_request_id = signature_request.get("id")
+        with open(contract_path, "rb") as pdf_file:
+            document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path))
+        document_id = document.get("id")
+        name_parts = str(trainer_name).split()
+        first_name = name_parts[0] if len(name_parts) > 1 else ""
+        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
+        signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id)
+        activated = client.activate_signature_request(signature_request_id)
+        status = extract_yousign_status(activated) or "ongoing"
+        signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
+        contract["yousign"] = normalize_yousign_state({
+            "signatureRequestId": signature_request_id,
+            "documentId": document_id or "",
+            "signerId": signer.get("id") or "",
+            "status": status,
+            "signatureUrl": signature_url,
+            "sentAt": now,
+            "lastSyncedAt": now,
+            "error": None,
+        })
+        save_sessions(data)
+        return jsonify({"ok": True, "status": status, "sentAt": now, "signatureUrl": signature_url})
+    except YousignError as exc:
+        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "error": str(exc)})
+        save_sessions(data)
+        return jsonify({"ok": False, "error": f"Erreur Yousign: {exc}"}), 502
+
+
 @app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")
 def delete_aps_trainer_contract(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)

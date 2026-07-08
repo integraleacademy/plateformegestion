@@ -1157,10 +1157,14 @@ a.back:hover{ background:#d9a848 !important; }
       {% set contract = found.contract %}
       <div class="contract-card" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}">
         <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
-        <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}</div>
+        {% set contract_yousign = contract.yousign|default({}) %}
+        <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}{% if contract_yousign.sentAt %} · Yousign envoyé le {{ contract_yousign.sentAt|datetimefr }}{% endif %}{% if contract_yousign.status %} · Statut Yousign : {{ contract_yousign.status }}{% endif %}</div>
+        {% if contract_yousign.error %}<div class="relance-note" style="color:#b91c1c;margin-top:6px;">Erreur Yousign : {{ contract_yousign.error }}</div>{% endif %}
+        {% if contract_yousign.signatureUrl %}<div style="margin-top:6px;"><a href="{{ contract_yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature Yousign</a></div>{% endif %}
         <div class="planning-actions" style="margin-top:10px;">
           <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">Voir contrat</a>
           <button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
+          <button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer signature Yousign</button>
           <button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>
           <button class="btn small danger delete-contract-btn" type="button">Supprimer contrat</button>
         </div>
@@ -1947,6 +1951,7 @@ function closeSendModal(){ sendContractModal?.classList.remove("open"); sendCont
 document.getElementById("closeSendContractModal")?.addEventListener("click", closeSendModal); document.getElementById("cancelSendContract")?.addEventListener("click", closeSendModal);
 document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListener("click", () => { const card = btn.closest("[data-contract-id]"); currentSendContractId = card.dataset.contractId; document.getElementById("sendContractRecipient").textContent = card.dataset.contractEmail; document.getElementById("sendContractSubject").value = "Contrat d’intervention formateur — Session APS"; document.getElementById("sendContractBody").value = `Bonjour ${card.dataset.contractName},\n\nVous trouverez en pièce jointe votre contrat d’intervention pour la session APS, ainsi que le planning de formation correspondant.\n\nMerci de nous retourner le contrat signé dès que possible.\n\nBien cordialement,\n\nIntégrale Academy\n04 22 47 07 68`; sendContractModal?.classList.add("open"); sendContractModal?.setAttribute("aria-hidden", "false"); }));
 sendContractForm?.addEventListener("submit", async (event) => { event.preventDefault(); const err = document.getElementById("sendContractError"); err.style.display = "none"; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${currentSendContractId}/send`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({emailSubject:document.getElementById("sendContractSubject").value, emailBody:document.getElementById("sendContractBody").value})}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi impossible."); closeSendModal(); showPlanningToast("Contrat envoyé par mail.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ err.textContent = error.message; err.style.display = "block"; } });
+document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); if(!confirm(`Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`)) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send`, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
 
 </script>
 
@@ -2005,7 +2010,6 @@ document.addEventListener('DOMContentLoaded',init);
 
 </body>
 </html>
-
 
 
 

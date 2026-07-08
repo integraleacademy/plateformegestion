@@ -1564,7 +1564,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
 
     def card(title, lines):
         body = [p(title, "CardTitle"), p(lines, "CardText")]
-        tbl = Table([[body]], colWidths=[(width - 40 * mm) / 2], hAlign="LEFT")
+        tbl = Table([[body]], colWidths=[(width - 40 * mm) / 2], rowHeights=[40 * mm], hAlign="LEFT")
         tbl.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.45, colors.HexColor("#d7dce3")),
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")),
@@ -1584,7 +1584,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         [card("Mission", f"{formation_name} — {session_name}<br/>Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Modalité : {modality_label}<br/>Volume : {float(contract.get('calculatedHours') or 0):g} h"), card("Rémunération", f"{float(contract.get('billedDays') or 0):g} jour(s) facturé(s)<br/>Tarif journalier : {_money(contract.get('dailyRate'))} HT<br/>Total HT : {_money(total_ht)}<br/>TVA : {tva_label}<br/>Total TTC : {_money(contract.get('totalTTC') or total_ht)}")],
         [card("Lieu d’intervention", room_label), card("Documents contractuels", "Le présent contrat est complété par le planning détaillé des interventions, le récapitulatif financier et l’engagement qualité / traçabilité pédagogique.")],
     ]
-    cover_grid = Table(cover_cards, colWidths=[(width - 40 * mm) / 2, (width - 40 * mm) / 2], rowHeights=[32 * mm, 32 * mm, 32 * mm], hAlign="CENTER")
+    cover_grid = Table(cover_cards, colWidths=[(width - 40 * mm) / 2, (width - 40 * mm) / 2], rowHeights=[46 * mm, 46 * mm, 46 * mm], hAlign="CENTER")
     cover_grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
     story += [cover_grid, Spacer(1, 5), p("Document contractuel généré automatiquement à partir des informations de session et du planning validé.", "Subtle"), NextPageTemplate("contrat"), PageBreak()]
 

@@ -990,6 +990,7 @@ def generate_a3p_attendance_pdf(session_data, output_path):
 def _a3p_trainer_contract_data(session_data, contract):
     shared_session, converted = _a3p_session_for_shared_docs(session_data)
     trainer_name = session_data.get("a3pTrainerName") or contract.get("trainerName") or ""
+    contract = merge_formateur_contract_defaults(contract, find_formateur_by_identity(name=trainer_name, email=contract.get("trainerEmail") or contract.get("email") or contract.get("trainerEmail")))
     interventions = aps_trainer_interventions(converted, trainer_name)
     daily = float(contract.get("dailyRate") or 0)
     billed_days = float(contract.get("billedDays") or interventions["calendarDays"] or _a3p_contract_days(session_data.get("a3pPlanningData") or []))
@@ -1571,7 +1572,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         story.append(Spacer(1, 4))
     story += [p("Contrat d’intervention formateur", "CoverTitle"), p("Contrat de prestation de services / sous-traitance pédagogique", "CoverSubtitle")]
     cover_cards = [
-        [card("Centre de formation", "Intégrale Academy<br/>54 chemin du Carreou<br/>83480 Puget-sur-Argens<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT"), card("Formateur / prestataire", f"{contract.get('trainerName')}<br/>{contract.get('status') or 'Statut juridique à compléter'}<br/>SIRET : {contract.get('siret') or 'à compléter'}<br/>{contract.get('address') or 'Adresse à compléter'}<br/>{contract.get('trainerEmail') or 'Email à compléter'} — {contract.get('trainerPhone') or 'Téléphone à compléter'}")],
+        [card("Centre de formation", "Intégrale Academy<br/>54 chemin du Carreou<br/>83480 Puget-sur-Argens<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT"), card("Formateur / prestataire", f"{contract.get('trainerName')}<br/>{contract.get('status') or 'Statut juridique à compléter'}<br/>SIRET : {contract.get('siret') or 'à compléter'}<br/>NDA : {contract.get('activityDeclaration') or 'à compléter'}<br/>{contract.get('address') or 'Adresse à compléter'}<br/>{contract.get('trainerEmail') or 'Email à compléter'} — {contract.get('trainerPhone') or 'Téléphone à compléter'}")],
         [card("Mission", f"{formation_name} — {session_name}<br/>Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Modalité : {modality_label}<br/>Volume : {float(contract.get('calculatedHours') or 0):g} h"), card("Rémunération", f"{float(contract.get('billedDays') or 0):g} jour(s) facturé(s)<br/>Tarif journalier : {_money(contract.get('dailyRate'))} HT<br/>Total HT : {_money(total_ht)}<br/>TVA : {tva_label}<br/>Total TTC : {_money(contract.get('totalTTC') or total_ht)}")],
         [card("Lieu d’intervention", room_label), card("Documents contractuels", "Le présent contrat est complété par le planning détaillé des interventions, le récapitulatif financier et l’engagement qualité / traçabilité pédagogique.")],
     ]
@@ -4522,6 +4523,10 @@ def edit_formateur(fid):
             )
         formateur["email"] = request.form.get("email", "").strip()
         formateur["telephone"] = request.form.get("telephone", "").strip()
+        formateur["siret"] = request.form.get("siret", "").strip()
+        formateur["adresse_postale"] = request.form.get("adresse_postale", "").strip()
+        formateur["nda"] = request.form.get("nda", "").strip()
+        formateur["tarif_journalier_ht"] = request.form.get("tarif_journalier_ht", "").strip()
         formateur["profils"] = normalize_formateur_profils(
             request.form.getlist("profils")
         )
@@ -4722,7 +4727,8 @@ def preview_aps_trainer_contracts(sid):
     trainers = []
     for name in aps_detect_trainers(planning_data):
         calc = aps_trainer_interventions(planning_data, name)
-        trainers.append({"name": name, **calc})
+        formateur = find_formateur_by_identity(name=name)
+        trainers.append({"name": name, **calc, "defaults": formateur_contract_defaults(formateur)})
     return jsonify({"ok": True, "trainers": trainers})
 
 
@@ -4756,6 +4762,7 @@ def generate_aps_trainer_contracts(sid):
         vat_enabled = bool(trainer.get("vatEnabled")); vat_rate = float(trainer.get("vatRate") or 20)
         total_ht = round(billed_days * daily_rate, 2); vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0; total_ttc = round(total_ht + vat_amount, 2)
         contract_id = str(uuid.uuid4()); filename = f"contrat_formateur_aps_{sid}_{contract_id}.pdf"; path = os.path.join(APS_CONTRACT_DIR, filename)
+        trainer = merge_formateur_contract_defaults(trainer, find_formateur_by_identity(name=name, email=trainer.get("email")))
         contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
         generate_aps_trainer_contract_pdf(session_data, contract, path)
         session_data.setdefault("apsTrainerContracts", []).append(contract); saved.append(contract)
@@ -5808,6 +5815,48 @@ def load_formateurs():
 
 
 
+
+def normalize_lookup_text(value):
+    return " ".join(str(value or "").strip().lower().split())
+
+def formateur_full_name(formateur):
+    return " ".join(part for part in [(formateur.get("prenom") or "").strip(), (formateur.get("nom") or "").strip()] if part).strip()
+
+def find_formateur_by_identity(name="", email=""):
+    wanted_email = normalize_lookup_text(email)
+    wanted_name = normalize_lookup_text(name)
+    if not wanted_email and not wanted_name:
+        return None
+    for formateur in load_formateurs():
+        if wanted_email and normalize_lookup_text(formateur.get("email")) == wanted_email:
+            return formateur
+        full_name = normalize_lookup_text(formateur_full_name(formateur))
+        reverse_name = normalize_lookup_text(f"{formateur.get('nom', '')} {formateur.get('prenom', '')}")
+        if wanted_name and wanted_name in {full_name, reverse_name}:
+            return formateur
+    return None
+
+def formateur_contract_defaults(formateur):
+    if not formateur:
+        return {}
+    return {
+        "email": (formateur.get("email") or "").strip(),
+        "phone": (formateur.get("telephone") or "").strip(),
+        "address": (formateur.get("adresse_postale") or formateur.get("adresse") or "").strip(),
+        "siret": (formateur.get("siret") or "").strip(),
+        "activityDeclaration": (formateur.get("nda") or formateur.get("activityDeclaration") or "").strip(),
+        "dailyRate": (formateur.get("tarif_journalier_ht") or formateur.get("dailyRate") or "").strip(),
+    }
+
+def merge_formateur_contract_defaults(contract, formateur):
+    merged = dict(contract or {})
+    for key, value in formateur_contract_defaults(formateur).items():
+        current = merged.get(key)
+        is_empty = not current.strip() if isinstance(current, str) else not current
+        if value and is_empty:
+            merged[key] = value
+    return merged
+
 def save_formateurs(data):
     # verrou simple (anti écritures concurrentes)
     start = time.time()
@@ -6220,6 +6269,10 @@ def add_formateur():
         "nub": nub,
         "email": request.form.get("email", "").strip(),
         "telephone": request.form.get("telephone", "").strip(),
+        "siret": request.form.get("siret", "").strip(),
+        "adresse_postale": request.form.get("adresse_postale", "").strip(),
+        "nda": request.form.get("nda", "").strip(),
+        "tarif_journalier_ht": request.form.get("tarif_journalier_ht", "").strip(),
         "profils": normalize_formateur_profils(request.form.getlist("profils")),
 
         "cle": {
@@ -6323,8 +6376,12 @@ def update_formateur_identity(fid):
         return {"ok": False, "error": str(exc)}, 400
 
     formateur["nub"] = nub
+    formateur["siret"] = (request.form.get("siret") or "").strip()
+    formateur["adresse_postale"] = (request.form.get("adresse_postale") or "").strip()
+    formateur["nda"] = (request.form.get("nda") or "").strip()
+    formateur["tarif_journalier_ht"] = (request.form.get("tarif_journalier_ht") or "").strip()
     save_formateurs(formateurs)
-    return {"ok": True, "nub": nub}
+    return {"ok": True, "nub": nub, "siret": formateur["siret"], "adresse_postale": formateur["adresse_postale"], "nda": formateur["nda"], "tarif_journalier_ht": formateur["tarif_journalier_ht"]}
 
 
 @app.route("/formateurs/<fid>/cle/update", methods=["POST"])

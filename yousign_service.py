@@ -44,7 +44,10 @@ def _env(name: str, default: str = "") -> str:
 
 
 def get_yousign_config() -> YousignConfig:
-    base_url = _env("YOUSIGN_API_BASE_URL", DEFAULT_YOUSIGN_API_BASE_URL).rstrip("/")
+    # Render may contain either the historical project variable or the shorter
+    # name used in Yousign runbooks. Prefer the explicit API variable when both
+    # are present.
+    base_url = (_env("YOUSIGN_API_BASE_URL") or _env("YOUSIGN_BASE_URL", DEFAULT_YOUSIGN_API_BASE_URL)).rstrip("/")
     return YousignConfig(
         api_key=_env("YOUSIGN_API_KEY"),
         base_url=base_url,

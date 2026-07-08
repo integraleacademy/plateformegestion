@@ -134,15 +134,19 @@ Le tableau de bord récupère le compteur depuis `STAGIAIRES_DOCS_TO_CONTROL_URL
 
 ## Intégration Yousign — signature électronique des contrats formateurs
 
-L'application peut envoyer un contrat PDF rattaché à une fiche formateur vers Yousign, synchroniser le statut de signature et recevoir les webhooks sur `POST /webhooks/yousign`. La clé API reste exclusivement côté serveur.
+L'application peut envoyer un contrat PDF rattaché à une fiche formateur ou à un contrat formateur APS vers Yousign, synchroniser le statut de signature et recevoir les webhooks sur `POST /webhooks/yousign`. Pour le site Render actuel, l'URL webhook à renseigner dans Yousign est `https://plateformegestion.onrender.com/webhooks/yousign` (méthode POST), pas une URL de page `/sessions/...`. La clé API reste exclusivement côté serveur.
 
 Variables d'environnement :
 - `YOUSIGN_API_KEY` : clé API Yousign v3, obligatoire pour activer l'intégration.
-- `YOUSIGN_API_BASE_URL` (optionnel) : URL de l'API, `https://api.yousign.app/v3` par défaut. Utiliser `https://api-sandbox.yousign.app/v3` pour les tests sandbox.
+- `YOUSIGN_API_BASE_URL` (optionnel, alias accepté : `YOUSIGN_BASE_URL`) : URL de l'API, `https://api.yousign.app/v3` par défaut. Utiliser `https://api-sandbox.yousign.app/v3` pour les tests sandbox et vérifier que la clé API appartient au même environnement.
 - `YOUSIGN_WEBHOOK_SECRET` (optionnel) : secret partagé utilisé pour vérifier une signature HMAC SHA-256 si Yousign transmet un en-tête compatible (`X-Yousign-Signature`, `Yousign-Signature` ou `X-Hub-Signature-256`).
 - `YOUSIGN_CONTRACT_TEMPLATE_ID` (optionnel) : identifiant de template conservé en configuration pour une évolution template.
 - `YOUSIGN_SIGNATURE_LEVEL` (optionnel) : niveau de signature envoyé à Yousign, `electronic_signature` par défaut.
 - `YOUSIGN_AUTHENTICATION_MODE` (optionnel) : mode d'authentification, `no_otp` par défaut.
 - `YOUSIGN_DELIVERY_MODE` (optionnel) : mode d'envoi de la demande, `email` par défaut.
 
-Workflow : depuis une fiche formateur, déposer un PDF de contrat dans les documents du formateur, idéalement sur une ligne contenant “Contrat”, puis utiliser **Envoyer pour signature Yousign**. L'application stocke dans `formateurs.json` les identifiants Yousign, le statut, les dates d'envoi/synchronisation/webhook, le lien de signature éventuel et la dernière erreur. Une demande active (`draft`, `approval` ou `ongoing`) n'est pas recréée automatiquement afin d'éviter les doublons.
+Workflow : depuis une fiche formateur, déposer un PDF de contrat dans les documents du formateur, idéalement sur une ligne contenant “Contrat”, puis utiliser **Envoyer pour signature Yousign**. Les contrats formateurs APS peuvent aussi être envoyés depuis la page session. L'application stocke les identifiants Yousign, le statut, les dates d'envoi/synchronisation/webhook, le lien de signature éventuel et la dernière erreur. Une demande active (`draft`, `approval` ou `ongoing`) n'est pas recréée automatiquement afin d'éviter les doublons.
+
+Événements webhook Yousign minimum à activer : `signature_request.done`, `signature_request.declined`, `signature_request.expired`, `signature_request.canceled`, `signer.done`, `signer.declined`, `signer.notification_delivery_failed`, `signer.error`. La route `/webhooks/yousign` est publique via la liste blanche serveur, accepte uniquement POST, n'est pas protégée par l'authentification utilisateur, ne dépend pas de CSRF Flask-WTF, vérifie la signature HMAC SHA-256 lorsque `YOUSIGN_WEBHOOK_SECRET` est configuré, journalise les événements reçus, puis met à jour le statut Yousign du formateur ou du contrat formateur APS correspondant.
+
+En cas de `403` lors de `POST /signature_requests`, le webhook n'est généralement pas en cause. Vérifier sur Render : `YOUSIGN_API_KEY`, `YOUSIGN_API_BASE_URL`/`YOUSIGN_BASE_URL`, la cohérence sandbox/production, le workspace éventuel associé à la clé, les scopes/droits de la clé API et le plan/add-on Yousign autorisant la création de demandes de signature en production.

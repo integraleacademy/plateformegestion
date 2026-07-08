@@ -10,6 +10,7 @@ def test_yousign_config_defaults(monkeypatch):
     for key in [
         "YOUSIGN_API_KEY",
         "YOUSIGN_API_BASE_URL",
+        "YOUSIGN_BASE_URL",
         "YOUSIGN_WEBHOOK_SECRET",
         "YOUSIGN_CONTRACT_TEMPLATE_ID",
         "YOUSIGN_SIGNATURE_LEVEL",
@@ -43,3 +44,12 @@ def test_yousign_config_env(monkeypatch):
     assert config.webhook_secret == "hook"
     assert config.authentication_mode == "email_otp"
     assert is_yousign_configured()
+
+
+def test_yousign_config_accepts_base_url_alias(monkeypatch):
+    monkeypatch.delenv("YOUSIGN_API_BASE_URL", raising=False)
+    monkeypatch.setenv("YOUSIGN_BASE_URL", "https://api-sandbox.yousign.app/v3/")
+
+    config = get_yousign_config()
+
+    assert config.base_url == "https://api-sandbox.yousign.app/v3"

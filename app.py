@@ -1351,12 +1351,25 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
     y -= 24
     box_w = (width - 2 * margin - 18) / 2
+    signature_box_h = 92
+    signature_label_h = 18
+    image_padding_x = 12
+    image_padding_bottom = 8
     for idx, (label, image_path) in enumerate((("Signature", signature_image), ("Tampon", stamp_image))):
         x = margin + idx * (box_w + 18)
-        c.setFillColor(colors.white); c.roundRect(x, y - 70, box_w, 70, 6, fill=1, stroke=1)
+        c.setFillColor(colors.white); c.roundRect(x, y - signature_box_h, box_w, signature_box_h, 6, fill=1, stroke=1)
         c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold", 9); c.drawString(x + 10, y - 16, label)
-        if image_path: c.drawImage(image_path, x + 10, y - 62, width=box_w - 20, height=38, preserveAspectRatio=True, mask="auto")
-    y -= 95
+        if image_path:
+            c.drawImage(
+                image_path,
+                x + image_padding_x,
+                y - signature_box_h + image_padding_bottom,
+                width=box_w - (image_padding_x * 2),
+                height=signature_box_h - signature_label_h - image_padding_bottom - 2,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+    y -= signature_box_h + 25
     c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "Informations légales")
     y -= 14
     for line in APS_LEGAL_LINES:

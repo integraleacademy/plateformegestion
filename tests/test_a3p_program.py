@@ -151,6 +151,49 @@ def test_a3p_attendance_pdf_uses_aps_signature_template(tmp_path):
     assert first_slot["title"] in text
     assert "e-learning" not in text.lower()
 
+def test_a3p_attendance_pdf_draws_stamp_without_trainer_signature_image(tmp_path, monkeypatch):
+    pytest.importorskip("reportlab")
+    import app
+    from reportlab.pdfgen import canvas as reportlab_canvas
+
+    drawn_images = []
+    original_canvas = reportlab_canvas.Canvas
+
+    class SpyCanvas(original_canvas):
+        def drawImage(self, image, *args, **kwargs):
+            drawn_images.append(str(image))
+            return None
+
+    def fake_center_image(*names):
+        if "signature" in names or "sign" in names:
+            return "trainer-signature.png"
+        if "tampon" in names or "cachet" in names or "stamp" in names:
+            return "centre-stamp.png"
+        return None
+
+    monkeypatch.setattr(reportlab_canvas, "Canvas", SpyCanvas)
+    monkeypatch.setattr(app, "find_center_image", fake_center_image)
+    monkeypatch.setattr(app, "aps_pdf_logo_path", lambda: None)
+
+    result = generateA3pSchedule(config())
+    result["planning"][0]["slots"][0]["trainer"] = "Jean Dupont"
+
+    app.generate_a3p_attendance_pdf({
+        "id": "A3P-TEST",
+        "formation": "A3P",
+        "display_name": "Session A3P test",
+        "date_debut": config()["days"][0]["date"],
+        "date_fin": config()["days"][-1]["date"],
+        "date_exam": config()["examDate"],
+        "a3pPlanningData": result["planning"],
+        "a3pRoom": "Salle A",
+        "a3pTrainerName": "Jean Dupont",
+        "a3pAttendanceStudents": [{"lastName": "DURAND", "firstName": "Alice"}],
+    }, str(tmp_path / "attendance_a3p.pdf"))
+
+    assert "trainer-signature.png" not in drawn_images
+    assert "centre-stamp.png" in drawn_images
+
 
 def test_a3p_planning_pdf_day_titles_include_exact_dates(tmp_path):
     pytest.importorskip("reportlab")

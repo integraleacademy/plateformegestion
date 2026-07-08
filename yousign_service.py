@@ -164,6 +164,44 @@ class YousignClient:
             payload["fields"] = [{"document_id": document_id, "type": "signature", "page": 1, "x": 420, "y": 700}]
         return self.request("POST", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers", payload)
 
+    def add_signature_field(
+        self,
+        signature_request_id: str,
+        document_id: str,
+        signer_id: str,
+        page: int,
+        x: int,
+        y: int,
+        width: int = 160,
+        height: int = 60,
+    ) -> Any:
+        payload = {
+            "type": "signature",
+            "signer_id": signer_id,
+            "page": int(page or 1),
+            "x": int(x),
+            "y": int(y),
+            "width": int(width),
+            "height": int(height),
+        }
+        field = self.request(
+            "POST",
+            f"signature_requests/{urllib.parse.quote(signature_request_id)}/documents/{urllib.parse.quote(document_id)}/fields",
+            payload,
+        )
+        logger.info(
+            "Yousign signature field created field_id=%s signer_id=%s document_id=%s page=%s x=%s y=%s width=%s height=%s",
+            field.get("id") if isinstance(field, dict) else "",
+            signer_id,
+            document_id,
+            payload["page"],
+            payload["x"],
+            payload["y"],
+            payload["width"],
+            payload["height"],
+        )
+        return field
+
     def activate_signature_request(self, signature_request_id: str) -> Any:
         return self.request("POST", f"signature_requests/{urllib.parse.quote(signature_request_id)}/activate")
 

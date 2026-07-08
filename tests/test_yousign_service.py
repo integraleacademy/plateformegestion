@@ -127,6 +127,35 @@ def test_create_signature_request_sanitizes_external_id(monkeypatch):
     assert captured["payload"]["external_id"] == "session-abc-def"
 
 
+def test_yousign_add_signature_field_posts_document_field(monkeypatch):
+    from yousign_service import YousignClient, YousignConfig
+
+    captured = {}
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test"))
+
+    def fake_request(method, path, payload=None, headers=None):
+        captured.update({"method": method, "path": path, "payload": payload})
+        return {"id": "field_1"}
+
+    monkeypatch.setattr(client, "request", fake_request)
+    field = client.add_signature_field("sr_1", "doc_1", "signer_1", page=3, x=60, y=690, width=160, height=60)
+
+    assert field["id"] == "field_1"
+    assert captured == {
+        "method": "POST",
+        "path": "signature_requests/sr_1/documents/doc_1/fields",
+        "payload": {
+            "type": "signature",
+            "signer_id": "signer_1",
+            "page": 3,
+            "x": 60,
+            "y": 690,
+            "width": 160,
+            "height": 60,
+        },
+    }
+
+
 def test_yousign_add_signer_can_use_pdf_text_tags_without_manual_fields(monkeypatch):
     from yousign_service import YousignClient, YousignConfig
 

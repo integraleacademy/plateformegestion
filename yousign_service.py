@@ -100,7 +100,7 @@ class YousignClient:
                 error_payload = json.loads(raw) if raw else {}
             except json.JSONDecodeError:
                 error_payload = {"raw": raw[:500]}
-            logger.warning("Yousign API error status=%s path=%s", exc.code, path)
+            logger.warning("Yousign API error status=%s path=%s response=%r", exc.code, path, error_payload)
             message = error_payload.get("message") if isinstance(error_payload, dict) else None
             raise YousignError(message or f"Erreur API Yousign ({exc.code})", exc.code, error_payload) from exc
         except urllib.error.URLError as exc:
@@ -126,8 +126,8 @@ class YousignClient:
                 return json.loads(response.read().decode(response.headers.get_content_charset() or "utf-8"))
         except urllib.error.HTTPError as exc:
             raw = exc.read().decode("utf-8", errors="replace")
-            logger.warning("Yousign document upload failed status=%s", exc.code)
-            raise YousignError("Échec de l'envoi du PDF à Yousign.", exc.code, raw[:500]) from exc
+            logger.warning("Yousign document upload failed status=%s response=%s", exc.code, raw[:2000])
+            raise YousignError("Échec de l'envoi du PDF à Yousign.", exc.code, raw[:2000]) from exc
 
     def create_signature_request(self, name: str, external_id: str = "") -> Any:
         payload = {"name": name[:128], "delivery_mode": self.config.delivery_mode}
@@ -135,13 +135,13 @@ class YousignClient:
             payload["external_id"] = external_id[:255]
         return self.request("POST", "signature_requests", payload)
 
-    def add_signer(self, signature_request_id: str, first_name: str, last_name: str, email: str, document_id: Optional[str] = None) -> Any:
+    def add_signer(self, signature_request_id: str, first_name: str, last_name: str, email: str, document_id: Optional[str] = None, use_text_tags: bool = False) -> Any:
         payload: Dict[str, Any] = {
             "info": {"first_name": first_name or last_name or "Formateur", "last_name": last_name or first_name or "Intégrale", "email": email, "locale": "fr"},
             "signature_level": self.config.signature_level,
             "signature_authentication_mode": self.config.authentication_mode,
         }
-        if document_id:
+        if document_id and not use_text_tags:
             # Champ attendu par l'API v3 pour positionner une signature visible simple.
             payload["fields"] = [{"document_id": document_id, "type": "signature", "page": 1, "x": 420, "y": 700}]
         return self.request("POST", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers", payload)

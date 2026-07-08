@@ -7,6 +7,7 @@ import tempfile
 import zipfile
 import hashlib
 import hmac
+import importlib.util
 import smtplib
 import urllib.parse
 import urllib.request
@@ -4853,14 +4854,18 @@ def send_aps_trainer_contract(sid, contract_id):
 
 def inspect_yousign_pdf_before_upload(pdf_path):
     info = {"path": pdf_path, "size": os.path.getsize(pdf_path) if os.path.exists(pdf_path) else 0, "page_count": None, "signature_tag_present": None}
-    if importlib.util.find_spec("pypdf") is None:
-        return info
-    import pypdf
+    try:
+        if importlib.util.find_spec("pypdf") is None:
+            app.logger.warning("Inspection PDF Yousign ignorée: module pypdf absent")
+            return info
+        import pypdf
 
-    reader = pypdf.PdfReader(pdf_path)
-    info["page_count"] = len(reader.pages)
-    text = "\n".join(page.extract_text() or "" for page in reader.pages)
-    info["signature_tag_present"] = YOUSIGN_TRAINER_SIGNATURE_TAG in text
+        reader = pypdf.PdfReader(pdf_path)
+        info["page_count"] = len(reader.pages)
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        info["signature_tag_present"] = YOUSIGN_TRAINER_SIGNATURE_TAG in text
+    except Exception as exc:
+        app.logger.warning("Inspection PDF Yousign impossible, envoi poursuivi: %s", exc)
     return info
 
 
@@ -4893,11 +4898,15 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         app.logger.info("Yousign APS trainer contract external_id=%s", external_id)
         signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
-        pdf_info = inspect_yousign_pdf_before_upload(contract_path)
-        app.logger.info(
-            "Yousign APS trainer PDF before upload path=%s size=%s signature_tag_present=%s page_count=%s",
-            pdf_info["path"], pdf_info["size"], pdf_info["signature_tag_present"], pdf_info["page_count"]
-        )
+        try:
+            pdf_info = inspect_yousign_pdf_before_upload(contract_path)
+            app.logger.info(
+                "Yousign APS trainer PDF before upload path=%s size=%s signature_tag_present=%s page_count=%s",
+                pdf_info["path"], pdf_info["size"], pdf_info["signature_tag_present"], pdf_info["page_count"]
+            )
+        except Exception as exc:
+            app.logger.warning("Inspection PDF Yousign impossible, envoi poursuivi: %s", exc)
+            pdf_info = {"path": contract_path, "size": os.path.getsize(contract_path) if os.path.exists(contract_path) else 0, "page_count": None, "signature_tag_present": None}
         with open(contract_path, "rb") as pdf_file:
             document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path))
         document_id = document.get("id")
@@ -6778,6 +6787,7 @@ def yousign_webhook():
     raw_body = request.get_data()
     webhook_secret = get_yousign_config().webhook_secret
     signature_header = request.headers.get("X-Yousign-Signature") or request.headers.get("Yousign-Signature") or request.headers.get("X-Hub-Signature-256")
+    logger.info("Webhook Yousign headers reçus: %s", sorted(request.headers.keys()))
     if webhook_secret:
         if not signature_header:
             logger.warning("Webhook Yousign rejeté: signature HMAC manquante")

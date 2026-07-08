@@ -1526,6 +1526,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7.2, leading=8.6, textColor=colors.HexColor("#111827"), wordWrap="CJK"))
     styles.add(ParagraphStyle("CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.3, leading=8.8, textColor=colors.white, alignment=TA_CENTER))
     styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
+    styles.add(ParagraphStyle("YousignAnchor", parent=styles["Normal"], fontName="Helvetica", fontSize=8, leading=8, textColor=colors.white, alignment=TA_CENTER))
 
     def p(txt, style="Body"):
         return Paragraph(str(txt or "—").replace("\n", "<br/>"), styles[style])
@@ -1626,9 +1627,15 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
 
-    def signature_zone(label, image_path=None, height_mm=31):
+    def signature_zone(label, image_path=None, height_mm=31, yousign_anchor=False):
         content = [p(label, "SignLabel")]
-        if image_path:
+        if yousign_anchor:
+            # Balise texte réelle attendue par Yousign pour placer automatiquement
+            # la signature du formateur. Elle reste dans le flux PDF et n’est ni
+            # masquée en display:none ni échappée en HTML.
+            content.append(Spacer(1, 8))
+            content.append(p("{{s1|signature|160|60}}", "YousignAnchor"))
+        elif image_path:
             content.append(Image(image_path, width=42 * mm, height=(18 if "Signature" in label else 24) * mm, kind="proportional", hAlign="CENTER"))
         else:
             content.append(p("<br/><br/>", "Body"))
@@ -1636,13 +1643,14 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 5)]))
         return tbl
 
-    def party_block(title, name, quality, sig_img=None, stamp_img=None):
-        inner = [p(f"<b>{title}</b><br/>{name}<br/>{quality}<br/><br/>Mention manuscrite : “Lu et approuvé”", "Body"), signature_zone("Signature", sig_img), Spacer(1, 3), signature_zone("Tampon / cachet", stamp_img, 28)]
+    def party_block(title, name, quality, sig_img=None, stamp_img=None, trainer_signature_anchor=False):
+        signature_label = "Signature du formateur" if trainer_signature_anchor else "Signature / cachet du centre"
+        inner = [p(f"<b>{title}</b><br/>{name}<br/>{quality}<br/><br/>Mention manuscrite : “Lu et approuvé”", "Body"), signature_zone(signature_label, sig_img, yousign_anchor=trainer_signature_anchor), Spacer(1, 3), signature_zone("Tampon / cachet", stamp_img, 28)]
         tbl = Table([[inner]], colWidths=[82 * mm], rowHeights=[108 * mm])
         tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#94a3b8")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
         return tbl
 
-    sign_table = Table([[party_block("Pour Intégrale Academy", "Monsieur Clément VAILLANT", "Directeur général", signature_image, stamp_image), party_block("Pour le formateur / prestataire", contract.get('trainerName') or "Nom à compléter", contract.get('status') or "Qualité à compléter")]], colWidths=[86 * mm, 86 * mm], hAlign="CENTER")
+    sign_table = Table([[party_block("Pour Intégrale Academy", "Monsieur Clément VAILLANT", "Directeur général", signature_image, stamp_image), party_block("Pour le formateur / prestataire", contract.get('trainerName') or "Nom à compléter", contract.get('status') or "Qualité à compléter", trainer_signature_anchor=True)]], colWidths=[86 * mm, 86 * mm], hAlign="CENTER")
     sign_table.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 2), ("RIGHTPADDING", (0,0), (-1,-1), 2)]))
     story.append(sign_table)
     doc.build(story)
@@ -4836,7 +4844,7 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         name_parts = str(trainer_name).split()
         first_name = name_parts[0] if len(name_parts) > 1 else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
-        signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id)
+        signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True)
         activated = client.activate_signature_request(signature_request_id)
         status = extract_yousign_status(activated) or "ongoing"
         signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
@@ -4853,7 +4861,8 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         save_sessions(data)
         return jsonify({"ok": True, "status": status, "sentAt": now, "signatureUrl": signature_url})
     except YousignError as exc:
-        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "error": str(exc)})
+        logger.error("Réponse exacte Yousign APS contract 400/erreur status=%s payload=%r", exc.status_code, exc.payload)
+        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "error": str(exc), "errorPayload": exc.payload})
         save_sessions(data)
         return jsonify({"ok": False, "error": f"Erreur Yousign: {exc}"}), 502
 
@@ -6086,7 +6095,7 @@ def normalize_yousign_state(state=None):
     defaults = {
         "signatureRequestId": "", "documentId": "", "signerId": "", "status": "draft",
         "signatureUrl": "", "sentAt": "", "signedAt": "", "lastSyncedAt": "",
-        "lastWebhookAt": "", "signedDocumentFilename": "", "error": None,
+        "lastWebhookAt": "", "signedDocumentFilename": "", "error": None, "errorPayload": None,
     }
     if isinstance(state, dict):
         defaults.update({k: v for k, v in state.items() if k in defaults})

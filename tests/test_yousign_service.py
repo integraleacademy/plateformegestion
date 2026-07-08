@@ -1,4 +1,5 @@
 import sys
+import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -53,3 +54,59 @@ def test_yousign_config_accepts_base_url_alias(monkeypatch):
     config = get_yousign_config()
 
     assert config.base_url == "https://api-sandbox.yousign.app/v3"
+
+
+def test_aps_trainer_contract_pdf_contains_yousign_anchor_in_trainer_signature(tmp_path):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    import app
+
+    output = tmp_path / "contrat_aps.pdf"
+    session_data = {
+        "formation": "APS",
+        "display_name": "Session APS test",
+        "date_debut": "2026-01-05",
+        "date_fin": "2026-01-09",
+        "date_exam": "2026-01-10",
+        "apsPlanningMode": "presentiel",
+    }
+    contract = {
+        "trainerName": "Jean Dupont",
+        "trainerEmail": "jean@example.com",
+        "trainerPhone": "0600000000",
+        "status": "Formateur indépendant",
+        "siret": "12345678900010",
+        "activityDeclaration": "",
+        "address": "1 rue Test",
+        "calculatedHours": 7,
+        "calculatedDays": 1,
+        "billedDays": 1,
+        "dailyRate": 300,
+        "totalHT": 300,
+        "totalTTC": 300,
+        "interventions": [{"date": "2026-01-05", "dateLabel": "05/01/2026", "start": "09:00", "end": "17:00", "hours": 7, "module": "UV1", "modality": "Présentiel"}],
+    }
+
+    app.generate_aps_trainer_contract_pdf(session_data, contract, str(output))
+
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
+    assert "Signature du formateur" in text
+    assert "{{s1|signature|160|60}}" in text
+    assert text.count("{{s1|signature|160|60}}") == 1
+    assert "s2|signature" not in text
+
+
+def test_yousign_add_signer_can_use_pdf_text_tags_without_manual_fields(monkeypatch):
+    from yousign_service import YousignClient, YousignConfig
+
+    captured = {}
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test"))
+
+    def fake_request(method, path, payload=None, headers=None):
+        captured.update({"method": method, "path": path, "payload": payload})
+        return {"id": "signer_1"}
+
+    monkeypatch.setattr(client, "request", fake_request)
+    client.add_signer("sr_1", "Jean", "Dupont", "jean@example.com", document_id="doc_1", use_text_tags=True)
+
+    assert "fields" not in captured["payload"]

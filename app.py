@@ -30,7 +30,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured
+from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -412,6 +412,8 @@ CONVOCATION_DIR = os.path.join(DATA_DIR, "convocations")
 os.makedirs(CONVOCATION_DIR, exist_ok=True)
 APS_CONTRACT_DIR = os.path.join(DATA_DIR, "aps_trainer_contracts")
 os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
+YOUSIGN_TRAINER_SIGNATURE_TAG = "{{s1|signature|160|60}}"
+YOUSIGN_TRAINER_SIGNATURE_FIELD = {"x": 60, "y": 690, "width": 160, "height": 60}
 APS_ATTENDANCE_DIR = os.path.join(DATA_DIR, "aps_attendance_sheets")
 os.makedirs(APS_ATTENDANCE_DIR, exist_ok=True)
 A3P_DOC_DIR = os.path.join(DATA_DIR, "a3p_documents")
@@ -4815,6 +4817,23 @@ def send_aps_trainer_contract(sid, contract_id):
     return jsonify({"ok": True, "sentAt": contract["sentAt"]})
 
 
+def inspect_yousign_pdf_before_upload(pdf_path):
+    info = {"path": pdf_path, "size": os.path.getsize(pdf_path) if os.path.exists(pdf_path) else 0, "page_count": None, "signature_tag_present": None}
+    if importlib.util.find_spec("pypdf") is None:
+        return info
+    import pypdf
+
+    reader = pypdf.PdfReader(pdf_path)
+    info["page_count"] = len(reader.pages)
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    info["signature_tag_present"] = YOUSIGN_TRAINER_SIGNATURE_TAG in text
+    return info
+
+
+def yousign_trainer_signature_page(pdf_info):
+    return max(1, int(pdf_info.get("page_count") or 1))
+
+
 @app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/send")
 def send_aps_trainer_contract_yousign(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
@@ -4836,22 +4855,44 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
     now = datetime.now().isoformat(timespec="seconds")
     try:
         trainer_name = contract.get("trainerName") or email
-        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=f"session:{sid}:aps_contract:{contract_id}")
+        external_id = sanitize_yousign_external_id(f"aps-trainer-contract-{sid}-{contract_id}")
+        app.logger.info("Yousign APS trainer contract external_id=%s", external_id)
+        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
+        pdf_info = inspect_yousign_pdf_before_upload(contract_path)
+        app.logger.info(
+            "Yousign APS trainer PDF before upload path=%s size=%s signature_tag_present=%s page_count=%s",
+            pdf_info["path"], pdf_info["size"], pdf_info["signature_tag_present"], pdf_info["page_count"]
+        )
         with open(contract_path, "rb") as pdf_file:
             document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path))
         document_id = document.get("id")
+        app.logger.info("Yousign APS trainer document uploaded document_id=%s", document_id)
         name_parts = str(trainer_name).split()
         first_name = name_parts[0] if len(name_parts) > 1 else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
         signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True)
+        signer_id = signer.get("id") or ""
+        app.logger.info("Yousign APS trainer signer created signer_id=%s document_id=%s", signer_id, document_id)
+        field_page = yousign_trainer_signature_page(pdf_info)
+        field = client.add_signature_field(
+            signature_request_id,
+            document_id,
+            signer_id,
+            page=field_page,
+            **YOUSIGN_TRAINER_SIGNATURE_FIELD,
+        )
+        field_id = field.get("id") if isinstance(field, dict) else ""
+        if not field_id:
+            raise YousignError("Yousign n'a pas retourné d'identifiant pour le champ signature.", payload=field)
         activated = client.activate_signature_request(signature_request_id)
         status = extract_yousign_status(activated) or "ongoing"
         signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
         contract["yousign"] = normalize_yousign_state({
             "signatureRequestId": signature_request_id,
             "documentId": document_id or "",
-            "signerId": signer.get("id") or "",
+            "signerId": signer_id,
+            "fieldId": field_id,
             "status": status,
             "signatureUrl": signature_url,
             "sentAt": now,
@@ -4864,7 +4905,7 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         logger.error("Réponse exacte Yousign APS contract 400/erreur status=%s payload=%r", exc.status_code, exc.payload)
         contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "error": str(exc), "errorPayload": exc.payload})
         save_sessions(data)
-        return jsonify({"ok": False, "error": f"Erreur Yousign: {exc}"}), 502
+        return jsonify({"ok": False, "error": f"Erreur Yousign: {exc}", "errorPayload": exc.payload}), 502
 
 
 @app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")
@@ -6616,7 +6657,9 @@ def send_formateur_contract_yousign(fid):
     now = datetime.now().isoformat(timespec="seconds")
     try:
         trainer_name = formateur_full_name(formateur) or email
-        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=f"formateur:{fid}")
+        external_id = sanitize_yousign_external_id(f"formateur-{fid}", fallback="formateur-contract")
+        app.logger.info("Yousign trainer contract external_id=%s", external_id)
+        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
         with open(pdf_path, "rb") as pdf_file:
             document = client.upload_file(signature_request_id, pdf_file.read(), attachment.get("original_name") or "contrat.pdf")

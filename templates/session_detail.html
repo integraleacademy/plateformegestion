@@ -1145,19 +1145,34 @@ a.back:hover{ background:#d9a848 !important; }
   {% if not planning_pdf or not s.apsPlanningData %}
     <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning APS avant de générer un contrat formateur.</div>
   {% endif %}
-  {% for contract in s.apsTrainerContracts or [] %}
-    <div class="contract-card" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}">
-      <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
-      <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}</div>
-      <div class="planning-actions" style="margin-top:10px;">
-        <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">Voir contrat</a>
-        <button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
-        <button class="btn small gold open-aps-contract-modal-again" type="button">Régénérer contrat</button>
-        <button class="btn small danger delete-contract-btn" type="button">Supprimer contrat</button>
+  {% set aps_contract_trainers = aps_detect_trainers(s.apsPlanningData or []) if s.apsPlanningData else [] %}
+  {% for trainer_name in aps_contract_trainers %}
+    {% set found = namespace(contract=None) %}
+    {% for existing_contract in s.apsTrainerContracts or [] %}
+      {% if (existing_contract.planningName or existing_contract.trainerName) == trainer_name %}
+        {% set found.contract = existing_contract %}
+      {% endif %}
+    {% endfor %}
+    {% if found.contract %}
+      {% set contract = found.contract %}
+      <div class="contract-card" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}">
+        <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
+        <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}</div>
+        <div class="planning-actions" style="margin-top:10px;">
+          <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">Voir contrat</a>
+          <button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
+          <button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>
+          <button class="btn small danger delete-contract-btn" type="button">Supprimer contrat</button>
+        </div>
       </div>
-    </div>
+    {% else %}
+      <div class="contract-card" data-planning-name="{{ trainer_name }}">
+        <strong>{{ trainer_name }}</strong>
+        <div class="flash error" style="display:inline-block;margin:8px 0 0;">Contrat non généré</div>
+      </div>
+    {% endif %}
   {% else %}
-    <p class="muted" style="margin-top:10px;">Aucun contrat formateur généré.</p>
+    <p class="muted" style="margin-top:10px;">Aucun formateur détecté dans le planning APS.</p>
   {% endfor %}
 </section>
 <div class="modal" id="apsContractModal" aria-hidden="true"><div class="modal-content" style="max-width:980px;max-height:90vh;overflow:auto;">
@@ -1851,7 +1866,7 @@ function renderContractTrainer(trainer){
     <table class="contract-table"><thead><tr><th>Date</th><th>Horaires</th><th>Durée</th><th>Module / UV</th><th>Modalité</th><th>Salle / lieu</th></tr></thead><tbody>${details}</tbody></table>
   </div>`;
 }
-async function loadContractModal(){
+async function loadContractModal(preselectedTrainer = null){
   apsContractError.style.display = "none";
   apsContractTrainerList.innerHTML = "Chargement des formateurs du planning...";
   apsContractModal?.classList.add("open"); apsContractModal?.setAttribute("aria-hidden", "false");
@@ -1859,7 +1874,15 @@ async function loadContractModal(){
     const response = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/preview`);
     const payload = await response.json();
     if(!response.ok || !payload.ok) throw new Error(payload.error || "Prévisualisation impossible.");
-    apsContractTrainerList.innerHTML = (payload.trainers || []).map(renderContractTrainer).join("") || '<div class="flash error">Aucun formateur détecté dans apsPlanningData.</div>';
+    const trainers = payload.trainers || [];
+    apsContractTrainerList.innerHTML = trainers.map(renderContractTrainer).join("") || '<div class="flash error">Aucun formateur détecté dans apsPlanningData.</div>';
+    if(preselectedTrainer){
+      apsContractTrainerList.querySelectorAll(".contract-form-card").forEach(card => {
+        const selected = card.dataset.trainer === preselectedTrainer;
+        card.querySelector(".contract-select").checked = selected;
+        card.classList.toggle("contract-form-card--preselected", selected);
+      });
+    }
     apsContractTrainerList.querySelectorAll(".contract-rate,.contract-billed").forEach(input => input.addEventListener("input", updateContractTotals));
     updateContractTotals();
   }catch(error){ apsContractTrainerList.innerHTML = ""; apsContractError.textContent = error.message; apsContractError.style.display = "block"; }
@@ -1871,8 +1894,11 @@ function updateContractTotals(){
     card.querySelector(".contract-total").textContent = `${(rate*days).toLocaleString("fr-FR", {minimumFractionDigits:2, maximumFractionDigits:2})} € HT`;
   });
 }
-openApsContractModal?.addEventListener("click", loadContractModal);
-document.querySelectorAll(".open-aps-contract-modal-again").forEach(btn => btn.addEventListener("click", loadContractModal));
+openApsContractModal?.addEventListener("click", () => loadContractModal());
+document.querySelectorAll(".open-aps-contract-modal-again").forEach(btn => btn.addEventListener("click", () => {
+  const card = btn.closest("[data-planning-name]");
+  loadContractModal(btn.dataset.planningName || card?.dataset.planningName || card?.dataset.contractName || null);
+}));
 closeApsContractModal?.addEventListener("click", closeContractModal); cancelApsContract?.addEventListener("click", closeContractModal);
 apsContractForm?.addEventListener("submit", async (event) => {
   event.preventDefault(); apsContractError.style.display = "none";

@@ -6,6 +6,7 @@ import time
 import tempfile
 import zipfile
 import hashlib
+import hmac
 import smtplib
 import urllib.parse
 import urllib.request
@@ -28,6 +29,8 @@ from flask import (
     abort, flash, send_file, send_from_directory, session, Response, jsonify
 )
 from werkzeug.utils import secure_filename
+
+from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -998,7 +1001,7 @@ def _a3p_trainer_contract_data(session_data, contract):
     vat_enabled = bool(contract.get("vatEnabled"))
     vat_rate = float(contract.get("vatRate") or 20)
     vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0
-    payload = dict(contract)
+    payload = merge_formateur_contract_defaults(contract, find_formateur_by_identity(name=trainer_name, email=contract.get("trainerEmail") or contract.get("email") or contract.get("trainerEmail")))
     payload.update({"trainerName": trainer_name, "interventions": interventions["interventions"], "calculatedHours": interventions["totalHours"], "calculatedDays": interventions["calculatedDays"], "billedDays": billed_days, "dailyRate": daily, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": round(total_ht + vat_amount, 2)})
     return shared_session, payload
 
@@ -1489,6 +1492,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         author="Intégrale Academy",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="normal")
+    cover_frame = Frame(17 * mm, 18 * mm, width - 34 * mm, height - 32 * mm, id="cover")
     landscape_frame = Frame(doc.leftMargin, doc.bottomMargin, landscape_width - doc.leftMargin - doc.rightMargin, landscape_height - doc.topMargin - doc.bottomMargin, id="landscape")
 
     def page_canvas(canvas, document):
@@ -1506,21 +1510,22 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         canvas.restoreState()
 
     doc.addPageTemplates([
+        PageTemplate(id="cover", frames=[cover_frame], pagesize=A4),
         PageTemplate(id="contrat", frames=[frame], pagesize=A4, onPage=page_canvas),
         PageTemplate(id="planning_landscape", frames=[landscape_frame], pagesize=landscape(A4), onPage=page_canvas),
     ])
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle("CoverTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=18, leading=22, textColor=colors.HexColor("#111827"), alignment=TA_CENTER, spaceAfter=4))
-    styles.add(ParagraphStyle("CoverSubtitle", parent=styles["Normal"], fontSize=10.5, leading=13, textColor=colors.HexColor("#6b5f4a"), alignment=TA_CENTER, spaceAfter=8))
-    styles.add(ParagraphStyle("CardTitle", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=8.2, leading=10, textColor=colors.HexColor("#8a5a20"), uppercase=True, spaceAfter=3))
-    styles.add(ParagraphStyle("CardText", parent=styles["Normal"], fontSize=9.2, leading=11.5, textColor=colors.HexColor("#1f2937")))
-    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=9, leading=11.5, textColor=colors.HexColor("#64748b"), alignment=TA_CENTER))
+    styles.add(ParagraphStyle("CoverTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=17, leading=20, textColor=colors.HexColor("#111827"), alignment=TA_CENTER, spaceAfter=4))
+    styles.add(ParagraphStyle("CoverSubtitle", parent=styles["Normal"], fontSize=9.4, leading=11.4, textColor=colors.HexColor("#6b5f4a"), alignment=TA_CENTER, spaceAfter=6))
+    styles.add(ParagraphStyle("CardTitle", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#8a5a20"), uppercase=True, spaceAfter=3))
+    styles.add(ParagraphStyle("CardText", parent=styles["Normal"], fontSize=8.2, leading=9.8, textColor=colors.HexColor("#1f2937")))
+    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=8.2, leading=10, textColor=colors.HexColor("#64748b"), alignment=TA_CENTER))
     styles.add(ParagraphStyle("Body", parent=styles["Normal"], fontSize=9.6, leading=12.4, textColor=colors.HexColor("#1f2937"), spaceAfter=4.5))
     styles.add(ParagraphStyle("H", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=11.4, leading=14, textColor=colors.HexColor("#2f2418"), spaceBefore=7, spaceAfter=4, borderPadding=(0, 0, 4, 0), borderColor=colors.HexColor("#d6b26d"), borderWidth=0, borderBottomWidth=0.5))
     styles.add(ParagraphStyle("Small", parent=styles["Normal"], fontSize=8.6, leading=10.5, textColor=colors.HexColor("#334155")))
     styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7.2, leading=8.6, textColor=colors.HexColor("#111827"), wordWrap="CJK"))
     styles.add(ParagraphStyle("CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.3, leading=8.8, textColor=colors.white, alignment=TA_CENTER))
-    styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=8.2, leading=10, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
+    styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
 
     def p(txt, style="Body"):
         return Paragraph(str(txt or "—").replace("\n", "<br/>"), styles[style])
@@ -1556,29 +1561,29 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
 
     def card(title, lines):
         body = [p(title, "CardTitle"), p(lines, "CardText")]
-        tbl = Table([[body]], colWidths=[(doc.width - 6 * mm) / 2], hAlign="LEFT")
+        tbl = Table([[body]], colWidths=[(width - 40 * mm) / 2], hAlign="LEFT")
         tbl.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.45, colors.HexColor("#d7dce3")),
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 7), ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-            ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5.5), ("RIGHTPADDING", (0, 0), (-1, -1), 5.5),
+            ("TOPPADDING", (0, 0), (-1, -1), 5.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5.5),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
         return tbl
 
     story = []
     if logo_path:
-        story.append(Image(logo_path, width=42 * mm, height=20 * mm, kind="proportional", hAlign="CENTER"))
-        story.append(Spacer(1, 4))
+        story.append(Image(logo_path, width=34 * mm, height=16 * mm, kind="proportional", hAlign="CENTER"))
+        story.append(Spacer(1, 3))
     story += [p("Contrat d’intervention formateur", "CoverTitle"), p("Contrat de prestation de services / sous-traitance pédagogique", "CoverSubtitle")]
     cover_cards = [
         [card("Centre de formation", "Intégrale Academy<br/>54 chemin du Carreou<br/>83480 Puget-sur-Argens<br/>SIRET : 840 899 884 00026<br/>Représentant légal : Monsieur Clément VAILLANT"), card("Formateur / prestataire", f"{contract.get('trainerName')}<br/>{contract.get('status') or 'Statut juridique à compléter'}<br/>SIRET : {contract.get('siret') or 'à compléter'}<br/>NDA : {contract.get('activityDeclaration') or 'à compléter'}<br/>{contract.get('address') or 'Adresse à compléter'}<br/>{contract.get('trainerEmail') or 'Email à compléter'} — {contract.get('trainerPhone') or 'Téléphone à compléter'}")],
         [card("Mission", f"{formation_name} — {session_name}<br/>Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Modalité : {modality_label}<br/>Volume : {float(contract.get('calculatedHours') or 0):g} h"), card("Rémunération", f"{float(contract.get('billedDays') or 0):g} jour(s) facturé(s)<br/>Tarif journalier : {_money(contract.get('dailyRate'))} HT<br/>Total HT : {_money(total_ht)}<br/>TVA : {tva_label}<br/>Total TTC : {_money(contract.get('totalTTC') or total_ht)}")],
         [card("Lieu d’intervention", room_label), card("Documents contractuels", "Le présent contrat est complété par le planning détaillé des interventions, le récapitulatif financier et l’engagement qualité / traçabilité pédagogique.")],
     ]
-    cover_grid = Table(cover_cards, colWidths=[(doc.width - 6 * mm) / 2, (doc.width - 6 * mm) / 2], rowHeights=None, hAlign="CENTER")
+    cover_grid = Table(cover_cards, colWidths=[(width - 40 * mm) / 2, (width - 40 * mm) / 2], rowHeights=[34 * mm, 34 * mm, 26 * mm], hAlign="CENTER")
     cover_grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
-    story += [cover_grid, Spacer(1, 7), p("Document contractuel généré automatiquement à partir des informations de session et du planning validé.", "Subtle")]
+    story += [cover_grid, Spacer(1, 5), p("Document contractuel généré automatiquement à partir des informations de session et du planning validé.", "Subtle"), NextPageTemplate("contrat"), PageBreak()]
 
     story += [section("1. Nature juridique du contrat et indépendance du prestataire"), p("Le présent contrat est un contrat de prestation de services / sous-traitance pédagogique. Le formateur intervient en qualité de prestataire indépendant, sans lien de subordination avec Intégrale Academy. Il conserve la responsabilité de ses déclarations sociales, fiscales, assurances, autorisations, qualifications, habilitations et obligations professionnelles pendant toute la durée du contrat."), p("Le formateur reste libre dans l’organisation de ses moyens pédagogiques, sous réserve du respect strict du référentiel, du programme validé, des horaires, des procédures qualité, des consignes de sécurité, des exigences réglementaires et des documents de traçabilité.")]
     story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité'}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label)], [43 * mm, 133 * mm]), p("Le formateur s’engage à assurer les séquences pédagogiques confiées conformément au référentiel applicable, au programme de formation, au planning annexé et aux procédures qualité du centre.")]
@@ -4765,7 +4770,22 @@ def generate_aps_trainer_contracts(sid):
         trainer = merge_formateur_contract_defaults(trainer, find_formateur_by_identity(name=name, email=trainer.get("email")))
         contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
         generate_aps_trainer_contract_pdf(session_data, contract, path)
-        session_data.setdefault("apsTrainerContracts", []).append(contract); saved.append(contract)
+        existing_contracts = session_data.setdefault("apsTrainerContracts", [])
+        kept_contracts = []
+        for existing in existing_contracts:
+            existing_planning_name = (existing.get("planningName") or existing.get("trainerName") or "").strip()
+            if existing_planning_name == planning_name:
+                old_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(existing.get("pdfFilename") or ""))
+                if old_path != path and os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except OSError:
+                        app.logger.warning("Suppression ancien contrat APS impossible: %s", old_path)
+            else:
+                kept_contracts.append(existing)
+        kept_contracts.append(contract)
+        session_data["apsTrainerContracts"] = kept_contracts
+        saved.append(contract)
     save_sessions(data)
     return jsonify({"ok": True, "contracts": saved})
 
@@ -5071,7 +5091,7 @@ def a3p_document_exists(session_data, kind):
 
 @app.context_processor
 def inject_a3p_trainer_helpers():
-    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists}
+    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists, "aps_detect_trainers": aps_detect_trainers}
 
 @app.post("/api/admin/sessions/<sid>/a3p/trainer-link")
 def generate_a3p_trainer_link(sid):
@@ -5986,6 +6006,55 @@ def apply_profile_document_requirements(formateur, profils_docs_config):
             doc["status"] = "non_concerne"
 
 
+
+def find_formateur_document(formateur, doc_id):
+    return next((d for d in formateur.get("documents", []) if d.get("id") == doc_id), None)
+
+
+def latest_formateur_pdf_attachment(formateur, preferred_doc_id=""):
+    docs = formateur.get("documents", [])
+    ordered_docs = []
+    if preferred_doc_id:
+        preferred = find_formateur_document(formateur, preferred_doc_id)
+        if preferred:
+            ordered_docs.append(preferred)
+    contract_docs = [d for d in docs if d not in ordered_docs and "contrat" in (d.get("label") or "").lower()]
+    other_docs = [d for d in docs if d not in ordered_docs and d not in contract_docs]
+    for doc in ordered_docs + contract_docs + other_docs:
+        for attachment in reversed(doc.get("attachments", [])):
+            original = attachment.get("original_name") or attachment.get("filename") or ""
+            filename = attachment.get("filename") or ""
+            if original.lower().endswith(".pdf") or filename.lower().endswith(".pdf"):
+                path = os.path.join(FORMATEUR_FILES_DIR, formateur.get("id", ""), doc.get("id", ""), os.path.basename(filename))
+                if os.path.exists(path):
+                    return doc, attachment, path
+    return None, None, None
+
+
+def normalize_yousign_state(state=None):
+    defaults = {
+        "signatureRequestId": "", "documentId": "", "signerId": "", "status": "draft",
+        "signatureUrl": "", "sentAt": "", "signedAt": "", "lastSyncedAt": "",
+        "lastWebhookAt": "", "signedDocumentFilename": "", "error": None,
+    }
+    if isinstance(state, dict):
+        defaults.update({k: v for k, v in state.items() if k in defaults})
+    return defaults
+
+
+def extract_yousign_status(payload):
+    if not isinstance(payload, dict):
+        return "error"
+    status = payload.get("status") or payload.get("event_name", "").split(".")[-1]
+    return status if status else "ongoing"
+
+
+def update_formateur_yousign_state(formateur, updates):
+    state = normalize_yousign_state(formateur.get("yousign"))
+    state.update(updates)
+    formateur["yousign"] = state
+    return state
+
 def build_doc_entry(label):
     return {
         "id": str(uuid.uuid4())[:8],
@@ -6457,6 +6526,145 @@ def formateur_detail(fid):
 
 
 
+@app.route("/formateurs/<fid>/yousign/send", methods=["POST"])
+def send_formateur_contract_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    state = normalize_yousign_state(formateur.get("yousign"))
+    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.form.get("force"):
+        flash("Une demande Yousign active existe déjà pour ce formateur. Synchronisez le statut ou forcez un remplacement.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    email = (formateur.get("email") or "").strip()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        flash("Email formateur invalide ou manquant.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    if not is_yousign_configured():
+        flash("Yousign n'est pas configuré: renseignez YOUSIGN_API_KEY côté serveur.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    doc_id = (request.form.get("doc_id") or "").strip()
+    doc, attachment, pdf_path = latest_formateur_pdf_attachment(formateur, doc_id)
+    if not pdf_path:
+        flash("Aucun contrat PDF n'a été trouvé dans les pièces jointes du formateur.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    client = YousignClient()
+    now = datetime.now().isoformat(timespec="seconds")
+    try:
+        trainer_name = formateur_full_name(formateur) or email
+        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=f"formateur:{fid}")
+        signature_request_id = signature_request.get("id")
+        with open(pdf_path, "rb") as pdf_file:
+            document = client.upload_file(signature_request_id, pdf_file.read(), attachment.get("original_name") or "contrat.pdf")
+        document_id = document.get("id")
+        signer = client.add_signer(signature_request_id, formateur.get("prenom") or "", formateur.get("nom") or trainer_name, email, document_id=document_id)
+        activated = client.activate_signature_request(signature_request_id)
+        status = extract_yousign_status(activated) or "ongoing"
+        signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
+        update_formateur_yousign_state(formateur, {
+            "signatureRequestId": signature_request_id,
+            "documentId": document_id or "",
+            "signerId": signer.get("id") or "",
+            "status": status,
+            "signatureUrl": signature_url,
+            "sentAt": now,
+            "lastSyncedAt": now,
+            "error": None,
+        })
+        save_formateurs(formateurs)
+        flash("Contrat envoyé à Yousign pour signature.", "ok")
+    except YousignError as exc:
+        update_formateur_yousign_state(formateur, {"status": "error", "lastSyncedAt": now, "error": str(exc)})
+        save_formateurs(formateurs)
+        flash(f"Erreur Yousign: {exc}", "error")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/yousign/sync", methods=["POST"])
+def sync_formateur_contract_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+    state = normalize_yousign_state(formateur.get("yousign"))
+    signature_request_id = state.get("signatureRequestId")
+    if not signature_request_id:
+        flash("Aucune demande Yousign à synchroniser.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    try:
+        payload = YousignClient().get_signature_request(signature_request_id)
+        status = extract_yousign_status(payload)
+        updates = {"status": status, "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None}
+        if status == "done" and not state.get("signedAt"):
+            updates["signedAt"] = updates["lastSyncedAt"]
+        update_formateur_yousign_state(formateur, updates)
+        save_formateurs(formateurs)
+        flash("Statut Yousign synchronisé.", "ok")
+    except YousignError as exc:
+        update_formateur_yousign_state(formateur, {"lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": str(exc)})
+        save_formateurs(formateurs)
+        flash(f"Erreur de synchronisation Yousign: {exc}", "error")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/formateurs/<fid>/yousign/download", methods=["POST"])
+def download_formateur_signed_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+    state = normalize_yousign_state(formateur.get("yousign"))
+    if not state.get("signatureRequestId"):
+        flash("Aucune demande Yousign disponible.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    try:
+        content = YousignClient().download_signed_documents(state["signatureRequestId"])
+        signed_dir = os.path.join(FORMATEUR_FILES_DIR, fid, "_yousign")
+        os.makedirs(signed_dir, exist_ok=True)
+        filename = f"contrat_signe_yousign_{state['signatureRequestId']}.zip"
+        with open(os.path.join(signed_dir, filename), "wb") as f:
+            f.write(content)
+        update_formateur_yousign_state(formateur, {"signedDocumentFilename": filename, "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
+        save_formateurs(formateurs)
+        return send_from_directory(signed_dir, filename, as_attachment=True)
+    except Exception as exc:
+        flash(f"Téléchargement Yousign impossible: {exc}", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.route("/webhooks/yousign", methods=["POST"])
+def yousign_webhook():
+    raw_body = request.get_data()
+    webhook_secret = get_yousign_config().webhook_secret
+    signature_header = request.headers.get("X-Yousign-Signature") or request.headers.get("Yousign-Signature") or request.headers.get("X-Hub-Signature-256")
+    if webhook_secret and signature_header:
+        expected = hmac.new(webhook_secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        provided = signature_header.split("=", 1)[-1].strip()
+        if not hmac.compare_digest(expected, provided):
+            logger.warning("Webhook Yousign rejeté: signature invalide")
+            return {"ok": False, "error": "signature invalide"}, 401
+    payload = request.get_json(silent=True) or {}
+    signature_request_id = ((payload.get("data") or {}).get("signature_request") or {}).get("id") or (payload.get("data") or {}).get("signature_request_id") or payload.get("signature_request_id")
+    if not signature_request_id:
+        return {"ok": False, "error": "signature_request_id manquant"}, 400
+    formateurs = load_formateurs()
+    formateur = next((f for f in formateurs if normalize_yousign_state(f.get("yousign")).get("signatureRequestId") == signature_request_id), None)
+    if not formateur:
+        return {"ok": True, "ignored": True}, 202
+    status = extract_yousign_status((payload.get("data") or {}).get("signature_request") or payload)
+    now = datetime.now().isoformat(timespec="seconds")
+    updates = {"status": status, "lastWebhookAt": now, "lastSyncedAt": now, "error": None}
+    if status == "done":
+        updates["signedAt"] = now
+    update_formateur_yousign_state(formateur, updates)
+    save_formateurs(formateurs)
+    return {"ok": True}
+
+
 @app.route("/formateurs/<fid>/delete", methods=["POST"])
 def delete_formateur(fid):
     formateurs = load_formateurs()
@@ -6782,6 +6990,7 @@ def print_formateur_dossier(fid):
     )
 
 import hashlib
+import hmac
 import time
 
 def generate_upload_token(fid):

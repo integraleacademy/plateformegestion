@@ -96,6 +96,37 @@ def test_aps_trainer_contract_pdf_contains_yousign_anchor_in_trainer_signature(t
     assert "s2|signature" not in text
 
 
+def test_sanitize_yousign_external_id_removes_forbidden_chars():
+    from yousign_service import sanitize_yousign_external_id
+
+    value = "session:abc/é#?=({bad})[] aps_contract:21f64b74-fae5-41d1-986e-fcce0e5af9e8"
+
+    assert sanitize_yousign_external_id(value) == "session-abc-bad- aps_contract-21f64b74-fae5-41d1-986e-fcce0e5af9e8"
+
+
+def test_sanitize_yousign_external_id_fallback_and_length():
+    from yousign_service import sanitize_yousign_external_id
+
+    assert sanitize_yousign_external_id("///") == "aps-trainer-contract"
+    assert len(sanitize_yousign_external_id("a" * 250)) == 180
+
+
+def test_create_signature_request_sanitizes_external_id(monkeypatch):
+    from yousign_service import YousignClient, YousignConfig
+
+    captured = {}
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test"))
+
+    def fake_request(method, path, payload=None, headers=None):
+        captured.update({"method": method, "path": path, "payload": payload})
+        return {"id": "sr_1"}
+
+    monkeypatch.setattr(client, "request", fake_request)
+    client.create_signature_request("Contrat", external_id="session:abc/def")
+
+    assert captured["payload"]["external_id"] == "session-abc-def"
+
+
 def test_yousign_add_signer_can_use_pdf_text_tags_without_manual_fields(monkeypatch):
     from yousign_service import YousignClient, YousignConfig
 

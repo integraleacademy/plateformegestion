@@ -49,6 +49,23 @@
     </div>
 
     <div>
+      <label>SIRET</label>
+      <input type="text" name="siret" value="{{ formateur.siret or '' }}" inputmode="numeric" maxlength="14"
+             style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+
+    <div>
+      <label>Adresse postale</label>
+      <textarea name="adresse_postale" rows="3" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">{{ formateur.adresse_postale or '' }}</textarea>
+    </div>
+
+    <div>
+      <label>Numéro NDA</label>
+      <input type="text" name="nda" value="{{ formateur.nda or '' }}"
+             style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;">
+    </div>
+
+    <div>
       <label style="display:block;margin-bottom:8px;">Profil(s)</label>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
         {% for option in formateur_profile_options %}

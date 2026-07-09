@@ -6356,7 +6356,22 @@ def extract_yousign_status(payload):
     event = payload.get("event_name") or payload.get("event") or payload.get("type") or ""
     if event in YOUSIGN_EVENT_STATUS:
         return YOUSIGN_EVENT_STATUS[event]
+
     status = payload.get("status") or payload.get("event_name", "").split(".")[-1]
+    data_payload = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    signer_payload = payload.get("signer") if isinstance(payload.get("signer"), dict) else data_payload.get("signer", {})
+    signer_status = (signer_payload or {}).get("status")
+    if signer_status in {"done", "declined"}:
+        return signer_status
+
+    signers = payload.get("signers")
+    if isinstance(signers, list):
+        signer_statuses = [s.get("status") for s in signers if isinstance(s, dict)]
+        if signer_statuses and all(s == "done" for s in signer_statuses):
+            return "done"
+        if any(s == "declined" for s in signer_statuses):
+            return "declined"
+
     return status if status else "ongoing"
 
 

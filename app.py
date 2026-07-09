@@ -413,6 +413,8 @@ CONVOCATION_DIR = os.path.join(DATA_DIR, "convocations")
 os.makedirs(CONVOCATION_DIR, exist_ok=True)
 APS_CONTRACT_DIR = os.path.join(DATA_DIR, "aps_trainer_contracts")
 os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
+APS_CONTRACT_SIGNED_DIR = os.path.join(APS_CONTRACT_DIR, "_signed_yousign")
+os.makedirs(APS_CONTRACT_SIGNED_DIR, exist_ok=True)
 YOUSIGN_TRAINER_SIGNATURE_TAG = "{{s1|signature|160|60}}"
 YOUSIGN_TRAINER_SIGNATURE_FIELD = {"x": 60, "y": 690, "width": 160, "height": 60}
 APS_ATTENDANCE_DIR = os.path.join(DATA_DIR, "aps_attendance_sheets")
@@ -4940,15 +4942,75 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
             "signatureUrl": signature_url,
             "sentAt": now,
             "lastSyncedAt": now,
+            "lastEvent": "signature_request.activated",
+            "lastEventAt": now,
+            "recipientEmail": email,
             "error": None,
         })
+        mirror_yousign_state_on_contract(contract)
         save_sessions(data)
         return jsonify({"ok": True, "status": status, "sentAt": now, "signatureUrl": signature_url})
     except YousignError as exc:
         logger.error("Réponse exacte Yousign APS contract 400/erreur status=%s payload=%r", exc.status_code, exc.payload)
-        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "error": str(exc), "errorPayload": exc.payload})
+        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "lastEvent": "api.error", "lastEventAt": now, "error": str(exc), "errorPayload": exc.payload})
+        mirror_yousign_state_on_contract(contract)
         save_sessions(data)
         return jsonify({"ok": False, "error": f"Erreur Yousign: {exc}", "errorPayload": exc.payload}), 502
+
+
+@app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/sync")
+def sync_aps_trainer_contract_yousign(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    state = normalize_yousign_state(contract.get("yousign"))
+    signature_request_id = state.get("signatureRequestId")
+    if not signature_request_id: return jsonify({"ok": False, "error": "Aucune demande Yousign à actualiser."}), 400
+    now = datetime.now().isoformat(timespec="seconds")
+    try:
+        payload = YousignClient().get_signature_request(signature_request_id)
+        status = extract_yousign_status(payload)
+        updates = {"status": status, "lastSyncedAt": now, "lastEvent": "manual.sync", "lastEventAt": now, "error": None}
+        if status == "done" and not state.get("signedAt"): updates["signedAt"] = now
+        if status == "declined" and not state.get("declinedAt"): updates["declinedAt"] = now
+        if status == "expired" and not state.get("expiredAt"): updates["expiredAt"] = now
+        if status == "canceled" and not state.get("canceledAt"): updates["canceledAt"] = now
+        contract["yousign"] = normalize_yousign_state({**state, **updates})
+        mirror_yousign_state_on_contract(contract)
+        save_sessions(data)
+        return jsonify({"ok": True, "status": status, "statusLabel": yousign_status_label(status)})
+    except YousignError as exc:
+        contract["yousign"] = normalize_yousign_state({**state, "lastSyncedAt": now, "lastEvent": "manual.sync.error", "lastEventAt": now, "error": str(exc)})
+        mirror_yousign_state_on_contract(contract)
+        save_sessions(data)
+        return jsonify({"ok": False, "error": f"Erreur de synchronisation Yousign: {exc}"}), 502
+
+
+@app.route("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/download", methods=["GET", "POST"])
+def download_aps_trainer_signed_yousign(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    state = normalize_yousign_state(contract.get("yousign"))
+    if not state.get("signatureRequestId"): return jsonify({"ok": False, "error": "Aucune demande Yousign disponible."}), 400
+    try:
+        content = YousignClient().download_signed_documents(state["signatureRequestId"])
+        filename = f"contrat_aps_signe_yousign_{state['signatureRequestId']}.zip"
+        os.makedirs(APS_CONTRACT_SIGNED_DIR, exist_ok=True)
+        with open(os.path.join(APS_CONTRACT_SIGNED_DIR, filename), "wb") as fh: fh.write(content)
+        contract["yousign"] = normalize_yousign_state({**state, "signedDocumentFilename": filename, "signedDocumentUrl": url_for("download_aps_trainer_signed_yousign_file", filename=filename), "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
+        mirror_yousign_state_on_contract(contract)
+        save_sessions(data)
+        return send_from_directory(APS_CONTRACT_SIGNED_DIR, filename, as_attachment=True)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Téléchargement Yousign impossible: {exc}"}), 502
+
+
+@app.get("/aps-trainer-contracts/yousign/signed/<path:filename>")
+def download_aps_trainer_signed_yousign_file(filename):
+    return send_from_directory(APS_CONTRACT_SIGNED_DIR, os.path.basename(filename), as_attachment=True)
 
 
 @app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")
@@ -6175,20 +6237,66 @@ def latest_formateur_pdf_attachment(formateur, preferred_doc_id=""):
     return None, None, None
 
 
+YOUSIGN_STATUS_LABELS = {
+    "draft": "Brouillon", "approval": "En préparation", "ongoing": "En attente de signature",
+    "done": "Signé", "declined": "Refusé", "expired": "Expiré", "canceled": "Annulé",
+    "rejected": "Refusé", "error": "Erreur d’envoi",
+}
+YOUSIGN_EVENT_STATUS = {
+    "signature_request.done": "done", "signer.done": "done",
+    "signature_request.declined": "declined", "signer.declined": "declined",
+    "signature_request.expired": "expired", "signature_request.canceled": "canceled",
+    "signer.notification_delivery_failed": "error", "signer.error": "error",
+}
+
+def yousign_status_label(status):
+    return YOUSIGN_STATUS_LABELS.get((status or "").strip(), YOUSIGN_STATUS_LABELS.get(str(status or "").split(".")[-1], "Statut inconnu"))
+
+def is_yousign_sandbox():
+    return "api-sandbox" in (get_yousign_config().base_url or "")
+
 def normalize_yousign_state(state=None):
     defaults = {
-        "signatureRequestId": "", "documentId": "", "signerId": "", "status": "draft",
-        "signatureUrl": "", "sentAt": "", "signedAt": "", "lastSyncedAt": "",
-        "lastWebhookAt": "", "signedDocumentFilename": "", "error": None, "errorPayload": None,
+        "signatureRequestId": "", "documentId": "", "signerId": "", "fieldId": "", "status": "draft", "statusLabel": "Brouillon",
+        "signatureUrl": "", "sentAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
+        "lastEvent": "", "lastEventAt": "", "lastSyncedAt": "", "lastWebhookAt": "",
+        "recipientEmail": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
+    }
+    legacy = {
+        "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
+        "yousign_status": "status", "yousign_status_label": "statusLabel", "yousign_sent_at": "sentAt",
+        "yousign_signed_at": "signedAt", "yousign_declined_at": "declinedAt", "yousign_expired_at": "expiredAt",
+        "yousign_canceled_at": "canceledAt", "yousign_last_event": "lastEvent", "yousign_last_event_at": "lastEventAt",
+        "yousign_last_error": "error", "yousign_recipient_email": "recipientEmail", "yousign_signed_document_url": "signedDocumentUrl",
     }
     if isinstance(state, dict):
         defaults.update({k: v for k, v in state.items() if k in defaults})
+        for old_key, new_key in legacy.items():
+            if state.get(old_key) and not defaults.get(new_key):
+                defaults[new_key] = state.get(old_key)
+    defaults["statusLabel"] = yousign_status_label(defaults.get("status"))
     return defaults
 
+def mirror_yousign_state_on_contract(contract):
+    state = normalize_yousign_state(contract.get("yousign"))
+    contract["yousign"] = state
+    mapping = {
+        "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
+        "yousign_status": "status", "yousign_status_label": "statusLabel", "yousign_sent_at": "sentAt",
+        "yousign_signed_at": "signedAt", "yousign_declined_at": "declinedAt", "yousign_expired_at": "expiredAt",
+        "yousign_canceled_at": "canceledAt", "yousign_last_event": "lastEvent", "yousign_last_event_at": "lastEventAt",
+        "yousign_last_error": "error", "yousign_recipient_email": "recipientEmail", "yousign_signed_document_url": "signedDocumentUrl",
+    }
+    for flat_key, state_key in mapping.items():
+        contract[flat_key] = state.get(state_key)
+    return state
 
 def extract_yousign_status(payload):
     if not isinstance(payload, dict):
         return "error"
+    event = payload.get("event_name") or payload.get("event") or payload.get("type") or ""
+    if event in YOUSIGN_EVENT_STATUS:
+        return YOUSIGN_EVENT_STATUS[event]
     status = payload.get("status") or payload.get("event_name", "").split(".")[-1]
     return status if status else "ongoing"
 
@@ -6196,8 +6304,12 @@ def extract_yousign_status(payload):
 def update_formateur_yousign_state(formateur, updates):
     state = normalize_yousign_state(formateur.get("yousign"))
     state.update(updates)
+    state["statusLabel"] = yousign_status_label(state.get("status"))
     formateur["yousign"] = state
     return state
+
+app.jinja_env.globals["yousign_status_label"] = yousign_status_label
+app.jinja_env.globals["is_yousign_sandbox"] = is_yousign_sandbox
 
 def build_doc_entry(label):
     return {
@@ -6799,16 +6911,29 @@ def yousign_webhook():
             return {"ok": False, "error": "signature invalide"}, 401
     payload = request.get_json(silent=True) or {}
     event_name = payload.get("event_name") or payload.get("event") or payload.get("type") or "unknown"
-    signature_request_id = ((payload.get("data") or {}).get("signature_request") or {}).get("id") or (payload.get("data") or {}).get("signature_request_id") or payload.get("signature_request_id")
+    data_payload = payload.get("data") or {}
+    signature_request = data_payload.get("signature_request") or {}
+    signer = data_payload.get("signer") or {}
+    signature_request_id = (signature_request or {}).get("id") or data_payload.get("signature_request_id") or payload.get("signature_request_id") or (signer.get("signature_request") or {}).get("id")
     logger.info("Webhook Yousign reçu event=%s signature_request_id=%s", event_name, signature_request_id or "missing")
     if not signature_request_id:
         return {"ok": False, "error": "signature_request_id manquant"}, 400
 
-    status = extract_yousign_status((payload.get("data") or {}).get("signature_request") or payload)
+    status = YOUSIGN_EVENT_STATUS.get(event_name) or extract_yousign_status(signature_request or payload)
     now = datetime.now().isoformat(timespec="seconds")
-    updates = {"status": status, "lastWebhookAt": now, "lastSyncedAt": now, "error": None}
+    updates = {"status": status, "lastWebhookAt": now, "lastSyncedAt": now, "lastEvent": event_name, "lastEventAt": now, "error": None}
+    if signer.get("id"):
+        updates["signerId"] = signer.get("id")
     if status == "done":
         updates["signedAt"] = now
+    elif status == "declined":
+        updates["declinedAt"] = now
+    elif status == "expired":
+        updates["expiredAt"] = now
+    elif status == "canceled":
+        updates["canceledAt"] = now
+    elif status == "error":
+        updates["error"] = "Yousign n’a pas pu notifier le formateur." if event_name == "signer.notification_delivery_failed" else "Erreur Yousign reçue par webhook."
 
     formateurs = load_formateurs()
     formateur = next((f for f in formateurs if normalize_yousign_state(f.get("yousign")).get("signatureRequestId") == signature_request_id), None)
@@ -6823,6 +6948,7 @@ def yousign_webhook():
         for contract in session_data.get("apsTrainerContracts", []):
             if normalize_yousign_state(contract.get("yousign")).get("signatureRequestId") == signature_request_id:
                 contract["yousign"] = normalize_yousign_state({**contract.get("yousign", {}), **updates})
+                mirror_yousign_state_on_contract(contract)
                 save_sessions(sessions_data)
                 logger.info("Webhook Yousign appliqué au contrat APS session=%s contract=%s status=%s", session_data.get("id"), contract.get("id"), status)
                 return {"ok": True, "target": "aps_trainer_contract"}

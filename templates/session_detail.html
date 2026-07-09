@@ -521,6 +521,19 @@ a.back:hover{ background:#d9a848 !important; }
 .toast.success{background:#dcfce7;color:#166534 !important;border:1px solid #86efac;}
 .toast.error{background:#fee2e2;color:#991b1b !important;border:1px solid #fecaca;}
 .contract-card{border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-top:12px;background:#f9fafb;}
+.contract-card.yousign-status-done{border-color:#86efac;background:#f0fdf4;}
+.contract-card.yousign-status-error,.contract-card.yousign-status-declined{border-color:#fecaca;background:#fff7f7;}
+.contract-card.yousign-status-ongoing{border-color:#bfdbfe;background:#eff6ff;}
+.contract-card.yousign-status-expired{border-color:#cbd5e1;background:#f8fafc;}
+.yousign-status-panel{margin-top:10px;border:1px solid rgba(148,163,184,.45);border-radius:16px;background:#fff;padding:12px;display:grid;gap:8px;}
+.yousign-status-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:#334155;}
+.yousign-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;}
+.yousign-badge--ongoing{background:#dbeafe;color:#1d4ed8;}
+.yousign-badge--done{background:#dcfce7;color:#166534;}
+.yousign-badge--declined,.yousign-badge--error{background:#fee2e2;color:#991b1b;}
+.yousign-badge--expired{background:#f1f5f9;color:#991b1b;}
+.yousign-badge--canceled{background:#e5e7eb;color:#374151;}
+.yousign-sandbox-warning{display:inline-flex;align-items:center;border-radius:12px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:8px 10px;font-weight:800;}
 .contract-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;}
 .contract-form-card{border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fff;margin-top:12px;}
 .contract-form-card input,.contract-form-card textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:10px;margin-top:5px;}
@@ -1155,18 +1168,39 @@ a.back:hover{ background:#d9a848 !important; }
     {% endfor %}
     {% if found.contract %}
       {% set contract = found.contract %}
-      <div class="contract-card" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}">
+      {% set contract_yousign = contract.yousign|default({}) %}
+      {% set ys_status = contract_yousign.status|default('draft') %}
+      <div class="contract-card yousign-status-{{ ys_status }}" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}" data-yousign-status="{{ ys_status }}">
         <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
-        {% set contract_yousign = contract.yousign|default({}) %}
-        <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}{% if contract.sentAt %} · Contrat envoyé le {{ contract.sentAt|datetimefr }}{% endif %}{% if contract_yousign.sentAt %} · Yousign envoyé le {{ contract_yousign.sentAt|datetimefr }}{% endif %}{% if contract_yousign.status %} · Statut Yousign : {{ contract_yousign.status }}{% endif %}</div>
-        {% if contract_yousign.error %}<div class="relance-note" style="color:#b91c1c;margin-top:6px;">Erreur Yousign : {{ contract_yousign.error }}</div>{% endif %}
-        {% if contract_yousign.signatureUrl %}<div style="margin-top:6px;"><a href="{{ contract_yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature Yousign</a></div>{% endif %}
+        <div class="yousign-status-panel">
+          {% if is_yousign_sandbox() and contract_yousign.signatureRequestId %}<div class="yousign-sandbox-warning">⚠️ Mode test Yousign : ce document n’est pas une signature de production.</div>{% endif %}
+          <div class="yousign-status-line">✅ Contrat généré le {{ contract.generatedAt|datetimefr }}</div>
+          {% if contract_yousign.sentAt %}<div class="yousign-status-line">📨 Signature envoyée le {{ contract_yousign.sentAt|datetimefr }} à {{ contract_yousign.recipientEmail or contract.trainerEmail }}</div>{% else %}<div class="yousign-status-line">📨 Signature Yousign non envoyée{% if contract.trainerEmail %} — destinataire prévu : {{ contract.trainerEmail }}{% endif %}</div>{% endif %}
+          <div class="yousign-status-line">
+            {% if ys_status == 'done' %}✅{% elif ys_status in ['declined','error'] %}⚠️{% elif ys_status == 'expired' %}⌛{% elif ys_status == 'canceled' %}🚫{% else %}🕒{% endif %}
+            Statut : <span class="yousign-badge yousign-badge--{{ ys_status }}">{{ contract_yousign.statusLabel or yousign_status_label(ys_status) }}</span>
+          </div>
+          <div class="muted">
+            {% if ys_status == 'ongoing' %}Le contrat a été envoyé au formateur. En attente de sa signature.
+            {% elif ys_status == 'done' %}Contrat signé électroniquement{% if contract_yousign.signedAt %} le {{ contract_yousign.signedAt|datetimefr }}{% endif %}.
+            {% elif ys_status == 'declined' %}Le formateur a refusé de signer le contrat.
+            {% elif ys_status == 'expired' %}La demande de signature a expiré.
+            {% elif ys_status == 'canceled' %}La demande de signature a été annulée.
+            {% elif ys_status == 'error' %}Yousign n’a pas pu notifier le formateur. Vérifiez son adresse e-mail.
+            {% else %}Aucune signature Yousign active pour ce contrat.
+            {% endif %}
+          </div>
+          {% if contract_yousign.signedAt %}<div class="yousign-status-line">✍️ Signé le {{ contract_yousign.signedAt|datetimefr }}</div>{% endif %}
+          {% if contract_yousign.lastEvent %}<div class="yousign-status-line">🔔 Dernier événement reçu : {{ contract_yousign.lastEvent }}</div>{% endif %}
+          <div class="muted">Dernière mise à jour : {{ (contract_yousign.lastEventAt or contract_yousign.lastWebhookAt or contract_yousign.lastSyncedAt or contract_yousign.sentAt or contract.generatedAt)|datetimefr }}</div>
+          {% if contract_yousign.error %}<div class="relance-note" style="color:#b91c1c;">Erreur Yousign : {{ contract_yousign.error }}</div>{% endif %}
+        </div>
         <div class="planning-actions" style="margin-top:10px;">
-          <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">Voir contrat</a>
-          <button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
-          <button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer signature Yousign</button>
-          <button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>
-          <button class="btn small danger delete-contract-btn" type="button">Supprimer contrat</button>
+          <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">{% if ys_status == 'done' %}Voir contrat signé{% else %}Voir contrat{% endif %}</a>
+          {% if contract_yousign.signatureRequestId %}<button class="btn small gold yousign-sync-btn" type="button">Actualiser statut Yousign</button>{% endif %}
+          {% if ys_status == 'done' %}<button class="btn small gold yousign-download-btn" type="button">Télécharger PDF signé</button><button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
+          {% else %}<button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button><button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>{% if ys_status in ['ongoing','expired','error'] %}Relancer Yousign{% elif ys_status == 'declined' %}Renvoyer une nouvelle demande{% else %}Envoyer signature Yousign{% endif %}</button><button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>{% endif %}
+          <button class="btn small danger delete-contract-btn" type="button">{% if ys_status == 'done' %}Archiver / supprimer{% else %}Supprimer contrat{% endif %}</button>
         </div>
       </div>
     {% else %}
@@ -1993,7 +2027,9 @@ function closeSendModal(){ sendContractModal?.classList.remove("open"); sendCont
 document.getElementById("closeSendContractModal")?.addEventListener("click", closeSendModal); document.getElementById("cancelSendContract")?.addEventListener("click", closeSendModal);
 document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListener("click", () => { const card = btn.closest("[data-contract-id]"); currentSendContractId = card.dataset.contractId; document.getElementById("sendContractRecipient").textContent = card.dataset.contractEmail; document.getElementById("sendContractSubject").value = "Contrat d’intervention formateur — Session APS"; document.getElementById("sendContractBody").value = `Bonjour ${card.dataset.contractName},\n\nVous trouverez en pièce jointe votre contrat d’intervention pour la session APS, ainsi que le planning de formation correspondant.\n\nMerci de nous retourner le contrat signé dès que possible.\n\nBien cordialement,\n\nIntégrale Academy\n04 22 47 07 68`; sendContractModal?.classList.add("open"); sendContractModal?.setAttribute("aria-hidden", "false"); }));
 sendContractForm?.addEventListener("submit", async (event) => { event.preventDefault(); const err = document.getElementById("sendContractError"); err.style.display = "none"; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${currentSendContractId}/send`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({emailSubject:document.getElementById("sendContractSubject").value, emailBody:document.getElementById("sendContractBody").value})}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi impossible."); closeSendModal(); showPlanningToast("Contrat envoyé par mail.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ err.textContent = error.message; err.style.display = "block"; } });
-document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); if(!confirm(`Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`)) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send`, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
+document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); const ongoing = card.dataset.yousignStatus === "ongoing"; const msg = ongoing ? "Une demande de signature est déjà en cours. Voulez-vous vraiment en envoyer une nouvelle ?" : `Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`; if(!confirm(msg)) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const url = `/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send${ongoing ? '?force=1' : ''}`; const r = await fetch(url, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
+document.querySelectorAll(".yousign-sync-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Actualisation..."; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/sync`, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Actualisation impossible."); showPlanningToast(`Statut Yousign actualisé : ${p.statusLabel || p.status}`, "success"); setTimeout(()=>window.location.reload(), 700); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
+document.querySelectorAll(".yousign-download-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); window.location.href = `/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/download`; }));
 
 </script>
 

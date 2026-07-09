@@ -426,7 +426,6 @@ os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
 APS_CONTRACT_SIGNED_DIR = os.path.join(APS_CONTRACT_DIR, "_signed_yousign")
 os.makedirs(APS_CONTRACT_SIGNED_DIR, exist_ok=True)
 YOUSIGN_TRAINER_SIGNATURE_TAG = "{{s1|signature|160|60}}"
-YOUSIGN_TRAINER_SIGNATURE_FIELD = {"x": 60, "y": 690, "width": 160, "height": 60}
 APS_ATTENDANCE_DIR = os.path.join(DATA_DIR, "aps_attendance_sheets")
 os.makedirs(APS_ATTENDANCE_DIR, exist_ok=True)
 A3P_DOC_DIR = os.path.join(DATA_DIR, "a3p_documents")
@@ -1541,7 +1540,15 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7.2, leading=8.6, textColor=colors.HexColor("#111827"), wordWrap="CJK"))
     styles.add(ParagraphStyle("CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.3, leading=8.8, textColor=colors.white, alignment=TA_CENTER))
     styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
-    styles.add(ParagraphStyle("YousignAnchor", parent=styles["Normal"], fontName="Helvetica", fontSize=8, leading=8, textColor=colors.white, alignment=TA_CENTER))
+    styles.add(ParagraphStyle(
+        "YousignAnchor",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=1,
+        leading=1,
+        textColor=colors.Color(1, 1, 1, alpha=0),
+        alignment=TA_CENTER,
+    ))
 
     def p(txt, style="Body"):
         return Paragraph(str(txt or "—").replace("\n", "<br/>"), styles[style])
@@ -1676,15 +1683,9 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
 
-    def signature_zone(label, image_path=None, height_mm=31, yousign_anchor=False):
+    def signature_zone(label, image_path=None, height_mm=31):
         content = [p(label, "SignLabel")]
-        if yousign_anchor:
-            # Balise texte réelle attendue par Yousign pour placer automatiquement
-            # la signature du formateur. Elle reste dans le flux PDF et n’est ni
-            # masquée en display:none ni échappée en HTML.
-            content.append(Spacer(1, 8))
-            content.append(p("{{s1|signature|160|60}}", "YousignAnchor"))
-        elif image_path:
+        if image_path:
             content.append(Image(image_path, width=42 * mm, height=(18 if "Signature" in label else 24) * mm, kind="proportional", hAlign="CENTER"))
         else:
             content.append(p("<br/><br/>", "Body"))
@@ -1692,9 +1693,19 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 5)]))
         return tbl
 
+    def trainer_signature_box(height_mm=31):
+        # Balise texte réelle attendue par Yousign pour placer automatiquement
+        # la signature du formateur. Elle reste physiquement dans le flux PDF,
+        # dans le cadre de droite « Signature du formateur » : aucun champ manuel
+        # global ne doit la replacer en bas de page.
+        content = [p("Signature du formateur", "SignLabel"), Spacer(1, 8), p(YOUSIGN_TRAINER_SIGNATURE_TAG, "YousignAnchor")]
+        tbl = Table([[content]], colWidths=[75 * mm], rowHeights=[height_mm * mm])
+        tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 5)]))
+        return tbl
+
     def party_block(title, name, quality, sig_img=None, stamp_img=None, trainer_signature_anchor=False):
         signature_label = "Signature du formateur" if trainer_signature_anchor else "Signature / cachet du centre"
-        inner = [p(f"<b>{title}</b><br/>{name}<br/>{quality}<br/><br/>Mention manuscrite : “Lu et approuvé”", "Body"), signature_zone(signature_label, sig_img, yousign_anchor=trainer_signature_anchor), Spacer(1, 3), signature_zone("Tampon / cachet", stamp_img, 28)]
+        inner = [p(f"<b>{title}</b><br/>{name}<br/>{quality}<br/><br/>Mention manuscrite : “Lu et approuvé”", "Body"), trainer_signature_box() if trainer_signature_anchor else signature_zone(signature_label, sig_img), Spacer(1, 3), signature_zone("Tampon / cachet", stamp_img, 28)]
         tbl = Table([[inner]], colWidths=[82 * mm], rowHeights=[108 * mm])
         tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#94a3b8")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
         return tbl
@@ -4957,17 +4968,12 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True)
         signer_id = signer.get("id") or ""
         app.logger.info("Yousign APS trainer signer created signer_id=%s document_id=%s", signer_id, document_id)
-        field_page = yousign_trainer_signature_page(pdf_info)
-        field = client.add_signature_field(
-            signature_request_id,
-            document_id,
-            signer_id,
-            page=field_page,
-            **YOUSIGN_TRAINER_SIGNATURE_FIELD,
-        )
-        field_id = field.get("id") if isinstance(field, dict) else ""
-        if not field_id:
-            raise YousignError("Yousign n'a pas retourné d'identifiant pour le champ signature.", payload=field)
+        if not pdf_info.get("signature_tag_present"):
+            raise YousignError("Balise Yousign formateur introuvable dans le PDF généré.")
+        # Le contrat APS utilise exclusivement la balise texte présente dans le
+        # cadre « Signature du formateur ». Ne pas créer de champ manuel avec des
+        # coordonnées globales : cela peut placer la signature en bas de page.
+        field_id = ""
         activated = client.activate_signature_request(signature_request_id)
         status = extract_yousign_status(activated) or "ongoing"
         signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""

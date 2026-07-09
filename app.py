@@ -31,7 +31,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id
+from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -59,6 +59,15 @@ LEGACY_SHORTCUT_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads", "shortc
 ALLOWED_SHORTCUT_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 logger = logging.getLogger("jury-notify")
+
+yousign_startup_diagnostic = yousign_config_diagnostics()
+logging.getLogger("yousign").info(
+    "Yousign configuration detected environment=%s base_url=%s api_key=%s workspace_id_present=%s",
+    yousign_startup_diagnostic["environment"],
+    yousign_startup_diagnostic["base_url"],
+    yousign_startup_diagnostic["api_key"],
+    yousign_startup_diagnostic["workspace_id_present"],
+)
 
 from datetime import timedelta
 
@@ -335,11 +344,12 @@ def protect_all_routes():
     return None
 
 
-
-
-
-
-
+@app.get("/api/yousign/health")
+def yousign_health():
+    diagnostic = test_yousign_connection()
+    status = int(diagnostic.get("status") or (200 if diagnostic.get("ok") else 502))
+    http_status = 200 if status == 200 else status if status in {401, 403} else 502
+    return jsonify(diagnostic), http_status
 
 
 # --- Filtres Jinja ---
@@ -4980,10 +4990,11 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         return jsonify({"ok": True, "status": status, "sentAt": now, "signatureUrl": signature_url})
     except YousignError as exc:
         logger.error("Réponse exacte Yousign APS contract 400/erreur status=%s payload=%r", exc.status_code, exc.payload)
-        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "lastEvent": "api.error", "lastEventAt": now, "error": str(exc), "errorPayload": exc.payload})
+        user_error = yousign_service_access_message(exc.status_code, exc.payload)
+        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "lastEvent": "api.error", "lastEventAt": now, "error": user_error, "errorPayload": exc.payload})
         mirror_yousign_state_on_contract(contract)
         save_sessions(data)
-        return jsonify({"ok": False, "error": f"Erreur Yousign: {exc}", "errorPayload": exc.payload}), 502
+        return jsonify({"ok": False, "error": user_error, "errorPayload": exc.payload, "yousignStatus": exc.status_code}), 502
 
 
 @app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/sync")

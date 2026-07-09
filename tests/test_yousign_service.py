@@ -17,6 +17,7 @@ def test_yousign_config_defaults(monkeypatch):
         "YOUSIGN_SIGNATURE_LEVEL",
         "YOUSIGN_AUTHENTICATION_MODE",
         "YOUSIGN_DELIVERY_MODE",
+        "YOUSIGN_WORKSPACE_ID",
     ]:
         monkeypatch.delenv(key, raising=False)
 
@@ -55,6 +56,47 @@ def test_yousign_config_accepts_base_url_alias(monkeypatch):
 
     assert config.base_url == "https://api-sandbox.yousign.app/v3"
 
+
+
+def test_yousign_base_url_takes_precedence_over_legacy_alias(monkeypatch):
+    monkeypatch.setenv("YOUSIGN_API_BASE_URL", "https://api.yousign.app/v3")
+    monkeypatch.setenv("YOUSIGN_BASE_URL", "https://api-sandbox.yousign.app/v3/")
+
+    config = get_yousign_config()
+
+    assert config.base_url == "https://api-sandbox.yousign.app/v3"
+
+
+def test_yousign_headers_use_bearer_without_url_leak():
+    from yousign_service import YousignClient, YousignConfig
+
+    client = YousignClient(YousignConfig(api_key="secret-key", base_url="https://example.test"))
+
+    assert client._headers()["Authorization"] == "Bearer secret-key"
+    assert "secret-key" not in client._url("signature_requests")
+
+
+def test_yousign_diagnostics_masks_key_and_detects_environment():
+    from yousign_service import YousignConfig, yousign_config_diagnostics
+
+    diagnostic = yousign_config_diagnostics(YousignConfig(api_key="abcdef123456", base_url="https://api-sandbox.yousign.app/v3", workspace_id="wk_1"))
+
+    assert diagnostic == {
+        "environment": "sandbox",
+        "base_url": "https://api-sandbox.yousign.app/v3",
+        "api_key": "present:abcdef...",
+        "api_key_present": True,
+        "workspace_id_present": True,
+    }
+
+
+def test_yousign_403_consume_service_message():
+    from yousign_service import yousign_service_access_message
+
+    assert yousign_service_access_message(403, {"message": "You cannot consume this service"}) == (
+        "Yousign refuse l’accès au service de signature. Vérifiez la clé API, "
+        "l’environnement sandbox/production, les droits de la clé et l’abonnement Yousign."
+    )
 
 def test_aps_trainer_contract_pdf_contains_yousign_anchor_in_trainer_signature(tmp_path):
     pytest.importorskip("reportlab")

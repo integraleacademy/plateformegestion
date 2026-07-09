@@ -53,6 +53,7 @@ class YousignConfig:
     signature_level: str = "electronic_signature"
     authentication_mode: str = "no_otp"
     delivery_mode: str = "email"
+    workspace_id: str = ""
 
 
 def _env(name: str, default: str = "") -> str:
@@ -60,10 +61,9 @@ def _env(name: str, default: str = "") -> str:
 
 
 def get_yousign_config() -> YousignConfig:
-    # Render may contain either the historical project variable or the shorter
-    # name used in Yousign runbooks. Prefer the explicit API variable when both
-    # are present.
-    base_url = (_env("YOUSIGN_API_BASE_URL") or _env("YOUSIGN_BASE_URL", DEFAULT_YOUSIGN_API_BASE_URL)).rstrip("/")
+    # YOUSIGN_BASE_URL is the canonical variable used by the deployment runbook.
+    # Keep YOUSIGN_API_BASE_URL as a backward-compatible alias only.
+    base_url = (_env("YOUSIGN_BASE_URL") or _env("YOUSIGN_API_BASE_URL", DEFAULT_YOUSIGN_API_BASE_URL)).rstrip("/")
     return YousignConfig(
         api_key=_env("YOUSIGN_API_KEY"),
         base_url=base_url,
@@ -72,8 +72,47 @@ def get_yousign_config() -> YousignConfig:
         signature_level=_env("YOUSIGN_SIGNATURE_LEVEL", "electronic_signature"),
         authentication_mode=_env("YOUSIGN_AUTHENTICATION_MODE", "no_otp"),
         delivery_mode=_env("YOUSIGN_DELIVERY_MODE", "email"),
+        workspace_id=_env("YOUSIGN_WORKSPACE_ID"),
     )
 
+
+
+def detect_yousign_environment(base_url: str) -> str:
+    url = (base_url or "").lower()
+    if "api-sandbox.yousign.app" in url:
+        return "sandbox"
+    if "api.yousign.app" in url:
+        return "production"
+    return "custom"
+
+
+def mask_yousign_api_key(api_key: str) -> str:
+    if not api_key:
+        return "absent"
+    prefix = api_key[:6]
+    return f"present:{prefix}..." if prefix else "present"
+
+
+def yousign_config_diagnostics(config: Optional[YousignConfig] = None) -> Dict[str, Any]:
+    config = config or get_yousign_config()
+    return {
+        "environment": detect_yousign_environment(config.base_url),
+        "base_url": config.base_url,
+        "api_key": mask_yousign_api_key(config.api_key),
+        "api_key_present": bool(config.api_key),
+        "workspace_id_present": bool(config.workspace_id),
+    }
+
+
+def yousign_service_access_message(status_code: Optional[int], payload: Any = None) -> str:
+    message = payload.get("message") if isinstance(payload, dict) else ""
+    if status_code == 401:
+        return "Clé API Yousign invalide ou absente."
+    if status_code == 403 and message == "You cannot consume this service":
+        return "Yousign refuse l’accès au service de signature. Vérifiez la clé API, l’environnement sandbox/production, les droits de la clé et l’abonnement Yousign."
+    if status_code == 403:
+        return "Yousign refuse l’accès au service de signature. Vérifiez la clé API, l’environnement sandbox/production, les droits de la clé, le workspace et l’abonnement Yousign."
+    return message or (f"Erreur API Yousign ({status_code})" if status_code else "Erreur Yousign")
 
 def is_yousign_configured() -> bool:
     return bool(get_yousign_config().api_key)
@@ -147,6 +186,8 @@ class YousignClient:
 
     def create_signature_request(self, name: str, external_id: str = "") -> Any:
         payload = {"name": name[:128], "delivery_mode": self.config.delivery_mode}
+        if self.config.workspace_id:
+            payload["workspace_id"] = self.config.workspace_id
         if external_id:
             sanitized_external_id = sanitize_yousign_external_id(external_id)
             payload["external_id"] = sanitized_external_id
@@ -220,5 +261,16 @@ class YousignClient:
 
 def test_yousign_connection() -> Dict[str, Any]:
     client = YousignClient(timeout=10)
-    client.request("GET", "signature_requests?limit=1")
-    return {"ok": True, "base_url": client.config.base_url}
+    diagnostic = yousign_config_diagnostics(client.config)
+    try:
+        client.request("GET", "signature_requests?limit=1")
+        return {**diagnostic, "ok": True, "status": 200, "message": "Connexion Yousign OK."}
+    except YousignError as exc:
+        status = exc.status_code or 0
+        return {
+            **diagnostic,
+            "ok": False,
+            "status": status,
+            "message": yousign_service_access_message(status, exc.payload),
+            "yousign_message": exc.payload.get("message") if isinstance(exc.payload, dict) else str(exc.payload or ""),
+        }

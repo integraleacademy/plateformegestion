@@ -143,6 +143,8 @@
     }
     @media (max-width:480px) { .kpi-grid { grid-template-columns:1fr 1fr; } .kpi-label { font-size:11px; } .kpi-caption { display:none; } .topbar-meta { display:none; } .modal-content .btns { flex-direction:column; } .modal-content .btn { width:100%; } .btn.cancel { margin:8px 0 0; } }
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
+  <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
 <body>
 {% set sorted_active = active_sessions|sort(attribute='date_debut') %}

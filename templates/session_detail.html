@@ -739,7 +739,13 @@ a.back:hover{ background:#d9a848 !important; }
       <a class="detail-nav-link active" href="#session-overview" aria-current="page"><span class="detail-nav-icon">▦</span>Vue d’ensemble</a>
       <a class="detail-nav-link" href="#jury-section"><span class="detail-nav-icon">♙</span>Jury d’examen</a>
       <a class="detail-nav-link" href="#planning-section"><span class="detail-nav-icon">▤</span>Planning PDF</a>
+      {% if s.formation in ["APS", "A3P"] %}
+        <a class="detail-nav-link" href="{{ '#a3p-contracts-section' if s.formation == 'A3P' else '#aps-contracts-section' }}"><span class="detail-nav-icon">📝</span>Contrat formateur</a>
+        <a class="detail-nav-link" href="#aps-attendance-section"><span class="detail-nav-icon">📄</span>Feuilles de présence</a>
+      {% endif %}
       <a class="detail-nav-link" href="#steps-section"><span class="detail-nav-icon">✓</span>Suivi des étapes</a>
+      <a class="detail-nav-link" href="#steps-section" data-step-filter="done"><span class="detail-nav-icon">✅</span>Etapes validées</a>
+      <a class="detail-nav-link" href="#steps-section" data-step-filter="notdone"><span class="detail-nav-icon">⏳</span>Etapes non validées</a>
     </nav>
     <div class="detail-sidebar-shortcuts">
       <p class="detail-nav-label" style="margin-top:0;">Actions rapides</p>
@@ -1612,6 +1618,14 @@ function restoreFilters(){
 
 filterSelect?.addEventListener("change",applyFilters);
 searchInput?.addEventListener("input",applyFilters);
+document.querySelectorAll("[data-step-filter]").forEach(link => {
+  link.addEventListener("click", () => {
+    if(!filterSelect) return;
+    filterSelect.value = link.dataset.stepFilter;
+    if(searchInput) searchInput.value = "";
+    applyFilters();
+  });
+});
 document.getElementById("resetFiltersBtn")?.addEventListener("click",()=>{
   filterSelect.value="all";
   searchInput.value="";

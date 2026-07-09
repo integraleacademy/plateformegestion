@@ -1,0 +1,180 @@
+:root {
+  --saas-dialog-ink: #0f172a;
+  --saas-dialog-muted: #64748b;
+  --saas-dialog-primary: #2563eb;
+  --saas-dialog-primary-2: #7c3aed;
+  --saas-dialog-soft: #eff6ff;
+  --saas-dialog-border: rgba(148, 163, 184, .28);
+}
+
+.saas-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, .18), transparent 36%), rgba(15, 23, 42, .58);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.saas-dialog-overlay.is-open {
+  display: flex;
+  animation: saasFade .16s ease-out both;
+}
+
+.saas-dialog {
+  width: min(520px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .7);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(248, 250, 252, .96));
+  box-shadow: 0 32px 90px rgba(2, 6, 23, .34), inset 0 1px 0 rgba(255, 255, 255, .85);
+  transform-origin: center;
+  animation: saasPop .2s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.saas-dialog__hero {
+  position: relative;
+  padding: 28px 30px 10px;
+}
+
+.saas-dialog__hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 96px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, .13), rgba(124, 58, 237, .12) 55%, rgba(20, 184, 166, .10));
+  pointer-events: none;
+}
+
+.saas-dialog__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--saas-dialog-primary), var(--saas-dialog-primary-2));
+  color: #fff;
+  font-size: 25px;
+  font-weight: 900;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, .28);
+}
+
+.saas-dialog__content {
+  position: relative;
+  padding: 0 30px 26px;
+}
+
+.saas-dialog__eyebrow {
+  margin: 0 0 8px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.saas-dialog__title {
+  margin: 0;
+  color: var(--saas-dialog-ink);
+  font-size: 25px;
+  line-height: 1.15;
+  letter-spacing: -.04em;
+}
+
+.saas-dialog__message {
+  margin: 14px 0 0;
+  color: #334155;
+  font-size: 16px;
+  line-height: 1.58;
+  white-space: pre-wrap;
+}
+
+.saas-dialog__input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 18px;
+  padding: 14px 15px;
+  border: 1px solid #dbe3ef;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--saas-dialog-ink);
+  font: inherit;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+}
+
+.saas-dialog__input:focus {
+  border-color: #60a5fa;
+  outline: 4px solid rgba(37, 99, 235, .14);
+}
+
+.saas-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 18px 30px 28px;
+  border-top: 1px solid var(--saas-dialog-border);
+  background: rgba(248, 250, 252, .74);
+}
+
+.saas-dialog__btn {
+  min-width: 118px;
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 20px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .16s, box-shadow .16s, background .16s;
+}
+
+.saas-dialog__btn:hover { transform: translateY(-1px); }
+.saas-dialog__btn--ghost { background: #eaf2ff; color: #1e3a8a; }
+.saas-dialog__btn--primary { background: linear-gradient(135deg, var(--saas-dialog-primary), #1d4ed8); color: #fff; box-shadow: 0 14px 28px rgba(37, 99, 235, .25); }
+.saas-dialog__btn--danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; box-shadow: 0 14px 28px rgba(239, 68, 68, .22); }
+
+.modal {
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  background: rgba(15, 23, 42, .58) !important;
+}
+
+.modal-content {
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+  border-radius: 28px !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(248, 250, 252, .97)) !important;
+  box-shadow: 0 32px 90px rgba(2, 6, 23, .30), inset 0 1px 0 rgba(255, 255, 255, .86) !important;
+}
+
+.modal-header { border-bottom: 1px solid rgba(148, 163, 184, .24) !important; }
+
+.modal-close,
+[data-modal-close] {
+  border-radius: 14px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .06) !important;
+}
+
+@keyframes saasFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes saasPop {
+  from { opacity: 0; transform: translateY(12px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 540px) {
+  .saas-dialog-overlay { padding: 14px; }
+  .saas-dialog { border-radius: 24px; }
+  .saas-dialog__hero,
+  .saas-dialog__content { padding-left: 20px; padding-right: 20px; }
+  .saas-dialog__actions { padding: 16px 20px 22px; flex-direction: column-reverse; }
+  .saas-dialog__btn { width: 100%; }
+}

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contrôle formateur</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
+  <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
 
 <body class="formateurs-page formateur-detail-page">
@@ -556,9 +558,9 @@ function updateSelectColor(selectEl) {
   });
 // 🗑️ Suppression d'une pièce jointe
 document.querySelectorAll(".delete-att").forEach(btn => {
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
 
-    if (!confirm("Supprimer cette pièce jointe ?")) return;
+    if (!(await SaasDialog.confirm("Supprimer cette pièce jointe ?", { danger: true }))) return;
 
     const docId = btn.dataset.doc;
     const filename = btn.dataset.file;

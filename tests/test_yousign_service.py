@@ -291,3 +291,123 @@ def test_extract_yousign_status_uses_webhook_signer_status_when_done():
     }
 
     assert app.extract_yousign_status(payload) == "done"
+
+
+def test_yousign_webhook_signer_done_updates_aps_contract_without_manual_sync(monkeypatch):
+    import app
+
+    sessions_data = {
+        "sessions": [
+            {
+                "id": "session_1",
+                "apsTrainerContracts": [
+                    {
+                        "id": "contract_1",
+                        "yousign": {
+                            "signatureRequestId": "sr_1",
+                            "externalId": "aps-trainer-contract-contract_1",
+                            "signerId": "signer_1",
+                            "status": "ongoing",
+                        },
+                    }
+                ],
+            }
+        ],
+        "jurys": [],
+    }
+    saved = {}
+
+    monkeypatch.setattr(app, "load_formateurs", lambda: [])
+    monkeypatch.setattr(app, "load_sessions", lambda: sessions_data)
+    monkeypatch.setattr(app, "save_sessions", lambda data: saved.setdefault("data", data))
+    monkeypatch.setattr(
+        app,
+        "sync_yousign_signature_request_from_api",
+        lambda signature_request_id, now=None: {
+            "status": "signed",
+            "apiStatus": "done",
+            "apiSignerStatus": "signed",
+            "apiHttpStatus": "200",
+            "lastSyncedAt": now,
+            "signedAt": now,
+        },
+    )
+    monkeypatch.setenv("YOUSIGN_WEBHOOK_SECRET", "")
+
+    payload = {
+        "event_name": "signer.done",
+        "data": {
+            "signature_request": {"id": "sr_1", "external_id": "aps-trainer-contract-contract_1"},
+            "signer": {"id": "signer_1", "status": "signed"},
+        },
+    }
+
+    response = app.app.test_client().post("/webhooks/yousign", json=payload)
+
+    assert response.status_code == 200
+    assert response.get_json()["target"] == "aps_trainer_contract"
+    contract = saved["data"]["sessions"][0]["apsTrainerContracts"][0]
+    assert contract["yousign"]["status"] == "signed"
+    assert contract["yousign_status"] == "signed"
+    assert contract["yousign_api_status"] == "done"
+    assert contract["yousign_api_signer_status"] == "signed"
+    assert contract["last_yousign_sync_at"]
+    assert contract["yousign_signed_at"]
+
+
+def test_yousign_webhook_signature_request_done_matches_aps_contract_by_external_id(monkeypatch):
+    import app
+
+    sessions_data = {
+        "sessions": [
+            {
+                "id": "session_1",
+                "apsTrainerContracts": [
+                    {
+                        "id": "contract_1",
+                        "yousign": {
+                            "signatureRequestId": "",
+                            "externalId": "aps-trainer-contract-contract_1",
+                            "status": "ongoing",
+                        },
+                    }
+                ],
+            }
+        ],
+        "jurys": [],
+    }
+    saved = {}
+
+    monkeypatch.setattr(app, "load_formateurs", lambda: [])
+    monkeypatch.setattr(app, "load_sessions", lambda: sessions_data)
+    monkeypatch.setattr(app, "save_sessions", lambda data: saved.setdefault("data", data))
+    monkeypatch.setattr(
+        app,
+        "sync_yousign_signature_request_from_api",
+        lambda signature_request_id, now=None: {
+            "status": "signed",
+            "apiStatus": "done",
+            "apiSignerStatus": "signed",
+            "apiHttpStatus": "200",
+            "lastSyncedAt": now,
+            "signedAt": now,
+            "externalId": "aps-trainer-contract-contract_1",
+        },
+    )
+    monkeypatch.setenv("YOUSIGN_WEBHOOK_SECRET", "")
+
+    payload = {
+        "event_name": "signature_request.done",
+        "data": {
+            "signature_request": {"id": "sr_new", "external_id": "aps-trainer-contract-contract_1"},
+        },
+    }
+
+    response = app.app.test_client().post("/webhooks/yousign", json=payload)
+
+    assert response.status_code == 200
+    assert response.get_json()["target"] == "aps_trainer_contract"
+    contract = saved["data"]["sessions"][0]["apsTrainerContracts"][0]
+    assert contract["yousign"]["status"] == "signed"
+    assert contract["yousign"]["externalId"] == "aps-trainer-contract-contract_1"
+    assert contract["yousign_api_status"] == "done"

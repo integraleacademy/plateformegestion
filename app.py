@@ -5041,6 +5041,26 @@ def download_aps_trainer_signed_yousign_file(filename):
     return send_from_directory(APS_CONTRACT_SIGNED_DIR, os.path.basename(filename), as_attachment=True)
 
 
+@app.patch("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/email")
+def update_aps_trainer_contract_email(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        return jsonify({"ok": False, "error": "Adresse e-mail invalide."}), 400
+    contract["trainerEmail"] = email
+    state = normalize_yousign_state(contract.get("yousign"))
+    if not state.get("sentAt"):
+        state["recipientEmail"] = email
+        contract["yousign"] = state
+        mirror_yousign_state_on_contract(contract)
+    save_sessions(data)
+    return jsonify({"ok": True, "email": email})
+
+
 @app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")
 def delete_aps_trainer_contract(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)

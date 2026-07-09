@@ -4917,8 +4917,13 @@ def inspect_yousign_pdf_before_upload(pdf_path):
     return info
 
 
+YOUSIGN_APS_TRAINER_SIGNATURE_FIELD = {"page": 10, "x": 350, "y": 650, "width": 180, "height": 80}
+YOUSIGN_APS_TRAINER_NO_FIELD_ERROR = "Le signataire Yousign a été créé mais aucun champ de signature n’a été ajouté au document."
+
+
 def yousign_trainer_signature_page(pdf_info):
-    return max(1, int(pdf_info.get("page_count") or 1))
+    page_count = int(pdf_info.get("page_count") or YOUSIGN_APS_TRAINER_SIGNATURE_FIELD["page"])
+    return min(YOUSIGN_APS_TRAINER_SIGNATURE_FIELD["page"], max(1, page_count))
 
 
 @app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/send")
@@ -4968,12 +4973,24 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True)
         signer_id = signer.get("id") or ""
         app.logger.info("Yousign APS trainer signer created signer_id=%s document_id=%s", signer_id, document_id)
-        if not pdf_info.get("signature_tag_present"):
-            raise YousignError("Balise Yousign formateur introuvable dans le PDF généré.")
-        # Le contrat APS utilise exclusivement la balise texte présente dans le
-        # cadre « Signature du formateur ». Ne pas créer de champ manuel avec des
-        # coordonnées globales : cela peut placer la signature en bas de page.
-        field_id = ""
+        field_payload = {**YOUSIGN_APS_TRAINER_SIGNATURE_FIELD, "page": yousign_trainer_signature_page(pdf_info)}
+        field = client.add_signature_field(
+            signature_request_id,
+            document_id,
+            signer_id,
+            page=field_payload["page"],
+            x=field_payload["x"],
+            y=field_payload["y"],
+            width=field_payload["width"],
+            height=field_payload["height"],
+        )
+        field_id = field.get("id") if isinstance(field, dict) else ""
+        app.logger.info(
+            "Yousign APS trainer signature field created field_id=%s signer_id=%s document_id=%s page=%s x=%s y=%s",
+            field_id, signer_id, document_id, field_payload["page"], field_payload["x"], field_payload["y"]
+        )
+        if not field_id:
+            raise YousignError(YOUSIGN_APS_TRAINER_NO_FIELD_ERROR, payload={"message": YOUSIGN_APS_TRAINER_NO_FIELD_ERROR})
         activated = client.activate_signature_request(signature_request_id)
         status = extract_yousign_status(activated) or "ongoing"
         signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""

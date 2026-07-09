@@ -138,15 +138,16 @@ def test_aps_trainer_contract_pdf_contains_yousign_anchor_in_trainer_signature(t
     assert "s2|signature" not in text
 
 
-def test_aps_trainer_yousign_send_uses_text_tag_without_manual_field():
+def test_aps_trainer_yousign_send_creates_manual_signature_field_before_activation():
     import inspect
     import app
 
     source = inspect.getsource(app.send_aps_trainer_contract_yousign)
 
     assert "use_text_tags=True" in source
-    assert "add_signature_field" not in source
-    assert "YOUSIGN_TRAINER_SIGNATURE_FIELD" not in app.__dict__
+    assert "add_signature_field" in source
+    assert source.index("add_signer") < source.index("add_signature_field") < source.index("activate_signature_request")
+    assert app.YOUSIGN_APS_TRAINER_SIGNATURE_FIELD == {"page": 10, "x": 350, "y": 650, "width": 180, "height": 80}
 
 
 def test_sanitize_yousign_external_id_removes_forbidden_chars():

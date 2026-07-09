@@ -31,7 +31,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from yousign_service import YousignClient, YousignError, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
+from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -4950,7 +4950,7 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
     now = datetime.now().isoformat(timespec="seconds")
     try:
         trainer_name = contract.get("trainerName") or email
-        external_id = sanitize_yousign_external_id(f"aps-trainer-contract-{sid}-{contract_id}")
+        external_id = sanitize_yousign_external_id(f"aps-trainer-contract-{contract_id}")
         app.logger.info("Yousign APS trainer contract external_id=%s", external_id)
         signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
@@ -5032,18 +5032,17 @@ def sync_aps_trainer_contract_yousign(sid, contract_id):
     if not signature_request_id: return jsonify({"ok": False, "error": "Aucune demande Yousign à actualiser."}), 400
     now = datetime.now().isoformat(timespec="seconds")
     try:
-        client = YousignClient()
-        payload = client.get_signature_request(signature_request_id)
-        signers_payload = client.get_signature_request_signers(signature_request_id)
-        updates = build_yousign_api_sync_updates(payload, signers_payload, now)
-        status = updates["status"]
-        updates.update({"lastEvent": "manual.sync", "lastEventAt": now})
+        updates = sync_yousign_signature_request_from_api(signature_request_id, now)
+        status = updates.get("status") or state.get("status")
+        updates.update({"lastEvent": "manual.sync" if updates.get("lastSyncedAt") else "manual.sync.error", "lastEventAt": now})
         contract["yousign"] = normalize_yousign_state({**state, **updates})
         mirror_yousign_state_on_contract(contract)
         save_sessions(data)
+        if not updates.get("lastSyncedAt"):
+            return jsonify({"ok": False, "error": updates.get("apiError") or "Erreur API Yousign", "status": status, "statusLabel": yousign_status_label(status)}), 502
         return jsonify({"ok": True, "status": status, "statusLabel": yousign_status_label(status)})
     except YousignError as exc:
-        contract["yousign"] = normalize_yousign_state({**state, "lastSyncedAt": now, "lastEvent": "manual.sync.error", "lastEventAt": now, "error": str(exc)})
+        contract["yousign"] = normalize_yousign_state({**state, "lastEvent": "manual.sync.error", "lastEventAt": now, "apiError": str(exc), "apiHttpStatus": str(exc.status_code or "network"), "apiStatus": f"erreur {exc.status_code or 'network'}", "error": str(exc)})
         mirror_yousign_state_on_contract(contract)
         save_sessions(data)
         return jsonify({"ok": False, "error": f"Erreur de synchronisation Yousign: {exc}"}), 502
@@ -6321,7 +6320,7 @@ def latest_formateur_pdf_attachment(formateur, preferred_doc_id=""):
 
 YOUSIGN_STATUS_LABELS = {
     "draft": "Brouillon", "approval": "En préparation", "ongoing": "En attente de signature",
-    "done": "Signé", "declined": "Refusé", "expired": "Expiré", "canceled": "Annulé",
+    "done": "Signé", "signed": "Signé", "partially_signed": "Partiellement signé", "declined": "Refusé", "expired": "Expiré", "canceled": "Annulé",
     "rejected": "Refusé", "error": "Erreur d’envoi",
 }
 YOUSIGN_EVENT_STATUS = {
@@ -6347,12 +6346,12 @@ def normalize_yousign_state(state=None):
         "signatureRequestId": "", "documentId": "", "signerId": "", "fieldId": "", "externalId": "", "status": "draft", "statusLabel": "Brouillon",
         "signatureUrl": "", "sentAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
         "lastEvent": "", "lastEventAt": "", "lastSyncedAt": "", "lastWebhookAt": "",
-        "apiStatus": "", "apiSignerStatus": "",
+        "apiStatus": "", "apiSignerStatus": "", "apiHttpStatus": "", "apiError": "", "apiRawResponse": "",
         "recipientEmail": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
     }
     legacy = {
         "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
-        "yousign_external_id": "externalId", "yousign_api_status": "apiStatus", "yousign_api_signer_status": "apiSignerStatus",
+        "yousign_external_id": "externalId", "yousign_api_status": "apiStatus", "yousign_api_signer_status": "apiSignerStatus", "yousign_api_http_status": "apiHttpStatus", "yousign_api_error": "apiError", "last_yousign_raw_response": "apiRawResponse",
         "yousign_status": "status", "yousign_status_label": "statusLabel", "yousign_sent_at": "sentAt",
         "yousign_signed_at": "signedAt", "yousign_declined_at": "declinedAt", "yousign_expired_at": "expiredAt",
         "yousign_canceled_at": "canceledAt", "yousign_last_event": "lastEvent", "yousign_last_event_at": "lastEventAt",
@@ -6372,7 +6371,7 @@ def mirror_yousign_state_on_contract(contract):
     contract["yousign"] = state
     mapping = {
         "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
-        "yousign_external_id": "externalId", "yousign_api_status": "apiStatus", "yousign_api_signer_status": "apiSignerStatus",
+        "yousign_external_id": "externalId", "yousign_api_status": "apiStatus", "yousign_api_signer_status": "apiSignerStatus", "yousign_api_http_status": "apiHttpStatus", "yousign_api_error": "apiError", "last_yousign_raw_response": "apiRawResponse",
         "yousign_status": "status", "yousign_status_label": "statusLabel", "yousign_sent_at": "sentAt",
         "yousign_signed_at": "signedAt", "yousign_declined_at": "declinedAt", "yousign_expired_at": "expiredAt",
         "yousign_canceled_at": "canceledAt", "yousign_last_event": "lastEvent", "yousign_last_event_at": "lastEventAt",
@@ -6428,26 +6427,73 @@ def extract_yousign_signers_list(signers_payload):
             return signers_payload["signers"]
     return []
 
-def build_yousign_api_sync_updates(signature_request_payload, signers_payload=None, now=None):
+def build_yousign_api_sync_updates(signature_request_payload, signers_payload=None, now=None, http_status=None, raw_response=None):
     now = now or datetime.now().isoformat(timespec="seconds")
     signers = extract_yousign_signers_list(signers_payload)
     signer_statuses = [str(s.get("status") or "") for s in signers if isinstance(s, dict)]
     api_status = signature_request_payload.get("status") if isinstance(signature_request_payload, dict) else ""
-    status = extract_yousign_status({**(signature_request_payload or {}), "signers": signers})
-    if api_status == "done" or any(s in {"signed", "done"} for s in signer_statuses):
-        status = "done"
+    internal_status = extract_yousign_status({**(signature_request_payload or {}), "signers": signers})
+    signed_signers = [s for s in signer_statuses if s in {"signed", "done"}]
+    if api_status == "done":
+        internal_status = "signed"
+    elif signed_signers and len(signed_signers) == len(signer_statuses or signed_signers):
+        internal_status = "signed"
+    elif signed_signers:
+        internal_status = "partially_signed"
+    elif api_status == "ongoing":
+        internal_status = "ongoing"
     updates = {
-        "status": status, "apiStatus": api_status or status, "apiSignerStatus": ",".join([s for s in signer_statuses if s]),
-        "lastSyncedAt": now, "error": None,
+        "status": internal_status,
+        "apiStatus": api_status or internal_status,
+        "apiSignerStatus": ",".join([s for s in signer_statuses if s]),
+        "apiHttpStatus": str(http_status or ""),
+        "apiRawResponse": json.dumps(raw_response if raw_response is not None else signature_request_payload, ensure_ascii=False, default=str)[:4000],
+        "apiError": "",
+        "lastSyncedAt": now,
+        "error": None,
     }
     external_id = extract_yousign_external_id(signature_request_payload or {})
     if external_id:
         updates["externalId"] = external_id
-    if status == "done": updates["signedAt"] = now
-    if status == "declined": updates["declinedAt"] = now
-    if status == "expired": updates["expiredAt"] = now
-    if status == "canceled": updates["canceledAt"] = now
+    if internal_status in {"signed", "done"}: updates["signedAt"] = now
+    if internal_status == "declined": updates["declinedAt"] = now
+    if internal_status == "expired": updates["expiredAt"] = now
+    if internal_status == "canceled": updates["canceledAt"] = now
     return updates
+
+def sync_yousign_signature_request_from_api(signature_request_id, now=None):
+    now = now or datetime.now().isoformat(timespec="seconds")
+    client = YousignClient()
+    env = detect_yousign_environment(client.config.base_url)
+    logger.info("YOUSIGN ENV=%s base_url=%s", env, client.config.base_url)
+    logger.info("YOUSIGN SYNC START signature_request_id=%s", signature_request_id)
+    try:
+        payload, http_status, url = client.get_signature_request_with_http_status(signature_request_id)
+        logger.info("YOUSIGN SYNC REQUEST url=%s signature_request_id=%s", url, signature_request_id)
+        logger.info("YOUSIGN SYNC RESPONSE http_status=%s body=%s", http_status, json.dumps(payload, ensure_ascii=False, default=str))
+        signers_payload, signers_http_status, signers_url = client.get_signature_request_signers_with_http_status(signature_request_id)
+        logger.info("YOUSIGN SYNC SIGNERS REQUEST url=%s signature_request_id=%s", signers_url, signature_request_id)
+        logger.info("YOUSIGN SYNC SIGNERS RESPONSE http_status=%s body=%s", signers_http_status, json.dumps(signers_payload, ensure_ascii=False, default=str))
+        for signer in extract_yousign_signers_list(signers_payload):
+            if not isinstance(signer, dict):
+                continue
+            info = signer.get("info") if isinstance(signer.get("info"), dict) else {}
+            logger.info(
+                "YOUSIGN SYNC SIGNER id=%s email=%s status=%s signed_at=%s done_at=%s",
+                signer.get("id"), signer.get("email") or info.get("email"), signer.get("status"), signer.get("signed_at"), signer.get("done_at"),
+            )
+        return build_yousign_api_sync_updates(payload, signers_payload, now, http_status=http_status, raw_response=payload)
+    except YousignError as exc:
+        status = exc.status_code or "network"
+        body = exc.payload if exc.payload is not None else str(exc)
+        logger.error("YOUSIGN SYNC ERROR signature_request_id=%s http_status=%s body=%s error=%s", signature_request_id, status, body, exc)
+        return {
+            "apiStatus": f"erreur {status}",
+            "apiHttpStatus": str(status),
+            "apiError": str(exc),
+            "apiRawResponse": json.dumps(body, ensure_ascii=False, default=str)[:4000],
+            "error": str(exc),
+        }
 
 def update_formateur_yousign_state(formateur, updates):
     state = normalize_yousign_state(formateur.get("yousign"))
@@ -7004,16 +7050,16 @@ def sync_formateur_contract_yousign(fid):
         return redirect(url_for("formateur_detail", fid=fid))
     try:
         now = datetime.now().isoformat(timespec="seconds")
-        client = YousignClient()
-        payload = client.get_signature_request(signature_request_id)
-        signers_payload = client.get_signature_request_signers(signature_request_id)
-        updates = build_yousign_api_sync_updates(payload, signers_payload, now)
-        status = updates["status"]
+        updates = sync_yousign_signature_request_from_api(signature_request_id, now)
+        status = updates.get("status") or state.get("status")
         update_formateur_yousign_state(formateur, updates)
         save_formateurs(formateurs)
-        flash("Statut Yousign synchronisé.", "ok")
+        if updates.get("lastSyncedAt"):
+            flash("Statut Yousign synchronisé.", "ok")
+        else:
+            flash(f"Erreur de synchronisation Yousign: {updates.get('apiError') or 'réponse API inexploitable'}", "error")
     except YousignError as exc:
-        update_formateur_yousign_state(formateur, {"lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": str(exc)})
+        update_formateur_yousign_state(formateur, {"apiError": str(exc), "apiHttpStatus": str(exc.status_code or "network"), "apiStatus": f"erreur {exc.status_code or 'network'}", "error": str(exc)})
         save_formateurs(formateurs)
         flash(f"Erreur de synchronisation Yousign: {exc}", "error")
     return redirect(url_for("formateur_detail", fid=fid))
@@ -7087,7 +7133,7 @@ def yousign_webhook():
 
     status = YOUSIGN_EVENT_STATUS.get(event_name) or extract_yousign_status(signature_request or payload)
     now = datetime.now().isoformat(timespec="seconds")
-    updates = {"status": status, "externalId": external_id, "lastWebhookAt": now, "lastSyncedAt": now, "lastEvent": event_name, "lastEventAt": now, "error": None}
+    updates = {"status": status, "externalId": external_id, "lastWebhookAt": now, "lastEvent": event_name, "lastEventAt": now, "error": None}
     if signer_id:
         updates["signerId"] = signer_id
     if status == "done": updates["signedAt"] = now
@@ -7097,10 +7143,7 @@ def yousign_webhook():
 
     try:
         if signature_request_id:
-            client = YousignClient(timeout=10)
-            api_payload = client.get_signature_request(signature_request_id)
-            signers_payload = client.get_signature_request_signers(signature_request_id)
-            updates.update(build_yousign_api_sync_updates(api_payload, signers_payload, now))
+            updates.update(sync_yousign_signature_request_from_api(signature_request_id, now))
             updates.update({"lastWebhookAt": now, "lastEvent": event_name, "lastEventAt": now})
     except YousignError as exc:
         logger.warning("Yousign webhook API sync failed signature_request_id=%s error=%s", signature_request_id, exc)

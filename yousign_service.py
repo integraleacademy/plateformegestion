@@ -134,21 +134,23 @@ class YousignClient:
     def _url(self, path: str) -> str:
         return f"{self.config.base_url}/{path.lstrip('/')}"
 
-    def request(self, method: str, path: str, payload: Any = None, headers: Optional[Dict[str, str]] = None) -> Any:
+    def request_with_http_status(self, method: str, path: str, payload: Any = None, headers: Optional[Dict[str, str]] = None) -> tuple[Any, int, str]:
         body = None
         request_headers = self._headers()
         if headers:
             request_headers.update(headers)
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(self._url(path), data=body, headers=request_headers, method=method.upper())
+        url = self._url(path)
+        req = urllib.request.Request(url, data=body, headers=request_headers, method=method.upper())
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
                 data = response.read()
-                if not data:
-                    return {}
-                charset = response.headers.get_content_charset() or "utf-8"
-                return json.loads(data.decode(charset))
+                payload = {}
+                if data:
+                    charset = response.headers.get_content_charset() or "utf-8"
+                    payload = json.loads(data.decode(charset))
+                return payload, response.status, url
         except urllib.error.HTTPError as exc:
             raw = exc.read().decode("utf-8", errors="replace")
             try:
@@ -161,6 +163,10 @@ class YousignClient:
         except urllib.error.URLError as exc:
             logger.warning("Yousign network error path=%s reason=%s", path, exc.reason)
             raise YousignError("Impossible de joindre l'API Yousign.") from exc
+
+    def request(self, method: str, path: str, payload: Any = None, headers: Optional[Dict[str, str]] = None) -> Any:
+        response_payload, _status, _url = self.request_with_http_status(method, path, payload, headers)
+        return response_payload
 
     def upload_file(self, signature_request_id: str, pdf_bytes: bytes, filename: str) -> Any:
         boundary = "----plateformegestion-yousign-boundary"
@@ -249,8 +255,14 @@ class YousignClient:
     def get_signature_request(self, signature_request_id: str) -> Any:
         return self.request("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}")
 
+    def get_signature_request_with_http_status(self, signature_request_id: str) -> tuple[Any, int, str]:
+        return self.request_with_http_status("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}")
+
     def get_signature_request_signers(self, signature_request_id: str) -> Any:
         return self.request("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers")
+
+    def get_signature_request_signers_with_http_status(self, signature_request_id: str) -> tuple[Any, int, str]:
+        return self.request_with_http_status("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers")
 
     def download_signed_documents(self, signature_request_id: str) -> bytes:
         req = urllib.request.Request(

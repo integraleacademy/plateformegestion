@@ -254,3 +254,28 @@ def test_ensure_aps_trainer_contract_pdf_reuses_existing_file(tmp_path, monkeypa
     path = app.ensure_aps_trainer_contract_pdf({"id": "session-1"}, {"id": "contract-1", "pdfFilename": "existing.pdf"})
 
     assert path == str(existing)
+
+
+def test_extract_yousign_status_marks_completed_when_all_signers_done():
+    import app
+
+    payload = {
+        "id": "sr_1",
+        "status": "ongoing",
+        "signers": [{"id": "signer_1", "status": "done"}],
+    }
+
+    assert app.extract_yousign_status(payload) == "done"
+
+
+def test_extract_yousign_status_uses_webhook_signer_status_when_done():
+    import app
+
+    payload = {
+        "event_name": "signature_request.updated",
+        "data": {"signer": {"id": "signer_1", "status": "done"}},
+        "signer": {"id": "signer_1", "status": "done"},
+        "status": "ongoing",
+    }
+
+    assert app.extract_yousign_status(payload) == "done"

@@ -249,6 +249,9 @@ class YousignClient:
     def get_signature_request(self, signature_request_id: str) -> Any:
         return self.request("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}")
 
+    def get_signature_request_signers(self, signature_request_id: str) -> Any:
+        return self.request("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers")
+
     def download_signed_documents(self, signature_request_id: str) -> bytes:
         req = urllib.request.Request(
             self._url(f"signature_requests/{urllib.parse.quote(signature_request_id)}/documents/download"),

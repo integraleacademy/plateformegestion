@@ -1207,6 +1207,15 @@ a.back:hover{ background:#d9a848 !important; }
           {% if contract_yousign.signedAt %}<div class="yousign-status-line">✍️ Signé le {{ contract_yousign.signedAt|datetimefr }}</div>{% endif %}
           {% if contract_yousign.lastEvent %}<div class="yousign-status-line">🔔 Dernier événement reçu : {{ contract_yousign.lastEvent }}</div>{% endif %}
           <div class="muted">Dernière mise à jour : {{ (contract_yousign.lastEventAt or contract_yousign.lastWebhookAt or contract_yousign.lastSyncedAt or contract_yousign.sentAt or contract.generatedAt)|datetimefr }}</div>
+          <details class="muted" style="margin-top:6px;">
+            <summary>Debug Yousign temporaire</summary>
+            <div>signature_request_id : {{ contract_yousign.signatureRequestId or contract.yousign_signature_request_id or '—' }}</div>
+            <div>external_id : {{ contract_yousign.externalId or contract.yousign_external_id or '—' }}</div>
+            <div>statut interne : {{ contract_yousign.status or contract.yousign_status or '—' }}</div>
+            <div>statut API Yousign : {{ contract_yousign.apiStatus or contract.yousign_api_status or '—' }}</div>
+            <div>dernier événement webhook : {{ contract_yousign.lastEvent or contract.yousign_last_event or '—' }}</div>
+            <div>dernière synchronisation API : {{ contract_yousign.lastSyncedAt or contract.last_yousign_sync_at or '—' }}</div>
+          </details>
           {% if contract_yousign.error %}<div class="relance-note" style="color:#b91c1c;">Erreur Yousign : {{ contract_yousign.error }}</div>{% endif %}
         </div>
         <div class="planning-actions" style="margin-top:10px;">

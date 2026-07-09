@@ -1170,12 +1170,18 @@ a.back:hover{ background:#d9a848 !important; }
       {% set contract = found.contract %}
       {% set contract_yousign = contract.yousign|default({}) %}
       {% set ys_status = contract_yousign.status|default('draft') %}
-      <div class="contract-card yousign-status-{{ ys_status }}" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}" data-yousign-status="{{ ys_status }}">
+      <div class="contract-card yousign-status-{{ ys_status }}" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail or '' }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}" data-yousign-status="{{ ys_status }}">
         <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
         <div class="yousign-status-panel">
           {% if is_yousign_sandbox() and contract_yousign.signatureRequestId %}<div class="yousign-sandbox-warning">⚠️ Mode test Yousign : ce document n’est pas une signature de production.</div>{% endif %}
           <div class="yousign-status-line">✅ Contrat généré le {{ contract.generatedAt|datetimefr }}</div>
-          {% if contract_yousign.sentAt %}<div class="yousign-status-line">📨 Signature envoyée le {{ contract_yousign.sentAt|datetimefr }} à {{ contract_yousign.recipientEmail or contract.trainerEmail }}</div>{% else %}<div class="yousign-status-line">📨 Signature Yousign non envoyée{% if contract.trainerEmail %} — destinataire prévu : {{ contract.trainerEmail }}{% endif %}</div>{% endif %}
+          {% if contract_yousign.sentAt %}<div class="yousign-status-line">📨 Signature envoyée le {{ contract_yousign.sentAt|datetimefr }} à <span class="contract-recipient-email">{{ contract_yousign.recipientEmail or contract.trainerEmail }}</span></div>{% else %}<div class="yousign-status-line">📨 Signature Yousign non envoyée — destinataire prévu : <span class="contract-recipient-email">{{ contract.trainerEmail or 'à renseigner' }}</span></div>{% endif %}
+          <div class="contract-email-editor">
+            <label>Adresse mail destinataire
+              <input class="contract-recipient-input" type="email" value="{{ contract.trainerEmail or '' }}" placeholder="email@exemple.fr">
+            </label>
+            <button class="btn small save-contract-email-btn" type="button">Enregistrer l’email</button>
+          </div>
           <div class="yousign-status-line">
             {% if ys_status == 'done' %}✅{% elif ys_status in ['declined','error'] %}⚠️{% elif ys_status == 'expired' %}⌛{% elif ys_status == 'canceled' %}🚫{% else %}🕒{% endif %}
             Statut : <span class="yousign-badge yousign-badge--{{ ys_status }}">{{ contract_yousign.statusLabel or yousign_status_label(ys_status) }}</span>
@@ -1238,6 +1244,10 @@ a.back:hover{ background:#d9a848 !important; }
   .aps-contract-summary__item span{display:block;font-size:11px;color:#64748b;font-weight:700;margin-bottom:5px;}
   .aps-contract-summary__item strong{font-size:15px;color:#0f172a;}
   .aps-contract-empty{padding:18px;border:1px dashed #cbd5e1;border-radius:18px;color:#64748b;background:#fff;}
+  .contract-email-editor{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:10px 0 4px;}
+  .contract-email-editor label{display:flex;flex-direction:column;gap:5px;min-width:260px;color:#334155;font-size:12px;font-weight:800;}
+  .contract-email-editor input{height:40px;border:1px solid #cbd5e1;border-radius:12px;padding:0 12px;font:inherit;font-weight:600;}
+  .contract-email-editor input:focus{outline:none;border-color:#d6ac48;box-shadow:0 0 0 3px rgba(214,172,72,.18);}
   @media (max-width:720px){.aps-contract-modal__header,.aps-contract-modal__body,.aps-contract-modal__footer{padding-left:18px;padding-right:18px}.aps-contract-grid,.aps-contract-summary{grid-template-columns:1fr}.aps-contract-modal__footer{flex-direction:column-reverse}.aps-contract-modal__footer .btn{width:100%;}}
 </style>
 <div class="modal aps-contract-modal" id="apsContractModal" aria-hidden="true"><div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="apsContractModalTitle">
@@ -2020,6 +2030,32 @@ apsContractForm?.addEventListener("submit", async (event) => {
   catch(error){ apsContractError.textContent = error.message; apsContractError.style.display = "block"; showPlanningToast(error.message, "error"); }
 });
 
+function updateContractEmailUi(card, email){
+  card.dataset.contractEmail = email;
+  card.querySelectorAll(".send-contract-btn,.yousign-contract-btn").forEach(actionBtn => {
+    actionBtn.disabled = !email;
+    if(email) actionBtn.removeAttribute("title");
+    else actionBtn.title = "Email formateur manquant";
+  });
+  const label = card.querySelector(".contract-recipient-email");
+  if(label) label.textContent = email || "à renseigner";
+}
+document.querySelectorAll(".save-contract-email-btn").forEach(btn => btn.addEventListener("click", async () => {
+  const card = btn.closest("[data-contract-id]");
+  const input = card.querySelector(".contract-recipient-input");
+  const email = input.value.trim();
+  btn.disabled = true;
+  const previousLabel = btn.textContent;
+  btn.textContent = "Enregistrement...";
+  try{
+    const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/email`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email})});
+    const p = await r.json();
+    if(!r.ok || !p.ok) throw new Error(p.error || "Mise à jour impossible.");
+    updateContractEmailUi(card, p.email || "");
+    showPlanningToast("Adresse destinataire enregistrée.", "success");
+  }catch(error){ showPlanningToast(error.message, "error"); }
+  finally{ btn.disabled = false; btn.textContent = previousLabel; }
+}));
 document.querySelectorAll(".delete-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); if(!confirm("Supprimer ce contrat ?")) return; const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}`, {method:"DELETE"}); const p = await r.json(); if(!r.ok || !p.ok){ showPlanningToast(p.error || "Suppression impossible", "error"); return; } showPlanningToast("Contrat supprimé.", "success"); card.remove(); }));
 const sendContractModal = document.getElementById("sendContractModal");
 const sendContractForm = document.getElementById("sendContractForm");

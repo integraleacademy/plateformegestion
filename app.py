@@ -4784,14 +4784,35 @@ def preview_aps_trainer_contracts(sid):
     return jsonify({"ok": True, "trainers": trainers})
 
 
+def ensure_aps_trainer_contract_pdf(session_data, contract):
+    """Return the local APS trainer contract PDF path, regenerating it if needed.
+
+    Render's filesystem can be reset between deployments/restarts while the
+    session metadata remains in persistent storage. In that case, existing
+    contract links should keep working instead of returning a bare 404.
+    """
+    filename = os.path.basename(contract.get("pdfFilename") or "")
+    if not filename:
+        filename = f"contrat_formateur_aps_{session_data.get('id') or 'session'}_{contract.get('id') or uuid.uuid4()}.pdf"
+        contract["pdfFilename"] = filename
+    path = os.path.join(APS_CONTRACT_DIR, filename)
+    if not os.path.exists(path):
+        os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
+        generate_aps_trainer_contract_pdf(session_data, contract, path)
+    return path
+
+
 @app.get("/sessions/<sid>/aps-trainer-contracts/<contract_id>/view")
 def view_aps_trainer_contract(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: abort(404)
     contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract or not contract.get("pdfFilename"): abort(404)
-    path = os.path.join(APS_CONTRACT_DIR, os.path.basename(contract["pdfFilename"]))
-    if not os.path.exists(path): abort(404)
+    if not contract: abort(404)
+    try:
+        path = ensure_aps_trainer_contract_pdf(session_data, contract)
+    except Exception:
+        app.logger.exception("Régénération contrat APS impossible session=%s contrat=%s", sid, contract_id)
+        abort(404)
     return send_file(path, mimetype="application/pdf", as_attachment=False)
 
 
@@ -4844,8 +4865,12 @@ def send_aps_trainer_contract(sid, contract_id):
     contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     if not contract.get("trainerEmail"): return jsonify({"ok": False, "error": "Email formateur manquant."}), 400
-    contract_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(contract.get("pdfFilename") or "")); planning_name = session_data.get("planning_pdf"); planning_path = os.path.join(PLANNING_DIR, os.path.basename(planning_name or ""))
-    if not os.path.exists(contract_path): return jsonify({"ok": False, "error": "PDF contrat introuvable."}), 400
+    try:
+        contract_path = ensure_aps_trainer_contract_pdf(session_data, contract)
+    except Exception as exc:
+        app.logger.exception("Régénération contrat APS impossible avant envoi mail session=%s contrat=%s", sid, contract_id)
+        return jsonify({"ok": False, "error": f"PDF contrat introuvable et régénération impossible: {exc}"}), 400
+    planning_name = session_data.get("planning_pdf"); planning_path = os.path.join(PLANNING_DIR, os.path.basename(planning_name or ""))
     if not planning_name or not os.path.exists(planning_path): return jsonify({"ok": False, "error": "PDF planning APS complet introuvable."}), 400
     payload = request.get_json(silent=True) or {}; subject = payload.get("emailSubject") or "Contrat d’intervention formateur — Session APS"; body = payload.get("emailBody") or ""
     ok, message = send_email_with_attachments(contract["trainerEmail"], subject, body, [(contract_path, os.path.basename(contract_path)), (planning_path, os.path.basename(planning_path))])
@@ -4889,8 +4914,11 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
     if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.args.get("force"):
         return jsonify({"ok": False, "error": "Une demande Yousign active existe déjà pour ce contrat."}), 409
 
-    contract_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(contract.get("pdfFilename") or ""))
-    if not os.path.exists(contract_path): return jsonify({"ok": False, "error": "PDF contrat introuvable."}), 400
+    try:
+        contract_path = ensure_aps_trainer_contract_pdf(session_data, contract)
+    except Exception as exc:
+        app.logger.exception("Régénération contrat APS impossible avant envoi Yousign session=%s contrat=%s", sid, contract_id)
+        return jsonify({"ok": False, "error": f"PDF contrat introuvable et régénération impossible: {exc}"}), 400
 
     client = YousignClient()
     now = datetime.now().isoformat(timespec="seconds")

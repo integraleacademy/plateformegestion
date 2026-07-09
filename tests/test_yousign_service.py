@@ -170,3 +170,45 @@ def test_yousign_add_signer_can_use_pdf_text_tags_without_manual_fields(monkeypa
     client.add_signer("sr_1", "Jean", "Dupont", "jean@example.com", document_id="doc_1", use_text_tags=True)
 
     assert "fields" not in captured["payload"]
+
+
+def test_ensure_aps_trainer_contract_pdf_regenerates_missing_file(tmp_path, monkeypatch):
+    import app
+
+    generated = {}
+
+    def fake_generate(session_data, contract, output_path):
+        generated["session"] = session_data
+        generated["contract"] = contract
+        generated["output_path"] = output_path
+        Path(output_path).write_bytes(b"%PDF-1.4 test")
+
+    monkeypatch.setattr(app, "APS_CONTRACT_DIR", str(tmp_path))
+    monkeypatch.setattr(app, "generate_aps_trainer_contract_pdf", fake_generate)
+
+    session_data = {"id": "session-1", "formation": "APS"}
+    contract = {"id": "contract-1", "pdfFilename": "missing.pdf"}
+
+    path = app.ensure_aps_trainer_contract_pdf(session_data, contract)
+
+    assert path == str(tmp_path / "missing.pdf")
+    assert Path(path).exists()
+    assert generated["session"] is session_data
+    assert generated["contract"] is contract
+
+
+def test_ensure_aps_trainer_contract_pdf_reuses_existing_file(tmp_path, monkeypatch):
+    import app
+
+    existing = tmp_path / "existing.pdf"
+    existing.write_bytes(b"%PDF-1.4 existing")
+
+    def fail_generate(*args, **kwargs):
+        raise AssertionError("PDF should not be regenerated when it already exists")
+
+    monkeypatch.setattr(app, "APS_CONTRACT_DIR", str(tmp_path))
+    monkeypatch.setattr(app, "generate_aps_trainer_contract_pdf", fail_generate)
+
+    path = app.ensure_aps_trainer_contract_pdf({"id": "session-1"}, {"id": "contract-1", "pdfFilename": "existing.pdf"})
+
+    assert path == str(existing)

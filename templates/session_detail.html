@@ -1178,7 +1178,7 @@ a.back:hover{ background:#d9a848 !important; }
       {% set contract = found.contract %}
       {% set contract_yousign = contract.yousign|default({}) %}
       {% set ys_status = contract_yousign.status|default('draft') %}
-      <div class="contract-card yousign-status-{{ ys_status }}" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail or '' }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}" data-yousign-status="{{ ys_status }}">
+      <div class="contract-card yousign-status-{{ ys_status }}" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail or '' }}" data-contract-phone="{{ contract.trainerPhone or '' }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}" data-yousign-status="{{ ys_status }}">
         <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
         <div class="yousign-status-panel">
           {% if is_yousign_sandbox() and contract_yousign.signatureRequestId %}<div class="yousign-sandbox-warning">⚠️ Mode test Yousign : ce document n’est pas une signature de production.</div>{% endif %}
@@ -1189,6 +1189,12 @@ a.back:hover{ background:#d9a848 !important; }
               <input class="contract-recipient-input" type="email" value="{{ contract.trainerEmail or '' }}" placeholder="email@exemple.fr">
             </label>
             <button class="btn small save-contract-email-btn" type="button">Enregistrer l’email</button>
+          </div>
+          <div class="contract-email-editor">
+            <label>Téléphone portable pour le code Yousign
+              <input class="contract-phone-input" type="tel" value="{{ contract.trainerPhone or '' }}" placeholder="06 12 34 56 78">
+            </label>
+            <button class="btn small save-contract-phone-btn" type="button">Enregistrer le téléphone</button>
           </div>
           <div class="yousign-status-line">
             {% if ys_status in ['done','signed'] %}✅{% elif ys_status in ['declined','error'] %}⚠️{% elif ys_status == 'expired' %}⌛{% elif ys_status == 'canceled' %}🚫{% else %}🕒{% endif %}
@@ -1225,7 +1231,7 @@ a.back:hover{ background:#d9a848 !important; }
           <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">{% if ys_status in ['done','signed'] %}Voir contrat signé{% else %}Voir contrat{% endif %}</a>
           {% if contract_yousign.signatureRequestId %}<button class="btn small gold yousign-sync-btn" type="button">Actualiser statut Yousign</button>{% endif %}
           {% if ys_status in ['done','signed'] %}<button class="btn small gold yousign-download-btn" type="button">Télécharger PDF signé</button><button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
-          {% else %}<button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button><button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>{% if ys_status in ['ongoing','expired','error'] %}Relancer Yousign{% elif ys_status == 'declined' %}Renvoyer une nouvelle demande{% else %}Envoyer signature Yousign{% endif %}</button><button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>{% endif %}
+          {% else %}<button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button><button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% elif not contract.trainerPhone %}disabled title="Téléphone portable formateur manquant"{% endif %}>{% if ys_status in ['ongoing','expired','error'] %}Relancer Yousign{% elif ys_status == 'declined' %}Renvoyer une nouvelle demande{% else %}Envoyer signature Yousign{% endif %}</button><button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>{% endif %}
           <button class="btn small danger delete-contract-btn" type="button">{% if ys_status in ['done','signed'] %}Archiver / supprimer{% else %}Supprimer contrat{% endif %}</button>
         </div>
       </div>
@@ -2058,15 +2064,32 @@ apsContractForm?.addEventListener("submit", async (event) => {
   catch(error){ apsContractError.textContent = error.message; apsContractError.style.display = "block"; showPlanningToast(error.message, "error"); }
 });
 
-function updateContractEmailUi(card, email){
-  card.dataset.contractEmail = email;
-  card.querySelectorAll(".send-contract-btn,.yousign-contract-btn").forEach(actionBtn => {
+function updateContractYousignActionState(card){
+  const email = card.dataset.contractEmail || "";
+  const phone = card.dataset.contractPhone || "";
+  card.querySelectorAll(".send-contract-btn").forEach(actionBtn => {
     actionBtn.disabled = !email;
     if(email) actionBtn.removeAttribute("title");
     else actionBtn.title = "Email formateur manquant";
   });
+  card.querySelectorAll(".yousign-contract-btn").forEach(actionBtn => {
+    actionBtn.disabled = !email || !phone;
+    if(!email) actionBtn.title = "Email formateur manquant";
+    else if(!phone) actionBtn.title = "Téléphone portable formateur manquant";
+    else actionBtn.removeAttribute("title");
+  });
+}
+function updateContractEmailUi(card, email){
+  card.dataset.contractEmail = email;
   const label = card.querySelector(".contract-recipient-email");
   if(label) label.textContent = email || "à renseigner";
+  updateContractYousignActionState(card);
+}
+function updateContractPhoneUi(card, phone){
+  card.dataset.contractPhone = phone;
+  const input = card.querySelector(".contract-phone-input");
+  if(input) input.value = phone;
+  updateContractYousignActionState(card);
 }
 document.querySelectorAll(".save-contract-email-btn").forEach(btn => btn.addEventListener("click", async () => {
   const card = btn.closest("[data-contract-id]");
@@ -2084,6 +2107,23 @@ document.querySelectorAll(".save-contract-email-btn").forEach(btn => btn.addEven
   }catch(error){ showPlanningToast(error.message, "error"); }
   finally{ btn.disabled = false; btn.textContent = previousLabel; }
 }));
+document.querySelectorAll(".save-contract-phone-btn").forEach(btn => btn.addEventListener("click", async () => {
+  const card = btn.closest("[data-contract-id]");
+  const input = card.querySelector(".contract-phone-input");
+  const phone = input.value.trim();
+  btn.disabled = true;
+  const previousLabel = btn.textContent;
+  btn.textContent = "Enregistrement...";
+  try{
+    const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/phone`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({phone})});
+    const p = await r.json();
+    if(!r.ok || !p.ok) throw new Error(p.error || "Mise à jour impossible.");
+    updateContractPhoneUi(card, p.phone || "");
+    showPlanningToast("Téléphone Yousign enregistré.", "success");
+  }catch(error){ showPlanningToast(error.message, "error"); }
+  finally{ btn.disabled = false; btn.textContent = previousLabel; }
+}));
+document.querySelectorAll("[data-contract-id]").forEach(updateContractYousignActionState);
 document.querySelectorAll(".delete-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); if(!(await SaasDialog.confirm("Supprimer ce contrat ?", { danger: true }))) return; const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}`, {method:"DELETE"}); const p = await r.json(); if(!r.ok || !p.ok){ showPlanningToast(p.error || "Suppression impossible", "error"); return; } showPlanningToast("Contrat supprimé.", "success"); card.remove(); }));
 const sendContractModal = document.getElementById("sendContractModal");
 const sendContractForm = document.getElementById("sendContractForm");
@@ -2091,7 +2131,7 @@ function closeSendModal(){ sendContractModal?.classList.remove("open"); sendCont
 document.getElementById("closeSendContractModal")?.addEventListener("click", closeSendModal); document.getElementById("cancelSendContract")?.addEventListener("click", closeSendModal);
 document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListener("click", () => { const card = btn.closest("[data-contract-id]"); currentSendContractId = card.dataset.contractId; document.getElementById("sendContractRecipient").textContent = card.dataset.contractEmail; document.getElementById("sendContractSubject").value = "Contrat d’intervention formateur — Session APS"; document.getElementById("sendContractBody").value = `Bonjour ${card.dataset.contractName},\n\nVous trouverez en pièce jointe votre contrat d’intervention pour la session APS, ainsi que le planning de formation correspondant.\n\nMerci de nous retourner le contrat signé dès que possible.\n\nBien cordialement,\n\nIntégrale Academy\n04 22 47 07 68`; sendContractModal?.classList.add("open"); sendContractModal?.setAttribute("aria-hidden", "false"); }));
 sendContractForm?.addEventListener("submit", async (event) => { event.preventDefault(); const err = document.getElementById("sendContractError"); err.style.display = "none"; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${currentSendContractId}/send`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({emailSubject:document.getElementById("sendContractSubject").value, emailBody:document.getElementById("sendContractBody").value})}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi impossible."); closeSendModal(); showPlanningToast("Contrat envoyé par mail.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ err.textContent = error.message; err.style.display = "block"; } });
-document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); const ongoing = card.dataset.yousignStatus === "ongoing"; const msg = ongoing ? "Une demande de signature est déjà en cours. Voulez-vous vraiment en envoyer une nouvelle ?" : `Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`; if(!(await SaasDialog.confirm(msg, { title: "Signature électronique Yousign" }))) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const url = `/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send${ongoing ? '?force=1' : ''}`; const r = await fetch(url, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
+document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); const phoneInput = card.querySelector(".contract-phone-input"); const editedPhone = phoneInput?.value.trim() || ""; if(editedPhone !== (card.dataset.contractPhone || "")){ showPlanningToast("Enregistrez le téléphone avant d’envoyer le code Yousign.", "error"); return; } const ongoing = card.dataset.yousignStatus === "ongoing"; const msg = ongoing ? "Une demande de signature est déjà en cours. Voulez-vous vraiment en envoyer une nouvelle ?" : `Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`; if(!(await SaasDialog.confirm(msg, { title: "Signature électronique Yousign" }))) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const url = `/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send${ongoing ? '?force=1' : ''}`; const r = await fetch(url, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
 document.querySelectorAll(".yousign-sync-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Actualisation..."; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/sync`, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Actualisation impossible."); showPlanningToast(`Statut Yousign actualisé : ${p.statusLabel || p.status}`, "success"); setTimeout(()=>window.location.reload(), 700); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
 document.querySelectorAll(".yousign-download-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); window.location.href = `/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/download`; }));
 

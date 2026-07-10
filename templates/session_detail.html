@@ -1192,7 +1192,7 @@ a.back:hover{ background:#d9a848 !important; }
           <summary class="yousign-status-summary">
             <span class="yousign-status-summary__main">
               {% if ys_status in ['done','signed'] %}✅{% elif ys_status in ['declined','error'] %}⚠️{% elif ys_status == 'expired' %}⌛{% elif ys_status == 'canceled' %}🚫{% else %}🕒{% endif %}
-              Détails Yousign
+              Détails contrat
               <span class="yousign-badge yousign-badge--{{ ys_status }}">{{ contract_yousign.statusLabel or yousign_status_label(ys_status) }}</span>
             </span>
             <span class="yousign-status-summary__meta">{{ (contract_yousign.lastEventAt or contract_yousign.lastWebhookAt or contract_yousign.lastSyncedAt or contract_yousign.sentAt or contract.generatedAt)|datetimefr }}</span>
@@ -1246,9 +1246,9 @@ a.back:hover{ background:#d9a848 !important; }
           </div>
         </details>
         <div class="planning-actions" style="margin-top:10px;">
-          <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">{% if ys_status in ['done','signed'] %}Voir contrat signé{% else %}Voir contrat{% endif %}</a>
+          <a class="btn small" href="{% if ys_status in ['done','signed'] %}{{ url_for('download_aps_trainer_signed_yousign', sid=s.id, contract_id=contract.id, inline=1) }}{% else %}{{ contract.pdfUrl }}{% endif %}" target="_blank">{% if ys_status in ['done','signed'] %}Voir contrat signé{% else %}Voir contrat{% endif %}</a>
           {% if contract_yousign.signatureRequestId %}<button class="btn small gold yousign-sync-btn" type="button">Actualiser statut Yousign</button>{% endif %}
-          {% if ys_status in ['done','signed'] %}<button class="btn small gold yousign-download-btn" type="button">Télécharger PDF signé</button><button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
+          {% if ys_status in ['done','signed'] %}<button class="btn small gold yousign-download-btn" type="button">Télécharger contrat signé</button><button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button>
           {% else %}<button class="btn small gold send-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% endif %}>Envoyer par mail</button><button class="btn small gold yousign-contract-btn" type="button" {% if not contract.trainerEmail %}disabled title="Email formateur manquant"{% elif not contract.trainerPhone %}disabled title="Téléphone portable formateur manquant"{% endif %}>{% if ys_status in ['ongoing','expired','error'] %}Relancer Yousign{% elif ys_status == 'declined' %}Renvoyer une nouvelle demande{% else %}Envoyer signature Yousign{% endif %}</button><button class="btn small gold open-aps-contract-modal-again" type="button" data-planning-name="{{ contract.planningName or contract.trainerName }}">Régénérer contrat</button>{% endif %}
           <button class="btn small danger delete-contract-btn" type="button">{% if ys_status in ['done','signed'] %}Archiver / supprimer{% else %}Supprimer contrat{% endif %}</button>
         </div>

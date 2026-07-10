@@ -5084,6 +5084,31 @@ def sync_aps_trainer_contract_yousign(sid, contract_id):
         return jsonify({"ok": False, "error": f"Erreur de synchronisation Yousign: {exc}"}), 502
 
 
+def save_yousign_signed_document(content, target_dir, base_filename):
+    os.makedirs(target_dir, exist_ok=True)
+    pdf_bytes = None
+    if content.startswith(b"%PDF"):
+        pdf_bytes = content
+    else:
+        try:
+            with zipfile.ZipFile(BytesIO(content)) as archive:
+                pdf_names = [name for name in archive.namelist() if name.lower().endswith(".pdf") and not name.endswith("/")]
+                if pdf_names:
+                    pdf_names.sort(key=lambda name: ("signed" not in name.lower() and "signe" not in name.lower(), name.lower()))
+                    pdf_bytes = archive.read(pdf_names[0])
+        except zipfile.BadZipFile:
+            pdf_bytes = None
+    if pdf_bytes:
+        filename = f"{base_filename}.pdf"
+        with open(os.path.join(target_dir, filename), "wb") as fh:
+            fh.write(pdf_bytes)
+        return filename
+    filename = f"{base_filename}.zip"
+    with open(os.path.join(target_dir, filename), "wb") as fh:
+        fh.write(content)
+    return filename
+
+
 @app.route("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/download", methods=["GET", "POST"])
 def download_aps_trainer_signed_yousign(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
@@ -5094,13 +5119,11 @@ def download_aps_trainer_signed_yousign(sid, contract_id):
     if not state.get("signatureRequestId"): return jsonify({"ok": False, "error": "Aucune demande Yousign disponible."}), 400
     try:
         content = YousignClient().download_signed_documents(state["signatureRequestId"])
-        filename = f"contrat_aps_signe_yousign_{state['signatureRequestId']}.zip"
-        os.makedirs(APS_CONTRACT_SIGNED_DIR, exist_ok=True)
-        with open(os.path.join(APS_CONTRACT_SIGNED_DIR, filename), "wb") as fh: fh.write(content)
+        filename = save_yousign_signed_document(content, APS_CONTRACT_SIGNED_DIR, f"contrat_aps_signe_yousign_{state['signatureRequestId']}")
         contract["yousign"] = normalize_yousign_state({**state, "signedDocumentFilename": filename, "signedDocumentUrl": url_for("download_aps_trainer_signed_yousign_file", filename=filename), "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
         mirror_yousign_state_on_contract(contract)
         save_sessions(data)
-        return send_from_directory(APS_CONTRACT_SIGNED_DIR, filename, as_attachment=True)
+        return send_from_directory(APS_CONTRACT_SIGNED_DIR, filename, as_attachment=request.args.get("inline") != "1")
     except Exception as exc:
         return jsonify({"ok": False, "error": f"Téléchargement Yousign impossible: {exc}"}), 502
 

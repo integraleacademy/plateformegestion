@@ -85,6 +85,7 @@ app.config.update(
 
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+ADMIN_SESSION_VERSION = os.environ.get("ADMIN_SESSION_VERSION", "2026-07-10-force-relogin-v2")
 
 def shortcut_image_url(filename):
     return url_for("shortcut_image", filename=filename)
@@ -259,6 +260,21 @@ def stagiaires_docs_response(payload, stale=False):
 # 🔐 AUTHENTIFICATION ADMIN
 # ------------------------------------------------------------
 
+def is_admin_session_valid():
+    return (
+        session.get("admin_logged")
+        and session.get("admin_session_version") == ADMIN_SESSION_VERSION
+    )
+
+
+def require_fresh_admin_session(next_path):
+    if is_admin_session_valid():
+        return None
+
+    session.clear()
+    return redirect(url_for("login", next=next_path))
+
+
 def login_required(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
@@ -268,8 +284,9 @@ def login_required(f):
             return f(*args, **kwargs)
 
         # 🔐 Vérification session admin
-        if not session.get("admin_logged"):
-            return redirect(url_for("login", next=request.path))
+        redirect_response = require_fresh_admin_session(request.path)
+        if redirect_response:
+            return redirect_response
 
         return f(*args, **kwargs)
     return wrapped
@@ -286,6 +303,7 @@ def login():
             session.permanent = False       # ✅ session navigateur : pas de connexion persistante
             session["admin_logged"] = True
             session["admin_email"] = email
+            session["admin_session_version"] = ADMIN_SESSION_VERSION
             return redirect(request.args.get("next") or url_for("index"))
 
 
@@ -339,11 +357,9 @@ def protect_all_routes():
     if path in ("/healthz", "/data.json", "/dotations_data.json", "/formateurs_data.json", "/tz-test"):
         return None
 
-    # 🔐 tout le reste nécessite une session admin
-    if not session.get("admin_logged"):
-        return redirect(url_for("login", next=path))
-
-    return None
+    # 🔐 tout le reste nécessite une session admin fraîche.
+    # Les sessions créées avant ADMIN_SESSION_VERSION sont ainsi déconnectées.
+    return require_fresh_admin_session(path)
 
 
 @app.get("/api/yousign/health")

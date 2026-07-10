@@ -73,9 +73,9 @@ from datetime import timedelta
 
 IS_RENDER = os.environ.get("RENDER", "").lower() == "true"
 
-# ✅ cookies/session persistants (Render = HTTPS)
+# ✅ Cookies de session uniquement : l’utilisateur doit se reconnecter
+# à chaque nouvelle ouverture du navigateur / nouvelle session.
 app.config.update(
-    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=IS_RENDER,   # ✅ Secure seulement sur Render
@@ -282,8 +282,10 @@ def login():
         password = request.form.get("password", "").strip()
 
         if email == ADMIN_USER and password == ADMIN_PASSWORD:
-            session.permanent = True        # ✅ garde la session X jours
+            session.clear()
+            session.permanent = False       # ✅ session navigateur : pas de connexion persistante
             session["admin_logged"] = True
+            session["admin_email"] = email
             return redirect(request.args.get("next") or url_for("index"))
 
 

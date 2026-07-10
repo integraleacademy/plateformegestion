@@ -525,7 +525,15 @@ a.back:hover{ background:#d9a848 !important; }
 .contract-card.yousign-status-error,.contract-card.yousign-status-declined{border-color:#fecaca;background:#fff7f7;}
 .contract-card.yousign-status-ongoing{border-color:#bfdbfe;background:#eff6ff;}
 .contract-card.yousign-status-expired{border-color:#cbd5e1;background:#f8fafc;}
-.yousign-status-panel{margin-top:10px;border:1px solid rgba(148,163,184,.45);border-radius:16px;background:#fff;padding:12px;display:grid;gap:8px;}
+.yousign-status-panel{margin-top:10px;border:1px solid rgba(148,163,184,.45);border-radius:16px;background:#fff;overflow:hidden;}
+.yousign-status-panel[open]{padding-bottom:12px;}
+.yousign-status-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;cursor:pointer;font-weight:900;color:#0f172a;list-style:none;}
+.yousign-status-summary::-webkit-details-marker{display:none;}
+.yousign-status-summary::after{content:"▾";font-size:14px;color:#64748b;transition:transform .18s ease;}
+.yousign-status-panel[open] .yousign-status-summary::after{transform:rotate(180deg);}
+.yousign-status-summary__main{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.yousign-status-summary__meta{font-size:12px;color:#64748b;font-weight:800;}
+.yousign-status-content{display:grid;gap:8px;padding:0 12px;}
 .yousign-status-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:#334155;}
 .yousign-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;}
 .yousign-badge--ongoing{background:#dbeafe;color:#1d4ed8;}
@@ -1180,7 +1188,16 @@ a.back:hover{ background:#d9a848 !important; }
       {% set ys_status = contract_yousign.status|default('draft') %}
       <div class="contract-card yousign-status-{{ ys_status }}" data-contract-id="{{ contract.id }}" data-contract-email="{{ contract.trainerEmail or '' }}" data-contract-phone="{{ contract.trainerPhone or '' }}" data-contract-name="{{ contract.trainerName }}" data-planning-name="{{ contract.planningName or contract.trainerName }}" data-yousign-status="{{ ys_status }}">
         <strong>{{ contract.trainerName }}</strong> — {{ contract.billedDays }} jour(s) x {{ contract.dailyRate }} € HT = <strong>{{ contract.totalHT }} € HT</strong>
-        <div class="yousign-status-panel">
+        <details class="yousign-status-panel">
+          <summary class="yousign-status-summary">
+            <span class="yousign-status-summary__main">
+              {% if ys_status in ['done','signed'] %}✅{% elif ys_status in ['declined','error'] %}⚠️{% elif ys_status == 'expired' %}⌛{% elif ys_status == 'canceled' %}🚫{% else %}🕒{% endif %}
+              Détails Yousign
+              <span class="yousign-badge yousign-badge--{{ ys_status }}">{{ contract_yousign.statusLabel or yousign_status_label(ys_status) }}</span>
+            </span>
+            <span class="yousign-status-summary__meta">{{ (contract_yousign.lastEventAt or contract_yousign.lastWebhookAt or contract_yousign.lastSyncedAt or contract_yousign.sentAt or contract.generatedAt)|datetimefr }}</span>
+          </summary>
+          <div class="yousign-status-content">
           {% if is_yousign_sandbox() and contract_yousign.signatureRequestId %}<div class="yousign-sandbox-warning">⚠️ Mode test Yousign : ce document n’est pas une signature de production.</div>{% endif %}
           <div class="yousign-status-line">✅ Contrat généré le {{ contract.generatedAt|datetimefr }}</div>
           {% if contract_yousign.sentAt %}<div class="yousign-status-line">📨 Signature envoyée le {{ contract_yousign.sentAt|datetimefr }} à <span class="contract-recipient-email">{{ contract_yousign.recipientEmail or contract.trainerEmail }}</span></div>{% else %}<div class="yousign-status-line">📨 Signature Yousign non envoyée — destinataire prévu : <span class="contract-recipient-email">{{ contract.trainerEmail or 'à renseigner' }}</span></div>{% endif %}
@@ -1226,7 +1243,8 @@ a.back:hover{ background:#d9a848 !important; }
             <div>dernière synchronisation API : {{ contract_yousign.lastSyncedAt or contract.last_yousign_sync_at or '—' }}</div>
           </details>
           {% if contract_yousign.error %}<div class="relance-note" style="color:#b91c1c;">Erreur Yousign : {{ contract_yousign.error }}</div>{% endif %}
-        </div>
+          </div>
+        </details>
         <div class="planning-actions" style="margin-top:10px;">
           <a class="btn small" href="{{ contract.pdfUrl }}" target="_blank">{% if ys_status in ['done','signed'] %}Voir contrat signé{% else %}Voir contrat{% endif %}</a>
           {% if contract_yousign.signatureRequestId %}<button class="btn small gold yousign-sync-btn" type="button">Actualiser statut Yousign</button>{% endif %}

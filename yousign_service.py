@@ -252,7 +252,8 @@ class YousignClient:
         payload = {
             "type": "signature",
             "signer_id": signer_id,
-            "document_id": document_id,
+            # The document is already scoped by the /documents/{document_id}/fields endpoint.
+            # Sending it again in the JSON body is rejected by Yousign v3 as an extra argument.
             "page": int(page or 1),
             "x": int(x),
             "y": int(y),

@@ -4984,7 +4984,7 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         name_parts = str(trainer_name).split()
         first_name = name_parts[0] if len(name_parts) > 1 else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
-        normalized_phone = normalizeFrenchPhoneNumber(contract.get("trainerPhone") or contract.get("phone") or contract.get("telephone") or "")
+        normalized_phone = normalizeFrenchPhoneNumber(contract.get("yousignPhoneNumber") or contract.get("trainerPhone") or contract.get("phone") or contract.get("telephone") or "")
         app.logger.info("Yousign APS trainer signer authentication_mode=otp_sms phone_number=%s", mask_phone_number(normalized_phone))
         signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True, phone_number=normalized_phone, force_sms_otp=True)
         signer_id = signer.get("id") or ""
@@ -5110,6 +5110,24 @@ def update_aps_trainer_contract_email(sid, contract_id):
         mirror_yousign_state_on_contract(contract)
     save_sessions(data)
     return jsonify({"ok": True, "email": email})
+
+
+@app.patch("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/phone")
+def update_aps_trainer_contract_phone(sid, contract_id):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
+    payload = request.get_json(silent=True) or {}
+    phone = (payload.get("phone") or "").strip()
+    try:
+        normalized_phone = normalizeFrenchPhoneNumber(phone)
+    except YousignError:
+        return jsonify({"ok": False, "error": "Téléphone portable invalide pour le code SMS Yousign."}), 400
+    contract["trainerPhone"] = phone
+    contract["yousignPhoneNumber"] = normalized_phone
+    save_sessions(data)
+    return jsonify({"ok": True, "phone": phone, "normalizedPhone": normalized_phone})
 
 
 @app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")

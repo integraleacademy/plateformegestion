@@ -104,6 +104,24 @@ def yousign_config_diagnostics(config: Optional[YousignConfig] = None) -> Dict[s
     }
 
 
+def normalizeFrenchPhoneNumber(phone: str) -> str:
+    """Normalise un numéro mobile français au format international E.164."""
+    cleaned = re.sub(r"[\s.\-()]+", "", phone or "")
+    if cleaned.startswith("0033"):
+        cleaned = "+33" + cleaned[4:]
+    if cleaned.startswith("06") or cleaned.startswith("07"):
+        cleaned = "+33" + cleaned[1:]
+    if cleaned.startswith("+33") and re.fullmatch(r"\+33[67]\d{8}", cleaned):
+        return cleaned
+    raise YousignError("Numéro de téléphone formateur absent ou invalide pour l’OTP SMS Yousign.")
+
+
+def mask_phone_number(phone: str) -> str:
+    if not phone:
+        return "absent"
+    return f"{phone[:3]}******{phone[-2:]}" if len(phone) >= 5 else "***"
+
+
 def yousign_service_access_message(status_code: Optional[int], payload: Any = None) -> str:
     message = payload.get("message") if isinstance(payload, dict) else ""
     if status_code == 401:
@@ -168,13 +186,14 @@ class YousignClient:
         response_payload, _status, _url = self.request_with_http_status(method, path, payload, headers)
         return response_payload
 
-    def upload_file(self, signature_request_id: str, pdf_bytes: bytes, filename: str) -> Any:
+    def upload_file(self, signature_request_id: str, pdf_bytes: bytes, filename: str, parse_anchors: bool = True) -> Any:
         boundary = "----plateformegestion-yousign-boundary"
         safe_filename = filename.replace('"', "") or "contrat.pdf"
         parts = [
             f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{safe_filename}\"\r\nContent-Type: application/pdf\r\n\r\n".encode(),
             pdf_bytes,
-            f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"nature\"\r\n\r\nsignable_document\r\n--{boundary}--\r\n".encode(),
+            f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"nature\"\r\n\r\nsignable_document\r\n".encode(),
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"parse_anchors\"\r\n\r\n{str(bool(parse_anchors)).lower()}\r\n--{boundary}--\r\n".encode(),
         ]
         req = urllib.request.Request(
             self._url(f"signature_requests/{urllib.parse.quote(signature_request_id)}/documents"),
@@ -200,11 +219,19 @@ class YousignClient:
             logger.info("Yousign signature_request external_id=%s", sanitized_external_id)
         return self.request("POST", "signature_requests", payload)
 
-    def add_signer(self, signature_request_id: str, first_name: str, last_name: str, email: str, document_id: Optional[str] = None, use_text_tags: bool = False) -> Any:
+    def add_signer(self, signature_request_id: str, first_name: str, last_name: str, email: str, document_id: Optional[str] = None, use_text_tags: bool = False, phone_number: Optional[str] = None, force_sms_otp: bool = False) -> Any:
+        info = {"first_name": first_name or last_name or "Formateur", "last_name": last_name or first_name or "Intégrale", "email": email, "locale": "fr"}
+        authentication_mode = self.config.authentication_mode
+        if force_sms_otp:
+            normalized_phone = normalizeFrenchPhoneNumber(phone_number or "")
+            info["phone_number"] = normalized_phone
+            authentication_mode = "otp_sms"
+            logger.info("Yousign signer authentication_mode=%s phone_number=%s", authentication_mode, mask_phone_number(normalized_phone))
         payload: Dict[str, Any] = {
-            "info": {"first_name": first_name or last_name or "Formateur", "last_name": last_name or first_name or "Intégrale", "email": email, "locale": "fr"},
-            "signature_level": self.config.signature_level,
-            "signature_authentication_mode": self.config.authentication_mode,
+            "info": info,
+            "signature_level": "electronic_signature" if force_sms_otp else self.config.signature_level,
+            "signature_authentication_mode": authentication_mode,
+            "delivery_mode": "email" if force_sms_otp else self.config.delivery_mode,
         }
         if document_id and not use_text_tags:
             # Champ attendu par l'API v3 pour positionner une signature visible simple.
@@ -225,6 +252,7 @@ class YousignClient:
         payload = {
             "type": "signature",
             "signer_id": signer_id,
+            "document_id": document_id,
             "page": int(page or 1),
             "x": int(x),
             "y": int(y),

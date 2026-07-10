@@ -31,7 +31,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
+from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
@@ -1694,11 +1694,9 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         return tbl
 
     def trainer_signature_box(height_mm=31):
-        # Balise texte réelle attendue par Yousign pour placer automatiquement
-        # la signature du formateur. Elle reste physiquement dans le flux PDF,
-        # dans le cadre de droite « Signature du formateur » : aucun champ manuel
-        # global ne doit la replacer en bas de page.
-        content = [p("Signature du formateur", "SignLabel"), Spacer(1, 8), p(YOUSIGN_TRAINER_SIGNATURE_TAG, "YousignAnchor")]
+        # Signature positionnée exclusivement par champ manuel Yousign.
+        # Ne pas réinsérer l’ancre {{s1|signature|160|60}} dans ce PDF.
+        content = [p("Signature du formateur", "SignLabel"), Spacer(1, 8), p(" ", "Body")]
         tbl = Table([[content]], colWidths=[75 * mm], rowHeights=[height_mm * mm])
         tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 5)]))
         return tbl
@@ -4917,13 +4915,29 @@ def inspect_yousign_pdf_before_upload(pdf_path):
     return info
 
 
-YOUSIGN_APS_TRAINER_SIGNATURE_FIELD = {"page": 10, "x": 350, "y": 650, "width": 180, "height": 80}
+YOUSIGN_APS_TRAINER_SIGNATURE_FIELD = {"x": 332, "y": 216, "width": 160, "height": 60}
 YOUSIGN_APS_TRAINER_NO_FIELD_ERROR = "Le signataire Yousign a été créé mais aucun champ de signature n’a été ajouté au document."
 
 
 def yousign_trainer_signature_page(pdf_info):
-    page_count = int(pdf_info.get("page_count") or YOUSIGN_APS_TRAINER_SIGNATURE_FIELD["page"])
-    return min(YOUSIGN_APS_TRAINER_SIGNATURE_FIELD["page"], max(1, page_count))
+    page_count = int(pdf_info.get("page_count") or 0)
+    if page_count < 1:
+        raise YousignError("Nombre de pages du PDF APS introuvable: activation Yousign refusée.")
+    return page_count
+
+
+def validate_aps_trainer_signature_field(field_payload, page_count):
+    page = int(field_payload.get("page") or 0)
+    x = int(field_payload.get("x") or 0)
+    y = int(field_payload.get("y") or 0)
+    width = int(field_payload.get("width") or 0)
+    height = int(field_payload.get("height") or 0)
+    logger.info("Yousign APS trainer signature field control page=%s x=%s y=%s width=%s height=%s", page, x, y, width, height)
+    if page != int(page_count):
+        raise YousignError("Champ signature formateur hors dernière page: activation Yousign refusée.")
+    if not (305 <= x <= 518 and 193 <= y <= 282):
+        raise YousignError("Champ signature formateur hors zone attendue: activation Yousign refusée.")
+    return True
 
 
 @app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/send")
@@ -4964,16 +4978,20 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
             app.logger.warning("Inspection PDF Yousign impossible, envoi poursuivi: %s", exc)
             pdf_info = {"path": contract_path, "size": os.path.getsize(contract_path) if os.path.exists(contract_path) else 0, "page_count": None, "signature_tag_present": None}
         with open(contract_path, "rb") as pdf_file:
-            document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path))
+            document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path), parse_anchors=False)
         document_id = document.get("id")
         app.logger.info("Yousign APS trainer document uploaded document_id=%s", document_id)
         name_parts = str(trainer_name).split()
         first_name = name_parts[0] if len(name_parts) > 1 else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
-        signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True)
+        normalized_phone = normalizeFrenchPhoneNumber(contract.get("trainerPhone") or contract.get("phone") or contract.get("telephone") or "")
+        app.logger.info("Yousign APS trainer signer authentication_mode=otp_sms phone_number=%s", mask_phone_number(normalized_phone))
+        signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True, phone_number=normalized_phone, force_sms_otp=True)
         signer_id = signer.get("id") or ""
         app.logger.info("Yousign APS trainer signer created signer_id=%s document_id=%s", signer_id, document_id)
-        field_payload = {**YOUSIGN_APS_TRAINER_SIGNATURE_FIELD, "page": yousign_trainer_signature_page(pdf_info)}
+        page_count = yousign_trainer_signature_page(pdf_info)
+        field_payload = {**YOUSIGN_APS_TRAINER_SIGNATURE_FIELD, "page": page_count}
+        validate_aps_trainer_signature_field(field_payload, page_count)
         field = client.add_signature_field(
             signature_request_id,
             document_id,
@@ -4986,8 +5004,8 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         )
         field_id = field.get("id") if isinstance(field, dict) else ""
         app.logger.info(
-            "Yousign APS trainer signature field created field_id=%s signer_id=%s document_id=%s page=%s x=%s y=%s",
-            field_id, signer_id, document_id, field_payload["page"], field_payload["x"], field_payload["y"]
+            "Yousign APS trainer signature field created field_id=%s signer_id=%s document_id=%s page=%s x=%s y=%s width=%s height=%s",
+            field_id, signer_id, document_id, field_payload["page"], field_payload["x"], field_payload["y"], field_payload["width"], field_payload["height"]
         )
         if not field_id:
             raise YousignError(YOUSIGN_APS_TRAINER_NO_FIELD_ERROR, payload={"message": YOUSIGN_APS_TRAINER_NO_FIELD_ERROR})

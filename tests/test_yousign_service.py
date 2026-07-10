@@ -237,7 +237,6 @@ def test_yousign_add_signature_field_posts_document_field(monkeypatch):
         "payload": {
             "type": "signature",
             "signer_id": "signer_1",
-            "document_id": "doc_1",
             "page": 3,
             "x": 60,
             "y": 690,

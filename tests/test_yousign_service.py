@@ -98,7 +98,7 @@ def test_yousign_403_consume_service_message():
         "l’environnement sandbox/production, les droits de la clé et l’abonnement Yousign."
     )
 
-def test_aps_trainer_contract_pdf_contains_yousign_anchor_in_trainer_signature(tmp_path):
+def test_aps_trainer_contract_pdf_omits_yousign_anchor_in_trainer_signature(tmp_path):
     pytest.importorskip("reportlab")
     pypdf = pytest.importorskip("pypdf")
     import app
@@ -133,8 +133,8 @@ def test_aps_trainer_contract_pdf_contains_yousign_anchor_in_trainer_signature(t
 
     text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
     assert "Signature du formateur" in text
-    assert "{{s1|signature|160|60}}" in text
-    assert text.count("{{s1|signature|160|60}}") == 1
+    assert "{{s1|signature|160|60}}" not in text
+    assert text.count("{{s1|signature|160|60}}") == 0
     assert "s2|signature" not in text
 
 
@@ -144,11 +144,44 @@ def test_aps_trainer_yousign_send_creates_manual_signature_field_before_activati
 
     source = inspect.getsource(app.send_aps_trainer_contract_yousign)
 
+    assert "parse_anchors=False" in source
     assert "use_text_tags=True" in source
     assert "add_signature_field" in source
     assert source.index("add_signer") < source.index("add_signature_field") < source.index("activate_signature_request")
-    assert app.YOUSIGN_APS_TRAINER_SIGNATURE_FIELD == {"page": 10, "x": 350, "y": 650, "width": 180, "height": 80}
+    assert app.YOUSIGN_APS_TRAINER_SIGNATURE_FIELD == {"x": 332, "y": 216, "width": 160, "height": 60}
+    page_count = 12
+    field = {**app.YOUSIGN_APS_TRAINER_SIGNATURE_FIELD, "page": app.yousign_trainer_signature_page({"page_count": page_count})}
+    assert field == {"page": 12, "x": 332, "y": 216, "width": 160, "height": 60}
+    assert app.validate_aps_trainer_signature_field(field, page_count) is True
 
+
+
+def test_normalize_french_phone_number_formats_mobile():
+    from yousign_service import normalizeFrenchPhoneNumber
+
+    assert normalizeFrenchPhoneNumber("06 83 81 82 01") == "+33683818201"
+    assert normalizeFrenchPhoneNumber("07.12-34-56-78") == "+33712345678"
+    assert normalizeFrenchPhoneNumber("+33683818201") == "+33683818201"
+
+
+def test_yousign_add_signer_force_sms_otp(monkeypatch):
+    from yousign_service import YousignClient, YousignConfig
+
+    captured = {}
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test", authentication_mode="no_otp"))
+
+    def fake_request(method, path, payload=None, headers=None):
+        captured.update({"method": method, "path": path, "payload": payload})
+        return {"id": "signer_1"}
+
+    monkeypatch.setattr(client, "request", fake_request)
+    client.add_signer("sr_1", "Jean", "Dupont", "jean@example.com", use_text_tags=True, phone_number="06 83 81 82 01", force_sms_otp=True)
+
+    assert captured["payload"]["signature_level"] == "electronic_signature"
+    assert captured["payload"]["signature_authentication_mode"] == "otp_sms"
+    assert captured["payload"]["delivery_mode"] == "email"
+    assert captured["payload"]["info"]["phone_number"].startswith("+33")
+    assert captured["payload"]["info"]["phone_number"] == "+33683818201"
 
 def test_sanitize_yousign_external_id_removes_forbidden_chars():
     from yousign_service import sanitize_yousign_external_id
@@ -201,6 +234,7 @@ def test_yousign_add_signature_field_posts_document_field(monkeypatch):
         "payload": {
             "type": "signature",
             "signer_id": "signer_1",
+            "document_id": "doc_1",
             "page": 3,
             "x": 60,
             "y": 690,

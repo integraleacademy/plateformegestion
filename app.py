@@ -307,7 +307,7 @@ def login():
             return redirect(request.args.get("next") or url_for("index"))
 
 
-        flash("Identifiants incorrects", "error")
+        flash("Identifiant ou mot de passe incorrect.", "error")
 
     return render_template("login.html")
 

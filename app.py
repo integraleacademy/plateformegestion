@@ -7093,9 +7093,15 @@ def download_formateur_signed_yousign(fid):
 @app.route("/webhooks/yousign", methods=["POST"])
 def yousign_webhook():
     raw_body = request.get_data()
+    yousign_signature_header_names = [
+        "X-Yousign-Signature-256",
+        "X-Yousign-Signature",
+        "Yousign-Signature",
+        "X-Hub-Signature-256",
+    ]
     important_headers = {
         key: request.headers.get(key)
-        for key in ["Content-Type", "User-Agent", "X-Yousign-Signature", "Yousign-Signature", "X-Hub-Signature-256"]
+        for key in ["Content-Type", "User-Agent", *yousign_signature_header_names]
         if request.headers.get(key)
     }
     payload = request.get_json(silent=True) or {}
@@ -7116,7 +7122,7 @@ def yousign_webhook():
     )
 
     webhook_secret = get_yousign_config().webhook_secret
-    signature_header = request.headers.get("X-Yousign-Signature") or request.headers.get("Yousign-Signature") or request.headers.get("X-Hub-Signature-256")
+    signature_header = next((request.headers.get(key) for key in yousign_signature_header_names if request.headers.get(key)), None)
     if webhook_secret:
         if not signature_header:
             logger.warning("YOUSIGN WEBHOOK IGNORED event=%s reason=missing_signature", event_name)

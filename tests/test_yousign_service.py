@@ -1,4 +1,7 @@
 import sys
+import hashlib
+import hmac
+import json
 import pytest
 from pathlib import Path
 
@@ -411,3 +414,66 @@ def test_yousign_webhook_signature_request_done_matches_aps_contract_by_external
     assert contract["yousign"]["status"] == "signed"
     assert contract["yousign"]["externalId"] == "aps-trainer-contract-contract_1"
     assert contract["yousign_api_status"] == "done"
+
+
+def test_yousign_webhook_accepts_current_signature_256_header(monkeypatch):
+    import app
+
+    sessions_data = {
+        "sessions": [
+            {
+                "id": "session_1",
+                "apsTrainerContracts": [
+                    {
+                        "id": "contract_1",
+                        "yousign": {
+                            "signatureRequestId": "sr_1",
+                            "externalId": "aps-trainer-contract-contract_1",
+                            "status": "ongoing",
+                        },
+                    }
+                ],
+            }
+        ],
+        "jurys": [],
+    }
+    saved = {}
+
+    monkeypatch.setattr(app, "load_formateurs", lambda: [])
+    monkeypatch.setattr(app, "load_sessions", lambda: sessions_data)
+    monkeypatch.setattr(app, "save_sessions", lambda data: saved.setdefault("data", data))
+    monkeypatch.setattr(
+        app,
+        "sync_yousign_signature_request_from_api",
+        lambda signature_request_id, now=None: {
+            "status": "signed",
+            "apiStatus": "done",
+            "apiSignerStatus": "signed",
+            "apiHttpStatus": "200",
+            "lastSyncedAt": now,
+            "signedAt": now,
+        },
+    )
+    monkeypatch.setenv("YOUSIGN_WEBHOOK_SECRET", "hook-secret")
+
+    payload = {
+        "event_name": "signature_request.done",
+        "data": {
+            "signature_request": {"id": "sr_1", "external_id": "aps-trainer-contract-contract_1"},
+        },
+    }
+    raw_body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    digest = hmac.new(b"hook-secret", raw_body, hashlib.sha256).hexdigest()
+
+    response = app.app.test_client().post(
+        "/webhooks/yousign",
+        data=raw_body,
+        content_type="application/json",
+        headers={"X-Yousign-Signature-256": f"sha256={digest}"},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["target"] == "aps_trainer_contract"
+    contract = saved["data"]["sessions"][0]["apsTrainerContracts"][0]
+    assert contract["yousign"]["status"] == "signed"
+    assert contract["yousign_status"] == "signed"

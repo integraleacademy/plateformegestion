@@ -66,6 +66,14 @@
     .panel + .panel { margin-top:24px; }
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; border-bottom:1px solid var(--line); }
     .panel-title { margin:0; font-size:17px; letter-spacing:-.02em; }
+    .deadlines-accordion { overflow:hidden; }
+    .deadlines-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; cursor:pointer; list-style:none; }
+    .deadlines-summary::-webkit-details-marker { display:none; }
+    .deadlines-summary .panel-subtitle { max-width:720px; }
+    .accordion-indicator { display:inline-flex; align-items:center; gap:8px; padding:8px 11px; border:1px solid var(--line); border-radius:10px; background:#f7f8fa; color:#505867; font-size:12px; font-weight:800; white-space:nowrap; transition:.2s ease; }
+    .accordion-indicator::before { content:"▸"; font-size:13px; transition:transform .2s ease; }
+    .deadlines-accordion[open] .accordion-indicator::before { transform:rotate(90deg); }
+    .deadlines-accordion[open] .accordion-indicator { background:#fff4d8; color:#8a600d; }
     .panel-subtitle { margin:5px 0 0; color:var(--muted); font-size:12px; }
     .alert-banner { display:flex; align-items:center; gap:11px; margin:18px 20px 0; padding:12px 14px; border-radius:11px; font-size:13px; font-weight:700; }
     .global-alert { border:1px solid #f4cccc; background:#fff4f3; color:#a93737; }
@@ -202,13 +210,13 @@
         <article class="kpi-card" style="--kpi-color:#858b98;--kpi-bg:#f0f1f4"><div class="kpi-head"><span class="kpi-label">Terminées</span><span class="kpi-icon">✓</span></div><div class="kpi-value">{{ archived_sessions|length }}</div><div class="kpi-caption">Sessions terminées ou archivées</div></article>
       </section>
 
-      <section class="panel recap" id="deadlines">
-        <div class="panel-head"><div><h3 class="panel-title">Échéances et points d’attention</h3><p class="panel-subtitle">Récapitulatif des retards et des actions à réaliser aujourd’hui</p></div></div>
+      <details class="panel recap deadlines-accordion" id="deadlines">
+        <summary class="deadlines-summary"><div><h3 class="panel-title">Échéances et points d’attention</h3><p class="panel-subtitle">Récapitulatif des retards et des actions à réaliser aujourd’hui</p></div><span class="accordion-indicator" aria-hidden="true">Afficher</span></summary>
         {% if total_late > 0 %}<div class="alert-banner global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>{% else %}<div class="alert-banner global-ok">✓ Aucune étape en retard — tout est à jour</div>{% endif %}
         <div class="recap-table-wrap"><table><tr><th>Formation</th><th>Étapes en retard</th><th>À faire aujourd’hui</th></tr>
           {% for f, late_steps, today_steps in recap_data %}<tr><td><b>{{ f }}</b></td><td>{% if late_steps %}{% for text, days in late_steps %}<div class="list late">● {{ text }} ({{ days }} j)</div>{% endfor %}{% else %}<div class="list ok">✓ Aucun retard</div>{% endif %}</td><td>{% if today_steps %}{% for text in today_steps %}<div class="list warn">● {{ text }}</div>{% endfor %}{% else %}<div class="list" style="color:#999;">—</div>{% endif %}</td></tr>{% endfor %}
         </table></div>
-      </section>
+      </details>
 
       <section class="panel sessions-panel" id="active-sessions">
         <div class="sessions-toolbar"><div><h3 class="panel-title">Sessions actives <span class="section-count">{{ sorted_active|length }}</span></h3><p class="panel-subtitle">Cliquez sur une session pour accéder à son suivi complet</p></div></div>

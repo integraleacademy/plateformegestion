@@ -4782,10 +4782,10 @@ def generate_aps_planning_route(sid):
     try:
         session_data["salle"] = room
         if is_desp:
-            elearning_start = parse_date(session_data.get("despElearningStart") or session_data.get("date_debut"))
-            elearning_end = parse_date(session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
-            presentiel_start = parse_date(session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
-            presentiel_end = parse_date(session_data.get("despPresentielEnd") or session_data.get("date_fin"))
+            elearning_start = parse_date(payload.get("despElearningStart") or session_data.get("despElearningStart") or session_data.get("date_debut"))
+            elearning_end = parse_date(payload.get("despElearningEnd") or session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
+            presentiel_start = parse_date(payload.get("despPresentielStart") or session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
+            presentiel_end = parse_date(payload.get("despPresentielEnd") or session_data.get("despPresentielEnd") or session_data.get("date_fin"))
             if not all([elearning_start, elearning_end, presentiel_start, presentiel_end]):
                 return jsonify({"ok": False, "error": "Les dates de début/fin distanciel et début/fin présentiel DESP sont obligatoires."}), 400
             planning_data = generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), formateur, room, exam_iso=aps_local_date_iso(session_data.get("date_exam")))

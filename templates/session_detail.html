@@ -1092,6 +1092,15 @@ a.back:hover{ background:#d9a848 !important; }
       <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
       <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
       <input id="apsRoom" name="room" type="text" value="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" placeholder="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
+      {% if s.formation in ["DESP", "DIRIGEANT"] %}
+      <div class="desp-planning-dates" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;">
+        <label><strong>Début distanciel</strong><input id="despElearningStart" name="despElearningStart" type="date" value="{{ s.despElearningStart or s.date_debut or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Fin distanciel</strong><input id="despElearningEnd" name="despElearningEnd" type="date" value="{{ s.despElearningEnd or s.date_distanciel_fin or s.date_elearning_fin or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Début présentiel</strong><input id="despPresentielStart" name="despPresentielStart" type="date" value="{{ s.despPresentielStart or s.date_presentiel_debut or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Fin présentiel</strong><input id="despPresentielEnd" name="despPresentielEnd" type="date" value="{{ s.despPresentielEnd or s.date_fin or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+      </div>
+      <p class="muted" style="margin:8px 0 0;">Ces dates définissent les deux périodes DESP utilisées pour générer les 174h distancielles puis les 70h présentielles.</p>
+      {% endif %}
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
       <div class="planning-actions" style="justify-content:flex-end;margin-top:18px;">
         <button type="button" class="btn" id="cancelApsPlanning">Annuler</button>
@@ -1731,6 +1740,7 @@ const apsFormateur = document.getElementById("apsFormateur");
 const apsRoom = document.getElementById("apsRoom");
 const apsPlanningError = document.getElementById("apsPlanningError");
 const submitApsPlanning = document.getElementById("submitApsPlanning");
+const despPlanningDateInputs = ["despElearningStart", "despElearningEnd", "despPresentielStart", "despPresentielEnd"].map(id => document.getElementById(id)).filter(Boolean);
 const planningToast = document.getElementById("planningToast");
 const resetApsPlanningModal = document.getElementById("resetApsPlanningModal");
 const openResetApsPlanningModal = document.getElementById("openResetApsPlanningModal");
@@ -1821,6 +1831,12 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     apsPlanningError.style.display = "block";
     return;
   }
+  const despDates = Object.fromEntries(despPlanningDateInputs.map(input => [input.name, input.value]));
+  if(planningMode === "desp" && despPlanningDateInputs.some(input => !input.value)){
+    apsPlanningError.textContent = "Veuillez renseigner les dates de début/fin distanciel et début/fin présentiel DESP.";
+    apsPlanningError.style.display = "block";
+    return;
+  }
   apsPlanningError.style.display = "none";
   submitApsPlanning.disabled = true;
   submitApsPlanning.textContent = "Génération...";
@@ -1828,7 +1844,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     const response = await fetch("{{ url_for('generate_aps_planning_route', sid=s.id) }}", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({planningMode, trainer: formateur, room})
+      body: JSON.stringify({planningMode, trainer: formateur, room, ...despDates})
     });
     const payload = await response.json();
     if(!response.ok || !payload.ok){
@@ -2215,7 +2231,6 @@ document.addEventListener('DOMContentLoaded',init);
 
 </body>
 </html>
-
 
 
 

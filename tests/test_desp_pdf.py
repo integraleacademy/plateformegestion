@@ -95,3 +95,71 @@ def test_desp_totals_are_preserved():
     assert summary["modality_totals"]["presentiel"] == DESP_PRESENTIEL_HOURS
     assert summary["total_hours"] == DESP_TOTAL_HOURS
     assert not summary["errors"]
+
+
+def _attendance_text(tmp_path, planning=None):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    planning = planning or _planning()
+    out = tmp_path / "attendance_desp.pdf"
+    app.generate_aps_attendance_pdf({
+        **_session(),
+        "apsPlanningData": planning,
+        "apsPlanningMode": "desp",
+        "apsAttendanceStudents": [{"lastName": "DURAND", "firstName": "Alice"}],
+        "display_name": "Session DESP test",
+    }, str(out))
+    reader = pypdf.PdfReader(str(out))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    return out, reader, text
+
+
+def test_desp_attendance_generates_only_in_person_days_and_70_hours(tmp_path):
+    out, reader, text = _attendance_text(tmp_path)
+    assert out.exists() and out.stat().st_size > 0
+    assert len(reader.pages) == 10  # 9 journées présentielles + synthèse
+    assert "FEUILLES DE PRÉSENCE — FORMATION DESP — PÉRIODE PRÉSENTIELLE" in text
+    assert "Nombre de journées présentielles : 9" in text
+    assert "Nombre total d’heures présentielles : 70h" in text
+    assert "Modalité : Présentiel au centre" in text
+    for label in ["20/07/2026", "21/07/2026", "22/07/2026", "23/07/2026", "24/07/2026", "27/07/2026", "28/07/2026", "29/07/2026", "30/07/2026"]:
+        assert label in text
+    for label in ["12/06/2026", "17/07/2026", "31/07/2026"]:
+        assert f"Date : {label}" not in text
+    assert "DESP-E01" not in text and "DESP-E32" not in text
+    assert "DESP-P01" in text and "DESP-P21" in text
+    assert not re.search(r"DESP-E\d{2}", text)
+
+
+def test_desp_attendance_rejects_non_70h_presentiel_total(tmp_path):
+    planning = _planning()
+    planning = [{**day, "slots": [dict(slot) for slot in day["slots"]]} for day in planning]
+    for day in planning:
+        for slot in day["slots"]:
+            if slot.get("modality") == "presentiel":
+                slot["duration"] = 1
+                slot["durationMinutes"] = 60
+                slot["end"] = slot["start"]
+                with pytest.raises(ValueError, match="planning présentiel contient"):
+                    _attendance_text(tmp_path, planning)
+                return
+    pytest.fail("No presentiel slot found")
+
+
+def test_desp_attendance_helper_excludes_empty_elearning_distance_exam_slots():
+    assert app.is_in_person_slot({"modality": "presentiel"})
+    assert app.is_in_person_slot({"delivery_mode": "in_person"})
+    assert not app.is_in_person_slot({"modality": "elearning"})
+    assert not app.is_in_person_slot({"modality": "distanciel"})
+    assert not app.is_in_person_slot({"modality": "distance"})
+    assert not app.is_in_person_slot({"modality": "asynchronous"})
+    assert not app.is_in_person_slot({"modality": "examen"})
+    assert not app.is_in_person_slot({})
+
+
+def test_desp_attendance_no_blank_sheet_for_day_without_in_person_slot(tmp_path):
+    planning = _planning() + [{"date": "2026-07-18", "dayLabel": "Samedi 18/07/2026", "slots": [{"start": "08:30", "end": "10:30", "duration": 2, "durationMinutes": 120, "uv": "DESP-E99", "title": "Journée vide", "modality": "elearning"}]}]
+    _out, reader, text = _attendance_text(tmp_path, planning)
+    assert len(reader.pages) == 10
+    assert "18/07/2026" not in text
+    assert "DESP-E99" not in text

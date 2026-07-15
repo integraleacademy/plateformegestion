@@ -1506,8 +1506,24 @@ def _money(value):
         return "0,00 €"
 
 
+def _normalized_slot_value(slot, *keys):
+    for key in keys:
+        value = (slot or {}).get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip().lower().replace("é", "e")
+    return ""
+
+
+def is_in_person_slot(slot):
+    """Return True only for normalized in-person training slots."""
+    return _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"presentiel", "in_person"}
+
+
 def aps_is_contract_billable_slot(slot):
-    return (slot.get("modality") or "presentiel").strip().lower() != "elearning"
+    normalized = _normalized_slot_value(slot, "modality", "delivery_mode", "period_type")
+    if normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous", "examen", "exam"}:
+        return False
+    return True
 
 
 def aps_detect_trainers(planning_data):
@@ -1820,8 +1836,8 @@ def _aps_presentiel_days(planning_data, planning_mode):
     days = []
     for day in planning_data or []:
         slots = day.get("slots") or []
-        if planning_mode == "elearning_presentiel":
-            slots = [slot for slot in slots if slot.get("modality") == "presentiel"]
+        if planning_mode in {"elearning_presentiel", "desp"}:
+            slots = [slot for slot in slots if is_in_person_slot(slot)]
         if slots:
             copied = dict(day)
             copied["slots"] = slots
@@ -1971,7 +1987,22 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     students = session_data.get("apsAttendanceStudents") or []
     presentiel_days = _aps_presentiel_days(planning_data, planning_mode)
     if not presentiel_days:
-        raise ValueError("Aucun jour présentiel n'est trouvé dans le planning APS.")
+        raise ValueError(f"Aucun jour présentiel n'est trouvé dans le planning {training_type}.")
+    if training_type == "DESP":
+        desp_hours = {"presentiel": 0.0, "elearning": 0.0, "exam": 0.0}
+        for day in planning_data:
+            for slot in day.get("slots", []):
+                duration = round(float(slot.get("duration") or 0), 2)
+                normalized = _normalized_slot_value(slot, "modality", "delivery_mode", "period_type")
+                if is_in_person_slot(slot):
+                    desp_hours["presentiel"] = round(desp_hours["presentiel"] + duration, 2)
+                elif normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous"}:
+                    desp_hours["elearning"] = round(desp_hours["elearning"] + duration, 2)
+                elif normalized in {"examen", "exam"}:
+                    desp_hours["exam"] = round(desp_hours["exam"] + duration, 2)
+        if desp_hours["presentiel"] != DESP_PRESENTIEL_HOURS:
+            raise ValueError(f"Impossible de générer les feuilles de présence DESP : le planning présentiel contient {desp_hours['presentiel']:g}h alors que {DESP_PRESENTIEL_HOURS}h sont attendues.")
+
 
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
@@ -2042,7 +2073,8 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         if logo_path:
             c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
-        c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
+        title = "FEUILLES DE PRÉSENCE — FORMATION DESP — PÉRIODE PRÉSENTIELLE" if training_type == "DESP" else "FEUILLE DE PRÉSENCE"
+        c.drawCentredString(width / 2, height - 38, title)
         c.setFont("Helvetica", 9)
         formation_subtitle = subtitle or ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)")
         c.drawCentredString(width / 2, height - 54, formation_subtitle)
@@ -2056,6 +2088,8 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
         c.drawString(margin, height - 126, f"Formateur : {', '.join(trainers)}")
         c.drawString(margin + 300, height - 126, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
+        if training_type == "DESP":
+            c.drawString(margin, height - 138, "Modalité : Présentiel au centre")
         y = height - 150
         c.setFont("Helvetica-Bold", 8.5)
         c.drawString(margin, y, "Modules et horaires du jour")
@@ -2119,7 +2153,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     y = height - 60
     c.setFont("Helvetica-Bold", 16); c.drawString(margin, y, "Synthèse des feuilles de présence"); y -= 28
     total_hours = round(sum(float(slot.get("duration") or 0) for day in presentiel_days for slot in day.get("slots", [])), 2)
-    mode_label = "e-learning + présentiel" if planning_mode == "elearning_presentiel" else "100% présentiel"
+    mode_label = "période présentielle DESP" if training_type == "DESP" else ("e-learning + présentiel" if planning_mode == "elearning_presentiel" else "100% présentiel")
     summary_lines = [
         f"Nombre total de stagiaires : {len(students)}",
         f"Nombre de journées présentielles : {len(presentiel_days)}",
@@ -2128,7 +2162,9 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         f"Date d’examen : {format_date(session_data.get('date_exam'))}",
         f"Mode de planning : {mode_label}",
     ]
-    if planning_mode == "elearning_presentiel":
+    if training_type == "DESP":
+        summary_lines += [f"Formation complète : {DESP_TOTAL_HOURS}h — Feuilles de présence relatives uniquement aux {DESP_PRESENTIEL_HOURS}h en présentiel", f"E-learning suivi séparément : {DESP_ELEARNING_HOURS}h", "Modalité affichée : Présentiel au centre"]
+    elif planning_mode == "elearning_presentiel":
         summary_lines += ["E-learning : 62h", "Présentiel : 113h", "Total : 175h"]
     c.setFont("Helvetica", 10)
     for line in summary_lines:

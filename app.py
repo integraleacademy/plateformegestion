@@ -1271,7 +1271,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         return built_pages
 
     pages = build_pages()
-    total_pages = len(pages) + 1
+    summary_rows_count = len((summary or {}).get("uv_rows") or [])
+    summary_pages = 1 if planning_mode == "elearning_presentiel" else max(1, (summary_rows_count + 42) // 43)
+    total_pages = len(pages) + summary_pages
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
 
@@ -1281,7 +1283,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
         c.drawString(margin + 88, height - 35, title)
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
-        c.drawString(margin + 88, height - 50, document_profile.get("subtitle") or "Agent de Prévention et de Sécurité — 175 heures")
+        c.drawString(margin + 88, height - 50, document_profile.get("subtitle") or ("Dirigeant d’une société de sécurité privée (DESP)" if document_profile.get("validate") == "desp" else "Agent de Prévention et de Sécurité — 175 heures"))
         info_y = draw_wrapped_text(
             c,
             f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}",
@@ -1293,11 +1295,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             11,
         )
         modality_y = info_y - 1
-        if planning_mode == "elearning_presentiel":
-            c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
+        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
+        if document_profile.get("validate") == "desp":
+            c.drawString(margin + 88, modality_y, "Formation mixte — 244 heures")
+            c.drawString(margin + 88, modality_y - 11, "Distanciel : 174h • Présentiel : 70h • Total : 244h")
+            modality_y -= 11
+        elif planning_mode == "elearning_presentiel":
             c.drawString(margin + 88, modality_y, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
         else:
-            c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
             c.drawString(margin + 88, modality_y, document_profile.get("modality_line") or "Modalité : 100% présentiel • Présentiel : 175h")
         y_dates = modality_y - 13
         c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
@@ -1350,10 +1355,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 c.setFillColor(colors.HexColor("#111827"))
                 draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')}", margin + 16, y - 8, width - 225, "Helvetica-Bold", 8.2, 9)
                 c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
-                c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({float(slot.get('duration') or 0):g}h)")
-                if slot.get("modality") == "elearning":
-                    c.drawString(margin + 14, y - 32, "Modalité : E-learning / distanciel")
-                else:
+                c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
+                if slot.get("modality") != "elearning":
                     c.drawString(margin + 14, y - 32, f"Salle : {slot.get('room') or 'Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS'} • Formateur : {slot.get('trainer') or '—'}")
                 y -= h + 5
             y -= 2
@@ -4788,7 +4791,9 @@ def generate_aps_planning_route(sid):
             presentiel_end = parse_date(payload.get("despPresentielEnd") or session_data.get("despPresentielEnd") or session_data.get("date_fin"))
             if not all([elearning_start, elearning_end, presentiel_start, presentiel_end]):
                 return jsonify({"ok": False, "error": "Les dates de début/fin distanciel et début/fin présentiel DESP sont obligatoires."}), 400
-            planning_data = generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), formateur, room, exam_iso=aps_local_date_iso(session_data.get("date_exam")))
+            allow_saturday = bool(payload.get("allowSaturday") or session_data.get("despAllowSaturday"))
+            planning_data = generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), formateur, room, exam_iso=aps_local_date_iso(session_data.get("date_exam")), allow_saturday=allow_saturday)
+            session_data["despAllowSaturday"] = allow_saturday
             summary = desp_summary_from_planning(planning_data)
             result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="desp", document_profile={"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"})
         else:

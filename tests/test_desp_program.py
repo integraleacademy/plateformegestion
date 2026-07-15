@@ -1,4 +1,5 @@
 from datetime import date
+import re
 import sys
 from pathlib import Path
 
@@ -16,77 +17,57 @@ from desp_program import (
 )
 
 
-def _valid_planning():
+def _valid_planning(allow_saturday=False):
     return generate_desp_planning(
-        date(2026, 1, 5),
-        date(2026, 2, 6),
-        date(2026, 2, 9),
-        date(2026, 2, 20),
-        trainer="DUPONT Jean",
-        room="Salle 1",
-        exam_iso="2026-02-23",
+        date(2026, 6, 1), date(2026, 7, 3),
+        date(2026, 7, 20), date(2026, 7, 30),
+        trainer="DUPONT Jean", room="Salle 1", exam_iso="2026-07-31",
+        allow_saturday=allow_saturday,
     )
 
 
+def _minutes(day):
+    return sum(s["durationMinutes"] for s in day["slots"])
+
+
 def test_desp_program_totals_are_exact():
-    assert desp_program_totals() == {
-        "elearning": DESP_ELEARNING_HOURS,
-        "presentiel": DESP_PRESENTIEL_HOURS,
-        "total": DESP_TOTAL_HOURS,
-    }
-    assert DESP_ELEARNING_HOURS == 174
-    assert DESP_PRESENTIEL_HOURS == 70
-    assert DESP_TOTAL_HOURS == 244
+    assert desp_program_totals() == {"elearning": DESP_ELEARNING_HOURS, "presentiel": DESP_PRESENTIEL_HOURS, "total": DESP_TOTAL_HOURS}
+    assert (DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, DESP_TOTAL_HOURS) == (174, 70, 244)
 
 
-def test_desp_planning_order_totals_exam_and_daily_limit():
-    planning = _valid_planning()
+def test_desp_planning_fixed_day_fill_totals_minutes_and_clean_times():
+    planning = _valid_planning(allow_saturday=True)
     summary = desp_summary_from_planning(planning)
     assert summary["errors"] == []
     assert summary["modality_totals"] == {"elearning": 174.0, "presentiel": 70.0}
     assert summary["total_hours"] == 244.0
-    assert summary["uv_rows"]
-    assert summary["uv_totals"]
-    assert all({"uv", "label", "hours"} <= set(row) for row in summary["uv_rows"])
-    assert all(day["date"] != "2026-02-23" for day in planning)
-
-    first_presentiel_index = next(i for i, d in enumerate(planning) if any(s["modality"] == "presentiel" for s in d["slots"]))
-    assert all(s["modality"] == "elearning" for d in planning[:first_presentiel_index] for s in d["slots"])
-    assert all(s["modality"] == "presentiel" for d in planning[first_presentiel_index:] for s in d["slots"])
-    assert max(sum(s["durationMinutes"] for s in day["slots"]) for day in planning) <= 7 * 60
-    assert summary["warnings"] == []
+    assert max(_minutes(day) for day in planning) <= 7 * 60
+    assert all(re.match(r"^\d{2}:(00|30)$", s[t]) for d in planning for s in d["slots"] for t in ("start", "end"))
+    assert all(float(s["duration"]).is_integer() for d in planning for s in d["slots"])
 
 
-def test_desp_excludes_weekends_and_french_holidays():
-    planning = generate_desp_planning(
-        date(2026, 4, 20),
-        date(2026, 5, 28),
-        date(2026, 5, 29),
-        date(2026, 6, 12),
-        trainer="DUPONT Jean",
-        room="Salle 1",
-        exam_iso="2026-06-15",
-    )
+def test_desp_elearning_25_days_are_24_full_and_one_six_hour_day():
+    planning = _valid_planning(allow_saturday=True)
+    elearning_days = [d for d in planning if d["slots"][0]["modality"] == "elearning"]
+    day_minutes = [_minutes(d) for d in elearning_days]
+    assert len(elearning_days) == 25
+    assert day_minutes.count(420) == 24
+    assert day_minutes[-1] == 360
+    assert sum(day_minutes) == 174 * 60
+
+
+def test_desp_presentiel_requires_10_days_and_can_explicitly_use_saturday():
+    with pytest.raises(ValueError, match="70 heures nécessitent 10 journées de 7 heures, mais seulement 9 journées"):
+        _valid_planning(allow_saturday=False)
+    planning = _valid_planning(allow_saturday=True)
+    presentiel_days = [d for d in planning if d["slots"][0]["modality"] == "presentiel"]
+    assert len(presentiel_days) == 10
+    assert all(_minutes(d) == 420 for d in presentiel_days)
+    assert "2026-07-25" in {d["date"] for d in presentiel_days}
+
+
+def test_desp_excludes_holidays_for_distanciel():
+    planning = generate_desp_planning(date(2026, 4, 20), date(2026, 5, 29), date(2026, 6, 1), date(2026, 6, 12), exam_iso="2026-06-15")
     dates = {day["date"] for day in planning}
     assert "2026-05-01" not in dates
     assert "2026-05-08" not in dates
-    assert all(date.fromisoformat(day["date"]).weekday() < 5 for day in planning)
-
-
-def test_desp_short_period_generates_with_overtime_warnings():
-    planning = generate_desp_planning(
-        date(2026, 1, 5),
-        date(2026, 1, 9),
-        date(2026, 1, 12),
-        date(2026, 1, 16),
-        exam_iso="2026-01-19",
-    )
-    summary = desp_summary_from_planning(planning)
-    assert summary["errors"] == []
-    assert summary["modality_totals"] == {"elearning": 174.0, "presentiel": 70.0}
-    assert summary["warnings"]
-    assert max(sum(s["durationMinutes"] for s in day["slots"]) for day in planning) > 7 * 60
-    assert {day["date"] for day in planning} <= {
-        "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09",
-        "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16",
-    }

@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, time as dt_time
 
 DESP_CODE = "DESP"
-DESP_LABEL = "Dirigeant d’entreprise de sécurité privée (DESP)"
+DESP_LABEL = "Dirigeant d’une société de sécurité privée (DESP)"
 DESP_ELEARNING_HOURS = 174
 DESP_PRESENTIEL_HOURS = 70
 DESP_TOTAL_HOURS = 244
@@ -94,34 +94,38 @@ def french_public_holidays(year: int) -> set[date]:
     easter = _easter_date(year)
     return {date(year,1,1), date(year,5,1), date(year,5,8), date(year,7,14), date(year,8,15), date(year,11,1), date(year,11,11), date(year,12,25), easter + timedelta(days=1), easter + timedelta(days=39), easter + timedelta(days=50)}
 
-def is_desp_training_day(day: date, exam_iso: str = "") -> bool:
-    return day.isoformat() != exam_iso and day.weekday() < 5 and day not in french_public_holidays(day.year)
+def is_desp_training_day(day: date, exam_iso: str = "", allow_saturday: bool = False) -> bool:
+    max_weekday = 5 if allow_saturday else 4
+    return day.isoformat() != exam_iso and day.weekday() <= max_weekday and day not in french_public_holidays(day.year)
 
-def desp_working_days_between(start: date, end: date, exam_iso: str = ""):
+def desp_working_days_between(start: date, end: date, exam_iso: str = "", allow_saturday: bool = False):
     days=[]; cur=start
     while cur <= end:
-        if is_desp_training_day(cur, exam_iso): days.append(cur)
+        if is_desp_training_day(cur, exam_iso, allow_saturday): days.append(cur)
         cur += timedelta(days=1)
     return days
 
 def _hhmm(t): return t.strftime("%H:%M")
 def _add(t, minutes): return (datetime.combine(date(2000,1,1), t) + timedelta(minutes=minutes)).time()
 
-def _period_capacity_message(label, start, end, required_minutes, exam_iso=""):
-    days = desp_working_days_between(start, end, exam_iso)
+def _period_capacity_message(label, start, end, required_minutes, exam_iso="", allow_saturday=False):
+    days = desp_working_days_between(start, end, exam_iso, allow_saturday)
     available = len(days) * DESP_MAX_DAILY_MINUTES
-    return (f"Alerte planning DESP : {label} nécessite {required_minutes/60:g}h, "
-            f"mais la période du {start.strftime('%d/%m/%Y')} au {end.strftime('%d/%m/%Y')} ne permet que {available/60:g}h à 7h/jour. "
-            "Le planning est généré dans les dates indiquées en ajoutant des heures sur certaines journées.")
+    return (f"Impossible de générer le planning {label} : {required_minutes // 60} heures nécessitent "
+            f"{(required_minutes + DESP_MAX_DAILY_MINUTES - 1) // DESP_MAX_DAILY_MINUTES} journées de 7 heures, "
+            f"mais seulement {len(days)} journées sont disponibles entre le {start.strftime('%d/%m/%Y')} "
+            f"et le {end.strftime('%d/%m/%Y')}. Modifiez les dates ou autorisez une journée supplémentaire.")
 
 def _daily_minutes_for_period(days_count: int, required_minutes: int) -> list[int]:
-    if days_count <= 0:
+    full_days, remainder = divmod(required_minutes, DESP_MAX_DAILY_MINUTES)
+    values = [DESP_MAX_DAILY_MINUTES] * full_days
+    if remainder:
+        values.append(remainder)
+    if len(values) > days_count:
         return []
-    base = required_minutes // days_count
-    remainder = required_minutes % days_count
-    return [base + (1 if i < remainder else 0) for i in range(days_count)]
+    return values
 
-def generate_desp_planning(elearning_start: date, elearning_end: date, presentiel_start: date, presentiel_end: date, trainer="", room="", exam_iso=""):
+def generate_desp_planning(elearning_start: date, elearning_end: date, presentiel_start: date, presentiel_end: date, trainer="", room="", exam_iso="", allow_saturday: bool = False):
     if presentiel_start <= elearning_end:
         raise ValueError("La période présentielle DESP doit commencer après la fin complète du distanciel.")
     planning=[]
@@ -129,9 +133,11 @@ def generate_desp_planning(elearning_start: date, elearning_end: date, presentie
         ("elearning", elearning_start, elearning_end, DESP_ELEARNING_HOURS*60, "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 174h", "", ""),
         ("presentiel", presentiel_start, presentiel_end, DESP_PRESENTIEL_HOURS*60, "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 70h", trainer, room),
     ):
-        days = desp_working_days_between(start, end, exam_iso)
+        days = desp_working_days_between(start, end, exam_iso, allow_saturday if modality == "presentiel" else False)
         if not days:
             raise ValueError(f"Impossible de générer le planning DESP : aucune journée ouvrée disponible pour {('le distanciel' if modality == 'elearning' else 'le présentiel')} entre le {start.strftime('%d/%m/%Y')} et le {end.strftime('%d/%m/%Y')}.")
+        if len(days) * DESP_MAX_DAILY_MINUTES < required:
+            raise ValueError(_period_capacity_message("distanciel" if modality == "elearning" else "présentiel", start, end, required, exam_iso, allow_saturday if modality == "presentiel" else False))
         seqs = [dict(s, remainingMinutes=s["durationMinutes"]) for s in desp_sequences(modality)]
         idx=0; remaining_total=required
         daily_minutes = _daily_minutes_for_period(len(days), required)
@@ -146,7 +152,7 @@ def generate_desp_planning(elearning_start: date, elearning_end: date, presentie
                 cursor=slot_start; remaining_slot=min(slot_minutes, remaining_total)
                 while remaining_slot > 0 and idx < len(seqs):
                     seq=seqs[idx]; take=min(remaining_slot, seq["remainingMinutes"]); end_time=_add(cursor, take)
-                    slots.append({"start": _hhmm(cursor), "end": _hhmm(end_time), "duration": round(take/60,2), "durationMinutes": take, "uv": seq["code"], "theme": seq["theme"], "title": seq["title"], "part": part_label, "room": room_for_slot, "trainer": trainer_for_slot, "modality": modality})
+                    slots.append({"start": _hhmm(cursor), "end": _hhmm(end_time), "duration": take // 60 if take % 60 == 0 else take / 60, "durationMinutes": take, "uv": seq["code"], "theme": seq["theme"], "title": seq["title"], "part": part_label, "room": room_for_slot, "trainer": trainer_for_slot, "modality": modality})
                     seq["remainingMinutes"] -= take; remaining_slot -= take; remaining_total -= take; cursor = end_time
                     if seq["remainingMinutes"] == 0: idx += 1
                 if remaining_total <= 0 or idx >= len(seqs): break
@@ -154,7 +160,7 @@ def generate_desp_planning(elearning_start: date, elearning_end: date, presentie
                 label = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][day.weekday()]
                 planning.append({"date": day.isoformat(), "dayLabel": f"{label} {day.strftime('%d/%m/%Y')}", "slots": slots})
         if remaining_total != 0:
-            raise ValueError(_period_capacity_message("le distanciel" if modality == "elearning" else "le présentiel", start, end, required, exam_iso))
+            raise ValueError(_period_capacity_message("distanciel" if modality == "elearning" else "présentiel", start, end, required, exam_iso, allow_saturday if modality == "presentiel" else False))
     return planning
 
 def desp_summary_rows():
@@ -174,14 +180,14 @@ def desp_summary_from_planning(planning):
     for day in planning or []:
         try: d=datetime.strptime(day.get("date"), "%Y-%m-%d").date()
         except Exception: errors.append(f"Date invalide: {day.get('date')}"); continue
-        if not is_desp_training_day(d): errors.append(f"La journée du {day.get('date')} est un jour non travaillé.")
+        if not is_desp_training_day(d, allow_saturday=True): errors.append(f"La journée du {day.get('date')} est un jour non travaillé.")
         day_minutes=0
         for slot in day.get("slots", []):
             modality=slot.get("modality") or "presentiel"
             if modality == "presentiel": seen_presentiel=True
             if modality == "elearning" and seen_presentiel: errors.append("Une séquence distancielle est positionnée après le début du présentiel.")
             mins=int(slot.get("durationMinutes") or 0); day_minutes += mins; minute_totals[modality]=minute_totals.get(modality,0)+mins; total_minutes += mins
-        if day_minutes > DESP_MAX_DAILY_MINUTES: warnings.append(f"Alerte: la journée du {day.get('date')} dépasse 7h de formation ({day_minutes/60:g}h) afin de respecter les dates indiquées.")
+        if day_minutes > DESP_MAX_DAILY_MINUTES: errors.append(f"La journée du {day.get('date')} dépasse 7h de formation ({day_minutes//60}h).")
     totals={k: round(v/60,2) for k,v in minute_totals.items()}
     total=round(total_minutes/60,2)
     if minute_totals["elearning"] != DESP_ELEARNING_HOURS*60: errors.append(f"Le total distanciel doit être exactement de 174h (actuel: {totals['elearning']:g}h).")

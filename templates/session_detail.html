@@ -1114,7 +1114,9 @@ a.back:hover{ background:#d9a848 !important; }
         <label><strong>Heure début examen</strong><input id="ssiapExamStartTime" name="examStartTime" type="time" value="{{ s.exam_start_time or s.ssiapExamStartTime or '08:30' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
         <label><strong>Heure fin examen</strong><input id="ssiapExamEndTime" name="examEndTime" type="time" value="{{ s.exam_end_time or s.ssiapExamEndTime or '16:30' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
       </div>
-      <p class="muted" style="margin:8px 0 0;">L’examen sera affiché dans le planning et les feuilles de présence, mais exclu du total réglementaire de 67h.</p>
+      <label for="ssiapNonTrainingDays" style="display:block;margin-top:14px;"><strong>Jours sans formation</strong> <span class="muted">(sélectionner les jours ouvrés à exclure, séparés par une virgule)</span></label>
+      <input id="ssiapNonTrainingDays" name="ssiapNonTrainingDays" type="text" value="{{ (s.ssiapNonTrainingDays or [])|join(', ') }}" placeholder="2026-10-14, 2026-10-21" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
+      <p class="muted" style="margin:8px 0 0;">L’examen sera affiché dans le planning et les feuilles de présence, mais exclu du total réglementaire de 67h. Si la période contient plus de jours ouvrés que nécessaire, renseignez les jours sans formation au lieu de les laisser choisir automatiquement.</p>
       {% endif %}
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
       <div id="apsPlanningWarning" class="flash warning" style="display:none;margin-top:12px;"></div>
@@ -1758,6 +1760,7 @@ const apsPlanningError = document.getElementById("apsPlanningError");
 const submitApsPlanning = document.getElementById("submitApsPlanning");
 const despPlanningDateInputs = ["despElearningStart", "despElearningEnd", "despPresentielStart", "despPresentielEnd"].map(id => document.getElementById(id)).filter(Boolean);
   const ssiapExamInputs = ["ssiapExamDate", "ssiapExamStartTime", "ssiapExamEndTime", "ssiapExamRoom"].map(id => document.getElementById(id)).filter(Boolean);
+const ssiapNonTrainingDaysInput = document.getElementById("ssiapNonTrainingDays");
 const planningToast = document.getElementById("planningToast");
 const resetApsPlanningModal = document.getElementById("resetApsPlanningModal");
 const openResetApsPlanningModal = document.getElementById("openResetApsPlanningModal");
@@ -1850,6 +1853,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
   }
   const despDates = Object.fromEntries(despPlanningDateInputs.map(input => [input.name, input.value]));
   const ssiapExamData = Object.fromEntries(ssiapExamInputs.map(input => [input.name, input.value]));
+  if(ssiapNonTrainingDaysInput){ ssiapExamData.ssiapNonTrainingDays = ssiapNonTrainingDaysInput.value.split(/[;,\n]+/).map(v => v.trim()).filter(Boolean); }
   if(planningMode === "desp" && despPlanningDateInputs.some(input => !input.value)){
     apsPlanningError.textContent = "Veuillez renseigner les dates de début/fin distanciel et début/fin présentiel DESP.";
     apsPlanningError.style.display = "block";

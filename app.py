@@ -480,6 +480,50 @@ SSIAP1_SEQUENCE_LABELS = {
 SSIAP1_PART_LABELS = {"P1": "1re partie — LE FEU ET SES CONSÉQUENCES", "P2": "2e partie — SÉCURITÉ INCENDIE", "P3": "3e partie — INSTALLATIONS TECHNIQUES", "P4": "4e partie — RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", "P5": "5e partie — CONCRÉTISATION DES ACQUIS"}
 SSIAP1_CONFIG = {"code": "SSIAP1", "durationHours": SSIAP1_TOTAL_HOURS, "sequenceTotals": SSIAP1_SEQUENCE_TOTALS, "partTotals": SSIAP1_PART_TOTALS, "examRequired": True, "examInPlanning": True, "examAttendance": True, "contract": True, "yousign": True}
 
+SSIAP1_AGREMENT_LINE = "Agrément SSIAP n°8323 délivré par la Préfecture du Var en date du 29/05/2026"
+
+def _ssiap1_detail(code, part_number, part_title, sequence_number, sequence_title, total_minutes, content_minutes, content_items, application_minutes=0, application_items=None):
+    return {
+        "code": code,
+        "part_number": part_number,
+        "part_title": part_title,
+        "sequence_number": sequence_number,
+        "sequence_title": sequence_title,
+        "total_duration_minutes": total_minutes,
+        "content_duration_minutes": content_minutes,
+        "content_items": content_items,
+        "application_duration_minutes": application_minutes,
+        "application_items": application_items or [],
+    }
+
+SSIAP1_SEQUENCE_DETAILS = [
+    _ssiap1_detail("P1-S1", 1, "LE FEU ET SES CONSÉQUENCES", 1, "LE FEU", 240, 120, ["Théorie du feu : triangle du feu, classes de feux et causes", "La fumée et ses dangers", "Propagation du feu : conduction, convection, rayonnement et projection", "Conduite à tenir face à un local enfumé sans mise en danger pour l’intervenant"], 120, ["Exercice de sortie d’un local enfumé par des fumées odorantes, froides et non toxiques"]),
+    _ssiap1_detail("P1-S2", 1, "LE FEU ET SES CONSÉQUENCES", 2, "COMPORTEMENT AU FEU", 120, 120, ["Principe de la résistance au feu des éléments de construction", "Principe de la réaction au feu des matériaux d’aménagement", "Critères de classement de ces comportements"]),
+    _ssiap1_detail("P2-S1", 2, "SÉCURITÉ INCENDIE", 1, "PRINCIPES DE CLASSEMENT DES ÉTABLISSEMENTS", 150, 120, ["Définition d’un ERP", "Définition du public", "Différents types d’établissements", "Catégories selon l’effectif", "Définition du seuil de la 5e catégorie", "Méthode de détermination de l’effectif", "Définition et classification d’un IGH"], 30, ["Exercices simples de classement d’établissements"]),
+    _ssiap1_detail("P2-S2", 2, "SÉCURITÉ INCENDIE", 2, "FONDAMENTAUX ET PRINCIPES GÉNÉRAUX DE SÉCURITÉ INCENDIE", 120, 120, ["Fondamentaux de sécurité : évacuation des occupants, accessibilité et mise en service des moyens de secours", "Principes généraux : implantation, desserte, isolement, matériaux, cloisonnement, aménagement, dégagement, désenfumage, éclairage de sécurité et moyens de secours"]),
+    _ssiap1_detail("P2-S3", 2, "SÉCURITÉ INCENDIE", 3, "DESSERTE DES BÂTIMENTS", 120, 90, ["Desserte et voiries", "Voies engins", "Voies échelles", "Espaces libres", "Baies accessibles"], 30, ["Repérage de dessertes et baies accessibles sur plans"]),
+    _ssiap1_detail("P2-S4", 2, "SÉCURITÉ INCENDIE", 4, "CLOISONNEMENT D’ISOLATION DES RISQUES", 120, 120, ["Cloisonnement traditionnel", "Secteurs", "Compartiments", "Locaux à risques", "Recoupement des vides"]),
+    _ssiap1_detail("P2-S5", 2, "SÉCURITÉ INCENDIE", 5, "ÉVACUATION DU PUBLIC ET DES OCCUPANTS", 90, 90, ["Définition du dégagement", "Notion d’unité de passage", "Balisage des dégagements", "Manœuvre et déverrouillage des issues", "Espace d’attente sécurisé et évacuation différée"]),
+    _ssiap1_detail("P2-S6", 2, "SÉCURITÉ INCENDIE", 6, "DÉSENFUMAGE", 240, 120, ["Objectifs du désenfumage", "Désenfumage des dégagements", "Désenfumage des locaux", "Déclenchement manuel", "Entretien et vérification", "Remise en position d’attente des dispositifs"], 120, ["Réarmement d’un volet, d’un clapet ou d’un exutoire"]),
+    _ssiap1_detail("P2-S7", 2, "SÉCURITÉ INCENDIE", 7, "ÉCLAIRAGE DE SÉCURITÉ", 120, 90, ["Définition de l’éclairage de sécurité", "Éclairage d’évacuation", "Éclairage d’ambiance ou anti-panique", "Blocs autonomes et sources centrales", "Maintenance et vérifications"], 30, ["Identification des différents blocs d’éclairage et vérification simple"]),
+    _ssiap1_detail("P2-S8", 2, "SÉCURITÉ INCENDIE", 8, "PRÉSENTATION DES DIFFÉRENTS MOYENS DE SECOURS", 60, 60, ["Moyens d’extinction", "Dispositions visant à faciliter l’action des sapeurs-pompiers", "Service de sécurité incendie", "Système de sécurité incendie", "Système d’alerte"]),
+    _ssiap1_detail("P3-S1", 3, "INSTALLATIONS TECHNIQUES", 1, "INSTALLATIONS ÉLECTRIQUES", 60, 60, ["Impact des installations électriques sur la sécurité", "Maintien de l’alimentation des installations de sécurité", "Éclairage normal, de remplacement et de sécurité", "Notions de sources de sécurité"]),
+    _ssiap1_detail("P3-S2", 3, "INSTALLATIONS TECHNIQUES", 2, "ASCENSEURS ET NACELLES", 120, 90, ["Ascenseurs et monte-charge", "Dispositifs de sécurité", "Conduite à tenir en cas de personne bloquée", "Nacelles et équipements assimilés"], 30, ["Procédure de dégagement et consignes d’exploitation"]),
+    _ssiap1_detail("P3-S3", 3, "INSTALLATIONS TECHNIQUES", 3, "INSTALLATIONS FIXES D’EXTINCTION AUTOMATIQUE", 120, 90, ["Principes de fonctionnement", "Différents types d’installations fixes", "Poste de contrôle", "Alarme et report d’information", "Entretien et vérifications"], 30, ["Lecture d’un poste de contrôle et identification des organes principaux"]),
+    _ssiap1_detail("P3-S4", 3, "INSTALLATIONS TECHNIQUES", 4, "COLONNES SÈCHES ET HUMIDES", 60, 60, ["Colonnes sèches", "Colonnes en charge ou humides", "Emplacements et signalisation", "Alimentation et utilisation par les services de secours", "Vérifications"]),
+    _ssiap1_detail("P3-S5", 3, "INSTALLATIONS TECHNIQUES", 5, "SYSTÈME DE SÉCURITÉ INCENDIE", 180, 120, ["Définition du SSI", "Catégories de SSI", "Système de détection incendie", "Centralisateur de mise en sécurité incendie", "Dispositifs actionnés de sécurité", "Unité de gestion d’alarme"], 60, ["Exploitation d’un SSI de catégorie A et lecture des informations au poste de sécurité"]),
+    _ssiap1_detail("P4-S1", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 1, "LE SERVICE DE SÉCURITÉ", 60, 60, ["Rôle et missions du service de sécurité incendie", "Composition du service", "Qualification des personnels", "Missions générales et particulières"]),
+    _ssiap1_detail("P4-S2", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 2, "PRÉSENTATION DES CONSIGNES DE SÉCURITÉ ET MAIN COURANTE", 60, 60, ["Consignes générales", "Consignes particulières", "Main courante et enregistrements", "Transmission des informations", "Rédaction d’une main courante à partir d’un événement simple"]),
+    _ssiap1_detail("P4-S3", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 3, "POSTE DE SÉCURITÉ", 150, 90, ["Organisation du poste de sécurité", "Documents présents au poste", "Réception et traitement des alarmes", "Moyens de communication", "Gestion des clés et moyens d’accès"], 60, ["Exploitation du poste de sécurité et traitement d’une alarme"]),
+    _ssiap1_detail("P4-S4", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 4, "RONDES DE SÉCURITÉ ET SURVEILLANCE DES TRAVAUX", 240, 120, ["Objectifs de la ronde", "Itinéraires et points de contrôle", "Anomalies et mesures conservatoires", "Permis de feu", "Surveillance des travaux par points chauds"], 120, ["Ronde avec résolution d’anomalies et contrôle d’un permis de feu"]),
+    _ssiap1_detail("P4-S5", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 5, "MISE EN ŒUVRE DES MOYENS D’EXTINCTION", 240, 60, ["Différents moyens d’extinction", "Agents extincteurs", "Règles de sécurité lors de l’attaque d’un feu"], 180, ["Extinction de feux réels ou simulés au moyen d’extincteurs adaptés", "Mise en œuvre d’un robinet d’incendie armé"]),
+    _ssiap1_detail("P4-S6", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 6, "APPEL ET RÉCEPTION DES SERVICES PUBLICS DE SECOURS", 240, 90, ["Différents moyens d’alerte", "Message d’alerte", "Accueil et guidage des secours", "Mise à disposition des informations utiles"], 150, ["Exercices d’appel des secours", "Mise en situation d’accueil et de guidage des secours"]),
+    _ssiap1_detail("P4-S7", 4, "RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", 7, "SENSIBILISATION DES OCCUPANTS", 90, 60, ["Information des occupants", "Actions de prévention", "Conduite à tenir en cas d’alarme", "Adaptation du message au public"], 30, ["Présentation orale d’une consigne de sécurité à des occupants"]),
+    _ssiap1_detail("P5-S1", 5, "CONCRÉTISATION DES ACQUIS", 1, "VISITES APPLICATIVES", 600, 0, [], 600, ["Visite applicative d’au moins deux établissements recevant du public", "Identification des risques et des dispositions de sécurité", "Repérage des dégagements, désenfumage, SSI et moyens de secours", "Lecture de plans et documents de sécurité"]),
+    _ssiap1_detail("P5-S2", 5, "CONCRÉTISATION DES ACQUIS", 2, "MISES EN SITUATION D’INTERVENTION", 420, 0, [], 420, ["Mises en situation d’intervention sur départ de feu", "Application des consignes et levée de doute", "Gestion d’une évacuation", "Alerte, accueil et guidage des secours", "Exploitation du SSI et de la main courante"]),
+]
+SSIAP1_SEQUENCE_DETAIL_BY_CODE = {item["code"]: item for item in SSIAP1_SEQUENCE_DETAILS}
+
 APS_EXPECTED_UV_TOTALS = {
     "UV1": 14,
     "UV2": 22,
@@ -772,10 +816,26 @@ def ssiap1_exam_payload(session_data, payload=None):
 
 def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None):
     modules = []
-    for code, hours in SSIAP1_SEQUENCE_TOTALS.items():
-        part_code = code.split("-")[0]
-        modules.append({"code": code, "part": SSIAP1_PART_LABELS[part_code], "title": SSIAP1_SEQUENCE_LABELS[code], "remainingMinutes": int(round(hours * 60))})
-    planning, totals = [], {}
+    for detail in SSIAP1_SEQUENCE_DETAILS:
+        part_label = f"{detail['part_number']}{'re' if detail['part_number'] == 1 else 'e'} partie — {detail['part_title']}"
+        for kind, duration_key, items_key, label in (
+            ("content", "content_duration_minutes", "content_items", "CONTENU"),
+            ("application", "application_duration_minutes", "application_items", "APPLICATION"),
+        ):
+            duration = int(detail.get(duration_key) or 0)
+            if duration <= 0:
+                continue
+            modules.append({
+                **detail,
+                "part": part_label,
+                "subpart_type": kind,
+                "subpart_label": label,
+                "subpart_duration_minutes": duration,
+                "subpart_items": list(detail.get(items_key) or []),
+                "remainingMinutes": duration,
+                "offsetMinutes": 0,
+            })
+    planning, totals, occurrence_counts, total_occurrences = [], {}, {}, {}
     module_idx = 0
     current_day = start_date
     total_minutes = 0
@@ -792,27 +852,46 @@ def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam
                 module = modules[module_idx]
                 duration_minutes = min(remaining_slot, module["remainingMinutes"])
                 end_time = add_minutes_to_time(cursor, duration_minutes)
-                slots.append({"start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"), "duration": round(duration_minutes/60, 2), "durationMinutes": duration_minutes, "uv": module["code"], "part": module["part"], "sequence": module["code"], "title": module["title"], "content": module["title"], "room": salle, "trainer": formateur, "modality": "presentiel"})
+                code = module["code"]
+                occurrence_counts[(code, module["subpart_type"])] = occurrence_counts.get((code, module["subpart_type"]), 0) + 1
+                total_occurrences[(code, module["subpart_type"])] = total_occurrences.get((code, module["subpart_type"]), 0) + 1
+                slots.append({
+                    "start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"),
+                    "duration": round(duration_minutes/60, 2), "durationMinutes": duration_minutes,
+                    "uv": code, "part": module["part"], "sequence": code,
+                    "partNumber": module["part_number"], "partTitle": module["part_title"],
+                    "sequenceNumber": module["sequence_number"], "sequenceTitle": module["sequence_title"],
+                    "title": module["sequence_title"], "content": module["sequence_title"],
+                    "totalSequenceDurationMinutes": module["total_duration_minutes"],
+                    "subpartType": module["subpart_type"], "subpartLabel": module["subpart_label"],
+                    "subpartDurationMinutes": module["subpart_duration_minutes"],
+                    "subpartItems": module["subpart_items"],
+                    "subpartOffsetMinutes": module["offsetMinutes"],
+                    "splitIndex": occurrence_counts[(code, module["subpart_type"])],
+                    "room": salle, "trainer": formateur, "modality": "presentiel"})
                 module["remainingMinutes"] -= duration_minutes
+                module["offsetMinutes"] += duration_minutes
                 remaining_slot -= duration_minutes
                 total_minutes += duration_minutes
-                totals[module["code"]] = totals.get(module["code"], 0) + duration_minutes
+                totals[code] = totals.get(code, 0) + duration_minutes
                 cursor = end_time
                 if module["remainingMinutes"] == 0:
                     module_idx += 1
-                if total_minutes == SSIAP1_TOTAL_MINUTES:
-                    break
-            if total_minutes == SSIAP1_TOTAL_MINUTES:
-                break
-        if slots:
-            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
+                if total_minutes == SSIAP1_TOTAL_MINUTES: break
+            if total_minutes == SSIAP1_TOTAL_MINUTES: break
+        if slots: planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
         current_day += timedelta(days=1)
-    exam_payload = exam_payload or {}
-    exam_date = exam_payload.get("date") or exam_iso
+    # Mark split blocks after all occurrences are known.
+    counts = {}
+    for day in planning:
+        for slot in day.get("slots", []):
+            key = (slot.get("sequence"), slot.get("subpartType")); counts[key] = counts.get(key, 0) + 1
+            total_for_key = total_occurrences.get(key, 1)
+            slot["splitLabel"] = "" if total_for_key == 1 else ("début" if counts[key] == 1 else "suite")
+    exam_payload = exam_payload or {}; exam_date = exam_payload.get("date") or exam_iso
     last_training = datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date() if planning else None
     exam_date_obj = datetime.strptime(exam_date, "%Y-%m-%d").date() if exam_date else None
-    if not exam_date_obj or (last_training and exam_date_obj <= last_training):
-        raise ValueError("L'examen SSIAP 1 doit être placé après la fin des 67 heures de formation.")
+    if not exam_date_obj or (last_training and exam_date_obj <= last_training): raise ValueError("L'examen SSIAP 1 doit être placé après la fin des 67 heures de formation.")
     planning.append({"date": exam_date, "dayLabel": aps_day_label(exam_date_obj), "exam": True, "slots": [{"start": exam_payload.get("start", "08:30"), "end": exam_payload.get("end", "16:30"), "duration": round((exam_payload.get("durationMinutes") or 0)/60, 2), "durationMinutes": exam_payload.get("durationMinutes") or 0, "uv": "EXAMEN", "part": "EXAMEN SSIAP 1", "sequence": "EXAMEN", "title": "EXAMEN SSIAP 1", "content": "Épreuves d'examen SSIAP 1", "room": exam_payload.get("room") or salle, "trainer": formateur, "modality": "exam"}]})
     return planning, {k: round(v/60, 2) for k, v in totals.items()}, round(total_minutes/60, 2)
 
@@ -1370,10 +1449,21 @@ def planning_day_title(day, document_profile=None):
 
 
 def planning_slot_title(slot):
+    if slot.get("partNumber") and slot.get("sequenceNumber"):
+        split = f" — {slot.get('splitLabel')}" if slot.get("splitLabel") else ""
+        return f"Séquence {slot.get('sequenceNumber')} — {slot.get('sequenceTitle') or slot.get('title')}{split}"
     return f"{slot.get('uv')} — {slot.get('title')}"
 
 
 def planning_card_height(slot, printable_width):
+    if slot.get("partNumber") and slot.get("sequenceNumber"):
+        text_w = printable_width - 32
+        title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), text_w, "Helvetica-Bold", 9.4)))
+        items_h = 0
+        for item in slot.get("subpartItems") or []:
+            items_h += max(1, len(wrap_text_lines(f"• {item}", text_w - 14, "Helvetica", 8.7))) * 10
+        meta_lines = max(1, len(wrap_text_lines(f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or '—'}", text_w, "Helvetica", 7.8)))
+        return max(86, 16 + title_lines * 11 + 13 + 16 + 8 + items_h + 8 + meta_lines * 9 + 8)
     title_w = printable_width - 225
     title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), title_w, "Helvetica-Bold", 8.2)))
     title_h = title_lines * 9
@@ -1506,7 +1596,10 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 112, width - margin, height - 112)
         c.setFont("Helvetica", 6.2); c.setFillColor(colors.HexColor("#6b7280"))
         c.drawString(margin, 40, f"Édité le {edited}, sous réserve de modification.")
-        legal = " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:])
+        legal_lines = APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:]
+        if document_profile.get("validate") == "ssiap1":
+            legal_lines.append(SSIAP1_AGREMENT_LINE)
+        legal = " • ".join(legal_lines)
         draw_wrapped_text(c, legal, margin, 28, width - 2 * margin - 78, "Helvetica", 6.2, 8)
         c.drawRightString(width - margin, 40, f"Page {page_no} / {total_pages}")
 
@@ -1544,15 +1637,30 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                     modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
                     c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
                     modality_label = "Examen" if slot.get("modality") == "exam" else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
-                    title_w = printable_width - 225
-                    draw_wrapped_text(c, planning_slot_title(slot), margin + 16, y - 8, title_w, "Helvetica-Bold", 8.2, 9)
-                    c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
-                    c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
-                    c.setFillColor(colors.HexColor(modality_color)); c.roundRect(width - margin - 86, y - h + 14, 76, 14, 4, fill=1, stroke=0)
-                    c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7); c.drawCentredString(width - margin - 48, y - h + 18, modality_label)
-                    if slot.get("modality") != "elearning":
-                        c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica", 8)
-                        draw_wrapped_text(c, f"Salle : {slot.get('room') or salle} • Formateur : {slot.get('trainer') or '—'}", margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
+                    if slot.get("partNumber") and slot.get("sequenceNumber"):
+                        text_x = margin + 16; text_w = printable_width - 32
+                        cursor_y = draw_wrapped_text(c, planning_slot_title(slot), text_x, y - 8, text_w, "Helvetica-Bold", 9.4, 11)
+                        c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
+                        c.drawString(text_x, cursor_y, f"Durée totale de la séquence : {format_duration_from_minutes(int(slot.get('totalSequenceDurationMinutes') or 0))}")
+                        badge_y = cursor_y - 16
+                        c.setFillColor(colors.HexColor(modality_color)); c.roundRect(text_x, badge_y - 3, 94, 14, 4, fill=1, stroke=0)
+                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7.4); c.drawCentredString(text_x + 47, badge_y + 1, f"{slot.get('subpartLabel')} — {format_duration_from_minutes(int(slot.get('subpartDurationMinutes') or 0))}")
+                        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8.2)
+                        c.drawRightString(margin + printable_width - 10, badge_y + 1, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
+                        item_y = badge_y - 13
+                        for item in slot.get("subpartItems") or []:
+                            item_y = draw_wrapped_text(c, f"• {item}", text_x + 8, item_y, text_w - 12, "Helvetica", 8.7, 10)
+                        draw_wrapped_text(c, f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or salle}", text_x, y - h + 19, text_w, "Helvetica", 7.8, 9)
+                    else:
+                        title_w = printable_width - 225
+                        draw_wrapped_text(c, planning_slot_title(slot), margin + 16, y - 8, title_w, "Helvetica-Bold", 8.2, 9)
+                        c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
+                        c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
+                        c.setFillColor(colors.HexColor(modality_color)); c.roundRect(width - margin - 86, y - h + 14, 76, 14, 4, fill=1, stroke=0)
+                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7); c.drawCentredString(width - margin - 48, y - h + 18, modality_label)
+                        if slot.get("modality") != "elearning":
+                            c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica", 8)
+                            draw_wrapped_text(c, f"Salle : {slot.get('room') or salle} • Formateur : {slot.get('trainer') or '—'}", margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
                     y -= h + 5
                 y -= 2
             page_no += 1
@@ -1616,7 +1724,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         y -= signature_box_h + 25
         c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "Informations légales")
         y -= 14
-        for line in APS_LEGAL_LINES:
+        for line in APS_LEGAL_LINES + ([SSIAP1_AGREMENT_LINE] if document_profile.get("validate") == "ssiap1" else []):
             y = draw_wrapped_text(c, line, margin, y, printable_width, "Helvetica", 7.5, 10)
         page_no += 1
 

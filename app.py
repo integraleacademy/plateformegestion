@@ -891,6 +891,23 @@ def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam
             key = (slot.get("sequence"), slot.get("subpartType")); counts[key] = counts.get(key, 0) + 1
             total_for_key = total_occurrences.get(key, 1)
             slot["splitLabel"] = "" if total_for_key == 1 else ("début" if counts[key] == 1 else "suite")
+            items = list(slot.get("subpartItems") or [])
+            if total_for_key > 1:
+                total_minutes_for_subpart = max(1, int(slot.get("subpartDurationMinutes") or 0))
+                start_offset = int(slot.get("subpartOffsetMinutes") or 0)
+                end_offset = start_offset + int(slot.get("durationMinutes") or 0)
+                selected = []
+                for idx, item in enumerate(items):
+                    item_midpoint = ((idx + 0.5) * total_minutes_for_subpart) / max(1, len(items))
+                    is_last_chunk = counts[key] == total_for_key
+                    if item_midpoint >= start_offset and (item_midpoint < end_offset or is_last_chunk):
+                        selected.append(item)
+                if not selected and counts[key] > 1:
+                    selected = ["Poursuite et approfondissement du contenu commencé lors du créneau précédent"]
+                slot["subpartDisplayItems"] = selected
+                slot["subpartProgressLabel"] = f"{slot.get('subpartLabel', 'Sous-partie').capitalize()} : créneau {counts[key]} sur {total_for_key} — total {format_duration_from_minutes(total_minutes_for_subpart)}"
+            else:
+                slot["subpartDisplayItems"] = items
     exam_payload = exam_payload or {}; exam_date = exam_payload.get("date") or exam_iso
     last_training = datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date() if planning else None
     exam_date_obj = datetime.strptime(exam_date, "%Y-%m-%d").date() if exam_date else None
@@ -1463,10 +1480,11 @@ def planning_card_height(slot, printable_width):
         text_w = printable_width - 32
         title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), text_w, "Helvetica-Bold", 9.4)))
         items_h = 0
-        for item in slot.get("subpartItems") or []:
+        for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
             items_h += max(1, len(wrap_text_lines(f"• {item}", text_w - 14, "Helvetica", 8.7))) * 10
+        progress_h = 10 if slot.get("subpartProgressLabel") else 0
         meta_lines = max(1, len(wrap_text_lines(f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or '—'}", text_w, "Helvetica", 7.8)))
-        return max(86, 16 + title_lines * 11 + 13 + 16 + 8 + items_h + 8 + meta_lines * 9 + 8)
+        return max(90, 16 + title_lines * 11 + 13 + 16 + progress_h + 8 + items_h + 8 + meta_lines * 9 + 8)
     title_w = printable_width - 225
     title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), title_w, "Helvetica-Bold", 8.2)))
     title_h = title_lines * 9
@@ -1475,11 +1493,17 @@ def planning_card_height(slot, printable_width):
 
 
 def planning_day_height(day, current_part, planning_mode, printable_width):
-    needed = 30 + 2 + sum(planning_card_height(slot, printable_width) + 5 for slot in day.get("slots", []))
-    day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-    if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and day_part and day_part != current_part:
-        needed += 34
-    return needed, day_part
+    needed = 30 + 2
+    part_cursor = current_part
+    first_part = None
+    for slot in day.get("slots", []):
+        slot_part = slot.get("part")
+        if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != part_cursor:
+            needed += 34
+            part_cursor = slot_part
+            first_part = first_part or slot_part
+        needed += planning_card_height(slot, printable_width) + 5
+    return needed, first_part
 
 
 def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel", document_profile=None):
@@ -1555,19 +1579,41 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     first_content_y = height - (146 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} else 122)
     def build_pages():
         built_pages, current_page, current_part = [], [], None
+        planning_day_height_helper = planning_day_height
         y = first_content_y
         bottom_limit = 84
-        for day in planning_data or []:
-            needed, day_part = planning_day_height(day, current_part, planning_mode, printable_width)
-            if current_page and y - needed < bottom_limit:
-                built_pages.append(current_page)
-                current_page, current_part = [], None
-                y = height - 122
-                needed, day_part = planning_day_height(day, current_part, planning_mode, printable_width)
-            current_page.append(day)
-            y -= needed
-            if day_part:
-                current_part = day_part
+        source_days = [day for day in (planning_data or []) if not (document_profile.get("validate") == "ssiap1" and day.get("exam"))]
+        for day in source_days:
+            day_header_needed = 32
+            day_started_on_page = any(existing.get("date") == day.get("date") for existing in current_page)
+            current_fragment = None
+            for slot in day.get("slots", []):
+                _ = planning_day_height_helper
+                slot_part = slot.get("part")
+                band_needed = 34 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != current_part else 0
+                header_needed = 0 if day_started_on_page and current_fragment is not None else day_header_needed
+                needed = header_needed + band_needed + planning_card_height(slot, printable_width) + 5
+                if current_page and y - needed < bottom_limit:
+                    built_pages.append(current_page)
+                    current_page, current_part = [], None
+                    y = height - 122
+                    current_fragment = None
+                    day_started_on_page = False
+                    band_needed = 34 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part else 0
+                    header_needed = day_header_needed
+                    needed = header_needed + band_needed + planning_card_height(slot, printable_width) + 5
+                if current_fragment is None:
+                    current_fragment = {**day, "slots": []}
+                    current_page.append(current_fragment)
+                    y -= header_needed
+                    day_started_on_page = True
+                if band_needed:
+                    y -= band_needed
+                    current_part = slot_part
+                current_fragment["slots"].append(slot)
+                y -= planning_card_height(slot, printable_width) + 5
+            if current_fragment:
+                y -= 2
         if current_page or not built_pages:
             built_pages.append(current_page)
         return built_pages
@@ -1608,7 +1654,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     def draw_legend(y):
         c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Légende :")
-        c.setFillColor(colors.HexColor("#6d28d9")); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
+        exam_legend_color = "#b91c1c" if document_profile.get("validate") == "ssiap1" else "#6d28d9"
+        c.setFillColor(colors.HexColor(exam_legend_color)); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
         c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 78, y, document_profile.get("legend_elearning"))
         c.setFillColor(colors.HexColor("#0d9488")); c.roundRect(margin + 238, y - 8, 18, 9, 2, fill=1, stroke=0)
         c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 262, y, document_profile.get("legend_presentiel"))
@@ -1623,18 +1670,18 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 y = draw_legend(y)
             current_part = None
             for day in page_days:
-                day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-                if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and day_part and day_part != current_part:
-                    current_part = day_part
-                    band_color = "#b91c1c" if "EXAMEN" in day_part else ("#6d28d9" if "E-LEARNING" in day_part else "#0d9488")
-                    c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
-                    c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(day_part))
-                    y -= 34
                 c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, printable_width, 22, 6, fill=1, stroke=0)
                 day_total_minutes = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", []))
                 c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{planning_day_title(day, document_profile)} — {format_duration_from_minutes(day_total_minutes)}")
                 y -= 30
                 for slot in day.get("slots", []):
+                    slot_part = slot.get("part")
+                    if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != current_part:
+                        current_part = slot_part
+                        band_color = "#b91c1c" if "EXAMEN" in slot_part else ("#6d28d9" if "E-LEARNING" in slot_part else "#0d9488")
+                        c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
+                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(slot_part))
+                        y -= 34
                     h = planning_card_height(slot, printable_width)
                     c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(margin, y - h + 5, printable_width, h, 6, fill=1, stroke=1)
                     modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
@@ -1647,11 +1694,13 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                         c.drawString(text_x, cursor_y, f"Durée totale de la séquence : {format_duration_from_minutes(int(slot.get('totalSequenceDurationMinutes') or 0))}")
                         badge_y = cursor_y - 16
                         c.setFillColor(colors.HexColor(modality_color)); c.roundRect(text_x, badge_y - 3, 94, 14, 4, fill=1, stroke=0)
-                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7.4); c.drawCentredString(text_x + 47, badge_y + 1, f"{slot.get('subpartLabel')} — {format_duration_from_minutes(int(slot.get('subpartDurationMinutes') or 0))}")
+                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7.4); c.drawCentredString(text_x + 47, badge_y + 1, f"{slot.get('subpartLabel')} — {format_duration_from_minutes(int(slot.get('durationMinutes') or 0))}")
                         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8.2)
                         c.drawRightString(margin + printable_width - 10, badge_y + 1, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
                         item_y = badge_y - 13
-                        for item in slot.get("subpartItems") or []:
+                        if slot.get("subpartProgressLabel"):
+                            item_y = draw_wrapped_text(c, slot.get("subpartProgressLabel"), text_x + 8, item_y, text_w - 12, "Helvetica-Oblique", 7.6, 9)
+                        for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
                             item_y = draw_wrapped_text(c, f"• {item}", text_x + 8, item_y, text_w - 12, "Helvetica", 8.7, 10)
                         draw_wrapped_text(c, f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or salle}", text_x, y - h + 19, text_w, "Helvetica", 7.8, 9)
                     else:
@@ -1680,6 +1729,20 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         nonlocal page_no
         draw_header_footer(page_no, total_pages)
         y = height - 122
+        if document_profile.get("validate") == "ssiap1":
+            exam_day = next((day for day in planning_data or [] if day.get("exam")), None)
+            exam_slot = (exam_day.get("slots") or [{}])[0] if exam_day else (summary.get("exam") or {})
+            c.setFillColor(colors.HexColor("#b91c1c")); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
+            c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, "EXAMEN SSIAP 1")
+            y -= 34
+            c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#fecaca")); c.roundRect(margin, y - 74, printable_width, 78, 6, fill=1, stroke=1)
+            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10)
+            c.drawString(margin + 14, y - 16, f"{planning_day_title(exam_day or {'date': (summary.get('exam') or {}).get('date')}, document_profile)} — {exam_slot.get('start') or '—'} - {exam_slot.get('end') or '—'}")
+            c.setFont("Helvetica", 8.6); c.setFillColor(colors.HexColor("#374151"))
+            c.drawString(margin + 14, y - 32, f"Salle : {exam_slot.get('room') or salle}")
+            c.drawString(margin + 14, y - 46, f"Formateur / responsable : {exam_slot.get('trainer') or formateur or '—'}")
+            c.drawString(margin + 14, y - 60, exam_slot.get("content") or "Épreuves d'examen SSIAP 1")
+            y -= 96
         c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
         y -= 18
         c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. Récapitulatif par modalité")
@@ -1695,14 +1758,15 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         rows = summary.get("uv_rows") or []
         continued = False
         for row in rows:
-            module_text = f"{row.get('uv')} — {row.get('title') or row.get('label')}"
+            module_text = (f"Séquence {str(row.get('uv')).split('-S')[-1]} — {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} — {row.get('title') or row.get('label')}")
             module_lines = wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)
             row_h = max(12, len(module_lines) * 8 + 4)
             if y - row_h < 132:
                 c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122; continued = True; y = summary_table_header(y, continued=True)
             c.setFont("Helvetica", 7.2); c.setFillColor(colors.HexColor("#111827"))
             modality = row.get("modality") or ("elearning" if "Distanciel" in str(row.get("label")) else "presentiel")
-            c.drawString(margin, y, "Période 1" if modality == "elearning" else "Période 2")
+            part_label = f"Partie {str(row.get('uv')).split('-')[0][1:]}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else ("Période 1" if modality == "elearning" else "Période 2")
+            c.drawString(margin, y, part_label)
             draw_wrapped_text(c, module_text, margin+92, y, width - margin - 300, "Helvetica", 7.2, 8)
             c.drawString(width-margin-140, y, "E-learning" if modality == "elearning" else "Présentiel")
             c.drawRightString(width-margin, y, format_duration_from_minutes(int(round(float(row.get("hours", 0))*60))))
@@ -1733,7 +1797,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     def compute_summary_page_count():
         count = 1
-        y = height - 122 - 18 - 14
+        y = height - 122 - (130 if document_profile.get("validate") == "ssiap1" else 0) - 18 - 14
         if modality_ranges.get("elearning"):
             y -= 13
         if modality_ranges.get("presentiel"):
@@ -1741,7 +1805,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         y -= 20
         y -= 26
         for row in summary.get("uv_rows") or []:
-            module_text = f"{row.get('uv')} — {row.get('title') or row.get('label')}"
+            module_text = (f"Séquence {str(row.get('uv')).split('-S')[-1]} — {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} — {row.get('title') or row.get('label')}")
             row_h = max(12, len(wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)) * 8 + 4)
             if y - row_h < 132:
                 count += 1

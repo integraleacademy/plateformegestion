@@ -17,7 +17,7 @@ def _session():
 
 def _pdf(tmp_path):
     pypdf = pytest.importorskip("pypdf")
-    planning = generate_desp_planning(date(2026,6,1), date(2026,7,3), date(2026,7,20), date(2026,7,30), "DUPONT Jean", "Salle DESP", exam_iso="2026-07-31", allow_saturday=True)
+    planning = generate_desp_planning(date(2026,6,1), date(2026,7,3), date(2026,7,20), date(2026,7,30), "DUPONT Jean", "Salle DESP", exam_iso="2026-07-31", allow_saturday=False)
     summary = desp_summary_from_planning(planning)
     out = tmp_path / "planning_desp.pdf"
     generate_aps_planning_pdf(_session(), "DUPONT Jean", str(out), planning_data=planning, planning_mode="desp", document_profile={"validate":"desp", "summary":summary, "planning_title":"PLANNING DE FORMATION DESP", "short_label":"DESP"})

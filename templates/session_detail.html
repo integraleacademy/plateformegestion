@@ -749,7 +749,7 @@ a.back:hover{ background:#d9a848 !important; }
       <a class="detail-nav-link active" href="#session-overview" aria-current="page"><span class="detail-nav-icon">▦</span>Vue d’ensemble</a>
       <a class="detail-nav-link" href="#jury-section"><span class="detail-nav-icon">♙</span>Jury d’examen</a>
       <a class="detail-nav-link" href="#planning-section"><span class="detail-nav-icon">▤</span>Planning PDF</a>
-      {% if s.formation in ["APS", "A3P"] %}
+      {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] %}
         <a class="detail-nav-link" href="{{ '#a3p-contracts-section' if s.formation == 'A3P' else '#aps-contracts-section' }}"><span class="detail-nav-icon">📝</span>Contrat formateur</a>
         <a class="detail-nav-link" href="#aps-attendance-section"><span class="detail-nav-icon">📄</span>Feuilles de présence</a>
       {% endif %}
@@ -916,10 +916,10 @@ a.back:hover{ background:#d9a848 !important; }
       {% elif planning_pdf %}
         <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
       {% endif %}
-      {% if s.formation == "APS" and planning_pdf and s.apsPlanningData %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT"] and planning_pdf and s.apsPlanningData %}
         <a class="btn small gold" href="{{ url_for('edit_aps_planning_page', sid=s.id) }}">✏️ Modifier le planning généré</a>
       {% endif %}
-      {% if s.formation == "APS" %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT"] %}
         <button type="button" class="btn small gold" id="openApsPlanningModal">
           {% if planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
@@ -928,7 +928,7 @@ a.back:hover{ background:#d9a848 !important; }
           {% if a3p_document_exists(s, 'planning') %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
       {% endif %}
-      {% if s.formation == "APS" and planning_pdf %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT"] and planning_pdf %}
         <button type="button" class="btn small danger" id="openResetApsPlanningModal">🗑️ Réinitialiser le planning</button>
       {% endif %}
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
@@ -955,7 +955,7 @@ a.back:hover{ background:#d9a848 !important; }
     {% if s.planning_modified_at %}
       <div class="planning-status">✏️ Planning modifié le {{ s.planning_modified_at|datetimefr }}</div>
     {% endif %}
-    {% if s.formation == "APS" and planning_pdf and not s.apsPlanningData %}
+    {% if s.formation in ["APS", "DESP", "DIRIGEANT"] and planning_pdf and not s.apsPlanningData %}
       <div class="flash warning" style="margin-top:10px;">Ce PDF n'a pas encore de données modifiables. Régénérez le planning APS pour créer la structure de modification.</div>
     {% endif %}
     {% if s.planning_history %}
@@ -979,7 +979,7 @@ a.back:hover{ background:#d9a848 !important; }
     </form>
   {% endif %}
 </section>
-{% if s.formation in ["APS", "A3P"] %}
+{% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] %}
 <section class="planning-box" id="aps-attendance-section">
   <div class="planning-header">
     <div>
@@ -1051,18 +1051,23 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 </div></div>
 {% endif %}
-{% if s.formation == "APS" %}
+{% if s.formation in ["APS", "DESP", "DIRIGEANT"] %}
 <div class="modal" id="apsPlanningModal" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
       <div>
-        <h3 style="margin:0;">✨ Générer planning APS</h3>
+        <h3 style="margin:0;">✨ Générer planning</h3>
+        {% if s.formation in ["DESP", "DIRIGEANT"] %}
+        <p class="muted" style="margin:6px 0 0;">Planning DESP 244h : 174h e-learning puis 70h présentiel, hors examen, week-ends et jours fériés français.</p>
+        {% else %}
         <p class="muted" style="margin:6px 0 0;">Planning APS 175h, hors week-ends et jours fériés français.</p>
         <p class="muted" style="margin:6px 0 0;">Choisissez le mode d’organisation de la session APS.</p>
+        {% endif %}
       </div>
       <button class="modal-close" type="button" id="closeApsPlanningModal" data-modal-close aria-label="Fermer">×</button>
     </div>
     <form id="apsPlanningForm" style="margin-top:18px;">
+      {% if s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% else %}
       <fieldset class="aps-planning-mode-fieldset">
         <legend><strong>Type de planning APS</strong> <span aria-hidden="true">*</span></legend>
         <div class="aps-planning-mode-grid" role="radiogroup" aria-required="true">
@@ -1082,6 +1087,7 @@ a.back:hover{ background:#d9a848 !important; }
           </label>
         </div>
       </fieldset>
+      {% endif %}
       <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>Nom et prénom du formateur</strong></label>
       <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
       <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
@@ -1158,21 +1164,21 @@ a.back:hover{ background:#d9a848 !important; }
 </div></div>
 {% endif %}
 
-{% if s.formation == "APS" %}
+{% if s.formation in ["APS", "DESP", "DIRIGEANT"] %}
 <section class="planning-box" id="aps-contracts-section">
   <div class="planning-header">
     <div>
       <h2 style="margin:0;">📝 Contrats formateurs</h2>
-      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention APS. Les heures e-learning sont exclues.</p>
+      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention. Les heures e-learning sont exclues sauf affectation explicite.</p>
     </div>
     {% if planning_pdf and s.apsPlanningData %}
       <button type="button" class="btn small gold" id="openApsContractModal">Générer contrat formateur</button>
     {% else %}
-      <button type="button" class="btn small gold" disabled title="Veuillez générer le planning APS avant de générer un contrat formateur.">Générer contrat formateur</button>
+      <button type="button" class="btn small gold" disabled title="Veuillez générer le planning avant de générer un contrat formateur.">Générer contrat formateur</button>
     {% endif %}
   </div>
   {% if not planning_pdf or not s.apsPlanningData %}
-    <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning APS avant de générer un contrat formateur.</div>
+    <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning avant de générer un contrat formateur.</div>
   {% endif %}
   {% set aps_contract_trainers = aps_detect_trainers(s.apsPlanningData or []) if s.apsPlanningData else [] %}
   {% for trainer_name in aps_contract_trainers %}
@@ -1259,7 +1265,7 @@ a.back:hover{ background:#d9a848 !important; }
       </div>
     {% endif %}
   {% else %}
-    <p class="muted" style="margin-top:10px;">Aucun formateur détecté dans le planning APS.</p>
+    <p class="muted" style="margin-top:10px;">Aucun formateur détecté dans le planning.</p>
   {% endfor %}
 </section>
 <style>
@@ -1803,10 +1809,10 @@ confirmResetApsPlanning?.addEventListener("click", async () => {
 apsPlanningForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formateur = apsFormateur.value.trim();
-  const planningMode = apsPlanningForm.querySelector('input[name="planningMode"]:checked')?.value || "";
+  const planningMode = apsPlanningForm.querySelector('input[name="planningMode"]:checked')?.value || apsPlanningForm.querySelector('input[name="planningMode"]')?.value || "";
   const room = (apsRoom?.value || "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS").trim() || "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS";
   if(!planningMode){
-    apsPlanningError.textContent = "Veuillez choisir le type de planning APS.";
+    apsPlanningError.textContent = "Veuillez choisir le type de planning.";
     apsPlanningError.style.display = "block";
     return;
   }

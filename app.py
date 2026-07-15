@@ -35,6 +35,7 @@ from yousign_service import YousignClient, YousignError, detect_yousign_environm
 
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
+from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
 
 
 
@@ -1187,8 +1188,8 @@ def aps_format_range(range_data):
 
 def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel", document_profile=None):
     document_profile = document_profile or {}
-    if planning_mode not in {"full_presentiel", "elearning_presentiel"}:
-        raise ValueError("Le type de planning APS est obligatoire.")
+    if planning_mode not in {"full_presentiel", "elearning_presentiel", "desp"}:
+        raise ValueError("Le type de planning est obligatoire.")
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -1211,7 +1212,10 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
         planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id"))
-    if document_profile.get("validate") == "a3p":
+    if document_profile.get("validate") == "desp":
+        summary = document_profile.get("summary") or desp_summary_from_planning(planning_data)
+        errors = list(summary.get("errors") or [])
+    elif document_profile.get("validate") == "a3p":
         errors, a3p_summary = validate_a3p_planning(document_profile.get("source_planning") or [], exam_iso)
         summary = document_profile.get("summary") or {"total_hours": a3p_summary.get("totalHours", 0), "uv_totals": a3p_summary.get("moduleTotals", {}), "uv_rows": document_profile.get("summary_rows", []), "modality_totals": {"presentiel": a3p_summary.get("totalHours", 0)}}
     else:
@@ -1243,7 +1247,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     def day_height(day, current_part):
         needed = 30 + (len(day.get("slots", [])) * 49) + 2
         day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-        if planning_mode == "elearning_presentiel" and day_part and day_part != current_part:
+        if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
             needed += 34
         return needed, day_part
 
@@ -1324,7 +1328,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         current_part = None
         for day in page_days:
             day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-            if planning_mode == "elearning_presentiel" and day_part and day_part != current_part:
+            if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
                 current_part = day_part
                 band_color = "#6d28d9" if "E-LEARNING" in day_part else "#0d9488"
                 c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, width - 2 * margin, 24, 6, fill=1, stroke=0)
@@ -2055,7 +2059,9 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
 
 
 def generate_aps_attendance_pdf(session_data, output_path):
-    return generate_attendance_pdf_common(session_data, output_path, training_type="APS")
+    training_type = "DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS"
+    subtitle = DESP_LABEL if training_type == "DESP" else None
+    return generate_attendance_pdf_common(session_data, output_path, training_type=training_type, subtitle=subtitle)
 
 
 def send_email_with_attachments(to_email, subject, body, attachments):
@@ -4754,30 +4760,43 @@ def generate_aps_planning_route(sid):
     session_data = find_session(data, sid)
     if not session_data:
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS":
-        return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS."}), 400
+    formation = (session_data.get("formation") or "").upper()
+    is_desp = formation in {"DESP", "DIRIGEANT"}
+    if formation != "APS" and not is_desp:
+        return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS ou DESP."}), 400
 
     payload = request.get_json(silent=True) or {}
-    planning_mode = (payload.get("planningMode") or "").strip()
+    planning_mode = "desp" if is_desp else (payload.get("planningMode") or "").strip()
     formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
     room = (payload.get("room") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS").strip() or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"
-    if planning_mode not in {"full_presentiel", "elearning_presentiel"}:
+    if not is_desp and planning_mode not in {"full_presentiel", "elearning_presentiel"}:
         return jsonify({"ok": False, "error": "Le type de planning APS est obligatoire."}), 400
-    if not formateur:
+    if not formateur and not is_desp:
         return jsonify({"ok": False, "error": "Le nom et prénom du formateur sont obligatoires."}), 400
     if not parse_date(session_data.get("date_exam")):
-        return jsonify({"ok": False, "error": "La date d'examen est obligatoire pour générer le planning APS."}), 400
+        return jsonify({"ok": False, "error": "La date d'examen est obligatoire pour générer le planning."}), 400
 
-    filename = f"planning_aps_session_{sid}.pdf"
+    filename = f"planning_{'desp' if is_desp else 'aps'}_session_{sid}.pdf"
     output_path = os.path.join(PLANNING_DIR, filename)
     temp_path = f"{output_path}.tmp"
     try:
         session_data["salle"] = room
-        result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_mode=planning_mode)
-        if round(result["total_hours"], 2) != APS_TOTAL_HOURS:
+        if is_desp:
+            elearning_start = parse_date(session_data.get("despElearningStart") or session_data.get("date_debut"))
+            elearning_end = parse_date(session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
+            presentiel_start = parse_date(session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
+            presentiel_end = parse_date(session_data.get("despPresentielEnd") or session_data.get("date_fin"))
+            if not all([elearning_start, elearning_end, presentiel_start, presentiel_end]):
+                return jsonify({"ok": False, "error": "Les dates de début/fin distanciel et début/fin présentiel DESP sont obligatoires."}), 400
+            planning_data = generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), formateur, room, exam_iso=aps_local_date_iso(session_data.get("date_exam")))
+            summary = desp_summary_from_planning(planning_data)
+            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="desp", document_profile={"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"})
+        else:
+            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_mode=planning_mode)
+        if round(result["total_hours"], 2) != (DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            return jsonify({"ok": False, "error": "Le total généré n'est pas exactement de 175h."}), 500
+            return jsonify({"ok": False, "error": f"Le total généré n'est pas exactement de {DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS}h."}), 500
         exam_iso = aps_local_date_iso(session_data.get("date_exam"))
         if any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
             if os.path.exists(temp_path):
@@ -4822,7 +4841,7 @@ def generate_aps_planning_route(sid):
 def preview_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
     if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
     trainers = []
@@ -4869,7 +4888,7 @@ def view_aps_trainer_contract(sid, contract_id):
 def generate_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS": return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
     if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
     payload = request.get_json(silent=True) or {}; trainers = payload.get("trainers") or []
@@ -5202,7 +5221,7 @@ def import_aps_attendance_students(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
         return jsonify({"ok": False, "error": "Veuillez importer un fichier PDF."}), 400
@@ -5223,7 +5242,7 @@ def save_aps_attendance_students(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
     payload = request.get_json(silent=True) or {}
     students = []
     for item in payload.get("students") or []:
@@ -5246,7 +5265,7 @@ def generate_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
     planning_key = "a3pPlanningData" if formation == "A3P" else "apsPlanningData"
     student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
     if not session_data.get(planning_key):
@@ -5296,7 +5315,7 @@ def reset_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS et A3P."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
     payload = request.get_json(silent=True) or {}
     filename = session_data.get("a3pAttendanceSheetsFilename" if formation == "A3P" else "apsAttendanceSheetsFilename")
     if filename:
@@ -5584,9 +5603,9 @@ def edit_aps_planning_page(sid):
     session_data = find_session(data, sid)
     if not session_data:
         abort(404)
-    if (session_data.get("formation") or "").upper() != "APS":
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}:
         abort(404)
-    return render_template("aps_planning_editor.html", title="Modifier le planning APS", s=session_data)
+    return render_template("aps_planning_editor.html", title="Modifier le planning", s=session_data)
 
 @app.get("/api/sessions/<sid>/aps-planning")
 def get_aps_planning_api(sid):
@@ -5594,10 +5613,12 @@ def get_aps_planning_api(sid):
     session_data = find_session(data, sid)
     if not session_data:
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS":
-        return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    formation = (session_data.get("formation") or "").upper()
+    is_desp = formation in {"DESP", "DIRIGEANT"}
+    if formation != "APS" and not is_desp:
+        return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
-    summary = aps_summary_from_data(planning_data) if planning_data else None
+    summary = desp_summary_from_planning(planning_data) if is_desp and planning_data else (aps_summary_from_data(planning_data) if planning_data else None)
     return jsonify({
         "ok": True,
         "session": session_data,
@@ -5613,8 +5634,10 @@ def update_aps_planning_api(sid):
     session_data = find_session(data, sid)
     if not session_data:
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS":
-        return jsonify({"ok": False, "error": "La session n'est pas APS."}), 400
+    formation = (session_data.get("formation") or "").upper()
+    is_desp = formation in {"DESP", "DIRIGEANT"}
+    if formation != "APS" and not is_desp:
+        return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     if not session_data.get("apsPlanningData") and not session_data.get("planning_pdf"):
         return jsonify({"ok": False, "error": "Aucun planning APS n'existe encore."}), 400
     payload = request.get_json(silent=True) or {}
@@ -5625,7 +5648,11 @@ def update_aps_planning_api(sid):
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
     if exam_iso and any(day.get("date") == exam_iso for day in planning_data):
         return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
-    errors, summary = validate_aps_planning_data(planning_data, planning_mode)
+    if is_desp:
+        summary = desp_summary_from_planning(planning_data)
+        errors = list(summary.get("errors") or [])
+    else:
+        errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if errors:
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400
     session_data["apsPlanningData"] = planning_data
@@ -5633,12 +5660,13 @@ def update_aps_planning_api(sid):
     session_data["planning_modified_at"] = append_planning_history(session_data, "planning modifié")
     pdf_url = url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None
     if payload.get("regeneratePdf"):
-        filename = f"planning_aps_session_{sid}.pdf"
+        filename = f"planning_{'desp' if is_desp else 'aps'}_session_{sid}.pdf"
         output_path = os.path.join(PLANNING_DIR, filename)
         temp_path = f"{output_path}.tmp"
-        result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode)
+        profile = {"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else None
+        result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode, document_profile=profile)
         if os.path.exists(output_path):
-            archive = os.path.join(PLANNING_DIR, f"planning_aps_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
+            archive = os.path.join(PLANNING_DIR, f"planning_{'desp' if is_desp else 'aps'}_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
             try:
                 os.replace(output_path, archive)
             except OSError:
@@ -5659,8 +5687,8 @@ def reset_aps_planning_api(sid):
     session_data = find_session(data, sid)
     if not session_data:
         return jsonify({"success": False, "message": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS":
-        return jsonify({"success": False, "message": "Cette action est disponible uniquement pour les sessions APS."}), 400
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}:
+        return jsonify({"success": False, "message": "Cette action est disponible uniquement pour les sessions APS/DESP."}), 400
 
     planning_keys = (
         "apsPlanningData",

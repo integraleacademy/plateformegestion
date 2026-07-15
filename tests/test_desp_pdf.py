@@ -118,7 +118,8 @@ def test_desp_attendance_generates_only_in_person_days_and_70_hours(tmp_path):
     out, reader, text = _attendance_text(tmp_path)
     assert out.exists() and out.stat().st_size > 0
     assert len(reader.pages) == 10  # 9 journées présentielles + synthèse
-    assert "FEUILLES DE PRÉSENCE — FORMATION DESP — PÉRIODE PRÉSENTIELLE" in text
+    assert "FEUILLE DE PRÉSENCE — FORMATION DESP" in text
+    assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" in text
     assert "Nombre de journées présentielles : 9" in text
     assert "Nombre total d’heures présentielles : 70h" in text
     assert "Modalité : Présentiel au centre" in text
@@ -163,3 +164,40 @@ def test_desp_attendance_no_blank_sheet_for_day_without_in_person_slot(tmp_path)
     assert len(reader.pages) == 10
     assert "18/07/2026" not in text
     assert "DESP-E99" not in text
+
+
+def test_desp_attendance_header_layout_stays_right_of_logo():
+    pytest.importorskip("reportlab")
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    width, height = A4
+    margin = 10 * mm
+    header = app.desp_attendance_header_layout(width, height, margin, stringWidth)
+    logo = header["logo"]
+    assert header["text_left"] == logo["x"] + logo["width"] + 14
+    assert header["text_left"] > logo["x"] + logo["width"]
+    assert header["text_right"] == width - margin
+    for line in header["lines"]:
+        assert line["x"] >= margin
+        assert line["x"] >= header["text_left"]
+        assert line["x"] + line["width"] <= header["text_right"]
+        assert line["width"] <= header["text_width"]
+        assert line["x"] >= logo["x"] + logo["width"]
+    assert header["lines"][0]["text"].startswith("FEUILLE DE PRÉSENCE")
+    assert "FEUILLES DE PRÉSENCE" not in header["lines"][0]["text"]
+    assert "PÉRIODE PRÉSENTIELLE" in header["lines"][1]["text"]
+    assert header["session_y"] < min(line["y"] for line in header["lines"]) - 20
+
+
+def test_desp_attendance_header_text_repeated_on_all_daily_pages(tmp_path):
+    out, reader, _ = _attendance_text(tmp_path)
+    assert out.exists()
+    for page in reader.pages[:9]:
+        text = page.extract_text() or ""
+        assert "FEUILLE DE PRÉSENCE — FORMATION DESP" in text
+        assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" in text
+        assert "Dirigeant d’une société de sécurité privée (DESP)" in text
+    summary_text = reader.pages[-1].extract_text() or ""
+    assert "FEUILLE DE PRÉSENCE — FORMATION DESP" not in summary_text

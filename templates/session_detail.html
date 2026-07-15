@@ -1093,7 +1093,7 @@ a.back:hover{ background:#d9a848 !important; }
         </div>
       </fieldset>
       {% endif %}
-      <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>Nom et prénom du formateur</strong></label>
+      <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>{% if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}Formateur SSIAP 1{% else %}Nom et prénom du formateur{% endif %}</strong></label>
       <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
       <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
       <input id="apsRoom" name="room" type="text" value="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" placeholder="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
@@ -1114,7 +1114,12 @@ a.back:hover{ background:#d9a848 !important; }
         <label><strong>Heure début examen</strong><input id="ssiapExamStartTime" name="examStartTime" type="time" value="{{ s.exam_start_time or s.ssiapExamStartTime or '08:30' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
         <label><strong>Heure fin examen</strong><input id="ssiapExamEndTime" name="examEndTime" type="time" value="{{ s.exam_end_time or s.ssiapExamEndTime or '16:30' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
       </div>
-      <p class="muted" style="margin:8px 0 0;">L’examen sera affiché dans le planning et les feuilles de présence, mais exclu du total réglementaire de 67h.</p>
+      <div class="desp-planning-dates" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;">
+        <label><strong>Formateur SST</strong><input id="ssiapSstTrainer" name="sstTrainer" type="text" value="{{ s.ssiapSstTrainer or '' }}" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Formateur des révisions</strong><input id="ssiapRevisionTrainer" name="revisionTrainer" type="text" value="{{ s.ssiapRevisionTrainer or '' }}" placeholder="Par défaut : formateur SSIAP 1" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;"></label>
+        <label><strong>Responsable / intervenant examen</strong><input id="ssiapExamTrainer" name="examTrainer" type="text" value="{{ s.ssiapExamTrainer or '' }}" placeholder="Par défaut : formateur SSIAP 1" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;"></label>
+      </div>
+      <p class="muted" style="margin:8px 0 0;">Le parcours comprend 14h de SST, 67h réglementaires SSIAP 1 et 3h de révisions complémentaires le 27/10 après-midi. L’examen reste distinct du total réglementaire.</p>
       {% endif %}
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
       <div id="apsPlanningWarning" class="flash warning" style="display:none;margin-top:12px;"></div>
@@ -1849,7 +1854,8 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     return;
   }
   const despDates = Object.fromEntries(despPlanningDateInputs.map(input => [input.name, input.value]));
-  const ssiapExamData = Object.fromEntries(ssiapExamInputs.map(input => [input.name, input.value]));
+  const ssiapRoleInputs = ["ssiapSstTrainer", "ssiapRevisionTrainer", "ssiapExamTrainer"].map(id => document.getElementById(id)).filter(Boolean);
+  const ssiapExamData = Object.fromEntries([...ssiapExamInputs, ...ssiapRoleInputs].map(input => [input.name, input.value]));
   if(planningMode === "desp" && despPlanningDateInputs.some(input => !input.value)){
     apsPlanningError.textContent = "Veuillez renseigner les dates de début/fin distanciel et début/fin présentiel DESP.";
     apsPlanningError.style.display = "block";

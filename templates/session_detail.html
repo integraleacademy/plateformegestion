@@ -916,10 +916,10 @@ a.back:hover{ background:#d9a848 !important; }
       {% elif planning_pdf %}
         <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT"] and planning_pdf and s.apsPlanningData %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] and planning_pdf and s.apsPlanningData %}
         <a class="btn small gold" href="{{ url_for('edit_aps_planning_page', sid=s.id) }}">✏️ Modifier le planning généré</a>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT"] %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] %}
         <button type="button" class="btn small gold" id="openApsPlanningModal">
           {% if planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
@@ -928,7 +928,7 @@ a.back:hover{ background:#d9a848 !important; }
           {% if a3p_document_exists(s, 'planning') %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT"] and planning_pdf %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] and planning_pdf %}
         <button type="button" class="btn small danger" id="openResetApsPlanningModal">🗑️ Réinitialiser le planning</button>
       {% endif %}
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
@@ -955,7 +955,7 @@ a.back:hover{ background:#d9a848 !important; }
     {% if s.planning_modified_at %}
       <div class="planning-status">✏️ Planning modifié le {{ s.planning_modified_at|datetimefr }}</div>
     {% endif %}
-    {% if s.formation in ["APS", "DESP", "DIRIGEANT"] and planning_pdf and not s.apsPlanningData %}
+    {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] and planning_pdf and not s.apsPlanningData %}
       <div class="flash warning" style="margin-top:10px;">Ce PDF n'a pas encore de données modifiables. Régénérez le planning APS pour créer la structure de modification.</div>
     {% endif %}
     {% if s.planning_history %}
@@ -1054,7 +1054,7 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 </div></div>
 {% endif %}
-{% if s.formation in ["APS", "DESP", "DIRIGEANT"] %}
+{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] %}
 <div class="modal" id="apsPlanningModal" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
@@ -1062,6 +1062,8 @@ a.back:hover{ background:#d9a848 !important; }
         <h3 style="margin:0;">✨ Générer planning</h3>
         {% if s.formation in ["DESP", "DIRIGEANT"] %}
         <p class="muted" style="margin:6px 0 0;">Planning DESP 244h : 174h e-learning puis 70h présentiel, hors examen, week-ends et jours fériés français.</p>
+        {% elif s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}
+        <p class="muted" style="margin:6px 0 0;">Planning SSIAP 1 : 67h de formation puis examen SSIAP 1 distinct, avec les horaires APS.</p>
         {% else %}
         <p class="muted" style="margin:6px 0 0;">Planning APS 175h, hors week-ends et jours fériés français.</p>
         <p class="muted" style="margin:6px 0 0;">Choisissez le mode d’organisation de la session APS.</p>
@@ -1070,7 +1072,7 @@ a.back:hover{ background:#d9a848 !important; }
       <button class="modal-close" type="button" id="closeApsPlanningModal" data-modal-close aria-label="Fermer">×</button>
     </div>
     <form id="apsPlanningForm" style="margin-top:18px;">
-      {% if s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% else %}
+      {% if s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% elif s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}<input type="hidden" name="planningMode" value="ssiap1">{% else %}
       <fieldset class="aps-planning-mode-fieldset">
         <legend><strong>Type de planning APS</strong> <span aria-hidden="true">*</span></legend>
         <div class="aps-planning-mode-grid" role="radiogroup" aria-required="true">
@@ -1103,6 +1105,16 @@ a.back:hover{ background:#d9a848 !important; }
         <label><strong>Fin présentiel</strong><input id="despPresentielEnd" name="despPresentielEnd" type="date" value="{{ s.despPresentielEnd or s.date_fin or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
       </div>
       <p class="muted" style="margin:8px 0 0;">Ces dates définissent les deux périodes DESP utilisées pour générer les 174h distancielles puis les 70h présentielles.</p>
+      {% endif %}
+
+      {% if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}
+      <div class="desp-planning-dates" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;">
+        <label><strong>Date d’examen SSIAP 1</strong><input id="ssiapExamDate" name="examDate" type="date" value="{{ s.exam_date or s.date_exam or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Salle / lieu d’examen</strong><input id="ssiapExamRoom" name="examRoom" type="text" value="{{ s.exam_room or s.ssiapExamRoom or s.salle or 'Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Heure début examen</strong><input id="ssiapExamStartTime" name="examStartTime" type="time" value="{{ s.exam_start_time or s.ssiapExamStartTime or '08:30' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+        <label><strong>Heure fin examen</strong><input id="ssiapExamEndTime" name="examEndTime" type="time" value="{{ s.exam_end_time or s.ssiapExamEndTime or '16:30' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
+      </div>
+      <p class="muted" style="margin:8px 0 0;">L’examen sera affiché dans le planning et les feuilles de présence, mais exclu du total réglementaire de 67h.</p>
       {% endif %}
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
       <div id="apsPlanningWarning" class="flash warning" style="display:none;margin-top:12px;"></div>
@@ -1177,7 +1189,7 @@ a.back:hover{ background:#d9a848 !important; }
 </div></div>
 {% endif %}
 
-{% if s.formation in ["APS", "DESP", "DIRIGEANT"] %}
+{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] %}
 <section class="planning-box" id="aps-contracts-section">
   <div class="planning-header">
     <div>
@@ -1745,6 +1757,7 @@ const apsRoom = document.getElementById("apsRoom");
 const apsPlanningError = document.getElementById("apsPlanningError");
 const submitApsPlanning = document.getElementById("submitApsPlanning");
 const despPlanningDateInputs = ["despElearningStart", "despElearningEnd", "despPresentielStart", "despPresentielEnd"].map(id => document.getElementById(id)).filter(Boolean);
+  const ssiapExamInputs = ["ssiapExamDate", "ssiapExamStartTime", "ssiapExamEndTime", "ssiapExamRoom"].map(id => document.getElementById(id)).filter(Boolean);
 const planningToast = document.getElementById("planningToast");
 const resetApsPlanningModal = document.getElementById("resetApsPlanningModal");
 const openResetApsPlanningModal = document.getElementById("openResetApsPlanningModal");
@@ -1836,8 +1849,14 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     return;
   }
   const despDates = Object.fromEntries(despPlanningDateInputs.map(input => [input.name, input.value]));
+  const ssiapExamData = Object.fromEntries(ssiapExamInputs.map(input => [input.name, input.value]));
   if(planningMode === "desp" && despPlanningDateInputs.some(input => !input.value)){
     apsPlanningError.textContent = "Veuillez renseigner les dates de début/fin distanciel et début/fin présentiel DESP.";
+    apsPlanningError.style.display = "block";
+    return;
+  }
+  if(planningMode === "ssiap1" && ssiapExamInputs.some(input => !input.value)){
+    apsPlanningError.textContent = "Veuillez renseigner la date, les horaires et la salle d’examen SSIAP 1.";
     apsPlanningError.style.display = "block";
     return;
   }
@@ -1853,7 +1872,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     const response = await fetch("{{ url_for('generate_aps_planning_route', sid=s.id) }}", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({planningMode, trainer: formateur, room, ...despDates})
+      body: JSON.stringify({planningMode, trainer: formateur, room, ...despDates, ...ssiapExamData})
     });
     const payload = await response.json();
     if(!response.ok || !payload.ok){
@@ -1864,7 +1883,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
       showPlanningToast(`Planning généré avec alerte : ${warnings.join(" ")}`, "warning");
     }
     closeApsModal();
-    showPlanningToast(warnings.length ? "Planning généré avec alerte, non bloquant." : "Planning APS généré avec succès.", warnings.length ? "warning" : "success");
+    showPlanningToast(warnings.length ? "Planning généré avec alerte, non bloquant." : {{ ("Planning SSIAP 1 généré avec succès." if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) else "Planning APS généré avec succès.")|tojson }}, warnings.length ? "warning" : "success");
     window.open(payload.url, "_blank", "noopener");
     setTimeout(() => window.location.reload(), 800);
   }catch(error){
@@ -2040,6 +2059,14 @@ function renderContractTrainerForm(trainer){
       <label class="aps-contract-field">Diplômes / habilitations<input class="contract-diplomas" placeholder="APS, SST, SSIAP, carte pro..."></label>
       <label class="aps-contract-field">CV formateur<input class="contract-cv" placeholder="à jour / à fournir"></label>
     </div></section>
+    {% if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}
+    <section class="aps-contract-section"><h4 class="aps-contract-section__title">Examen SSIAP 1</h4><div class="aps-contract-grid">
+      <label class="aps-contract-field">Intervention à l’examen<select class="contract-exam-attends"><option value="false">Non</option><option value="true">Oui</option></select></label>
+      <label class="aps-contract-field">Heures examen<input type="number" min="0" step="0.25" class="contract-exam-hours" value="0"></label>
+      <label class="aps-contract-field">Taux / forfait examen HT<input type="number" min="0" step="0.01" class="contract-exam-rate" value="0"></label>
+      <label class="aps-contract-field">Montant examen HT<input type="number" min="0" step="0.01" class="contract-exam-amount" value="0"></label>
+    </div><p class="muted" style="margin:8px 0 0;">Ces heures d’examen restent séparées des 67h de formation et ne sont ajoutées au contrat que si le formateur intervient à l’examen.</p></section>
+    {% endif %}
     <section class="aps-contract-section"><h4 class="aps-contract-section__title">Récapitulatif</h4><div class="aps-contract-summary">
       <div class="aps-contract-summary__item"><span>Heures</span><strong>${fmtHours(trainer.totalHours)}</strong></div><div class="aps-contract-summary__item"><span>Jours calendaires</span><strong>${trainer.calendarDays}</strong></div><div class="aps-contract-summary__item"><span>Jours calculés</span><strong>${trainer.calculatedDays}</strong></div><div class="aps-contract-summary__item"><span>Jours facturés retenus</span><strong class="summary-billed">${trainer.calculatedDays}</strong></div>
       <div class="aps-contract-summary__item"><span>Tarif journalier HT</span><strong class="summary-rate">0,00 €</strong></div><div class="aps-contract-summary__item"><span>Total HT</span><strong class="summary-ht">0,00 €</strong></div><div class="aps-contract-summary__item"><span>TVA</span><strong class="summary-vat">0,00 €</strong></div><div class="aps-contract-summary__item"><span>Total TTC</span><strong class="summary-ttc">0,00 €</strong></div>
@@ -2050,8 +2077,9 @@ function renderSelectedContractTrainer(selectedIndex = 0){
   const trainer = apsContractTrainers[selectedIndex];
   apsContractTrainerList.innerHTML = renderContractTrainerSelector(apsContractTrainers, trainer?.name || "") + renderContractTrainerForm(trainer);
   document.getElementById("apsContractTrainerSelect")?.addEventListener("change", event => renderSelectedContractTrainer(Number(event.target.value)));
-  apsContractTrainerList.querySelectorAll(".contract-rate,.contract-billed,.contract-vat,.contract-vat-rate").forEach(input => input.addEventListener("input", updateContractTotals));
+  apsContractTrainerList.querySelectorAll(".contract-rate,.contract-billed,.contract-vat,.contract-vat-rate,.contract-exam-attends,.contract-exam-hours,.contract-exam-rate,.contract-exam-amount").forEach(input => input.addEventListener("input", updateContractTotals));
   apsContractTrainerList.querySelector(".contract-vat")?.addEventListener("change", updateContractTotals);
+  apsContractTrainerList.querySelector(".contract-exam-attends")?.addEventListener("change", updateContractTotals);
   updateContractTotals();
 }
 async function loadContractModal(preselectedTrainer = null){
@@ -2078,7 +2106,13 @@ function updateContractTotals(){
   const vatMention = card.querySelector(".contract-vat-mention");
   if(!vatEnabled){ vatRateInput.value = ""; vatRateInput.disabled = true; vatMention.value = "TVA non applicable, art. 293 B du CGI"; }
   else { vatRateInput.disabled = false; if(vatRateInput.value === "") vatRateInput.value = "20"; if(vatMention.value === "TVA non applicable, art. 293 B du CGI") vatMention.value = ""; }
-  const totalHT = rate * days;
+  const examAttends = card.querySelector(".contract-exam-attends")?.value === "true";
+  const examRate = Number(card.querySelector(".contract-exam-rate")?.value || 0);
+  const examHours = Number(card.querySelector(".contract-exam-hours")?.value || 0);
+  const examAmountInput = card.querySelector(".contract-exam-amount");
+  const examAmount = examAttends ? Number(examAmountInput?.value || (examRate * examHours) || 0) : 0;
+  if(examAmountInput && !examAttends) examAmountInput.value = "0";
+  const totalHT = (rate * days) + examAmount;
   const vatAmount = vatEnabled ? totalHT * (Number(vatRateInput.value || 0) / 100) : 0;
   card.querySelector(".summary-billed").textContent = days.toLocaleString("fr-FR", {maximumFractionDigits:2});
   card.querySelector(".summary-rate").textContent = `${money(rate)} HT`;
@@ -2106,7 +2140,7 @@ apsContractForm?.addEventListener("submit", async (event) => {
   const trainers = [{
     name:c.querySelector(".contract-name").value.trim() || c.dataset.trainer,
     planningName:c.dataset.trainer,
-    email:c.querySelector(".contract-email").value.trim(), phone:c.querySelector(".contract-phone").value.trim(), dailyRate:Number(c.querySelector(".contract-rate").value), billedDays:Number(c.querySelector(".contract-billed").value), vatEnabled:c.querySelector(".contract-vat").value === "true", vatRate:Number(c.querySelector(".contract-vat-rate").value || 0), address:c.querySelector(".contract-address").value.trim(), siret:c.querySelector(".contract-siret").value.trim(), status:c.querySelector(".contract-status").value.trim(), commercialName:c.querySelector(".contract-commercial-name").value.trim(), activityDeclaration:c.querySelector(".contract-activity-declaration").value.trim(), vatNumber:c.querySelector(".contract-vat-number").value.trim(), vatMention:c.querySelector(".contract-vat-mention").value.trim(), rcPro:c.querySelector(".contract-rc-pro").value.trim(), urssafVigilance:c.querySelector(".contract-urssaf").value.trim(), rneKbis:c.querySelector(".contract-rne-kbis").value.trim(), rib:c.querySelector(".contract-rib").value.trim(), diplomas:c.querySelector(".contract-diplomas").value.trim(), cv:c.querySelector(".contract-cv").value.trim()
+    email:c.querySelector(".contract-email").value.trim(), phone:c.querySelector(".contract-phone").value.trim(), dailyRate:Number(c.querySelector(".contract-rate").value), billedDays:Number(c.querySelector(".contract-billed").value), trainerAttendsExam:c.querySelector(".contract-exam-attends")?.value === "true", examTrainerHours:Number(c.querySelector(".contract-exam-hours")?.value || 0), examTrainerRate:Number(c.querySelector(".contract-exam-rate")?.value || 0), examTrainerAmount:Number(c.querySelector(".contract-exam-amount")?.value || 0), vatEnabled:c.querySelector(".contract-vat").value === "true", vatRate:Number(c.querySelector(".contract-vat-rate").value || 0), address:c.querySelector(".contract-address").value.trim(), siret:c.querySelector(".contract-siret").value.trim(), status:c.querySelector(".contract-status").value.trim(), commercialName:c.querySelector(".contract-commercial-name").value.trim(), activityDeclaration:c.querySelector(".contract-activity-declaration").value.trim(), vatNumber:c.querySelector(".contract-vat-number").value.trim(), vatMention:c.querySelector(".contract-vat-mention").value.trim(), rcPro:c.querySelector(".contract-rc-pro").value.trim(), urssafVigilance:c.querySelector(".contract-urssaf").value.trim(), rneKbis:c.querySelector(".contract-rne-kbis").value.trim(), rib:c.querySelector(".contract-rib").value.trim(), diplomas:c.querySelector(".contract-diplomas").value.trim(), cv:c.querySelector(".contract-cv").value.trim()
   }];
   if(!trainers[0].dailyRate || trainers[0].dailyRate <= 0){ apsContractError.textContent = "Le tarif journalier HT est obligatoire."; apsContractError.style.display = "block"; return; }
   const warnings = [];

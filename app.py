@@ -753,6 +753,23 @@ def find_center_image(*keywords):
             return entry.path
     return None
 
+def wrap_text_lines(text, max_width, font="Helvetica", size=9):
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    words = str(text or "").split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if stringWidth(candidate, font, size) <= max_width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
 def draw_wrapped_text(canvas, text, x, y, max_width, font="Helvetica", size=9, leading=11):
     from reportlab.pdfbase.pdfmetrics import stringWidth
     words = text.split()
@@ -1186,6 +1203,57 @@ def aps_format_range(range_data):
         return ""
     return f"du {format_date(range_data.get('start'))} au {format_date(range_data.get('end'))}"
 
+def planning_pdf_profile(document_profile, planning_mode, summary):
+    profile = dict(document_profile or {})
+    is_desp = profile.get("validate") == "desp"
+    totals = summary.get("modality_totals", {}) if summary else {}
+    if is_desp:
+        profile.setdefault("planning_title", "PLANNING DE FORMATION DESP")
+        profile.setdefault("subtitle", f"{DESP_LABEL} — {DESP_TOTAL_HOURS} heures")
+        profile.setdefault("modality_line", f"Modalité : E-learning + présentiel • E-learning : {DESP_ELEARNING_HOURS}h • Présentiel : {DESP_PRESENTIEL_HOURS}h • Total : {DESP_TOTAL_HOURS}h")
+        profile.setdefault("legend_elearning", f"E-learning / distanciel — {DESP_ELEARNING_HOURS}h")
+        profile.setdefault("legend_presentiel", f"Présentiel au centre — {DESP_PRESENTIEL_HOURS}h")
+        profile.setdefault("short_label", "DESP")
+    elif planning_mode == "elearning_presentiel":
+        profile.setdefault("planning_title", "PLANNING DE FORMATION APS")
+        profile.setdefault("subtitle", "Agent de Prévention et de Sécurité — 175 heures")
+        profile.setdefault("modality_line", f"Modalité : E-learning + présentiel • E-learning : {totals.get('elearning', APS_ELEARNING_HOURS):g}h • Présentiel : {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h • Total : {summary.get('total_hours', APS_TOTAL_HOURS):g}h")
+        profile.setdefault("legend_elearning", f"E-learning / distanciel — {totals.get('elearning', APS_ELEARNING_HOURS):g}h")
+        profile.setdefault("legend_presentiel", f"Présentiel au centre — {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h")
+    else:
+        profile.setdefault("planning_title", "PLANNING DE FORMATION APS")
+        profile.setdefault("subtitle", "Agent de Prévention et de Sécurité — 175 heures")
+        profile.setdefault("modality_line", "Modalité : 100% présentiel • Présentiel : 175h")
+    return profile
+
+
+def planning_day_title(day, document_profile=None):
+    if (document_profile or {}).get("validate") == "a3p":
+        return _a3p_full_day_label(day.get("date"))
+    parsed = parse_date(day.get("date"))
+    return aps_day_label(parsed.date()) if parsed else (day.get("dayLabel") or day.get("date"))
+
+
+def planning_slot_title(slot):
+    return f"{slot.get('uv')} — {slot.get('title')}"
+
+
+def planning_card_height(slot, printable_width):
+    title_w = printable_width - 225
+    title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), title_w, "Helvetica-Bold", 8.2)))
+    title_h = title_lines * 9
+    meta_h = 14 if (slot.get("modality") or "presentiel") != "elearning" else 0
+    return max(44, 12 + title_h + 8 + meta_h + 14)
+
+
+def planning_day_height(day, current_part, planning_mode, printable_width):
+    needed = 30 + 2 + sum(planning_card_height(slot, printable_width) + 5 for slot in day.get("slots", []))
+    day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
+    if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
+        needed += 34
+    return needed, day_part
+
+
 def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel", document_profile=None):
     document_profile = document_profile or {}
     if planning_mode not in {"full_presentiel", "elearning_presentiel", "desp"}:
@@ -1225,9 +1293,11 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     if errors:
         raise ValueError(" ".join(errors))
 
+    document_profile = planning_pdf_profile(document_profile, planning_mode, summary)
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     margin = 36
+    printable_width = width - 2 * margin
     logo_path = aps_pdf_logo_path()
     title = document_profile.get("planning_title") or "PLANNING DE FORMATION APS"
     edited = datetime.now().strftime("%d/%m/%Y à %H:%M")
@@ -1244,24 +1314,18 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         date_range = aps_format_range(modality_ranges.get(modality))
         return f"{base} — {date_range} — {hours:g}h" if date_range else f"{base} — {hours:g}h"
 
-    def day_height(day, current_part):
-        needed = 30 + (len(day.get("slots", [])) * 49) + 2
-        day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-        if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
-            needed += 34
-        return needed, day_part
-
+    first_content_y = height - (146 if planning_mode in {"elearning_presentiel", "desp"} else 122)
     def build_pages():
         built_pages, current_page, current_part = [], [], None
-        y = height - (146 if planning_mode == "elearning_presentiel" else 122)
+        y = first_content_y
         bottom_limit = 84
         for day in planning_data or []:
-            needed, day_part = day_height(day, current_part)
+            needed, day_part = planning_day_height(day, current_part, planning_mode, printable_width)
             if current_page and y - needed < bottom_limit:
                 built_pages.append(current_page)
                 current_page, current_part = [], None
                 y = height - 122
-                needed, day_part = day_height(day, current_part)
+                needed, day_part = planning_day_height(day, current_part, planning_mode, printable_width)
             current_page.append(day)
             y -= needed
             if day_part:
@@ -1271,41 +1335,23 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         return built_pages
 
     pages = build_pages()
-    summary_rows_count = len((summary or {}).get("uv_rows") or [])
-    summary_pages = 1 if planning_mode == "elearning_presentiel" else max(1, (summary_rows_count + 42) // 43)
-    total_pages = len(pages) + summary_pages
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
+    page_no = 1
+    total_pages = 1
 
-    def draw_header_footer(page_no):
+    def draw_header_footer(page_no, total_pages):
         if logo_path:
             c.drawImage(logo_path, margin, height - 72, width=72, height=49, preserveAspectRatio=True, mask="auto")
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
         c.drawString(margin + 88, height - 35, title)
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
-        c.drawString(margin + 88, height - 50, document_profile.get("subtitle") or ("Dirigeant d’une société de sécurité privée (DESP)" if document_profile.get("validate") == "desp" else "Agent de Prévention et de Sécurité — 175 heures"))
-        info_y = draw_wrapped_text(
-            c,
-            f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}",
-            margin + 88,
-            height - 64,
-            width - margin - (margin + 88),
-            "Helvetica",
-            9,
-            11,
-        )
+        c.drawString(margin + 88, height - 50, document_profile.get("subtitle"))
+        info_y = draw_wrapped_text(c, f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}", margin + 88, height - 64, width - margin - (margin + 88), "Helvetica", 9, 11)
         modality_y = info_y - 1
         c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-        if document_profile.get("validate") == "desp":
-            c.drawString(margin + 88, modality_y, "Formation mixte — 244 heures")
-            c.drawString(margin + 88, modality_y - 11, "Distanciel : 174h • Présentiel : 70h • Total : 244h")
-            modality_y -= 11
-        elif planning_mode == "elearning_presentiel":
-            c.drawString(margin + 88, modality_y, "Modalité : E-learning + présentiel • E-learning : 62h • Présentiel : 113h • Total : 175h")
-        else:
-            c.drawString(margin + 88, modality_y, document_profile.get("modality_line") or "Modalité : 100% présentiel • Présentiel : 175h")
+        c.drawString(margin + 88, modality_y, document_profile.get("modality_line"))
         y_dates = modality_y - 13
-        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
         date_lines = []
         if modality_ranges.get("elearning"):
             date_lines.append(f"Période e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
@@ -1319,107 +1365,139 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         draw_wrapped_text(c, legal, margin, 28, width - 2 * margin - 78, "Helvetica", 6.2, 8)
         c.drawRightString(width - margin, 40, f"Page {page_no} / {total_pages}")
 
-    page_no = 1
-    for page_days in pages:
-        draw_header_footer(page_no)
-        y = height - 146 if planning_mode == "elearning_presentiel" else height - 122
-        if page_no == 1 and planning_mode == "elearning_presentiel":
-            c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Légende :")
-            c.setFillColor(colors.HexColor("#6d28d9")); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 78, y, "E-learning / distanciel — 62h")
-            c.setFillColor(colors.HexColor("#0d9488")); c.roundRect(margin + 238, y - 8, 18, 9, 2, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 262, y, "Présentiel au centre — 113h")
-            y -= 20
-        current_part = None
-        for day in page_days:
-            day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-            if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
-                current_part = day_part
-                band_color = "#6d28d9" if "E-LEARNING" in day_part else "#0d9488"
-                c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, width - 2 * margin, 24, 6, fill=1, stroke=0)
-                c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(day_part))
-                y -= 34
-            c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, width - 2 * margin, 22, 6, fill=1, stroke=0)
-            day_total_minutes = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", []))
-            day_title = _a3p_full_day_label(day.get("date")) if document_profile.get("validate") == "a3p" else (day.get("dayLabel") or day.get("date"))
-            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{day_title} — {format_duration_from_minutes(day_total_minutes)}")
-            y -= 30
-            for slot in day.get("slots", []):
-                h = 44
-                c.setFillColor(colors.white); c.roundRect(margin, y - h + 5, width - 2 * margin, h, 6, fill=1, stroke=1)
-                modality_color = "#6d28d9" if slot.get("modality") == "elearning" else "#0d9488"
-                c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
-                modality_label = "E-learning" if slot.get("modality") == "elearning" else "Présentiel"
-                c.setFillColor(colors.HexColor(modality_color)); c.roundRect(width - margin - 86, y - 38, 76, 14, 4, fill=1, stroke=0)
-                c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7); c.drawCentredString(width - margin - 48, y - 34, modality_label)
-                c.setFillColor(colors.HexColor("#111827"))
-                draw_wrapped_text(c, f"{slot.get('uv')} — {slot.get('title')}", margin + 16, y - 8, width - 225, "Helvetica-Bold", 8.2, 9)
-                c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
-                c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
-                if slot.get("modality") != "elearning":
-                    c.drawString(margin + 14, y - 32, f"Salle : {slot.get('room') or 'Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS'} • Formateur : {slot.get('trainer') or '—'}")
-                y -= h + 5
-            y -= 2
-        page_no += 1
-        c.showPage()
+    def draw_legend(y):
+        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Légende :")
+        c.setFillColor(colors.HexColor("#6d28d9")); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 78, y, document_profile.get("legend_elearning"))
+        c.setFillColor(colors.HexColor("#0d9488")); c.roundRect(margin + 238, y - 8, 18, 9, 2, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 262, y, document_profile.get("legend_presentiel"))
+        return y - 20
 
-    draw_header_footer(page_no)
-    y = height - 122
-    c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
-    y -= 18
-    if planning_mode == "elearning_presentiel":
+    def draw_planning_pages(total_pages):
+        nonlocal page_no
+        for page_days in pages:
+            draw_header_footer(page_no, total_pages)
+            y = first_content_y if page_no == 1 else height - 122
+            if page_no == 1 and planning_mode in {"elearning_presentiel", "desp"}:
+                y = draw_legend(y)
+            current_part = None
+            for day in page_days:
+                day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
+                if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
+                    current_part = day_part
+                    band_color = "#6d28d9" if "E-LEARNING" in day_part else "#0d9488"
+                    c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
+                    c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(day_part))
+                    y -= 34
+                c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, printable_width, 22, 6, fill=1, stroke=0)
+                day_total_minutes = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", []))
+                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{planning_day_title(day, document_profile)} — {format_duration_from_minutes(day_total_minutes)}")
+                y -= 30
+                for slot in day.get("slots", []):
+                    h = planning_card_height(slot, printable_width)
+                    c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(margin, y - h + 5, printable_width, h, 6, fill=1, stroke=1)
+                    modality_color = "#6d28d9" if slot.get("modality") == "elearning" else "#0d9488"
+                    c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
+                    modality_label = "E-learning" if slot.get("modality") == "elearning" else "Présentiel"
+                    title_w = printable_width - 225
+                    draw_wrapped_text(c, planning_slot_title(slot), margin + 16, y - 8, title_w, "Helvetica-Bold", 8.2, 9)
+                    c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
+                    c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
+                    c.setFillColor(colors.HexColor(modality_color)); c.roundRect(width - margin - 86, y - h + 14, 76, 14, 4, fill=1, stroke=0)
+                    c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7); c.drawCentredString(width - margin - 48, y - h + 18, modality_label)
+                    if slot.get("modality") != "elearning":
+                        c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica", 8)
+                        draw_wrapped_text(c, f"Salle : {slot.get('room') or salle} • Formateur : {slot.get('trainer') or '—'}", margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
+                    y -= h + 5
+                y -= 2
+            page_no += 1
+            c.showPage()
+
+    def summary_table_header(y, continued=False):
+        c.setFont("Helvetica-Bold", 10); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "B. Récapitulatif détaillé" + (" — suite" if continued else ""))
+        y -= 14
+        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Partie"); c.drawString(margin+92, y, "Module"); c.drawString(width-margin-140, y, "Modalité"); c.drawRightString(width-margin, y, "Heures")
+        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, y-4, width-margin, y-4)
+        return y - 12
+
+    def draw_summary_pages(total_pages):
+        nonlocal page_no
+        draw_header_footer(page_no, total_pages)
+        y = height - 122
+        c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
+        y -= 18
         c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. Récapitulatif par modalité")
         y -= 14
-        c.setFont("Helvetica", 9); c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}")
-        y -= 13; c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h — {aps_format_range(modality_ranges.get('presentiel'))}")
-        y -= 13; c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
-        y -= 20; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Récapitulatif détaillé")
-        y -= 14; c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Partie"); c.drawString(margin+145, y, "Module"); c.drawString(width-margin-140, y, "Modalité"); c.drawRightString(width-margin, y, "Heures")
-        y -= 12; c.setFont("Helvetica", 7.2)
-        for module in APS_ELEARNING_PRESENTIEL_MODULES:
-            c.drawString(margin, y, "Période 1" if module["modality"] == "elearning" else "Période 2")
-            draw_wrapped_text(c, module["title"], margin+145, y, width-margin-300, "Helvetica", 7.2, 8)
-            c.drawString(width-margin-140, y, "E-learning" if module["modality"] == "elearning" else "Présentiel")
-            c.drawRightString(width-margin, y, format_duration_from_minutes(module["durationMinutes"]))
-            y -= 12
-    else:
-        c.setFont("Helvetica", 8.5)
-        for row in summary["uv_rows"]:
-            if y < 120:
-                c.showPage(); page_no += 1; draw_header_footer(page_no); y = height - 105
-            c.drawString(margin, y, f"{row['uv']} — {row['label']} — {float(row['hours']):g}h")
+        c.setFont("Helvetica", 9)
+        if modality_ranges.get("elearning"):
+            c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13
+        if modality_ranges.get("presentiel"):
+            c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h — {aps_format_range(modality_ranges.get('presentiel'))}"); y -= 13
+        c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
+        y -= 20
+        y = summary_table_header(y)
+        rows = summary.get("uv_rows") or []
+        continued = False
+        for row in rows:
+            module_text = f"{row.get('uv')} — {row.get('title') or row.get('label')}"
+            module_lines = wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)
+            row_h = max(12, len(module_lines) * 8 + 4)
+            if y - row_h < 132:
+                c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122; continued = True; y = summary_table_header(y, continued=True)
+            c.setFont("Helvetica", 7.2); c.setFillColor(colors.HexColor("#111827"))
+            modality = row.get("modality") or ("elearning" if "Distanciel" in str(row.get("label")) else "presentiel")
+            c.drawString(margin, y, "Période 1" if modality == "elearning" else "Période 2")
+            draw_wrapped_text(c, module_text, margin+92, y, width - margin - 300, "Helvetica", 7.2, 8)
+            c.drawString(width-margin-140, y, "E-learning" if modality == "elearning" else "Présentiel")
+            c.drawRightString(width-margin, y, format_duration_from_minutes(int(round(float(row.get("hours", 0))*60))))
+            y -= row_h
+        final_block_h = 34 + 24 + 92 + 25 + 70
+        if y - final_block_h < 84:
+            c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, f"TOTAL : {summary['total_hours']:g}h")
+        y -= 34
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
+        y -= 24
+        box_w = (width - 2 * margin - 18) / 2; signature_box_h = 92; signature_label_h = 18
+        for idx, (label, image_path) in enumerate((("Signature", signature_image), ("Tampon", stamp_image))):
+            x = margin + idx * (box_w + 18)
+            c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(x, y - signature_box_h, box_w, signature_box_h, 6, fill=1, stroke=1)
+            c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold", 9); c.drawString(x + 10, y - 16, label)
+            if image_path:
+                c.drawImage(image_path, x + 12, y - signature_box_h + 8, width=box_w - 24, height=signature_box_h - signature_label_h - 10, preserveAspectRatio=True, mask="auto")
+        y -= signature_box_h + 25
+        c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "Informations légales")
+        y -= 14
+        for line in APS_LEGAL_LINES:
+            y = draw_wrapped_text(c, line, margin, y, printable_width, "Helvetica", 7.5, 10)
+        page_no += 1
+
+    def compute_summary_page_count():
+        count = 1
+        y = height - 122 - 18 - 14
+        if modality_ranges.get("elearning"):
             y -= 13
-    c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, f"TOTAL : {summary['total_hours']:g}h")
-    y -= 34
-    c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
-    y -= 24
-    box_w = (width - 2 * margin - 18) / 2
-    signature_box_h = 92
-    signature_label_h = 18
-    image_padding_x = 12
-    image_padding_bottom = 8
-    for idx, (label, image_path) in enumerate((("Signature", signature_image), ("Tampon", stamp_image))):
-        x = margin + idx * (box_w + 18)
-        c.setFillColor(colors.white); c.roundRect(x, y - signature_box_h, box_w, signature_box_h, 6, fill=1, stroke=1)
-        c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold", 9); c.drawString(x + 10, y - 16, label)
-        if image_path:
-            c.drawImage(
-                image_path,
-                x + image_padding_x,
-                y - signature_box_h + image_padding_bottom,
-                width=box_w - (image_padding_x * 2),
-                height=signature_box_h - signature_label_h - image_padding_bottom - 2,
-                preserveAspectRatio=True,
-                mask="auto",
-            )
-    y -= signature_box_h + 25
-    c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "Informations légales")
-    y -= 14
-    for line in APS_LEGAL_LINES:
-        y = draw_wrapped_text(c, line, margin, y, width - 2 * margin, "Helvetica", 7.5, 10)
+        if modality_ranges.get("presentiel"):
+            y -= 13
+        y -= 20
+        y -= 26
+        for row in summary.get("uv_rows") or []:
+            module_text = f"{row.get('uv')} — {row.get('title') or row.get('label')}"
+            row_h = max(12, len(wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)) * 8 + 4)
+            if y - row_h < 132:
+                count += 1
+                y = height - 122 - 26
+            y -= row_h
+        final_block_h = 34 + 24 + 92 + 25 + 70
+        if y - final_block_h < 84:
+            count += 1
+        return count
+
+    total_pages = len(pages) + compute_summary_page_count()
+    draw_planning_pages(total_pages)
+    draw_summary_pages(total_pages)
     c.save()
     return {"planning_data": planning_data, "totals": summary["uv_totals"], "total_hours": summary["total_hours"], "summary": summary}
-
 
 def _money(value):
     try:

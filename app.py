@@ -1763,7 +1763,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             row_h = max(12, len(module_lines) * 8 + 4)
             if y - row_h < 132:
                 c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122; continued = True; y = summary_table_header(y, continued=True)
-            c.setFont("Helvetica", 7.2); c.setFillColor(colors.HexColor("#111827"))
+            c.setFont("Helvetica", 6.4); c.setFillColor(colors.HexColor("#111827"))
             modality = row.get("modality") or ("elearning" if "Distanciel" in str(row.get("label")) else "presentiel")
             part_label = f"Partie {str(row.get('uv')).split('-')[0][1:]}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else ("Période 1" if modality == "elearning" else "Période 2")
             c.drawString(margin, y, part_label)
@@ -2335,7 +2335,6 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import mm
-        from reportlab.pdfbase.pdfmetrics import stringWidth
         from reportlab.pdfgen import canvas
     except ImportError as exc:
         raise RuntimeError("La dépendance reportlab est requise pour générer le PDF.") from exc
@@ -2366,248 +2365,182 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             for slot in day.get("slots", []):
                 duration = round(float(slot.get("duration") or 0), 2)
                 normalized = _normalized_slot_value(slot, "modality", "delivery_mode", "period_type")
-                if is_in_person_slot(slot):
-                    desp_hours["presentiel"] = round(desp_hours["presentiel"] + duration, 2)
-                elif normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous"}:
-                    desp_hours["elearning"] = round(desp_hours["elearning"] + duration, 2)
-                elif normalized in {"examen", "exam"}:
-                    desp_hours["exam"] = round(desp_hours["exam"] + duration, 2)
+                if is_in_person_slot(slot): desp_hours["presentiel"] = round(desp_hours["presentiel"] + duration, 2)
+                elif normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous"}: desp_hours["elearning"] = round(desp_hours["elearning"] + duration, 2)
+                elif normalized in {"examen", "exam"}: desp_hours["exam"] = round(desp_hours["exam"] + duration, 2)
         if desp_hours["presentiel"] != DESP_PRESENTIEL_HOURS:
             raise ValueError(f"Impossible de générer les feuilles de présence DESP : le planning présentiel contient {desp_hours['presentiel']:g}h alors que {DESP_PRESENTIEL_HOURS}h sont attendues.")
-
 
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     margin = 10 * mm
-    footer_reserved_h = 24 * mm
-    footer_y = 6 * mm
     footer_top_y = 18 * mm
-    min_signature_footer_gap = 16 * mm
+    footer_y = 6 * mm
     logo_path = aps_pdf_logo_path()
     stamp_image = find_center_image("tampon", "cachet", "stamp")
-    total_pages = len(presentiel_days) + len(exam_days) + 1
-    session_name = session_data.get("display_name") or session_data.get("name") or f"Session {session_data.get('id', '')}"
-    formation_period_label = (
-        f"Formation complète : du {format_date(session_data.get('date_debut'))} "
-        f"au {format_date(session_data.get('date_fin'))} — "
-        f"Examen : {format_date(session_data.get('date_exam'))}"
-    )
-
-    def slot_is_morning(slot):
-        midpoint = (_minutes_from_hhmm(slot.get("start")) + _minutes_from_hhmm(slot.get("end"))) / 2
-        return midpoint < 13 * 60
-
-    def half_day_trainer_label(slots, morning=True):
-        names = []
-        seen = set()
-        for slot in slots:
-            if slot_is_morning(slot) != morning:
-                continue
-            name = (slot.get("trainer") or "").strip()
-            if name and name not in seen:
-                names.append(name)
-                seen.add(name)
-        return ", ".join(names) if names else "—"
+    total_pages = len(presentiel_days) + len(exam_days) + (0 if is_ssiap1 and len(students) <= 6 and exam_days else 1)
+    raw_session_name = (session_data.get("display_name") or session_data.get("name") or "").strip()
+    session_id = str(session_data.get("id") or "").strip()
+    session_name = raw_session_name if raw_session_name and raw_session_name != f"Session {session_id}" else (session_id or raw_session_name or "—")
 
     def footer(page_no):
-        c.saveState()
-        c.setStrokeColor(colors.HexColor("#e5e7eb"))
-        c.line(margin, footer_top_y, width - margin, footer_top_y)
-        page_label = f"Page {page_no} / {total_pages}"
-        c.setFillColor(colors.HexColor("#6b7280"))
-        footer_font_size = 7.5
-        page_width = stringWidth(page_label, "Helvetica", footer_font_size)
-        legal_text = " • ".join(APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:])
-        legal_max_width = width - 2 * margin - page_width - 8
-        legal_lines = []
-        current = ""
-        for word in legal_text.split():
-            candidate = f"{current} {word}".strip()
-            if stringWidth(candidate, "Helvetica", footer_font_size) <= legal_max_width or not current:
-                current = candidate
-            else:
-                legal_lines.append(current)
-                current = word
-        if current:
-            legal_lines.append(current)
-        c.setFont("Helvetica", footer_font_size)
-        visible_legal_lines = legal_lines[:2]
-        line_y = footer_y + max(0, len(visible_legal_lines) - 1) * footer_font_size * 1.2
-        for line in visible_legal_lines:
-            c.drawString(margin, line_y, line)
-            line_y -= footer_font_size * 1.2
-        c.drawRightString(width - margin, footer_y, page_label)
-        c.restoreState()
+        c.saveState(); c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, footer_top_y, width - margin, footer_top_y)
+        page_label = f"Page {page_no} / {total_pages}"; c.setFillColor(colors.HexColor("#6b7280")); c.setFont("Helvetica", 6.4)
+        lines = APS_LEGAL_LINES[:]
+        if is_ssiap1 and SSIAP1_AGREMENT_LINE not in lines: lines.append(SSIAP1_AGREMENT_LINE)
+        y = footer_top_y - 6
+        for line in lines[:5]:
+            c.drawString(margin, y, line[:155]); y -= 6.2
+        c.drawRightString(width - margin, footer_y, page_label); c.restoreState()
 
-    for page_no, day in enumerate(presentiel_days, 1):
-        slots = day.get("slots") or []
-        date_label = format_date(day.get("date"))
+    def draw_header(title, date_label, slots, page_no, *, exam=False, continuation=False):
+        if logo_path: c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
+        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16 if exam else 17)
+        c.drawCentredString(width / 2, height - 38, title)
+        c.setFont("Helvetica", 9); c.drawCentredString(width / 2, height - 54, subtitle or "Service de Sécurité Incendie et d’Assistance à Personnes - Niveau 1")
         if training_type == "DESP":
-            header = desp_attendance_header_layout(width, height, margin, stringWidth)
-            logo = header["logo"]
-            if logo_path:
-                c.drawImage(logo_path, logo["x"], logo["y"], width=logo["width"], height=logo["height"], preserveAspectRatio=True, mask="auto")
-            c.setFillColor(colors.HexColor("#111827"))
-            for line in header["lines"]:
-                c.setFont(line["font"], line["size"])
-                c.drawString(line["x"], line["y"], line["text"])
-            session_y = header["session_y"]
+            c.setFont("Helvetica-Bold", 9); c.drawCentredString(width / 2, height - 68, "PÉRIODE PRÉSENTIELLE — 70 HEURES")
+        y = height - 84
+        if continuation:
+            c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"Suite de la feuille de présence du {date_label}"); y -= 16
+        trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
+        room = (slots[0].get("room") if slots else "") or session_data.get("exam_room") or session_data.get("salle") or "—"
+        am = period_amplitude(slots, True); pm = period_amplitude(slots, False)
+        rows = [("Session", session_name, "Date de l’examen" if exam else "Date", date_label), ("Responsable(s) / intervenant(s)" if exam else "Formateur", ", ".join(trainers), "Lieu / salle", room), ("Période de formation", f"du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", "Date d’examen", format_date(session_data.get('date_exam'))), ("Horaires du matin", am if am != "—" else "", "Horaires de l’après-midi", pm if pm != "—" else "")]
+        col_w = (width - 2 * margin - 12) / 2; label_w = 83; row_h = 21
+        c.setStrokeColor(colors.HexColor("#d1d5db")); c.setFillColor(colors.HexColor("#f9fafb")); c.rect(margin, y - row_h*4 - 4, width - 2*margin, row_h*4 + 6, fill=1, stroke=1)
+        cy = y - 14
+        for l1,v1,l2,v2 in rows:
+            for x,l,v in [(margin+6,l1,v1),(margin+6+col_w+12,l2,v2)]:
+                c.setFont("Helvetica-Bold", 7.8); c.drawString(x, cy, f"{l} :")
+                c.setFont("Helvetica", 7.8)
+                tx = x + label_w
+                for i,line in enumerate(wrap_text_lines(v, col_w - label_w - 8, "Helvetica", 7.8)[:2]): c.drawString(tx, cy - i*8, line)
+            cy -= row_h
+        return y - row_h*4 - 18
+
+    def period_amplitude(slots, morning=True):
+        start_limit, end_limit = (0, 13 * 60) if morning else (13 * 60, 24 * 60)
+        selected = [slot for slot in slots if _minutes_from_hhmm(slot.get("start")) < end_limit and _minutes_from_hhmm(slot.get("end")) > start_limit]
+        if not selected:
+            return "—"
+        if any(_minutes_from_hhmm(slot.get("start")) < 13 * 60 and _minutes_from_hhmm(slot.get("end")) > 13 * 60 for slot in selected):
+            return "08h30 - 12h30" if morning else "13h30 - 16h30"
+        return f"{_hhmm_to_fr(min(slot.get('start') for slot in selected))} - {_hhmm_to_fr(max(slot.get('end') for slot in selected))}"
+
+    def parts(slots):
+        return period_amplitude(slots, True) != "—", period_amplitude(slots, False) != "—"
+
+    def module_rows(slots):
+        out=[]
+        for slot in slots:
+            code=slot.get("uv") or ""; detail=SSIAP1_SEQUENCE_DETAIL_BY_CODE.get(code, {})
+            ps = f"Partie {detail.get('part_number')} - Séquence {detail.get('sequence_number')}" if detail else code
+            typ = (slot.get("subpartLabel") or slot.get("subpartType") or slot.get("content_type") or slot.get("type") or slot.get("modality") or "Contenu").capitalize()
+            if typ.lower() in {"presentiel", "présentiel"}: typ = "Contenu"
+            items = slot.get("subpartDisplayItems") or slot.get("subpartItems") or []
+            title = " ; ".join(items[:2]) if items else (slot.get("content") or slot.get("title") or detail.get("title") or "")
+            row=(f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))}", ps, typ, title)
+            if not out or out[-1] != row: out.append(row)
+        return out
+
+    def draw_modules(y, slots):
+        c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Programme et horaires du jour"); y-=12
+        headers=["Horaires","Partie / Séquence","Type","Intitulé"]; ws=[70,105,62,width-2*margin-70-105-62]
+        row_data=[headers]+module_rows(slots); x0=margin
+        for r,row in enumerate(row_data):
+            line_lists=[wrap_text_lines(cell, ws[i]-6, "Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5) or [""] for i,cell in enumerate(row)]
+            rh=max(16, max(len(ll) for ll in line_lists)*9.5+6)
+            c.setFillColor(colors.HexColor("#f3f4f6") if r==0 else colors.white); c.rect(x0, y-rh, sum(ws), rh, fill=1, stroke=1)
+            x=x0
+            for i,ll in enumerate(line_lists):
+                if i: c.line(x, y, x, y-rh)
+                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5)
+                ty=y-11
+                for line in ll: c.drawString(x+3, ty, line); ty-=9.5
+                x+=ws[i]
+            y-=rh
+        return y-8
+
+    def draw_people_table(y, people, has_am, has_pm):
+        headers=["N°","Nom","Prénom"] + (["Signature matin"] if has_am else []) + (["Signature après-midi"] if has_pm else [])
+        if has_am and has_pm: ws=[28,115,95,145,width-2*margin-28-115-95-145]
+        else: ws=[28,125,105,width-2*margin-28-125-105]
+        row_h=max(36, min(45, int((y-(footer_top_y+135))/max(len(people),1))))
+        c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin,y-18,sum(ws),18,fill=1,stroke=1); c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold",8)
+        x=margin
+        for i,h in enumerate(headers): c.drawString(x+4,y-12,h); x+=ws[i]
+        y-=18; c.setFont("Helvetica",8.5)
+        for idx, st in enumerate(people,1):
+            c.rect(margin,y-row_h,sum(ws),row_h); x=margin
+            for w in ws[:-1]: x+=w; c.line(x,y,x,y-row_h)
+            c.drawString(margin+8,y-14,str(idx)); c.drawString(margin+36,y-14,st.get("lastName", "")); c.drawString(margin+36+ws[1],y-14,st.get("firstName", "")); y-=row_h
+        return y-12
+
+    def draw_signature_blocks(y, slots, *, exam=False):
+        has_am, has_pm = parts(slots); gap=18; bw=(width-2*margin-gap)/2; bh=50 if len(students)>6 else 62
+        labels=[]
+        if has_am: labels.append(("Signature responsable / intervenant - matin" if exam else ("Signature du formateur - matin" if is_ssiap1 else "Signature formateur matin"), True))
+        if has_pm: labels.append(("Signature responsable / intervenant - après-midi" if exam else ("Signature du formateur - après-midi" if is_ssiap1 else "Signature formateur après-midi"), False))
+        if len(labels)==1: bw=width-2*margin; gap=0
+        for i,(lab,morn) in enumerate(labels):
+            x=margin+i*(bw+gap); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab); c.setFont("Helvetica",8); c.drawString(x+8,y-27,half_day_trainer_label(slots,morn))
+        y-=bh+10; bw=(width-2*margin-gap)/2
+        for i,lab in enumerate(["Observations éventuelles","Cachet du centre"]):
+            x=margin+i*(bw+gap); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab)
+            if i==1 and stamp_image: c.drawImage(stamp_image,x+12,y-bh+8,width=bw-24,height=bh-18,preserveAspectRatio=True,anchor="c",mask="auto")
+        return y-bh-8
+
+    def half_day_trainer_label(slots, morning=True):
+        names=[]
+        for slot in slots:
+            in_period = (_minutes_from_hhmm(slot.get("start")) < 13*60 and _minutes_from_hhmm(slot.get("end")) > 0) if morning else (_minutes_from_hhmm(slot.get("end")) > 13*60)
+            if in_period and (slot.get("trainer") or "").strip() not in names: names.append((slot.get("trainer") or "").strip())
+        return ", ".join([n for n in names if n]) or "—"
+
+    def draw_summary(y):
+        c.setFillColor(colors.HexColor("#f9fafb")); c.rect(margin,y-92,width-2*margin,92,fill=1,stroke=1); c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold",10); c.drawString(margin+8,y-14,"Synthèse des feuilles de présence SSIAP 1" if is_ssiap1 else "Synthèse des feuilles de présence")
+        total_hours = SSIAP1_TOTAL_HOURS if is_ssiap1 else round(sum(float(slot.get("duration") or 0) for day in presentiel_days for slot in day.get("slots", [])), 2)
+        vals=[f"Nombre total de stagiaires : {len(students)}",(f"Nombre de journées de formation : {len(presentiel_days)}" if is_ssiap1 else f"Nombre de journées présentielles : {len(presentiel_days)}"),(f"Total formation : {total_hours:g} h" if is_ssiap1 else f"Nombre total d’heures présentielles : {total_hours:g}h"),f"Période de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}",f"Date d’examen : {format_date(session_data.get('date_exam'))}",("Modalité : présentiel" if is_ssiap1 else "Modalité : Présentiel au centre")]
+        c.setFont("Helvetica",8.5); yy=y-30
+        for i,v in enumerate(vals): c.drawString(margin+10+(i%2)*250, yy-(i//2)*16, v)
+        return y-102
+
+    page_no=1
+    for day in presentiel_days:
+        slots=day.get("slots") or []; date_label=format_date(day.get("date")); y=draw_header("FEUILLE DE PRÉSENCE - FORMATION SSIAP 1" if is_ssiap1 else ("FEUILLE DE PRÉSENCE — FORMATION DESP" if training_type == "DESP" else "FEUILLE DE PRÉSENCE"), date_label, slots, page_no)
+        if is_ssiap1:
+            y=draw_modules(y, slots)
         else:
-            if logo_path:
-                c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
-            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
-            title = "FEUILLE DE PRÉSENCE — FORMATION SSIAP 1" if is_ssiap1 else "FEUILLE DE PRÉSENCE"
-            c.drawCentredString(width / 2, height - 38, title)
-            c.setFont("Helvetica", 9)
-            formation_subtitle = subtitle or ("Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1" if is_ssiap1 else ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)"))
-            c.drawCentredString(width / 2, height - 54, formation_subtitle)
-            session_y = height - 84
-        c.setFont("Helvetica", 8)
-        c.drawString(margin, session_y, f"Session : {session_name}")
-        c.drawString(margin, session_y - 14, f"Date : {date_label}")
-        c.drawString(margin + 210, session_y - 14, f"Lieu / salle : {slots[0].get('room') or session_data.get('salle') or '—'}")
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(margin, session_y - 28, formation_period_label)
-        c.setFont("Helvetica", 8)
-        trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
-        c.drawString(margin, session_y - 42, f"Formateur : {', '.join(trainers)}")
-        c.drawString(margin + 300, session_y - 42, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
-        if training_type == "DESP":
-            c.drawString(margin, session_y - 54, "Modalité : Présentiel au centre")
-        y = session_y - (66 if training_type == "DESP" else 66)
-        c.setFont("Helvetica-Bold", 8.5)
-        c.drawString(margin, y, "Modules et horaires du jour")
-        y -= 11
-        for slot in slots:
-            label = f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('uv') or ''} — {slot.get('title') or ''}".strip(" —")
-            y = draw_wrapped_text(c, label, margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
-        y -= 5
-        c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin, y - 18, width - 2 * margin, 18, fill=1, stroke=1)
-        headers = ["N°", "Nom", "Prénom", "Signature matin", "Signature après-midi"]
-        xs = [margin + 4, margin + 32, margin + 158, margin + 265, margin + 410]
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8)
-        for x, h in zip(xs, headers): c.drawString(x, y - 12, h)
-        y -= 18
-        table_signature_gap = 14
-        signature_row_gap = 10
-        signature_col_gap = 18
-        signature_label_gap = 5
-        signature_label_h = 12
-        signature_box_h = 42
-        signature_section_h = (signature_label_h + signature_label_gap + signature_box_h) * 2 + signature_row_gap
-        content_bottom_y = footer_top_y + min_signature_footer_gap
-        signature_bottom_y = content_bottom_y
-        table_bottom_limit_y = signature_bottom_y + signature_section_h + table_signature_gap
-        available_table_h = max(24, y - table_bottom_limit_y)
-        row_h = max(13, min(34, int(available_table_h / max(len(students), 1))))
-        body_font_size = 8 if row_h >= 18 else 6.5
-        c.setFont("Helvetica", body_font_size)
-        for idx, student in enumerate(students, 1):
-            if y - row_h < table_bottom_limit_y:
-                break
-            c.rect(margin, y - row_h, width - 2 * margin, row_h)
-            for x in [margin + 28, margin + 154, margin + 260, margin + 405]:
-                c.line(x, y, x, y - row_h)
-            text_y = y - max(8, min(15, row_h - 4))
-            c.drawString(margin + 8, text_y, str(idx))
-            c.drawString(margin + 36, text_y, student.get("lastName", ""))
-            c.drawString(margin + 162, text_y, student.get("firstName", ""))
-            y -= row_h
-        y -= table_signature_gap
-        block_w = (width - 2 * margin - signature_col_gap) / 2
-        left_x = margin
-        right_x = margin + block_w + signature_col_gap
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(left_x, y, f"Signature formateur matin — {half_day_trainer_label(slots, True)}")
-        c.drawString(right_x, y, f"Signature formateur après-midi — {half_day_trainer_label(slots, False)}")
-        top_box_y = y - signature_label_gap - signature_box_h
-        c.rect(left_x, top_box_y, block_w, signature_box_h)
-        c.rect(right_x, top_box_y, block_w, signature_box_h)
-        bottom_label_y = top_box_y - signature_row_gap - signature_label_h
-        c.drawString(left_x, bottom_label_y, "Observations éventuelles")
-        c.drawString(right_x, bottom_label_y, "Cachet du centre")
-        bottom_box_y = bottom_label_y - signature_label_gap - signature_box_h
-        c.rect(left_x, bottom_box_y, block_w, signature_box_h)
-        c.rect(right_x, bottom_box_y, block_w, signature_box_h)
-        if stamp_image:
-            c.drawImage(stamp_image, right_x + 8, bottom_box_y + 4, width=block_w - 16, height=signature_box_h - 8, preserveAspectRatio=True, mask="auto")
-        footer(page_no); c.showPage()
+            c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Modules et horaires du jour"); y -= 12
+            for slot in slots:
+                code = slot.get("code") or slot.get("uv") or ""
+                title = slot.get("title") or slot.get("content") or ""
+                y = draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {code} — {title}", margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
+            y -= 5
+        has_am,has_pm=parts(slots); y=draw_people_table(y, students, has_am, has_pm); y=draw_signature_blocks(y, slots)
+        footer(page_no); c.showPage(); page_no+=1
 
-    next_page_no = len(presentiel_days) + 1
     for exam_day in exam_days:
-        slots = exam_day.get("slots") or []
-        date_label = format_date(exam_day.get("date"))
-        if logo_path:
-            c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
-        c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE — EXAMEN SSIAP 1")
-        c.setFont("Helvetica", 8)
-        session_y = height - 84
-        c.drawString(margin, session_y, f"Session : {session_name}")
-        c.drawString(margin, session_y - 14, f"Date de l’examen : {date_label}")
-        c.drawString(margin + 210, session_y - 14, f"Lieu / salle : {(slots[0].get('room') if slots else '') or session_data.get('exam_room') or session_data.get('salle') or '—'}")
-        c.drawString(margin, session_y - 28, f"Horaires : {_period_label(slots, True)}" + (f" / {_period_label(slots, False)}" if _period_label(slots, False) != "—" else ""))
-        trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
-        c.drawString(margin, session_y - 42, f"Responsable(s) / intervenant(s) : {', '.join(trainers)}")
-        y = session_y - 66
-        c.setFont("Helvetica-Bold", 8.5); c.drawString(margin, y, "Épreuve(s) d’examen") ; y -= 12
-        c.setFont("Helvetica", 7.4)
-        for slot in slots:
-            label = f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}"
-            y = draw_wrapped_text(c, label, margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
-        y -= 8
-        c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin, y - 18, width - 2 * margin, 18, fill=1, stroke=1)
-        has_afternoon = _period_label(slots, False) != "—"
-        headers = ["N°", "Nom", "Prénom", "Signature matin"] + (["Signature après-midi"] if has_afternoon else [])
-        xs = [margin + 4, margin + 32, margin + 158, margin + 300] + ([margin + 430] if has_afternoon else [])
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8)
-        for x, h in zip(xs, headers): c.drawString(x, y - 12, h)
-        y -= 18
-        row_h = max(16, min(34, int((y - (footer_top_y + 92)) / max(len(students), 1))))
-        c.setFont("Helvetica", 8 if row_h >= 18 else 6.5)
-        for idx, student in enumerate(students, 1):
-            if y - row_h < footer_top_y + 92: break
-            c.rect(margin, y - row_h, width - 2 * margin, row_h)
-            separators = [margin + 28, margin + 154, margin + 295] + ([margin + 425] if has_afternoon else [])
-            for x in separators: c.line(x, y, x, y - row_h)
-            c.drawString(margin + 8, y - 12, str(idx)); c.drawString(margin + 36, y - 12, student.get("lastName", "")); c.drawString(margin + 162, y - 12, student.get("firstName", ""))
-            y -= row_h
-        y -= 14
-        block_w = (width - 2 * margin - 18) / 2
-        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Signatures responsables / intervenants"); c.drawString(margin + block_w + 18, y, "Observations éventuelles")
-        c.rect(margin, y - 52, block_w, 46); c.rect(margin + block_w + 18, y - 52, block_w, 46)
-        footer(next_page_no); c.showPage(); next_page_no += 1
+        slots=exam_day.get("slots") or []; date_label=format_date(exam_day.get("date")); y=draw_header("FEUILLE DE PRÉSENCE - EXAMEN SSIAP 1", date_label, slots, page_no, exam=True)
+        c.setFont("Helvetica-Bold",8.8); c.drawString(margin,y,"Épreuve(s) d’examen"); y-=12
+        for slot in slots: y=draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}", margin+8, y, width-2*margin-8, "Helvetica", 8.5, 10)
+        y-=8; y=draw_people_table(y, students, True, True); y=draw_signature_blocks(y, slots, exam=True)
+        if is_ssiap1 and len(students)<=6 and y-102>footer_top_y+10: y=draw_summary(y)
+        footer(page_no); c.showPage(); page_no+=1
 
-    footer(total_pages)
-    y = height - 60
-    c.setFont("Helvetica-Bold", 16); c.drawString(margin, y, "Synthèse des feuilles de présence"); y -= 28
-    total_hours = round(sum(float(slot.get("duration") or 0) for day in presentiel_days for slot in day.get("slots", [])), 2)
-    mode_label = "période présentielle DESP" if training_type == "DESP" else ("e-learning + présentiel" if planning_mode == "elearning_presentiel" else "100% présentiel")
-    summary_lines = [
-        f"Nombre total de stagiaires : {len(students)}",
-        f"Nombre de journées présentielles : {len(presentiel_days)}",
-        f"Nombre total d’heures présentielles : {total_hours:g}h",
-        f"Période de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}",
-        f"Date d’examen : {format_date(session_data.get('date_exam'))}",
-        f"Mode de planning : {mode_label}",
-    ]
-    if training_type == "DESP":
-        summary_lines += [f"Formation complète : {DESP_TOTAL_HOURS}h — Feuilles de présence relatives uniquement aux {DESP_PRESENTIEL_HOURS}h en présentiel", f"E-learning suivi séparément : {DESP_ELEARNING_HOURS}h", "Modalité affichée : Présentiel au centre"]
-    elif planning_mode == "elearning_presentiel":
-        summary_lines += ["E-learning : 62h", "Présentiel : 113h", "Total : 175h"]
-    c.setFont("Helvetica", 10)
-    for line in summary_lines:
-        c.drawString(margin, y, line); y -= 18
-    y -= 16; c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "Informations légales"); y -= 16
-    for line in APS_LEGAL_LINES:
-        y = draw_wrapped_text(c, line, margin, y, width - 2 * margin, "Helvetica", 8, 11)
+    if not (is_ssiap1 and len(students)<=6 and exam_days):
+        y=height-70
+        if logo_path: c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
+        c.setFont("Helvetica-Bold",16); c.drawString(margin,y,"Synthèse des feuilles de présence SSIAP 1" if is_ssiap1 else "Synthèse des feuilles de présence"); y-=28
+        draw_summary(y); footer(page_no)
     c.save()
 
 
 def generate_aps_attendance_pdf(session_data, output_path):
     if is_ssiap1_session(session_data):
         training_type = "SSIAP1"
-        subtitle = "Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1"
+        subtitle = "Service de Sécurité Incendie et d’Assistance à Personnes - Niveau 1"
     else:
         training_type = "DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS"
         subtitle = DESP_LABEL if training_type == "DESP" else None

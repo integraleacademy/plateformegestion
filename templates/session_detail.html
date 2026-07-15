@@ -749,7 +749,7 @@ a.back:hover{ background:#d9a848 !important; }
       <a class="detail-nav-link active" href="#session-overview" aria-current="page"><span class="detail-nav-icon">▦</span>Vue d’ensemble</a>
       <a class="detail-nav-link" href="#jury-section"><span class="detail-nav-icon">♙</span>Jury d’examen</a>
       <a class="detail-nav-link" href="#planning-section"><span class="detail-nav-icon">▤</span>Planning PDF</a>
-      {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] %}
+      {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] or is_ssiap1_session(s) %}
         <a class="detail-nav-link" href="{{ '#a3p-contracts-section' if s.formation == 'A3P' else '#aps-contracts-section' }}"><span class="detail-nav-icon">📝</span>Contrat formateur</a>
         <a class="detail-nav-link" href="#aps-attendance-section"><span class="detail-nav-icon">📄</span>Feuilles de présence</a>
       {% endif %}
@@ -979,7 +979,7 @@ a.back:hover{ background:#d9a848 !important; }
     </form>
   {% endif %}
 </section>
-{% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] %}
+{% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] or is_ssiap1_session(s) %}
 <section class="planning-box" id="aps-attendance-section">
   <div class="planning-header">
     <div>
@@ -1026,7 +1026,7 @@ a.back:hover{ background:#d9a848 !important; }
     <div class="attendance-empty-state">Aucun stagiaire enregistré pour le moment. Importez une liste ou ajoutez-les manuellement.</div>
   {% endif %}
   {% if not attendance_planning_data %}
-    <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning {{ s.formation }} avant de générer les feuilles de présence.</div>
+    <div class="flash warning" style="margin-top:12px;">{% if is_ssiap1_session(s) %}Le planning SSIAP 1 doit être généré avant les feuilles de présence.{% else %}Veuillez générer le planning {{ s.formation }} avant de générer les feuilles de présence.{% endif %}</div>
   {% endif %}
 </section>
 

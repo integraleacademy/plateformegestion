@@ -749,8 +749,11 @@ def build_aps_planning(start_date, end_date=None, exam_iso=""):
     return days, totals, total_hours
 
 
+def normalize_formation_code(value):
+    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+
 def is_ssiap1_session(session_data):
-    formation = (session_data.get("formation") or "").upper().replace(" ", "")
+    formation = normalize_formation_code((session_data or {}).get("formation"))
     return formation in {"SSIAP", "SSIAP1"} or formation.startswith("SSIAP1")
 
 def ssiap1_exam_payload(session_data, payload=None):
@@ -2169,7 +2172,20 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     planning_data = session_data.get("apsPlanningData") or []
     planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
     students = session_data.get("apsAttendanceStudents") or []
-    presentiel_days = _aps_presentiel_days(planning_data, planning_mode)
+    is_ssiap1 = training_type == "SSIAP1" or is_ssiap1_session(session_data)
+    if is_ssiap1:
+        presentiel_days = []
+        exam_days = []
+        for day in planning_data:
+            training_slots = [slot for slot in (day.get("slots") or []) if is_in_person_slot(slot)]
+            exam_slots = [slot for slot in (day.get("slots") or []) if _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"exam", "examen"} or (slot.get("uv") or "").upper() == "EXAMEN"]
+            if training_slots:
+                copied = dict(day); copied["slots"] = training_slots; presentiel_days.append(copied)
+            if exam_slots:
+                copied = dict(day); copied["slots"] = exam_slots; exam_days.append(copied)
+    else:
+        presentiel_days = _aps_presentiel_days(planning_data, planning_mode)
+        exam_days = []
     if not presentiel_days:
         raise ValueError(f"Aucun jour présentiel n'est trouvé dans le planning {training_type}.")
     if training_type == "DESP":
@@ -2197,7 +2213,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     min_signature_footer_gap = 16 * mm
     logo_path = aps_pdf_logo_path()
     stamp_image = find_center_image("tampon", "cachet", "stamp")
-    total_pages = len(presentiel_days) + 1
+    total_pages = len(presentiel_days) + len(exam_days) + 1
     session_name = session_data.get("display_name") or session_data.get("name") or f"Session {session_data.get('id', '')}"
     formation_period_label = (
         f"Formation complète : du {format_date(session_data.get('date_debut'))} "
@@ -2268,9 +2284,10 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             if logo_path:
                 c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
             c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
-            c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
+            title = "FEUILLE DE PRÉSENCE — FORMATION SSIAP 1" if is_ssiap1 else "FEUILLE DE PRÉSENCE"
+            c.drawCentredString(width / 2, height - 38, title)
             c.setFont("Helvetica", 9)
-            formation_subtitle = subtitle or ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)")
+            formation_subtitle = subtitle or ("Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1" if is_ssiap1 else ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)"))
             c.drawCentredString(width / 2, height - 54, formation_subtitle)
             session_y = height - 84
         c.setFont("Helvetica", 8)
@@ -2344,6 +2361,51 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             c.drawImage(stamp_image, right_x + 8, bottom_box_y + 4, width=block_w - 16, height=signature_box_h - 8, preserveAspectRatio=True, mask="auto")
         footer(page_no); c.showPage()
 
+    next_page_no = len(presentiel_days) + 1
+    for exam_day in exam_days:
+        slots = exam_day.get("slots") or []
+        date_label = format_date(exam_day.get("date"))
+        if logo_path:
+            c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
+        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
+        c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE — EXAMEN SSIAP 1")
+        c.setFont("Helvetica", 8)
+        session_y = height - 84
+        c.drawString(margin, session_y, f"Session : {session_name}")
+        c.drawString(margin, session_y - 14, f"Date de l’examen : {date_label}")
+        c.drawString(margin + 210, session_y - 14, f"Lieu / salle : {(slots[0].get('room') if slots else '') or session_data.get('exam_room') or session_data.get('salle') or '—'}")
+        c.drawString(margin, session_y - 28, f"Horaires : {_period_label(slots, True)}" + (f" / {_period_label(slots, False)}" if _period_label(slots, False) != "—" else ""))
+        trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
+        c.drawString(margin, session_y - 42, f"Responsable(s) / intervenant(s) : {', '.join(trainers)}")
+        y = session_y - 66
+        c.setFont("Helvetica-Bold", 8.5); c.drawString(margin, y, "Épreuve(s) d’examen") ; y -= 12
+        c.setFont("Helvetica", 7.4)
+        for slot in slots:
+            label = f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}"
+            y = draw_wrapped_text(c, label, margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
+        y -= 8
+        c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin, y - 18, width - 2 * margin, 18, fill=1, stroke=1)
+        has_afternoon = _period_label(slots, False) != "—"
+        headers = ["N°", "Nom", "Prénom", "Signature matin"] + (["Signature après-midi"] if has_afternoon else [])
+        xs = [margin + 4, margin + 32, margin + 158, margin + 300] + ([margin + 430] if has_afternoon else [])
+        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8)
+        for x, h in zip(xs, headers): c.drawString(x, y - 12, h)
+        y -= 18
+        row_h = max(16, min(34, int((y - (footer_top_y + 92)) / max(len(students), 1))))
+        c.setFont("Helvetica", 8 if row_h >= 18 else 6.5)
+        for idx, student in enumerate(students, 1):
+            if y - row_h < footer_top_y + 92: break
+            c.rect(margin, y - row_h, width - 2 * margin, row_h)
+            separators = [margin + 28, margin + 154, margin + 295] + ([margin + 425] if has_afternoon else [])
+            for x in separators: c.line(x, y, x, y - row_h)
+            c.drawString(margin + 8, y - 12, str(idx)); c.drawString(margin + 36, y - 12, student.get("lastName", "")); c.drawString(margin + 162, y - 12, student.get("firstName", ""))
+            y -= row_h
+        y -= 14
+        block_w = (width - 2 * margin - 18) / 2
+        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Signatures responsables / intervenants"); c.drawString(margin + block_w + 18, y, "Observations éventuelles")
+        c.rect(margin, y - 52, block_w, 46); c.rect(margin + block_w + 18, y - 52, block_w, 46)
+        footer(next_page_no); c.showPage(); next_page_no += 1
+
     footer(total_pages)
     y = height - 60
     c.setFont("Helvetica-Bold", 16); c.drawString(margin, y, "Synthèse des feuilles de présence"); y -= 28
@@ -2371,8 +2433,12 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
 
 
 def generate_aps_attendance_pdf(session_data, output_path):
-    training_type = "DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS"
-    subtitle = DESP_LABEL if training_type == "DESP" else None
+    if is_ssiap1_session(session_data):
+        training_type = "SSIAP1"
+        subtitle = "Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1"
+    else:
+        training_type = "DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS"
+        subtitle = DESP_LABEL if training_type == "DESP" else None
     return generate_attendance_pdf_common(session_data, output_path, training_type=training_type, subtitle=subtitle)
 
 
@@ -5598,7 +5664,8 @@ def generate_aps_attendance_sheets(sid):
     planning_key = "a3pPlanningData" if formation == "A3P" else "apsPlanningData"
     student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
     if not session_data.get(planning_key):
-        return jsonify({"ok": False, "error": f"Veuillez générer le planning {formation} avant de générer les feuilles de présence."}), 400
+        message = "Le planning SSIAP 1 doit être généré avant les feuilles de présence." if is_ssiap1_session(session_data) else f"Veuillez générer le planning {formation} avant de générer les feuilles de présence."
+        return jsonify({"ok": False, "error": message}), 400
     if not session_data.get(student_key):
         return jsonify({"ok": False, "error": "Aucune liste de stagiaires n’est enregistrée."}), 400
     shared_session = session_data
@@ -5606,9 +5673,10 @@ def generate_aps_attendance_sheets(sid):
         shared_session, converted = _a3p_session_for_shared_docs(session_data)
         if not _aps_presentiel_days(converted, "full_presentiel"):
             return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
-    elif not _aps_presentiel_days(session_data.get("apsPlanningData"), session_data.get("apsPlanningMode") or "full_presentiel"):
+    elif not _aps_presentiel_days(session_data.get("apsPlanningData"), "desp" if is_ssiap1_session(session_data) else (session_data.get("apsPlanningMode") or "full_presentiel")):
         return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
-    filename = f"feuilles_presence_{formation.lower()}_{sid}.pdf"
+    filename_formation = "ssiap1" if is_ssiap1_session(session_data) else formation.lower()
+    filename = f"feuilles_presence_{filename_formation}_{sid}.pdf"
     output_dir = A3P_DOC_DIR if formation == "A3P" else APS_ATTENDANCE_DIR
     output_path = os.path.join(output_dir, filename)
     temp_path = f"{output_path}.tmp"
@@ -5815,7 +5883,7 @@ def a3p_document_exists(session_data, kind):
 
 @app.context_processor
 def inject_a3p_trainer_helpers():
-    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists, "aps_detect_trainers": aps_detect_trainers}
+    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists, "aps_detect_trainers": aps_detect_trainers, "is_ssiap1_session": is_ssiap1_session}
 
 @app.post("/api/admin/sessions/<sid>/a3p/trainer-link")
 def generate_a3p_trainer_link(sid):

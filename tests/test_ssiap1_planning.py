@@ -23,6 +23,7 @@ def test_ssiap1_planning_totals_sequences_order_and_exam_exclusion():
         end_date=date(2026, 1, 19),
         exam_iso="2026-01-20",
         exam_payload=_exam(),
+        excluded_dates=["2026-01-14"],
     )
     summary = ssiap1_summary_from_data(planning)
 
@@ -48,6 +49,7 @@ def test_ssiap1_planning_uses_clean_half_hour_boundaries_and_weekdays():
         end_date=date(2026, 1, 19),
         exam_iso="2026-01-20",
         exam_payload=_exam(),
+        excluded_dates=["2026-01-14"],
     )
 
     formation_days = [day for day in planning if not day.get("exam")]
@@ -68,4 +70,35 @@ def test_ssiap1_planning_refuses_short_period():
             exam_payload={"date": "2026-01-12", "start": "08:30", "end": "12:30", "room": "Salle Examen", "durationMinutes": 240},
         )
 
-    assert "Impossible de générer le planning" in str(exc.value)
+    assert "nécessite exactement" in str(exc.value) or "Impossible de générer le planning" in str(exc.value)
+
+
+def test_ssiap1_october_2026_requires_user_selected_non_training_days_and_keeps_end_dates():
+    with pytest.raises(ValueError, match="Veuillez sélectionner 2 jours sans formation"):
+        build_ssiap1_planning_data(
+            date(2026, 10, 12),
+            "Jean Dupont",
+            "Salle 1",
+            end_date=date(2026, 10, 27),
+            exam_iso="2026-10-28",
+            exam_payload={"date": "2026-10-28", "start": "08:30", "end": "16:30", "room": "Salle Examen", "durationMinutes": 480},
+        )
+
+    planning, _, _ = build_ssiap1_planning_data(
+        date(2026, 10, 12),
+        "Jean Dupont",
+        "Salle 1",
+        end_date=date(2026, 10, 27),
+        exam_iso="2026-10-28",
+        exam_payload={"date": "2026-10-28", "start": "08:30", "end": "16:30", "room": "Salle Examen", "durationMinutes": 480},
+        excluded_dates=["2026-10-14", "2026-10-21"],
+    )
+    formation_days = [day for day in planning if not day.get("exam")]
+    daily_minutes = {day["date"]: sum(slot["durationMinutes"] for slot in day["slots"]) for day in formation_days}
+
+    assert len(formation_days) == 10
+    assert daily_minutes["2026-10-26"] == 420
+    assert daily_minutes["2026-10-27"] == 240
+    assert planning[-1]["date"] == "2026-10-28"
+    assert set(daily_minutes) == {"2026-10-12", "2026-10-13", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27"}
+    assert ssiap1_summary_from_data(planning)["errors"] == []

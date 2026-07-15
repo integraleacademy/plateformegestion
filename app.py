@@ -482,6 +482,17 @@ SSIAP1_CONFIG = {"code": "SSIAP1", "durationHours": SSIAP1_TOTAL_HOURS, "sequenc
 
 SSIAP1_AGREMENT_LINE = "Agrément SSIAP n°8323 délivré par la Préfecture du Var en date du 29/05/2026"
 
+SSIAP1_SST_TOTAL_HOURS = 14
+SSIAP1_REVISION_HOURS = 3
+SSIAP1_PRESENCE_TOTAL_HOURS = SSIAP1_SST_TOTAL_HOURS + SSIAP1_TOTAL_HOURS + SSIAP1_REVISION_HOURS
+SSIAP1_SST_PART = "FORMATION SAUVETEUR SECOURISTE DU TRAVAIL — SST — 14 h"
+SSIAP1_REVISION_PART = "RÉVISIONS GÉNÉRALES ET PRÉPARATION À L’EXAMEN SSIAP 1 — 3 h"
+SSIAP1_SST_DAYS = [
+    {"code": "SST-J1", "title": "SST — JOURNÉE 1", "items": ["Présentation de la formation et du rôle du SST", "Prévention des risques professionnels", "Protection adaptée face à une situation d’accident", "Examen de la victime", "Transmission de l’alerte", "Premiers apprentissages des gestes de secours"]},
+    {"code": "SST-J2", "title": "SST — JOURNÉE 2", "items": ["Secours adaptés aux différentes situations", "Mises en situation pratiques", "Cas concrets", "Prévention dans l’entreprise", "Évaluations certificatives SST"]},
+]
+SSIAP1_REVISION_ITEMS = ["Révision des principales notions réglementaires", "Révision du rôle et des missions de l’agent SSIAP 1", "Exploitation du SSI", "Révision des conduites à tenir", "Préparation aux épreuves écrites et pratiques", "Questions-réponses avant l’examen"]
+
 def _ssiap1_detail(code, part_number, part_title, sequence_number, sequence_title, total_minutes, content_minutes, content_items, application_minutes=0, application_items=None):
     return {
         "code": code,
@@ -815,81 +826,77 @@ def ssiap1_exam_payload(session_data, payload=None):
         raise ValueError("Les horaires d'examen SSIAP 1 sont obligatoires au format HH:MM.") from exc
     if end_dt <= start_dt:
         raise ValueError("L'heure de fin d'examen SSIAP 1 doit être après l'heure de début.")
-    return {"date": exam_date, "start": exam_start, "end": exam_end, "room": exam_room, "durationMinutes": int((end_dt - start_dt).total_seconds() // 60)}
+    return {"date": exam_date, "start": exam_start, "end": exam_end, "room": exam_room, "durationMinutes": int((end_dt - start_dt).total_seconds() // 60), "sstTrainer": (payload.get("sstTrainer") or session_data.get("ssiapSstTrainer") or "").strip(), "ssiapTrainer": (payload.get("ssiapTrainer") or payload.get("trainer") or payload.get("formateur") or session_data.get("ssiapTrainer") or "").strip(), "revisionTrainer": (payload.get("revisionTrainer") or session_data.get("ssiapRevisionTrainer") or "").strip(), "examTrainer": (payload.get("examTrainer") or session_data.get("ssiapExamTrainer") or "").strip()}
 
 def _ssiap1_required_training_days():
     full_days, remainder = divmod(SSIAP1_TOTAL_MINUTES, APS_MAX_DAILY_MINUTES)
     return full_days + (1 if remainder else 0)
 
-def _normalize_ssiap1_excluded_dates(values):
-    if not values:
-        return []
-    if isinstance(values, str):
-        values = values.replace(";", ",").split(",")
-    dates = []
-    for value in values:
-        parsed = parse_date(str(value).strip())
-        if parsed:
-            iso = parsed.strftime("%Y-%m-%d")
-            if iso not in dates:
-                dates.append(iso)
-    return dates
+def _ssiap1_role_trainer(exam_payload, role, fallback=""):
+    return (exam_payload or {}).get(role) or fallback or ""
 
-def ssiap1_excluded_dates_from_payload(session_data=None, payload=None):
-    session_data = session_data or {}; payload = payload or {}
-    for key in ("ssiapNonTrainingDays", "nonTrainingDays", "excludedDates", "ssiapExcludedDates", "ssiap_days_without_training"):
-        dates = _normalize_ssiap1_excluded_dates(payload.get(key))
-        if dates:
-            return dates
-    for key in ("ssiapNonTrainingDays", "nonTrainingDays", "excludedDates", "ssiapExcludedDates", "ssiap_days_without_training"):
-        dates = _normalize_ssiap1_excluded_dates(session_data.get(key))
-        if dates:
-            return dates
-    return []
+def _ssiap1_next_training_days(start_date, count, exam_iso=""):
+    days = []
+    current = start_date
+    while len(days) < count:
+        if is_aps_training_day(current, exam_iso):
+            days.append(current)
+        current += timedelta(days=1)
+    return days
 
-def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None, excluded_dates=None):
+def _ssiap1_day_slot(date_value, start, minutes, *, uv, part, title, items, trainer, room, modality, content=None):
+    end = add_minutes_to_time(start, minutes)
+    return {
+        "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"),
+        "duration": round(minutes / 60, 2), "durationMinutes": minutes,
+        "uv": uv, "part": part, "sequence": uv, "title": title, "content": content or title,
+        "subpartItems": list(items or []), "subpartDisplayItems": list(items or []),
+        "room": room, "trainer": trainer, "modality": modality,
+    }
+
+def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None):
+    exam_payload = exam_payload or {}
+    if end_date is None:
+        raise ValueError("La date de fin de formation SSIAP 1 est obligatoire.")
+    sst_trainer = _ssiap1_role_trainer(exam_payload, "sstTrainer", formateur)
+    ssiap_trainer = _ssiap1_role_trainer(exam_payload, "ssiapTrainer", formateur)
+    revision_trainer = _ssiap1_role_trainer(exam_payload, "revisionTrainer", ssiap_trainer)
+    exam_trainer = _ssiap1_role_trainer(exam_payload, "examTrainer", ssiap_trainer)
+
+    all_days = aps_working_days_between(start_date, end_date, exam_iso)
+    required_total_days = 2 + _ssiap1_required_training_days()
+    if len(all_days) < required_total_days:
+        raise ValueError(aps_impossible_period_message(start_date, end_date, len(all_days) * APS_MAX_DAILY_MINUTES, (SSIAP1_PRESENCE_TOTAL_HOURS * 60)))
+    session_days = all_days[:required_total_days]
+    if session_days[0] != start_date or session_days[1] != start_date + timedelta(days=1):
+        # Keep the rule generic but explicit: SST occupies the first two working days.
+        pass
+    sst_days = session_days[:2]
+    training_days = session_days[2:]
+    if training_days[0] != start_date + timedelta(days=2):
+        raise ValueError("La formation SSIAP 1 doit commencer le troisième jour ouvré de la session, après les 14h SST.")
+    if training_days[-1] != end_date:
+        raise ValueError(f"La dernière journée SSIAP 1 doit être le {end_date.strftime('%d/%m/%Y')} afin d'y placer les 4 dernières heures et les révisions.")
+
+    planning, totals, occurrence_counts, total_occurrences = [], {}, {}, {}
+    for idx, day in enumerate(sst_days):
+        detail = SSIAP1_SST_DAYS[idx]
+        slots = [
+            _ssiap1_day_slot(day, dt_time(8, 30), 240, uv=detail["code"], part=SSIAP1_SST_PART, title=detail["title"], items=detail["items"][:3], trainer=sst_trainer, room=salle, modality="sst"),
+            _ssiap1_day_slot(day, dt_time(13, 30), 180, uv=detail["code"], part=SSIAP1_SST_PART, title=detail["title"], items=detail["items"][3:], trainer=sst_trainer, room=salle, modality="sst"),
+        ]
+        planning.append({"date": day.isoformat(), "dayLabel": aps_day_label(day), "category": "sst", "slots": slots})
+
     modules = []
     for detail in SSIAP1_SEQUENCE_DETAILS:
         part_label = f"{detail['part_number']}{'re' if detail['part_number'] == 1 else 'e'} partie — {detail['part_title']}"
-        for kind, duration_key, items_key, label in (
-            ("content", "content_duration_minutes", "content_items", "CONTENU"),
-            ("application", "application_duration_minutes", "application_items", "APPLICATION"),
-        ):
+        for kind, duration_key, items_key, label in (("content", "content_duration_minutes", "content_items", "CONTENU"), ("application", "application_duration_minutes", "application_items", "APPLICATION")):
             duration = int(detail.get(duration_key) or 0)
             if duration <= 0:
                 continue
-            modules.append({
-                **detail,
-                "part": part_label,
-                "subpart_type": kind,
-                "subpart_label": label,
-                "subpart_duration_minutes": duration,
-                "subpart_items": list(detail.get(items_key) or []),
-                "remainingMinutes": duration,
-                "offsetMinutes": 0,
-            })
-    excluded_dates = set(_normalize_ssiap1_excluded_dates(excluded_dates))
-    if end_date is None:
-        raise ValueError("La date de fin de formation SSIAP 1 est obligatoire.")
-    working_days = aps_working_days_between(start_date, end_date, exam_iso)
-    required_days = _ssiap1_required_training_days()
-    extra_days = max(0, len(working_days) - required_days)
-    if extra_days and len(excluded_dates) != extra_days:
-        raise ValueError(f"La période du {start_date.strftime('%d/%m/%Y')} au {end_date.strftime('%d/%m/%Y')} contient {len(working_days)} jours ouvrés, mais la formation SSIAP 1 de {SSIAP1_TOTAL_HOURS} heures nécessite {required_days} jours de formation. Veuillez sélectionner {extra_days} jours sans formation.")
-    invalid_excluded = sorted(d for d in excluded_dates if datetime.strptime(d, "%Y-%m-%d").date() not in working_days)
-    if invalid_excluded:
-        raise ValueError("Les jours sans formation SSIAP 1 doivent être des jours ouvrés compris dans la période de formation : " + ", ".join(format_date(d) for d in invalid_excluded) + ".")
-    if exam_iso in excluded_dates:
-        raise ValueError("La date d’examen SSIAP 1 ne peut pas être sélectionnée comme jour sans formation.")
-    training_days = [d for d in working_days if d.isoformat() not in excluded_dates]
-    if len(training_days) != required_days:
-        raise ValueError(f"La formation SSIAP 1 nécessite exactement {required_days} jours de formation ({SSIAP1_TOTAL_HOURS}h).")
-    expected_last = end_date.isoformat()
-    if training_days[-1].isoformat() != expected_last:
-        raise ValueError(f"La dernière journée de formation SSIAP 1 doit être le {end_date.strftime('%d/%m/%Y')} afin d'y placer les 4 dernières heures.")
-    planning, totals, occurrence_counts, total_occurrences = [], {}, {}, {}
-    module_idx = 0
-    total_minutes = 0
+            modules.append({**detail, "part": part_label, "subpart_type": kind, "subpart_label": label, "subpart_duration_minutes": duration, "subpart_items": list(detail.get(items_key) or []), "remainingMinutes": duration, "offsetMinutes": 0})
+
+    module_idx = 0; total_minutes = 0
     for current_day in training_days:
         slots = []
         day_capacity = min(APS_MAX_DAILY_MINUTES, SSIAP1_TOTAL_MINUTES - total_minutes)
@@ -897,8 +904,9 @@ def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam
         if day_capacity > 240:
             slot_definitions.append((dt_time(13, 30), day_capacity - 240))
         for slot_start, slot_minutes in slot_definitions:
-            cursor = slot_start
-            remaining_slot = slot_minutes
+            if slot_minutes <= 0:
+                continue
+            cursor = slot_start; remaining_slot = slot_minutes
             while remaining_slot > 0 and module_idx < len(modules):
                 module = modules[module_idx]
                 duration_minutes = min(remaining_slot, module["remainingMinutes"])
@@ -916,51 +924,47 @@ def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam
                     "totalSequenceDurationMinutes": module["total_duration_minutes"],
                     "subpartType": module["subpart_type"], "subpartLabel": module["subpart_label"],
                     "subpartDurationMinutes": module["subpart_duration_minutes"],
-                    "subpartItems": module["subpart_items"],
-                    "subpartOffsetMinutes": module["offsetMinutes"],
+                    "subpartItems": module["subpart_items"], "subpartOffsetMinutes": module["offsetMinutes"],
                     "splitIndex": occurrence_counts[(code, module["subpart_type"])],
-                    "room": salle, "trainer": formateur, "modality": "presentiel"})
-                module["remainingMinutes"] -= duration_minutes
-                module["offsetMinutes"] += duration_minutes
-                remaining_slot -= duration_minutes
-                total_minutes += duration_minutes
-                totals[code] = totals.get(code, 0) + duration_minutes
-                cursor = end_time
-                if module["remainingMinutes"] == 0:
-                    module_idx += 1
+                    "room": salle, "trainer": ssiap_trainer, "modality": "presentiel"})
+                module["remainingMinutes"] -= duration_minutes; module["offsetMinutes"] += duration_minutes
+                remaining_slot -= duration_minutes; total_minutes += duration_minutes; totals[code] = totals.get(code, 0) + duration_minutes; cursor = end_time
+                if module["remainingMinutes"] == 0: module_idx += 1
                 if total_minutes == SSIAP1_TOTAL_MINUTES: break
             if total_minutes == SSIAP1_TOTAL_MINUTES: break
+        if current_day == training_days[-1]:
+            slots.append(_ssiap1_day_slot(current_day, dt_time(13, 30), SSIAP1_REVISION_HOURS * 60, uv="REV-EXAM", part=SSIAP1_REVISION_PART, title="RÉVISIONS GÉNÉRALES ET PRÉPARATION À L’EXAMEN SSIAP 1", items=SSIAP1_REVISION_ITEMS, trainer=revision_trainer, room=salle, modality="revision"))
         if slots:
-            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
-    # Mark split blocks after all occurrences are known.
+            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "category": "ssiap1", "slots": slots})
+
     counts = {}
     for day in planning:
         for slot in day.get("slots", []):
+            if not slot.get("partNumber"):
+                continue
             key = (slot.get("sequence"), slot.get("subpartType")); counts[key] = counts.get(key, 0) + 1
             total_for_key = total_occurrences.get(key, 1)
             slot["splitLabel"] = "" if total_for_key == 1 else ("début" if counts[key] == 1 else "suite")
             items = list(slot.get("subpartItems") or [])
             if total_for_key > 1:
                 total_minutes_for_subpart = max(1, int(slot.get("subpartDurationMinutes") or 0))
-                start_offset = int(slot.get("subpartOffsetMinutes") or 0)
-                end_offset = start_offset + int(slot.get("durationMinutes") or 0)
+                start_offset = int(slot.get("subpartOffsetMinutes") or 0); end_offset = start_offset + int(slot.get("durationMinutes") or 0)
                 selected = []
                 for idx, item in enumerate(items):
                     item_midpoint = ((idx + 0.5) * total_minutes_for_subpart) / max(1, len(items))
                     is_last_chunk = counts[key] == total_for_key
-                    if item_midpoint >= start_offset and (item_midpoint < end_offset or is_last_chunk):
-                        selected.append(item)
-                if not selected and counts[key] > 1:
-                    selected = ["Poursuite et approfondissement du contenu commencé lors du créneau précédent"]
+                    if item_midpoint >= start_offset and (item_midpoint < end_offset or is_last_chunk): selected.append(item)
+                if not selected and counts[key] > 1: selected = ["Poursuite et approfondissement du contenu commencé lors du créneau précédent"]
                 slot["subpartDisplayItems"] = selected
                 slot["subpartProgressLabel"] = f"{slot.get('subpartLabel', 'Sous-partie').capitalize()} : créneau {counts[key]} sur {total_for_key} — total {format_duration_from_minutes(total_minutes_for_subpart)}"
             else:
                 slot["subpartDisplayItems"] = items
-    exam_payload = exam_payload or {}; exam_date = exam_payload.get("date") or exam_iso
+
+    exam_date = exam_payload.get("date") or exam_iso
     last_training = datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date() if planning else None
     exam_date_obj = datetime.strptime(exam_date, "%Y-%m-%d").date() if exam_date else None
     if not exam_date_obj or (last_training and exam_date_obj <= last_training): raise ValueError("L'examen SSIAP 1 doit être placé après la fin des 67 heures de formation.")
-    planning.append({"date": exam_date, "dayLabel": aps_day_label(exam_date_obj), "exam": True, "slots": [{"start": exam_payload.get("start", "08:30"), "end": exam_payload.get("end", "16:30"), "duration": round((exam_payload.get("durationMinutes") or 0)/60, 2), "durationMinutes": exam_payload.get("durationMinutes") or 0, "uv": "EXAMEN", "part": "EXAMEN SSIAP 1", "sequence": "EXAMEN", "title": "EXAMEN SSIAP 1", "content": "Épreuves d'examen SSIAP 1", "room": exam_payload.get("room") or salle, "trainer": formateur, "modality": "exam"}]})
+    planning.append({"date": exam_date, "dayLabel": aps_day_label(exam_date_obj), "exam": True, "category": "exam", "slots": [{"start": exam_payload.get("start", "08:30"), "end": exam_payload.get("end", "16:30"), "duration": round((exam_payload.get("durationMinutes") or 0)/60, 2), "durationMinutes": exam_payload.get("durationMinutes") or 0, "uv": "EXAMEN", "part": "EXAMEN SSIAP 1", "sequence": "EXAMEN", "title": "EXAMEN SSIAP 1", "content": "Épreuves d'examen SSIAP 1", "room": exam_payload.get("room") or salle, "trainer": exam_trainer, "modality": "exam"}]})
     return planning, {k: round(v/60, 2) for k, v in totals.items()}, round(total_minutes/60, 2)
 
 def ssiap1_summary_from_data(planning_data):
@@ -970,21 +974,23 @@ def ssiap1_summary_from_data(planning_data):
     order = list(SSIAP1_SEQUENCE_TOTALS)
     seen_order = []
     total = 0
+    sst_minutes = 0
+    revision_minutes = 0
     exam = None
     previous = None
-    formation_day_minutes = {}
-    exam_dates = []
+    ssiap_day_minutes = {}
+    presence_day_minutes = {}
+    sst_day_minutes = {}
+    revision_day_minutes = {}
     for day in planning_data or []:
         day_date = day.get("date")
         for slot in day.get("slots", []):
             minutes = int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60))))
-            if (slot.get("modality") or "") == "exam" or slot.get("uv") == "EXAMEN":
+            modality = (slot.get("modality") or "").strip().lower()
+            if modality in {"exam", "examen"} or slot.get("uv") == "EXAMEN":
                 exam = {"date": day_date, "start": slot.get("start"), "end": slot.get("end"), "room": slot.get("room"), "durationMinutes": minutes}
                 exam_dates.append(day_date)
                 continue
-            code = slot.get("sequence") or slot.get("uv")
-            if code not in totals:
-                errors.append(f"Séquence SSIAP 1 inconnue: {code}"); continue
             try:
                 start_dt = datetime.strptime(f"{day_date} {slot.get('start')}", "%Y-%m-%d %H:%M")
                 end_dt = datetime.strptime(f"{day_date} {slot.get('end')}", "%Y-%m-%d %H:%M")
@@ -993,28 +999,46 @@ def ssiap1_summary_from_data(planning_data):
                 if previous and start_dt < previous: errors.append(f"Ordre chronologique incohérent le {day_date} {slot.get('start')}.")
                 previous = end_dt
             except Exception: errors.append(f"Horaire invalide le {day_date}: {slot.get('start')}-{slot.get('end')}.")
-            formation_day_minutes[day_date] = formation_day_minutes.get(day_date, 0) + minutes
+            presence_day_minutes[day_date] = presence_day_minutes.get(day_date, 0) + minutes
+            if modality == "sst":
+                sst_minutes += minutes
+                sst_day_minutes[day_date] = sst_day_minutes.get(day_date, 0) + minutes
+                continue
+            if modality == "revision":
+                revision_minutes += minutes
+                revision_day_minutes[day_date] = revision_day_minutes.get(day_date, 0) + minutes
+                continue
+            code = slot.get("sequence") or slot.get("uv")
+            if code not in totals:
+                errors.append(f"Séquence SSIAP 1 inconnue: {code}"); continue
+            ssiap_day_minutes[day_date] = ssiap_day_minutes.get(day_date, 0) + minutes
             totals[code] += round(minutes/60, 2); total += round(minutes/60, 2)
             part_totals[SSIAP1_PART_LABELS[code.split('-')[0]].split(' — ')[0]] += round(minutes/60, 2)
             if not seen_order or seen_order[-1] != code: seen_order.append(code)
+    if sst_minutes != SSIAP1_SST_TOTAL_HOURS * 60: errors.append(f"Le total SST doit être exactement de 14h (actuel: {sst_minutes/60:g}h).")
+    if sorted(sst_day_minutes.values()) != [APS_MAX_DAILY_MINUTES, APS_MAX_DAILY_MINUTES]: errors.append("Le SST doit comporter exactement deux journées de 7h.")
     if round(total, 2) != SSIAP1_TOTAL_HOURS: errors.append(f"Le total formation SSIAP 1 doit être exactement de 67h (actuel: {total:g}h).")
-    day_values = list(formation_day_minutes.values())
+    day_values = list(ssiap_day_minutes.values())
     if len(day_values) != _ssiap1_required_training_days(): errors.append(f"La formation SSIAP 1 doit comporter exactement {_ssiap1_required_training_days()} journées de formation (actuel: {len(day_values)}).")
     full_days = [m for m in day_values if m == APS_MAX_DAILY_MINUTES]
     partial_days = [m for m in day_values if m != APS_MAX_DAILY_MINUTES]
     if len(full_days) != 9: errors.append(f"La formation SSIAP 1 doit comporter exactement 9 journées complètes de 7h (actuel: {len(full_days)}).")
-    if partial_days != [240]: errors.append("La dernière journée SSIAP 1 doit être la seule journée partielle et durer exactement 4h.")
-    for d, minutes_day in formation_day_minutes.items():
+    if partial_days != [240]: errors.append("La dernière journée SSIAP 1 doit être la seule journée partielle réglementaire et durer exactement 4h.")
+    if revision_minutes != SSIAP1_REVISION_HOURS * 60: errors.append(f"Les révisions complémentaires doivent totaliser exactement 3h (actuel: {revision_minutes/60:g}h).")
+    if revision_day_minutes and list(revision_day_minutes.values()) != [SSIAP1_REVISION_HOURS * 60]: errors.append("Les révisions SSIAP 1 doivent être placées en un bloc de 3h.")
+    if presence_day_minutes.get(max(presence_day_minutes or {"":0})) != APS_MAX_DAILY_MINUTES: errors.append("La dernière journée de présence avant examen doit totaliser 7h.")
+    for d in presence_day_minutes:
         parsed = parse_date(d)
-        if not parsed or not is_french_working_day(parsed.date()): errors.append(f"Aucun créneau SSIAP 1 ne doit être placé le week-end ou un jour férié: {d}.")
-    if exam and exam.get("date") in formation_day_minutes: errors.append("La date d’examen SSIAP 1 ne doit pas contenir de créneau de formation.")
+        if not parsed or not is_french_working_day(parsed.date()): errors.append(f"Aucun créneau SSIAP 1/SST/révision ne doit être placé le week-end ou un jour férié: {d}.")
+    if any(d in ssiap_day_minutes for d in sst_day_minutes): errors.append("Aucune séquence SSIAP 1 ne doit être placée pendant les journées SST.")
+    if exam and exam.get("date") in presence_day_minutes: errors.append("La date d’examen SSIAP 1 ne doit pas contenir de créneau de formation.")
     for part, expected in SSIAP1_PART_TOTALS.items():
         if round(part_totals.get(part, 0), 2) != expected: errors.append(f"{part} doit totaliser {expected}h (actuel: {part_totals.get(part, 0):g}h).")
     for code, expected in SSIAP1_SEQUENCE_TOTALS.items():
         if round(totals.get(code, 0), 2) != expected: errors.append(f"{code} — {SSIAP1_SEQUENCE_LABELS[code]} doit totaliser {expected:g}h (actuel: {totals.get(code, 0):g}h).")
     if seen_order != order: errors.append("Les 24 séquences SSIAP 1 doivent être présentes et dans l'ordre réglementaire.")
     if not exam: errors.append("L'examen SSIAP 1 doit être présent dans le planning.")
-    return {"total_hours": round(total, 2), "uv_totals": totals, "part_totals": part_totals, "uv_rows": [{"uv": c, "label": SSIAP1_SEQUENCE_LABELS[c], "title": SSIAP1_SEQUENCE_LABELS[c], "hours": totals[c], "expected": SSIAP1_SEQUENCE_TOTALS[c], "modality": "presentiel"} for c in order], "modality_totals": {"presentiel": round(total, 2)}, "exam": exam, "errors": errors}
+    return {"total_hours": round(total, 2), "sst_hours": round(sst_minutes/60, 2), "revision_hours": round(revision_minutes/60, 2), "presence_total_hours": round((sst_minutes + int(total*60) + revision_minutes)/60, 2), "uv_totals": totals, "part_totals": part_totals, "uv_rows": [{"uv": c, "label": SSIAP1_SEQUENCE_LABELS[c], "title": SSIAP1_SEQUENCE_LABELS[c], "hours": totals[c], "expected": SSIAP1_SEQUENCE_TOTALS[c], "modality": "presentiel"} for c in order], "modality_totals": {"sst": round(sst_minutes/60, 2), "presentiel": round(total, 2), "revision": round(revision_minutes/60, 2)}, "daily_totals": {d: round(m/60, 2) for d, m in presence_day_minutes.items()}, "ssiap_daily_totals": {d: round(m/60, 2) for d, m in ssiap_day_minutes.items()}, "exam": exam, "errors": errors}
 
 def find_center_image(*keywords):
     normalized_keywords = tuple((keyword or "").lower() for keyword in keywords)
@@ -1498,8 +1522,8 @@ def planning_pdf_profile(document_profile, planning_mode, summary):
     totals = summary.get("modality_totals", {}) if summary else {}
     if is_ssiap1:
         profile.setdefault("planning_title", "PLANNING DE FORMATION SSIAP 1")
-        profile.setdefault("subtitle", "Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1 — 67 heures")
-        profile.setdefault("modality_line", "Modalité : présentiel • Total formation SSIAP 1 : 67h • Examen distinct")
+        profile.setdefault("subtitle", "Parcours comprenant 14 h de SST, 67 h de formation SSIAP 1 et une préparation à l’examen")
+        profile.setdefault("modality_line", "SST : 14h • Formation réglementaire SSIAP 1 : 67h • Révisions : 3h • Total présence avant examen : 84h")
         profile.setdefault("legend_elearning", "Examen SSIAP 1")
         profile.setdefault("legend_presentiel", "Formation SSIAP 1 — 67h")
         profile.setdefault("short_label", "SSIAP 1")
@@ -1624,8 +1648,13 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and (slot.get("trainer") or "").strip()})
     trainer_label = ", ".join(trainers[:4]) + ("…" if len(trainers) > 4 else "") if trainers else "—"
     modality_ranges = aps_modality_ranges(planning_data)
-    if document_profile.get("validate") == "ssiap1" and modality_ranges.get("presentiel"):
-        modality_ranges["presentiel"]["end"] = aps_local_date_iso(session_data.get("date_fin")) or modality_ranges["presentiel"].get("end")
+    if document_profile.get("validate") == "ssiap1":
+        for key, modality in (("sst", "sst"), ("presentiel", "presentiel"), ("revision", "revision")):
+            dates = [day.get("date") for day in planning_data or [] for slot in day.get("slots", []) if (slot.get("modality") or "") == modality and day.get("date")]
+            if dates:
+                modality_ranges[key] = {"start": min(dates), "end": max(dates)}
+        if modality_ranges.get("presentiel"):
+            modality_ranges["presentiel"]["end"] = aps_local_date_iso(session_data.get("date_fin")) or modality_ranges["presentiel"].get("end")
     modality_totals = summary.get("modality_totals", {})
     logical_day_totals = {}
     for source_day in planning_data or []:
@@ -1706,11 +1735,18 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.drawString(margin + 88, modality_y, document_profile.get("modality_line"))
         y_dates = modality_y - 13
         date_lines = []
-        if modality_ranges.get("elearning"):
-            date_lines.append(f"Période e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
-        if modality_ranges.get("presentiel"):
-            period_label = "Période de formation" if document_profile.get("validate") == "ssiap1" else "Période présentiel"
-            date_lines.append(f"{period_label} : {aps_format_range(modality_ranges.get('presentiel'))}")
+        if document_profile.get("validate") == "ssiap1":
+            date_lines.append(f"Période globale de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}")
+            if modality_ranges.get("sst"):
+                date_lines.append(f"SST : {aps_format_range(modality_ranges.get('sst'))}")
+            if modality_ranges.get("presentiel"):
+                date_lines.append(f"SSIAP 1 : {aps_format_range(modality_ranges.get('presentiel'))}")
+            date_lines.append(f"Examen SSIAP 1 : le {format_date(session_data.get('date_exam'))}")
+        else:
+            if modality_ranges.get("elearning"):
+                date_lines.append(f"Période e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
+            if modality_ranges.get("presentiel"):
+                date_lines.append(f"Période présentiel : {aps_format_range(modality_ranges.get('presentiel'))}")
         draw_wrapped_text(c, " • ".join(date_lines), margin + 88, y_dates, width - margin - (margin + 88), "Helvetica-Bold", 8, 10)
         c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 112, width - margin, height - 112)
         c.setFont("Helvetica", 6.2); c.setFillColor(colors.HexColor("#6b7280"))
@@ -1818,15 +1854,26 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             y -= 96
         c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
         y -= 18
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. Récapitulatif par modalité")
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. SST")
         y -= 14
         c.setFont("Helvetica", 9)
-        if modality_ranges.get("elearning"):
-            c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13
-        if modality_ranges.get("presentiel"):
-            c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h — {aps_format_range(modality_ranges.get('presentiel'))}"); y -= 13
-        c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
-        y -= 20
+        if document_profile.get("validate") == "ssiap1":
+            c.drawString(margin, y, f"12/10/2026 : 7 h • 13/10/2026 : 7 h • Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
+            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Formation réglementaire SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
+            c.drawString(margin, y, f"du {format_date(modality_ranges.get('presentiel', {}).get('start'))} au {format_date(modality_ranges.get('presentiel', {}).get('end'))} — total : {summary['total_hours']:g} h"); y -= 14
+            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "C. Révisions et préparation à l’examen"); y -= 14; c.setFont("Helvetica", 9)
+            c.drawString(margin, y, f"27/10/2026 de 13h30 à 16h30 — total : {summary.get('revision_hours', 0):g} h — hors total réglementaire des 67 h"); y -= 14
+            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "D. Examen SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
+            c.drawString(margin, y, f"28/10/2026 — {exam_slot.get('start') or '08:30'} - {exam_slot.get('end') or '16:30'} — journée distincte"); y -= 16
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(margin, y, f"Total SST : {summary.get('sst_hours', 0):g} h • Total SSIAP 1 réglementaire : {summary['total_hours']:g} h • Total révisions complémentaires : {summary.get('revision_hours', 0):g} h • Total de présence avant examen : {summary.get('presence_total_hours', 0):g} h • Examen : distinct"); y -= 22
+        else:
+            if modality_ranges.get("elearning"):
+                c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13
+            if modality_ranges.get("presentiel"):
+                c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h — {aps_format_range(modality_ranges.get('presentiel'))}"); y -= 13
+            c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
+            y -= 20
         y = summary_table_header(y)
         rows = summary.get("uv_rows") or []
         continued = False
@@ -2421,7 +2468,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         presentiel_days = []
         exam_days = []
         for day in planning_data:
-            training_slots = [slot for slot in (day.get("slots") or []) if is_in_person_slot(slot)]
+            training_slots = [slot for slot in (day.get("slots") or []) if is_in_person_slot(slot) or _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"sst", "revision"}]
             exam_slots = [slot for slot in (day.get("slots") or []) if _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"exam", "examen"} or (slot.get("uv") or "").upper() == "EXAMEN"]
             if training_slots:
                 copied = dict(day); copied["slots"] = training_slots; presentiel_days.append(copied)
@@ -2581,7 +2628,16 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
 
     page_no=1
     for day in presentiel_days:
-        slots=day.get("slots") or []; date_label=format_date(day.get("date")); y=draw_header("FEUILLE DE PRÉSENCE - FORMATION SSIAP 1" if is_ssiap1 else ("FEUILLE DE PRÉSENCE — FORMATION DESP" if training_type == "DESP" else "FEUILLE DE PRÉSENCE"), date_label, slots, page_no)
+        slots=day.get("slots") or []; date_label=format_date(day.get("date"));
+        if is_ssiap1 and all((slot.get("modality") or "") == "sst" for slot in slots):
+            page_title = "FEUILLE DE PRÉSENCE — FORMATION SST"; page_subtitle = "Formation intégrée au parcours SSIAP 1"
+        else:
+            page_title = "FEUILLE DE PRÉSENCE — FORMATION SSIAP 1" if is_ssiap1 else ("FEUILLE DE PRÉSENCE — FORMATION DESP" if training_type == "DESP" else "FEUILLE DE PRÉSENCE"); page_subtitle = subtitle
+        original_subtitle = subtitle
+        if page_subtitle != subtitle:
+            subtitle = page_subtitle
+        y=draw_header(page_title, date_label, slots, page_no)
+        subtitle = original_subtitle
         if is_ssiap1:
             y=draw_modules(y, slots)
         else:
@@ -5342,8 +5398,7 @@ def generate_aps_planning_route(sid):
         session_data["salle"] = room
         if is_ssiap1:
             exam = ssiap1_exam_payload(session_data, payload)
-            session_data["ssiapNonTrainingDays"] = ssiap1_excluded_dates_from_payload(session_data, payload)
-            session_data.update({"date_exam": exam["date"], "exam_date": exam["date"], "exam_start_time": exam["start"], "exam_end_time": exam["end"], "exam_room": exam["room"], "ssiapExamStartTime": exam["start"], "ssiapExamEndTime": exam["end"], "ssiapExamRoom": exam["room"]})
+            session_data.update({"date_exam": exam["date"], "exam_date": exam["date"], "exam_start_time": exam["start"], "exam_end_time": exam["end"], "exam_room": exam["room"], "ssiapExamStartTime": exam["start"], "ssiapExamEndTime": exam["end"], "ssiapExamRoom": exam["room"], "ssiapSstTrainer": exam.get("sstTrainer") or formateur, "ssiapTrainer": exam.get("ssiapTrainer") or formateur, "ssiapRevisionTrainer": exam.get("revisionTrainer") or formateur, "ssiapExamTrainer": exam.get("examTrainer") or formateur})
             end_dt = parse_date(session_data.get("date_fin"))
             planning_data, totals, total_hours = build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam, excluded_dates=ssiap1_excluded_dates_from_payload(session_data, payload))
             summary = ssiap1_summary_from_data(planning_data)

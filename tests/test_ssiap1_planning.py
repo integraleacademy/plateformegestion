@@ -12,7 +12,7 @@ from app import (
 
 
 def _exam():
-    return {"date": "2026-01-20", "start": "08:30", "end": "12:30", "room": "Salle Examen", "durationMinutes": 240}
+    return {"date": "2026-01-21", "start": "08:30", "end": "12:30", "room": "Salle Examen", "durationMinutes": 240}
 
 
 def test_ssiap1_planning_totals_sequences_order_and_exam_exclusion():
@@ -20,10 +20,9 @@ def test_ssiap1_planning_totals_sequences_order_and_exam_exclusion():
         date(2026, 1, 5),
         "Jean Dupont",
         "Salle 1",
-        end_date=date(2026, 1, 19),
-        exam_iso="2026-01-20",
-        exam_payload=_exam(),
-        excluded_dates=["2026-01-14"],
+        end_date=date(2026, 1, 20),
+        exam_iso="2026-01-21",
+        exam_payload={**_exam(), "sstTrainer": "Sophie SST", "revisionTrainer": "Jean Dupont", "examTrainer": "Resp Examen"},
     )
     summary = ssiap1_summary_from_data(planning)
 
@@ -38,7 +37,7 @@ def test_ssiap1_planning_totals_sequences_order_and_exam_exclusion():
     assert planning[-1]["slots"][0]["title"] == "EXAMEN SSIAP 1"
     assert planning[-1]["slots"][0]["durationMinutes"] == 240
     assert summary["exam"]["durationMinutes"] == 240
-    assert sum(slot["duration"] for day in planning for slot in day["slots"] if slot["modality"] != "exam") == 67
+    assert sum(slot["duration"] for day in planning for slot in day["slots"] if slot["modality"] == "presentiel") == 67
 
 
 def test_ssiap1_planning_uses_clean_half_hour_boundaries_and_weekdays():
@@ -46,10 +45,9 @@ def test_ssiap1_planning_uses_clean_half_hour_boundaries_and_weekdays():
         date(2026, 1, 5),
         "Jean Dupont",
         "Salle 1",
-        end_date=date(2026, 1, 19),
-        exam_iso="2026-01-20",
-        exam_payload=_exam(),
-        excluded_dates=["2026-01-14"],
+        end_date=date(2026, 1, 20),
+        exam_iso="2026-01-21",
+        exam_payload={**_exam(), "sstTrainer": "Sophie SST", "revisionTrainer": "Jean Dupont", "examTrainer": "Resp Examen"},
     )
 
     formation_days = [day for day in planning if not day.get("exam")]
@@ -73,32 +71,33 @@ def test_ssiap1_planning_refuses_short_period():
     assert "nécessite exactement" in str(exc.value) or "Impossible de générer le planning" in str(exc.value)
 
 
-def test_ssiap1_october_2026_requires_user_selected_non_training_days_and_keeps_end_dates():
-    with pytest.raises(ValueError, match="Veuillez sélectionner 2 jours sans formation"):
-        build_ssiap1_planning_data(
-            date(2026, 10, 12),
-            "Jean Dupont",
-            "Salle 1",
-            end_date=date(2026, 10, 27),
-            exam_iso="2026-10-28",
-            exam_payload={"date": "2026-10-28", "start": "08:30", "end": "16:30", "room": "Salle Examen", "durationMinutes": 480},
-        )
-
+def test_ssiap1_october_2026_places_sst_then_ssiap_and_revision_without_excluded_days():
     planning, _, _ = build_ssiap1_planning_data(
         date(2026, 10, 12),
-        "Jean Dupont",
+        "Jean SSIAP",
         "Salle 1",
         end_date=date(2026, 10, 27),
         exam_iso="2026-10-28",
-        exam_payload={"date": "2026-10-28", "start": "08:30", "end": "16:30", "room": "Salle Examen", "durationMinutes": 480},
-        excluded_dates=["2026-10-14", "2026-10-21"],
+        exam_payload={"date": "2026-10-28", "start": "08:30", "end": "16:30", "room": "Salle Examen", "durationMinutes": 480, "sstTrainer": "Sophie SST", "revisionTrainer": "Rémi Révision", "examTrainer": "Eva Examen"},
     )
-    formation_days = [day for day in planning if not day.get("exam")]
-    daily_minutes = {day["date"]: sum(slot["durationMinutes"] for slot in day["slots"]) for day in formation_days}
+    daily_minutes = {day["date"]: sum(slot["durationMinutes"] for slot in day["slots"]) for day in planning if not day.get("exam")}
+    sst_days = [day for day in planning if day.get("category") == "sst"]
+    ssiap_days = [day for day in planning if day.get("category") == "ssiap1"]
+    summary = ssiap1_summary_from_data(planning)
 
-    assert len(formation_days) == 10
+    assert [day["date"] for day in sst_days] == ["2026-10-12", "2026-10-13"]
+    assert all(sum(slot["durationMinutes"] for slot in day["slots"]) == 420 for day in sst_days)
+    assert [day["date"] for day in ssiap_days] == ["2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27"]
     assert daily_minutes["2026-10-26"] == 420
-    assert daily_minutes["2026-10-27"] == 240
+    assert daily_minutes["2026-10-27"] == 420
+    assert sum(slot["durationMinutes"] for slot in ssiap_days[-1]["slots"] if slot["modality"] == "presentiel") == 240
+    assert sum(slot["durationMinutes"] for slot in ssiap_days[-1]["slots"] if slot["modality"] == "revision") == 180
     assert planning[-1]["date"] == "2026-10-28"
-    assert set(daily_minutes) == {"2026-10-12", "2026-10-13", "2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27"}
-    assert ssiap1_summary_from_data(planning)["errors"] == []
+    assert summary["sst_hours"] == 14
+    assert summary["total_hours"] == 67
+    assert summary["revision_hours"] == 3
+    assert summary["presence_total_hours"] == 84
+    assert summary["errors"] == []
+    assert all(slot["trainer"] == "Sophie SST" for day in sst_days for slot in day["slots"])
+    assert all(slot["trainer"] == "Rémi Révision" for slot in ssiap_days[-1]["slots"] if slot["modality"] == "revision")
+    assert planning[-1]["slots"][0]["trainer"] == "Eva Examen"

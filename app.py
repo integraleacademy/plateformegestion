@@ -460,6 +460,26 @@ APS_PRESENTIEL_MINUTES = APS_PRESENTIEL_HOURS * 60
 APS_MAX_DAILY_MINUTES = 7 * 60
 APS_EXTENDED_DAILY_MINUTES = 8 * 60
 
+SSIAP1_TOTAL_HOURS = 67
+SSIAP1_TOTAL_MINUTES = SSIAP1_TOTAL_HOURS * 60
+SSIAP1_SEQUENCE_TOTALS = {
+    "P1-S1": 4, "P1-S2": 2,
+    "P2-S1": 2.5, "P2-S2": 2, "P2-S3": 2, "P2-S4": 2, "P2-S5": 1.5, "P2-S6": 4, "P2-S7": 2, "P2-S8": 1,
+    "P3-S1": 1, "P3-S2": 2, "P3-S3": 2, "P3-S4": 1, "P3-S5": 3,
+    "P4-S1": 1, "P4-S2": 1, "P4-S3": 2.5, "P4-S4": 4, "P4-S5": 4, "P4-S6": 4, "P4-S7": 1.5,
+    "P5-S1": 10, "P5-S2": 7,
+}
+SSIAP1_PART_TOTALS = {"1re partie": 6, "2e partie": 17, "3e partie": 9, "4e partie": 18, "5e partie": 17}
+SSIAP1_SEQUENCE_LABELS = {
+    "P1-S1": "LE FEU", "P1-S2": "COMPORTEMENT AU FEU",
+    "P2-S1": "PRINCIPES DE CLASSEMENT DES ÉTABLISSEMENTS", "P2-S2": "FONDAMENTAUX ET PRINCIPES GÉNÉRAUX DE SÉCURITÉ INCENDIE", "P2-S3": "DESSERTE DES BÂTIMENTS", "P2-S4": "CLOISONNEMENT D’ISOLATION DES RISQUES", "P2-S5": "ÉVACUATION DU PUBLIC ET DES OCCUPANTS", "P2-S6": "DÉSENFUMAGE", "P2-S7": "ÉCLAIRAGE DE SÉCURITÉ", "P2-S8": "PRÉSENTATION DES DIFFÉRENTS MOYENS DE SECOURS",
+    "P3-S1": "INSTALLATIONS ÉLECTRIQUES", "P3-S2": "ASCENSEURS ET NACELLES", "P3-S3": "INSTALLATIONS FIXES D’EXTINCTION AUTOMATIQUE", "P3-S4": "COLONNES SÈCHES ET HUMIDES", "P3-S5": "SYSTÈME DE SÉCURITÉ INCENDIE",
+    "P4-S1": "LE SERVICE DE SÉCURITÉ", "P4-S2": "PRÉSENTATION DES CONSIGNES DE SÉCURITÉ ET MAIN COURANTE", "P4-S3": "POSTE DE SÉCURITÉ", "P4-S4": "RONDES DE SÉCURITÉ ET SURVEILLANCE DES TRAVAUX", "P4-S5": "MISE EN ŒUVRE DES MOYENS D’EXTINCTION", "P4-S6": "APPEL ET RÉCEPTION DES SERVICES PUBLICS DE SECOURS", "P4-S7": "SENSIBILISATION DES OCCUPANTS",
+    "P5-S1": "VISITES APPLICATIVES", "P5-S2": "MISES EN SITUATION D’INTERVENTION",
+}
+SSIAP1_PART_LABELS = {"P1": "1re partie — LE FEU ET SES CONSÉQUENCES", "P2": "2e partie — SÉCURITÉ INCENDIE", "P3": "3e partie — INSTALLATIONS TECHNIQUES", "P4": "4e partie — RÔLE ET MISSIONS DES AGENTS DE SÉCURITÉ INCENDIE", "P5": "5e partie — CONCRÉTISATION DES ACQUIS"}
+SSIAP1_CONFIG = {"code": "SSIAP1", "durationHours": SSIAP1_TOTAL_HOURS, "sequenceTotals": SSIAP1_SEQUENCE_TOTALS, "partTotals": SSIAP1_PART_TOTALS, "examRequired": True, "examInPlanning": True, "examAttendance": True, "contract": True, "yousign": True}
+
 APS_EXPECTED_UV_TOTALS = {
     "UV1": 14,
     "UV2": 22,
@@ -727,6 +747,113 @@ def build_aps_planning(start_date, end_date=None, exam_iso=""):
         current_day += timedelta(days=1)
 
     return days, totals, total_hours
+
+
+def is_ssiap1_session(session_data):
+    formation = (session_data.get("formation") or "").upper().replace(" ", "")
+    return formation in {"SSIAP", "SSIAP1"} or formation.startswith("SSIAP1")
+
+def ssiap1_exam_payload(session_data, payload=None):
+    payload = payload or {}
+    exam_date = aps_local_date_iso(payload.get("examDate") or session_data.get("exam_date") or session_data.get("date_exam"))
+    exam_start = (payload.get("examStartTime") or session_data.get("exam_start_time") or session_data.get("ssiapExamStartTime") or "08:30").strip()
+    exam_end = (payload.get("examEndTime") or session_data.get("exam_end_time") or session_data.get("ssiapExamEndTime") or "16:30").strip()
+    exam_room = (payload.get("examRoom") or session_data.get("exam_room") or session_data.get("ssiapExamRoom") or session_data.get("salle") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS").strip()
+    if not exam_date:
+        raise ValueError("La date d'examen SSIAP 1 est obligatoire.")
+    try:
+        start_dt = datetime.strptime(f"{exam_date} {exam_start}", "%Y-%m-%d %H:%M")
+        end_dt = datetime.strptime(f"{exam_date} {exam_end}", "%Y-%m-%d %H:%M")
+    except Exception as exc:
+        raise ValueError("Les horaires d'examen SSIAP 1 sont obligatoires au format HH:MM.") from exc
+    if end_dt <= start_dt:
+        raise ValueError("L'heure de fin d'examen SSIAP 1 doit être après l'heure de début.")
+    return {"date": exam_date, "start": exam_start, "end": exam_end, "room": exam_room, "durationMinutes": int((end_dt - start_dt).total_seconds() // 60)}
+
+def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None):
+    modules = []
+    for code, hours in SSIAP1_SEQUENCE_TOTALS.items():
+        part_code = code.split("-")[0]
+        modules.append({"code": code, "part": SSIAP1_PART_LABELS[part_code], "title": SSIAP1_SEQUENCE_LABELS[code], "remainingMinutes": int(round(hours * 60))})
+    planning, totals = [], {}
+    module_idx = 0
+    current_day = start_date
+    total_minutes = 0
+    while total_minutes < SSIAP1_TOTAL_MINUTES:
+        if end_date and current_day > end_date:
+            raise ValueError(aps_impossible_period_message(start_date, end_date, len(aps_working_days_between(start_date, end_date, exam_iso)) * APS_MAX_DAILY_MINUTES, SSIAP1_TOTAL_MINUTES))
+        if not is_aps_training_day(current_day, exam_iso):
+            current_day += timedelta(days=1); continue
+        slots = []
+        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
+            cursor = slot_start
+            remaining_slot = slot_minutes
+            while remaining_slot > 0 and module_idx < len(modules):
+                module = modules[module_idx]
+                duration_minutes = min(remaining_slot, module["remainingMinutes"])
+                end_time = add_minutes_to_time(cursor, duration_minutes)
+                slots.append({"start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"), "duration": round(duration_minutes/60, 2), "durationMinutes": duration_minutes, "uv": module["code"], "part": module["part"], "sequence": module["code"], "title": module["title"], "content": module["title"], "room": salle, "trainer": formateur, "modality": "presentiel"})
+                module["remainingMinutes"] -= duration_minutes
+                remaining_slot -= duration_minutes
+                total_minutes += duration_minutes
+                totals[module["code"]] = totals.get(module["code"], 0) + duration_minutes
+                cursor = end_time
+                if module["remainingMinutes"] == 0:
+                    module_idx += 1
+                if total_minutes == SSIAP1_TOTAL_MINUTES:
+                    break
+            if total_minutes == SSIAP1_TOTAL_MINUTES:
+                break
+        if slots:
+            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
+        current_day += timedelta(days=1)
+    exam_payload = exam_payload or {}
+    exam_date = exam_payload.get("date") or exam_iso
+    last_training = datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date() if planning else None
+    exam_date_obj = datetime.strptime(exam_date, "%Y-%m-%d").date() if exam_date else None
+    if not exam_date_obj or (last_training and exam_date_obj <= last_training):
+        raise ValueError("L'examen SSIAP 1 doit être placé après la fin des 67 heures de formation.")
+    planning.append({"date": exam_date, "dayLabel": aps_day_label(exam_date_obj), "exam": True, "slots": [{"start": exam_payload.get("start", "08:30"), "end": exam_payload.get("end", "16:30"), "duration": round((exam_payload.get("durationMinutes") or 0)/60, 2), "durationMinutes": exam_payload.get("durationMinutes") or 0, "uv": "EXAMEN", "part": "EXAMEN SSIAP 1", "sequence": "EXAMEN", "title": "EXAMEN SSIAP 1", "content": "Épreuves d'examen SSIAP 1", "room": exam_payload.get("room") or salle, "trainer": formateur, "modality": "exam"}]})
+    return planning, {k: round(v/60, 2) for k, v in totals.items()}, round(total_minutes/60, 2)
+
+def ssiap1_summary_from_data(planning_data):
+    totals = {k: 0 for k in SSIAP1_SEQUENCE_TOTALS}
+    part_totals = {k: 0 for k in SSIAP1_PART_TOTALS}
+    errors = []
+    order = list(SSIAP1_SEQUENCE_TOTALS)
+    seen_order = []
+    total = 0
+    exam = None
+    previous = None
+    for day in planning_data or []:
+        day_date = day.get("date")
+        for slot in day.get("slots", []):
+            minutes = int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60))))
+            if (slot.get("modality") or "") == "exam" or slot.get("uv") == "EXAMEN":
+                exam = {"date": day_date, "start": slot.get("start"), "end": slot.get("end"), "room": slot.get("room"), "durationMinutes": minutes}
+                continue
+            code = slot.get("sequence") or slot.get("uv")
+            if code not in totals:
+                errors.append(f"Séquence SSIAP 1 inconnue: {code}"); continue
+            try:
+                start_dt = datetime.strptime(f"{day_date} {slot.get('start')}", "%Y-%m-%d %H:%M")
+                end_dt = datetime.strptime(f"{day_date} {slot.get('end')}", "%Y-%m-%d %H:%M")
+                if int((end_dt-start_dt).total_seconds()//60) != minutes: errors.append(f"Durée incohérente le {day_date} {slot.get('start')}-{slot.get('end')}.")
+                if start_dt.minute not in {0,30} or end_dt.minute not in {0,30}: errors.append(f"Horaire irrégulier le {day_date} {slot.get('start')}-{slot.get('end')}.")
+                if previous and start_dt < previous: errors.append(f"Ordre chronologique incohérent le {day_date} {slot.get('start')}.")
+                previous = end_dt
+            except Exception: errors.append(f"Horaire invalide le {day_date}: {slot.get('start')}-{slot.get('end')}.")
+            totals[code] += round(minutes/60, 2); total += round(minutes/60, 2)
+            part_totals[SSIAP1_PART_LABELS[code.split('-')[0]].split(' — ')[0]] += round(minutes/60, 2)
+            if not seen_order or seen_order[-1] != code: seen_order.append(code)
+    if round(total, 2) != SSIAP1_TOTAL_HOURS: errors.append(f"Le total formation SSIAP 1 doit être exactement de 67h (actuel: {total:g}h).")
+    for part, expected in SSIAP1_PART_TOTALS.items():
+        if round(part_totals.get(part, 0), 2) != expected: errors.append(f"{part} doit totaliser {expected}h (actuel: {part_totals.get(part, 0):g}h).")
+    for code, expected in SSIAP1_SEQUENCE_TOTALS.items():
+        if round(totals.get(code, 0), 2) != expected: errors.append(f"{code} — {SSIAP1_SEQUENCE_LABELS[code]} doit totaliser {expected:g}h (actuel: {totals.get(code, 0):g}h).")
+    if seen_order != order: errors.append("Les 24 séquences SSIAP 1 doivent être présentes et dans l'ordre réglementaire.")
+    if not exam: errors.append("L'examen SSIAP 1 doit être présent dans le planning.")
+    return {"total_hours": round(total, 2), "uv_totals": totals, "part_totals": part_totals, "uv_rows": [{"uv": c, "label": SSIAP1_SEQUENCE_LABELS[c], "title": SSIAP1_SEQUENCE_LABELS[c], "hours": totals[c], "expected": SSIAP1_SEQUENCE_TOTALS[c], "modality": "presentiel"} for c in order], "modality_totals": {"presentiel": round(total, 2)}, "exam": exam, "errors": errors}
 
 def find_center_image(*keywords):
     normalized_keywords = tuple((keyword or "").lower() for keyword in keywords)
@@ -1206,8 +1333,16 @@ def aps_format_range(range_data):
 def planning_pdf_profile(document_profile, planning_mode, summary):
     profile = dict(document_profile or {})
     is_desp = profile.get("validate") == "desp"
+    is_ssiap1 = profile.get("validate") == "ssiap1"
     totals = summary.get("modality_totals", {}) if summary else {}
-    if is_desp:
+    if is_ssiap1:
+        profile.setdefault("planning_title", "PLANNING DE FORMATION SSIAP 1")
+        profile.setdefault("subtitle", "Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1 — 67 heures")
+        profile.setdefault("modality_line", "Modalité : présentiel • Total formation SSIAP 1 : 67h • Examen distinct")
+        profile.setdefault("legend_elearning", "Examen SSIAP 1")
+        profile.setdefault("legend_presentiel", "Formation SSIAP 1 — 67h")
+        profile.setdefault("short_label", "SSIAP 1")
+    elif is_desp:
         profile.setdefault("planning_title", "PLANNING DE FORMATION DESP")
         profile.setdefault("subtitle", f"{DESP_LABEL} — {DESP_TOTAL_HOURS} heures")
         profile.setdefault("modality_line", f"Modalité : E-learning + présentiel • E-learning : {DESP_ELEARNING_HOURS}h • Présentiel : {DESP_PRESENTIEL_HOURS}h • Total : {DESP_TOTAL_HOURS}h")
@@ -1249,15 +1384,17 @@ def planning_card_height(slot, printable_width):
 def planning_day_height(day, current_part, planning_mode, printable_width):
     needed = 30 + 2 + sum(planning_card_height(slot, printable_width) + 5 for slot in day.get("slots", []))
     day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-    if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
+    if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and day_part and day_part != current_part:
         needed += 34
     return needed, day_part
 
 
 def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel", document_profile=None):
     document_profile = document_profile or {}
-    if planning_mode not in {"full_presentiel", "elearning_presentiel", "desp"}:
+    if planning_mode not in {"full_presentiel", "elearning_presentiel", "desp", "ssiap1"}:
         raise ValueError("Le type de planning est obligatoire.")
+    if document_profile.get("validate") == "ssiap1":
+        planning_mode = "ssiap1"
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -1276,19 +1413,22 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
     session_end = parse_date(session_data.get("date_fin"))
     latest_training_date = session_end.date() if session_end else (exam_dt.date() - timedelta(days=1))
-    if latest_training_date >= exam_dt.date():
+    if latest_training_date >= exam_dt.date() and document_profile.get("validate") != "ssiap1":
         raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
-        planning_data, _, _ = build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id"))
+        planning_data, _, _ = (build_ssiap1_planning_data(start_dt.date(), formateur, salle, end_date=latest_training_date, exam_iso=exam_iso, exam_payload=ssiap1_exam_payload(session_data)) if document_profile.get("validate") == "ssiap1" else build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id")))
     if document_profile.get("validate") == "desp":
         summary = document_profile.get("summary") or desp_summary_from_planning(planning_data)
         errors = list(summary.get("errors") or [])
     elif document_profile.get("validate") == "a3p":
         errors, a3p_summary = validate_a3p_planning(document_profile.get("source_planning") or [], exam_iso)
         summary = document_profile.get("summary") or {"total_hours": a3p_summary.get("totalHours", 0), "uv_totals": a3p_summary.get("moduleTotals", {}), "uv_rows": document_profile.get("summary_rows", []), "modality_totals": {"presentiel": a3p_summary.get("totalHours", 0)}}
+    elif document_profile.get("validate") == "ssiap1":
+        summary = document_profile.get("summary") or ssiap1_summary_from_data(planning_data)
+        errors = list(summary.get("errors") or [])
     else:
         errors, summary = validate_aps_planning_data(planning_data, planning_mode)
-    if any(day.get("date") == exam_iso for day in planning_data or []):
+    if document_profile.get("validate") != "ssiap1" and any(day.get("date") == exam_iso for day in planning_data or []):
         errors.append(f"Sécurité planning {document_profile.get('short_label', 'APS')}: la date d'examen ({format_date(exam_iso)}) est exclue des journées de formation. Aucun créneau ne peut être généré ce jour-là.")
     if errors:
         raise ValueError(" ".join(errors))
@@ -1308,13 +1448,18 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     modality_totals = summary.get("modality_totals", {})
 
     def period_title(part):
+        if document_profile.get("validate") == "ssiap1":
+            if "EXAMEN" in (part or ""):
+                exam = summary.get("exam") or {}
+                return f"EXAMEN SSIAP 1 — {format_date(exam.get('date'))} — {exam.get('start') or '—'} / {exam.get('end') or '—'}"
+            return part
         modality = "elearning" if "E-LEARNING" in (part or "") else "presentiel"
         base = "PÉRIODE 1 — E-LEARNING / DISTANCIEL" if modality == "elearning" else "PÉRIODE 2 — PRÉSENTIEL AU CENTRE"
         hours = modality_totals.get(modality, 0)
         date_range = aps_format_range(modality_ranges.get(modality))
         return f"{base} — {date_range} — {hours:g}h" if date_range else f"{base} — {hours:g}h"
 
-    first_content_y = height - (146 if planning_mode in {"elearning_presentiel", "desp"} else 122)
+    first_content_y = height - (146 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} else 122)
     def build_pages():
         built_pages, current_page, current_part = [], [], None
         y = first_content_y
@@ -1378,14 +1523,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         for page_days in pages:
             draw_header_footer(page_no, total_pages)
             y = first_content_y if page_no == 1 else height - 122
-            if page_no == 1 and planning_mode in {"elearning_presentiel", "desp"}:
+            if page_no == 1 and planning_mode in {"elearning_presentiel", "desp", "ssiap1"}:
                 y = draw_legend(y)
             current_part = None
             for day in page_days:
                 day_part = next((slot.get("part") for slot in day.get("slots", []) if slot.get("part")), None)
-                if planning_mode in {"elearning_presentiel", "desp"} and day_part and day_part != current_part:
+                if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and day_part and day_part != current_part:
                     current_part = day_part
-                    band_color = "#6d28d9" if "E-LEARNING" in day_part else "#0d9488"
+                    band_color = "#b91c1c" if "EXAMEN" in day_part else ("#6d28d9" if "E-LEARNING" in day_part else "#0d9488")
                     c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
                     c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(day_part))
                     y -= 34
@@ -1396,9 +1541,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 for slot in day.get("slots", []):
                     h = planning_card_height(slot, printable_width)
                     c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(margin, y - h + 5, printable_width, h, 6, fill=1, stroke=1)
-                    modality_color = "#6d28d9" if slot.get("modality") == "elearning" else "#0d9488"
+                    modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
                     c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
-                    modality_label = "E-learning" if slot.get("modality") == "elearning" else "Présentiel"
+                    modality_label = "Examen" if slot.get("modality") == "exam" else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
                     title_w = printable_width - 225
                     draw_wrapped_text(c, planning_slot_title(slot), margin + 16, y - 8, title_w, "Helvetica-Bold", 8.2, 9)
                     c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
@@ -1454,9 +1599,12 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         final_block_h = 34 + 24 + 92 + 25 + 70
         if y - final_block_h < 84:
             c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, f"TOTAL : {summary['total_hours']:g}h")
+        total_label = f"Total formation SSIAP 1 : {summary['total_hours']:g}h" if document_profile.get("validate") == "ssiap1" else f"TOTAL : {summary['total_hours']:g}h"
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, total_label)
         y -= 34
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, f"Examen le {format_date(session_data.get('date_exam'))}.")
+        exam_summary = summary.get("exam") or {}
+        exam_line = f"Examen SSIAP 1 : {format_date(exam_summary.get('date'))} de {exam_summary.get('start') or '—'} à {exam_summary.get('end') or '—'}" if document_profile.get("validate") == "ssiap1" else f"Examen le {format_date(session_data.get('date_exam'))}."
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, exam_line)
         y -= 24
         box_w = (width - 2 * margin - 18) / 2; signature_box_h = 92; signature_label_h = 18
         for idx, (label, image_path) in enumerate((("Signature", signature_image), ("Tampon", stamp_image))):
@@ -1731,11 +1879,11 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         p("Le présent contrat est un contrat de prestation de services et, le cas échéant, de sous-traitance pédagogique. Le formateur intervient exclusivement en qualité de prestataire indépendant : aucune clause, consigne opérationnelle ou modalité de suivi ne peut être interprétée comme créant un lien de subordination juridique avec Intégrale Academy."),
         p("Le formateur organise librement ses moyens humains, matériels et pédagogiques, sous sa responsabilité professionnelle. Cette autonomie s’exerce toutefois dans le cadre strict des référentiels applicables, du planning validé, des horaires communiqués, du règlement intérieur, des procédures qualité, des consignes de sécurité et des exigences administratives du centre."),
         bullet(["le formateur demeure seul responsable de ses déclarations fiscales et sociales, de ses cotisations, assurances, habilitations, qualifications, autorisations administratives et obligations réglementaires ;", "le présent contrat n’emporte aucune exclusivité au profit d’Intégrale Academy, sauf accord écrit distinct ;", "le formateur s’interdit de se présenter comme salarié, représentant permanent, mandataire social ou agent d’Intégrale Academy auprès des stagiaires, financeurs, autorités ou partenaires."])]
-    story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité'}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label)], [43 * mm, 133 * mm]),
+    story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1' if is_ssiap1_session(session_data) else ('Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité')}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire formation", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Intervention examen", "Oui" if contract.get("trainerAttendsExam") else "Non"), ("Heures examen", f"{float(contract.get('examTrainerHours') or 0):g} h"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label)], [43 * mm, 133 * mm]),
         p("La mission confiée porte sur la réalisation de séquences pédagogiques identifiées dans le planning annexé, pour les modules, dates, horaires et volumes horaires générés dynamiquement par la session. En signant le présent contrat, le formateur accepte les modules confiés, les objectifs pédagogiques, le niveau attendu et les contraintes de continuité pédagogique propres à l’action de formation."),
         p("Le formateur adapte son animation au public accueilli, veille à la progression des apprenants et respecte les contenus réglementaires sans modification non validée. Toute modification de planning, d’horaires, de lieu, de module, de modalité ou d’intervenant doit faire l’objet d’une validation écrite préalable d’Intégrale Academy.")]
     story += [section("3. Obligations générales du formateur"),
-        p("Le formateur s’engage à préparer sérieusement chaque séance, à assurer une présence effective et ponctuelle pendant toute la durée prévue, et à conduire ses interventions avec rigueur, pédagogie et professionnalisme. Il garantit que son intervention respecte le programme APS, le référentiel applicable, les exigences CNAPS/ADEF, les critères Qualiopi, les attentes financeurs et les consignes internes transmises."),
+        p("Le formateur s’engage à préparer sérieusement chaque séance, à assurer une présence effective et ponctuelle pendant toute la durée prévue, et à conduire ses interventions avec rigueur, pédagogie et professionnalisme. Il garantit que son intervention respecte le programme réglementaire applicable, le référentiel applicable, les exigences administratives, les critères Qualiopi, les attentes financeurs et les consignes internes transmises."),
         bullet(["respecter strictement les horaires, dates, durées, lieux, modules et modalités figurant au planning ;", "signer obligatoirement le planning journalier par demi-journée et faire compléter les émargements requis ;", "remettre les feuilles d’émargement, documents de suivi, évaluations, observations et justificatifs demandés avant de quitter le centre ou dans le délai fixé ;", "signaler immédiatement toute absence, retard, incident, difficulté stagiaire, tension de groupe, problème matériel ou risque de non-conformité ;", "ne pas quitter le centre sans avoir remis les documents nécessaires à la traçabilité de la journée ;", "adopter un comportement exemplaire avec les stagiaires, l’équipe administrative, les partenaires, les auditeurs et tout représentant d’une autorité de contrôle ;", "ne pas se faire remplacer ni sous-traiter tout ou partie de la mission sans accord écrit préalable d’Intégrale Academy."])]
     story += [section("4. Obligations d’Intégrale Academy"),
         p("Intégrale Academy met à disposition du formateur, lorsque cela est nécessaire à l’exécution de la mission, les informations et moyens raisonnablement requis : locaux, salle, supports disponibles, listes de stagiaires, feuilles d’émargement, planning, consignes pédagogiques, consignes qualité et documents administratifs utiles."),
@@ -1750,7 +1898,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         bullet(["l’absence, l’incomplétude ou l’incohérence d’un document peut entraîner la suspension de la validation des heures et du paiement correspondant jusqu’à régularisation ;", "en modalité e-learning ou mixte, le formateur contribue à la conservation des preuves de connexions, accompagnements, évaluations, échanges pédagogiques, relances et suivis individualisés ;", "le formateur coopère à la démarche d’amélioration continue et fournit les éléments nécessaires aux audits, contrôles qualité et demandes des financeurs."])]
     if has_elearning:
         story += [section("Note — Modalités e-learning"), p("Lorsque des séquences e-learning sont associées à la session, le formateur respecte les modalités de suivi prévues par Intégrale Academy et contribue à documenter l’accompagnement pédagogique réalisé à distance."), bullet(["conserver ou transmettre les preuves de suivi, de connexion, d’évaluation et d’échanges pédagogiques ;", "alerter le centre en cas d’inactivité, d’absence de progression ou de difficulté technique d’un stagiaire ;", "ne valider aucun suivi qui ne serait pas réellement effectué ou traçable."])]
-    story += [section("7. Rémunération et facturation"), kv_table([("Nombre total d’heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Nombre de jours calculés", f"{float(contract.get('calculatedDays') or 0):g}"), ("Nombre de jours facturés retenus", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52 * mm, 124 * mm]),
+    story += [section("7. Rémunération et facturation"), kv_table([("Nombre total d’heures formation", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Heures examen séparées", f"{float(contract.get('examTrainerHours') or 0):g} h" if contract.get("trainerAttendsExam") else "Non incluses"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Nombre de jours calculés", f"{float(contract.get('calculatedDays') or 0):g}"), ("Nombre de jours facturés retenus", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52 * mm, 124 * mm]),
         p("Seules les heures effectivement réalisées, justifiées par les documents attendus et validées par Intégrale Academy ouvrent droit à rémunération. La facture du formateur doit être conforme aux informations contractuelles, aux règles fiscales applicables et aux heures validées."),
         bullet(["aucun paiement automatique n’est dû en cas d’absence, de retard, d’annulation, de prestation non réalisée ou de document manquant ;", "en cas de réalisation partielle, Intégrale Academy peut proratiser le montant dû selon les heures ou demi-journées réellement effectuées et validées ;", "les frais de déplacement, repas, hébergement, stationnement ou toute indemnité complémentaire ne sont pas inclus sauf accord écrit préalable ;", "le formateur reste seul responsable de ses charges, cotisations, impôts, déclarations et obligations comptables."])]
     story += [section("8. Annulation, report, absence"),
@@ -2442,16 +2590,17 @@ def set_planning_for_session(sid, filename):
 
 
 def refresh_aps_planning_pdf_file(session_data, sid):
-    if (session_data.get("formation") or "").upper() != "APS":
+    if (session_data.get("formation") or "").upper() != "APS" and not is_ssiap1_session(session_data):
         return session_data.get("planning_pdf")
     planning_data = session_data.get("apsPlanningData") or []
     if not planning_data:
         return session_data.get("planning_pdf")
 
-    filename = f"planning_aps_session_{sid}.pdf"
+    filename = f"planning_{'ssiap1' if is_ssiap1_session(session_data) else 'aps'}_session_{sid}.pdf"
     output_path = os.path.join(PLANNING_DIR, filename)
     temp_path = f"{output_path}.tmp"
     planning_mode = session_data.get("apsPlanningMode") or (
+        "ssiap1" if is_ssiap1_session(session_data) else
         "elearning_presentiel"
         if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
         else "full_presentiel"
@@ -2463,6 +2612,7 @@ def refresh_aps_planning_pdf_file(session_data, sid):
             temp_path,
             planning_data=planning_data,
             planning_mode=planning_mode,
+            document_profile={"validate":"ssiap1"} if is_ssiap1_session(session_data) else None,
         )
         os.replace(temp_path, output_path)
         session_data["planning_pdf"] = filename
@@ -4926,26 +5076,34 @@ def generate_aps_planning_route(sid):
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
     is_desp = formation in {"DESP", "DIRIGEANT"}
-    if formation != "APS" and not is_desp:
-        return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS ou DESP."}), 400
+    is_ssiap1 = is_ssiap1_session(session_data)
+    if formation != "APS" and not is_desp and not is_ssiap1:
+        return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS, SSIAP 1 ou DESP."}), 400
 
     payload = request.get_json(silent=True) or {}
-    planning_mode = "desp" if is_desp else (payload.get("planningMode") or "").strip()
+    planning_mode = "desp" if is_desp else ("ssiap1" if is_ssiap1 else (payload.get("planningMode") or "").strip())
     formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
     room = (payload.get("room") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS").strip() or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"
-    if not is_desp and planning_mode not in {"full_presentiel", "elearning_presentiel"}:
+    if not is_desp and not is_ssiap1 and planning_mode not in {"full_presentiel", "elearning_presentiel"}:
         return jsonify({"ok": False, "error": "Le type de planning APS est obligatoire."}), 400
     if not formateur and not is_desp:
         return jsonify({"ok": False, "error": "Le nom et prénom du formateur sont obligatoires."}), 400
     if not parse_date(session_data.get("date_exam")):
         return jsonify({"ok": False, "error": "La date d'examen est obligatoire pour générer le planning."}), 400
 
-    filename = f"planning_{'desp' if is_desp else 'aps'}_session_{sid}.pdf"
+    filename = f"planning_{'desp' if is_desp else ('ssiap1' if is_ssiap1 else 'aps')}_session_{sid}.pdf"
     output_path = os.path.join(PLANNING_DIR, filename)
     temp_path = f"{output_path}.tmp"
     try:
         session_data["salle"] = room
-        if is_desp:
+        if is_ssiap1:
+            exam = ssiap1_exam_payload(session_data, payload)
+            session_data.update({"date_exam": exam["date"], "exam_date": exam["date"], "exam_start_time": exam["start"], "exam_end_time": exam["end"], "exam_room": exam["room"], "ssiapExamStartTime": exam["start"], "ssiapExamEndTime": exam["end"], "ssiapExamRoom": exam["room"]})
+            end_dt = parse_date(session_data.get("date_fin"))
+            planning_data, totals, total_hours = build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam)
+            summary = ssiap1_summary_from_data(planning_data)
+            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="ssiap1", document_profile={"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"})
+        elif is_desp:
             elearning_start = parse_date(payload.get("despElearningStart") or session_data.get("despElearningStart") or session_data.get("date_debut"))
             elearning_end = parse_date(payload.get("despElearningEnd") or session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
             presentiel_start = parse_date(payload.get("despPresentielStart") or session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
@@ -4959,12 +5117,12 @@ def generate_aps_planning_route(sid):
             result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="desp", document_profile={"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"})
         else:
             result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_mode=planning_mode)
-        if round(result["total_hours"], 2) != (DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS):
+        if round(result["total_hours"], 2) != (SSIAP1_TOTAL_HOURS if is_ssiap1 else (DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS)) :
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            return jsonify({"ok": False, "error": f"Le total généré n'est pas exactement de {DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS}h."}), 500
+            return jsonify({"ok": False, "error": f"Le total généré n'est pas exactement de {SSIAP1_TOTAL_HOURS if is_ssiap1 else (DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS)}h."}), 500
         exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-        if any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
+        if not is_ssiap1 and any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
@@ -5008,7 +5166,7 @@ def generate_aps_planning_route(sid):
 def preview_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
     if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
     trainers = []
@@ -5055,7 +5213,7 @@ def view_aps_trainer_contract(sid, contract_id):
 def generate_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
     if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
     payload = request.get_json(silent=True) or {}; trainers = payload.get("trainers") or []
@@ -5067,11 +5225,15 @@ def generate_aps_trainer_contracts(sid):
         calc = aps_trainer_interventions(planning_data, planning_name)
         if not calc["interventions"]: return jsonify({"ok": False, "error": f"Aucun créneau trouvé pour {planning_name}."}), 400
         billed_days = float(trainer.get("billedDays") or calc["calculatedDays"] or 0)
+        trainer_attends_exam = bool(trainer.get("trainerAttendsExam") or trainer.get("trainer_attends_exam"))
+        exam_trainer_hours = float(trainer.get("examTrainerHours") or trainer.get("exam_trainer_hours") or 0) if trainer_attends_exam else 0.0
+        exam_trainer_rate = float(trainer.get("examTrainerRate") or trainer.get("exam_trainer_rate") or 0) if trainer_attends_exam else 0.0
+        exam_trainer_amount = round(float(trainer.get("examTrainerAmount") or trainer.get("exam_trainer_amount") or (exam_trainer_hours * exam_trainer_rate) or 0), 2) if trainer_attends_exam else 0.0
         vat_enabled = bool(trainer.get("vatEnabled")); vat_rate = float(trainer.get("vatRate") or 20)
-        total_ht = round(billed_days * daily_rate, 2); vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0; total_ttc = round(total_ht + vat_amount, 2)
+        total_ht = round((billed_days * daily_rate) + exam_trainer_amount, 2); vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0; total_ttc = round(total_ht + vat_amount, 2)
         contract_id = str(uuid.uuid4()); filename = f"contrat_formateur_aps_{sid}_{contract_id}.pdf"; path = os.path.join(APS_CONTRACT_DIR, filename)
         trainer = merge_formateur_contract_defaults(trainer, find_formateur_by_identity(name=name, email=trainer.get("email")))
-        contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
+        contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "trainerAttendsExam": trainer_attends_exam, "examTrainerHours": exam_trainer_hours, "examTrainerRate": exam_trainer_rate, "examTrainerAmount": exam_trainer_amount, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
         generate_aps_trainer_contract_pdf(session_data, contract, path)
         existing_contracts = session_data.setdefault("apsTrainerContracts", [])
         kept_contracts = []
@@ -5388,7 +5550,7 @@ def import_aps_attendance_students(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
         return jsonify({"ok": False, "error": "Veuillez importer un fichier PDF."}), 400
@@ -5409,7 +5571,7 @@ def save_aps_attendance_students(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
     payload = request.get_json(silent=True) or {}
     students = []
     for item in payload.get("students") or []:
@@ -5432,7 +5594,7 @@ def generate_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
     planning_key = "a3pPlanningData" if formation == "A3P" else "apsPlanningData"
     student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
     if not session_data.get(planning_key):
@@ -5482,7 +5644,7 @@ def reset_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"}: return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P et DESP."}), 400
+    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
     payload = request.get_json(silent=True) or {}
     filename = session_data.get("a3pAttendanceSheetsFilename" if formation == "A3P" else "apsAttendanceSheetsFilename")
     if filename:
@@ -5770,7 +5932,7 @@ def edit_aps_planning_page(sid):
     session_data = find_session(data, sid)
     if not session_data:
         abort(404)
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}:
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data):
         abort(404)
     return render_template("aps_planning_editor.html", title="Modifier le planning", s=session_data)
 
@@ -5782,10 +5944,11 @@ def get_aps_planning_api(sid):
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
     is_desp = formation in {"DESP", "DIRIGEANT"}
-    if formation != "APS" and not is_desp:
+    is_ssiap1 = is_ssiap1_session(session_data)
+    if formation != "APS" and not is_desp and not is_ssiap1:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
-    summary = desp_summary_from_planning(planning_data) if is_desp and planning_data else (aps_summary_from_data(planning_data) if planning_data else None)
+    summary = ssiap1_summary_from_data(planning_data) if is_ssiap1_session(session_data) and planning_data else (desp_summary_from_planning(planning_data) if is_desp and planning_data else (aps_summary_from_data(planning_data) if planning_data else None))
     return jsonify({
         "ok": True,
         "session": session_data,
@@ -5803,7 +5966,8 @@ def update_aps_planning_api(sid):
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
     formation = (session_data.get("formation") or "").upper()
     is_desp = formation in {"DESP", "DIRIGEANT"}
-    if formation != "APS" and not is_desp:
+    is_ssiap1 = is_ssiap1_session(session_data)
+    if formation != "APS" and not is_desp and not is_ssiap1:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     if not session_data.get("apsPlanningData") and not session_data.get("planning_pdf"):
         return jsonify({"ok": False, "error": "Aucun planning APS n'existe encore."}), 400
@@ -5813,9 +5977,12 @@ def update_aps_planning_api(sid):
         return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
     planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-    if exam_iso and any(day.get("date") == exam_iso for day in planning_data):
+    if exam_iso and not is_ssiap1_session(session_data) and any(day.get("date") == exam_iso for day in planning_data):
         return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
-    if is_desp:
+    if is_ssiap1_session(session_data):
+        summary = ssiap1_summary_from_data(planning_data)
+        errors = list(summary.get("errors") or [])
+    elif is_desp:
         summary = desp_summary_from_planning(planning_data)
         errors = list(summary.get("errors") or [])
     else:
@@ -5827,13 +5994,13 @@ def update_aps_planning_api(sid):
     session_data["planning_modified_at"] = append_planning_history(session_data, "planning modifié")
     pdf_url = url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None
     if payload.get("regeneratePdf"):
-        filename = f"planning_{'desp' if is_desp else 'aps'}_session_{sid}.pdf"
+        filename = f"planning_{'desp' if is_desp else ('ssiap1' if is_ssiap1 else 'aps')}_session_{sid}.pdf"
         output_path = os.path.join(PLANNING_DIR, filename)
         temp_path = f"{output_path}.tmp"
-        profile = {"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else None
+        profile = ({"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"} if is_ssiap1_session(session_data) else ({"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else None))
         result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode, document_profile=profile)
         if os.path.exists(output_path):
-            archive = os.path.join(PLANNING_DIR, f"planning_{'desp' if is_desp else 'aps'}_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
+            archive = os.path.join(PLANNING_DIR, f"planning_{'ssiap1' if is_ssiap1_session(session_data) else ('desp' if is_desp else 'aps')}_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
             try:
                 os.replace(output_path, archive)
             except OSError:
@@ -5854,7 +6021,7 @@ def reset_aps_planning_api(sid):
     session_data = find_session(data, sid)
     if not session_data:
         return jsonify({"success": False, "message": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"}:
+    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data):
         return jsonify({"success": False, "message": "Cette action est disponible uniquement pour les sessions APS/DESP."}), 400
 
     planning_keys = (

@@ -1971,6 +1971,42 @@ def aps_extract_students_from_pdf(file_storage):
             pass
 
 
+
+def desp_attendance_header_layout(page_width, page_height, margin, string_width):
+    """Return safe drawing instructions for the DESP daily attendance header."""
+    logo_width = 76
+    logo_height = 55
+    logo_gap = 14
+    logo_x = margin
+    logo_y = page_height - 72
+    text_left = logo_x + logo_width + logo_gap
+    text_right = page_width - margin
+    text_width = max(0, text_right - text_left)
+    center_x = text_left + text_width / 2
+    lines = [
+        {"text": "FEUILLE DE PRÉSENCE — FORMATION DESP", "font": "Helvetica-Bold", "size": 16, "y": page_height - 36},
+        {"text": "PÉRIODE PRÉSENTIELLE — 70 HEURES", "font": "Helvetica-Bold", "size": 11, "y": page_height - 51},
+        {"text": DESP_LABEL, "font": "Helvetica", "size": 9.5, "y": page_height - 65},
+    ]
+    for line in lines:
+        line["width"] = string_width(line["text"], line["font"], line["size"])
+        while line["width"] > text_width and line["size"] > 8:
+            line["size"] -= 0.5
+            line["width"] = string_width(line["text"], line["font"], line["size"])
+        line["x"] = max(text_left, min(center_x - line["width"] / 2, text_right - line["width"]))
+        if line["x"] < margin:
+            line["x"] = margin
+        if line["x"] + line["width"] > text_right:
+            line["x"] = max(margin, text_right - line["width"])
+    return {
+        "logo": {"x": logo_x, "y": logo_y, "width": logo_width, "height": logo_height},
+        "text_left": text_left,
+        "text_right": text_right,
+        "text_width": text_width,
+        "lines": lines,
+        "session_y": page_height - 96,
+    }
+
 def generate_attendance_pdf_common(session_data, output_path, training_type=None, subtitle=None):
     try:
         from reportlab.lib import colors
@@ -2070,27 +2106,38 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     for page_no, day in enumerate(presentiel_days, 1):
         slots = day.get("slots") or []
         date_label = format_date(day.get("date"))
-        if logo_path:
-            c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
-        title = "FEUILLES DE PRÉSENCE — FORMATION DESP — PÉRIODE PRÉSENTIELLE" if training_type == "DESP" else "FEUILLE DE PRÉSENCE"
-        c.drawCentredString(width / 2, height - 38, title)
-        c.setFont("Helvetica", 9)
-        formation_subtitle = subtitle or ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)")
-        c.drawCentredString(width / 2, height - 54, formation_subtitle)
+        if training_type == "DESP":
+            header = desp_attendance_header_layout(width, height, margin, stringWidth)
+            logo = header["logo"]
+            if logo_path:
+                c.drawImage(logo_path, logo["x"], logo["y"], width=logo["width"], height=logo["height"], preserveAspectRatio=True, mask="auto")
+            c.setFillColor(colors.HexColor("#111827"))
+            for line in header["lines"]:
+                c.setFont(line["font"], line["size"])
+                c.drawString(line["x"], line["y"], line["text"])
+            session_y = header["session_y"]
+        else:
+            if logo_path:
+                c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
+            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 17)
+            c.drawCentredString(width / 2, height - 38, "FEUILLE DE PRÉSENCE")
+            c.setFont("Helvetica", 9)
+            formation_subtitle = subtitle or ("TFP Agent de Protection Physique des Personnes (A3P)" if training_type == "A3P" else "Agent de Prévention et de Sécurité (APS)")
+            c.drawCentredString(width / 2, height - 54, formation_subtitle)
+            session_y = height - 84
         c.setFont("Helvetica", 8)
-        c.drawString(margin, height - 84, f"Session : {session_name}")
-        c.drawString(margin, height - 98, f"Date : {date_label}")
-        c.drawString(margin + 210, height - 98, f"Lieu / salle : {slots[0].get('room') or session_data.get('salle') or '—'}")
+        c.drawString(margin, session_y, f"Session : {session_name}")
+        c.drawString(margin, session_y - 14, f"Date : {date_label}")
+        c.drawString(margin + 210, session_y - 14, f"Lieu / salle : {slots[0].get('room') or session_data.get('salle') or '—'}")
         c.setFont("Helvetica-Bold", 8)
-        c.drawString(margin, height - 112, formation_period_label)
+        c.drawString(margin, session_y - 28, formation_period_label)
         c.setFont("Helvetica", 8)
         trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
-        c.drawString(margin, height - 126, f"Formateur : {', '.join(trainers)}")
-        c.drawString(margin + 300, height - 126, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
+        c.drawString(margin, session_y - 42, f"Formateur : {', '.join(trainers)}")
+        c.drawString(margin + 300, session_y - 42, f"Horaires : {_period_label(slots, True)} / {_period_label(slots, False)}")
         if training_type == "DESP":
-            c.drawString(margin, height - 138, "Modalité : Présentiel au centre")
-        y = height - 150
+            c.drawString(margin, session_y - 54, "Modalité : Présentiel au centre")
+        y = session_y - (66 if training_type == "DESP" else 66)
         c.setFont("Helvetica-Bold", 8.5)
         c.drawString(margin, y, "Modules et horaires du jour")
         y -= 11

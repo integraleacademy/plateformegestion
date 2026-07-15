@@ -1102,6 +1102,7 @@ a.back:hover{ background:#d9a848 !important; }
       <p class="muted" style="margin:8px 0 0;">Ces dates définissent les deux périodes DESP utilisées pour générer les 174h distancielles puis les 70h présentielles.</p>
       {% endif %}
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
+      <div id="apsPlanningWarning" class="flash warning" style="display:none;margin-top:12px;"></div>
       <div class="planning-actions" style="justify-content:flex-end;margin-top:18px;">
         <button type="button" class="btn" id="cancelApsPlanning">Annuler</button>
         <button type="submit" class="btn gold" id="submitApsPlanning">Générer le planning</button>
@@ -1838,6 +1839,11 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     return;
   }
   apsPlanningError.style.display = "none";
+  const apsPlanningWarning = document.getElementById("apsPlanningWarning");
+  if(apsPlanningWarning){
+    apsPlanningWarning.style.display = "none";
+    apsPlanningWarning.textContent = "";
+  }
   submitApsPlanning.disabled = true;
   submitApsPlanning.textContent = "Génération...";
   try{
@@ -1850,8 +1856,12 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     if(!response.ok || !payload.ok){
       throw new Error(payload.error || "Erreur pendant la génération du planning.");
     }
+    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
+    if(warnings.length){
+      showPlanningToast(`Planning généré avec alerte : ${warnings.join(" ")}`, "warning");
+    }
     closeApsModal();
-    showPlanningToast("Planning APS généré avec succès.", "success");
+    showPlanningToast(warnings.length ? "Planning généré avec alerte, non bloquant." : "Planning APS généré avec succès.", warnings.length ? "warning" : "success");
     window.open(payload.url, "_blank", "noopener");
     setTimeout(() => window.location.reload(), 800);
   }catch(error){

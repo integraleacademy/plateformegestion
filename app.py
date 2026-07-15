@@ -4824,6 +4824,7 @@ def generate_aps_planning_route(sid):
             "url": url_for("view_planning_pdf", sid=sid),
             "filename": filename,
             "generated_at": session_data["planning_generated_at"],
+            "warnings": (result.get("summary") or {}).get("warnings") or [],
         })
     except ValueError as exc:
         if os.path.exists(temp_path):

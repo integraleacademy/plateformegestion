@@ -51,6 +51,7 @@ def test_desp_planning_order_totals_exam_and_daily_limit():
     assert all(s["modality"] == "elearning" for d in planning[:first_presentiel_index] for s in d["slots"])
     assert all(s["modality"] == "presentiel" for d in planning[first_presentiel_index:] for s in d["slots"])
     assert max(sum(s["durationMinutes"] for s in day["slots"]) for day in planning) <= 7 * 60
+    assert summary["warnings"] == []
 
 
 def test_desp_excludes_weekends_and_french_holidays():
@@ -69,16 +70,20 @@ def test_desp_excludes_weekends_and_french_holidays():
     assert all(date.fromisoformat(day["date"]).weekday() < 5 for day in planning)
 
 
-def test_desp_too_short_period_raises_explicit_error():
-    with pytest.raises(ValueError) as exc:
-        generate_desp_planning(
-            date(2026, 1, 5),
-            date(2026, 1, 9),
-            date(2026, 1, 12),
-            date(2026, 1, 16),
-            exam_iso="2026-01-19",
-        )
-    message = str(exc.value)
-    assert "Impossible de générer le planning DESP" in message
-    assert "nécessite 174h" in message
-    assert "ne permet que 35h" in message
+def test_desp_short_period_generates_with_overtime_warnings():
+    planning = generate_desp_planning(
+        date(2026, 1, 5),
+        date(2026, 1, 9),
+        date(2026, 1, 12),
+        date(2026, 1, 16),
+        exam_iso="2026-01-19",
+    )
+    summary = desp_summary_from_planning(planning)
+    assert summary["errors"] == []
+    assert summary["modality_totals"] == {"elearning": 174.0, "presentiel": 70.0}
+    assert summary["warnings"]
+    assert max(sum(s["durationMinutes"] for s in day["slots"]) for day in planning) > 7 * 60
+    assert {day["date"] for day in planning} <= {
+        "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09",
+        "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16",
+    }

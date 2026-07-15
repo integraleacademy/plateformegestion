@@ -5,6 +5,7 @@ import pytest
 from openpyxl import load_workbook
 
 import prospecting
+import app as application
 from app import app
 
 
@@ -15,6 +16,7 @@ def client(tmp_path, monkeypatch):
     with app.test_client() as client:
         with client.session_transaction() as session:
             session["admin_logged"] = True
+            session["admin_session_version"] = application.ADMIN_SESSION_VERSION
         yield client
 
 

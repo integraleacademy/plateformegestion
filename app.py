@@ -989,6 +989,7 @@ def ssiap1_summary_from_data(planning_data):
             modality = (slot.get("modality") or "").strip().lower()
             if modality in {"exam", "examen"} or slot.get("uv") == "EXAMEN":
                 exam = {"date": day_date, "start": slot.get("start"), "end": slot.get("end"), "room": slot.get("room"), "durationMinutes": minutes}
+                exam_dates.append(day_date)
                 continue
             try:
                 start_dt = datetime.strptime(f"{day_date} {slot.get('start')}", "%Y-%m-%d %H:%M")
@@ -1618,7 +1619,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     if latest_training_date >= exam_dt.date() and document_profile.get("validate") != "ssiap1":
         raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
-        planning_data, _, _ = (build_ssiap1_planning_data(start_dt.date(), formateur, salle, end_date=latest_training_date, exam_iso=exam_iso, exam_payload=ssiap1_exam_payload(session_data)) if document_profile.get("validate") == "ssiap1" else build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id")))
+        planning_data, _, _ = (build_ssiap1_planning_data(start_dt.date(), formateur, salle, end_date=latest_training_date, exam_iso=exam_iso, exam_payload=ssiap1_exam_payload(session_data), excluded_dates=ssiap1_excluded_dates_from_payload(session_data)) if document_profile.get("validate") == "ssiap1" else build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id")))
     if document_profile.get("validate") == "desp":
         summary = document_profile.get("summary") or desp_summary_from_planning(planning_data)
         errors = list(summary.get("errors") or [])
@@ -5399,7 +5400,7 @@ def generate_aps_planning_route(sid):
             exam = ssiap1_exam_payload(session_data, payload)
             session_data.update({"date_exam": exam["date"], "exam_date": exam["date"], "exam_start_time": exam["start"], "exam_end_time": exam["end"], "exam_room": exam["room"], "ssiapExamStartTime": exam["start"], "ssiapExamEndTime": exam["end"], "ssiapExamRoom": exam["room"], "ssiapSstTrainer": exam.get("sstTrainer") or formateur, "ssiapTrainer": exam.get("ssiapTrainer") or formateur, "ssiapRevisionTrainer": exam.get("revisionTrainer") or formateur, "ssiapExamTrainer": exam.get("examTrainer") or formateur})
             end_dt = parse_date(session_data.get("date_fin"))
-            planning_data, totals, total_hours = build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam)
+            planning_data, totals, total_hours = build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam, excluded_dates=ssiap1_excluded_dates_from_payload(session_data, payload))
             summary = ssiap1_summary_from_data(planning_data)
             result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="ssiap1", document_profile={"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"})
         elif is_desp:

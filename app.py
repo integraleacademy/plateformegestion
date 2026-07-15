@@ -3048,6 +3048,11 @@ FORMATION_LABELS = {
     "GENERAL": "Général",
 }
 
+DIRIGEANT_LOCATIONS = {
+    "PARIS": "Paris",
+    "PUGET": "Puget",
+}
+
 def formation_label(value):
     return FORMATION_LABELS.get(value, value)
 app.jinja_env.filters['formation_label'] = formation_label
@@ -4298,8 +4303,12 @@ def create_session():
     date_debut = request.form.get("date_debut","").strip()
     date_fin = request.form.get("date_fin","").strip()
     date_exam = request.form.get("date_exam","").strip()
+    dirigeant_location = request.form.get("dirigeant_location", "").upper().strip()
     if formation not in FORMATION_COLORS:
         flash("Formation invalide.","error")
+        return redirect(url_for("sessions_home"))
+    if formation == "DIRIGEANT" and dirigeant_location not in DIRIGEANT_LOCATIONS:
+        flash("Choisissez le site de la session DIRIGEANT : Paris ou Puget.", "error")
         return redirect(url_for("sessions_home"))
     sid = str(uuid.uuid4())[:8]
     session = {
@@ -4315,6 +4324,9 @@ def create_session():
         "jury_notification_status": "to_notify",
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+    if formation == "DIRIGEANT":
+        session["dirigeant_location"] = dirigeant_location
+        session["dirigeant_location_label"] = DIRIGEANT_LOCATIONS[dirigeant_location]
     data = load_sessions()
     data["sessions"].append(session)
     save_sessions(data)

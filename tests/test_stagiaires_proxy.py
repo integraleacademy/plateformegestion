@@ -14,6 +14,7 @@ def client(monkeypatch):
     with application.app.test_client() as client:
         with client.session_transaction() as session:
             session["admin_logged"] = True
+            session["admin_session_version"] = application.ADMIN_SESSION_VERSION
         yield client
 
 

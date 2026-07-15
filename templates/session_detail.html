@@ -1004,6 +1004,9 @@ a.back:hover{ background:#d9a848 !important; }
   {% if attendance_generated_at %}
     <div class="planning-status">✅ Feuilles de présence générées le {{ attendance_generated_at|datetimefr }}</div>
   {% endif %}
+  {% if s.formation in ["DESP", "DIRIGEANT"] %}
+    <p class="muted" style="margin-top:8px;">Les feuilles de présence seront générées uniquement pour les 70 heures de formation en présentiel. Le suivi des 174 heures d’e-learning est assuré séparément par les données de connexion et de progression.</p>
+  {% endif %}
   <p class="muted" style="margin-top:8px;"><strong>{{ (attendance_students or [])|length }}</strong> stagiaire(s) enregistré(s).</p>
   {% if attendance_students %}
     <div class="attendance-students-panel" aria-labelledby="attendance-students-title">

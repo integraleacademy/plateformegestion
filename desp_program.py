@@ -157,6 +157,17 @@ def generate_desp_planning(elearning_start: date, elearning_end: date, presentie
             raise ValueError(_period_capacity_message("le distanciel" if modality == "elearning" else "le présentiel", start, end, required, exam_iso))
     return planning
 
+def desp_summary_rows():
+    return [
+        {
+            "uv": row["code"],
+            "label": f"{('Distanciel' if row['modality'] == 'elearning' else 'Présentiel')} — {row['theme']} — {row['title']}",
+            "hours": row["hours"],
+            "modality": row["modality"],
+        }
+        for row in desp_sequences()
+    ]
+
 def desp_summary_from_planning(planning):
     minute_totals={"elearning":0,"presentiel":0}; total_minutes=0; errors=[]; warnings=[]
     seen_presentiel=False
@@ -176,4 +187,5 @@ def desp_summary_from_planning(planning):
     if minute_totals["elearning"] != DESP_ELEARNING_HOURS*60: errors.append(f"Le total distanciel doit être exactement de 174h (actuel: {totals['elearning']:g}h).")
     if minute_totals["presentiel"] != DESP_PRESENTIEL_HOURS*60: errors.append(f"Le total présentiel doit être exactement de 70h (actuel: {totals['presentiel']:g}h).")
     if total_minutes != DESP_TOTAL_HOURS*60: errors.append(f"Le total DESP doit être exactement de 244h (actuel: {total:g}h).")
-    return {"total_hours": total, "modality_totals": totals, "errors": errors, "warnings": warnings, "days_count": len(planning or []), "slots_count": sum(len(d.get('slots', [])) for d in planning or [])}
+    rows = desp_summary_rows()
+    return {"total_hours": total, "uv_totals": {row["uv"]: row["hours"] for row in rows}, "uv_rows": rows, "modality_totals": totals, "errors": errors, "warnings": warnings, "days_count": len(planning or []), "slots_count": sum(len(d.get('slots', [])) for d in planning or [])}

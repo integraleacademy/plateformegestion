@@ -45,6 +45,9 @@ def test_desp_planning_order_totals_exam_and_daily_limit():
     assert summary["errors"] == []
     assert summary["modality_totals"] == {"elearning": 174.0, "presentiel": 70.0}
     assert summary["total_hours"] == 244.0
+    assert summary["uv_rows"]
+    assert summary["uv_totals"]
+    assert all({"uv", "label", "hours"} <= set(row) for row in summary["uv_rows"])
     assert all(day["date"] != "2026-02-23" for day in planning)
 
     first_presentiel_index = next(i for i, d in enumerate(planning) if any(s["modality"] == "presentiel" for s in d["slots"]))

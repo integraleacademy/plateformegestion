@@ -5941,7 +5941,7 @@ def generate_aps_planning_route(sid):
                 os.remove(temp_path)
             return jsonify({"ok": False, "error": f"Le total généré n'est pas exactement de {expected_total}h."}), 500
         exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-        if not is_ssiap1 and any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
+        if not is_ssiap1 and not is_afc and any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400

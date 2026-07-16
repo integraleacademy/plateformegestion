@@ -139,3 +139,67 @@ def test_cancel_dsf_route_deletes_session_entry_and_pdf(monkeypatch, tmp_path):
     assert response.get_json()["deleted"] is True
     assert saved["sessions"][0]["afcDsfs"] == []
     assert not pdf_path.exists()
+
+
+def render_afc_dsf_page(monkeypatch, session_data):
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    saved = {"sessions": [session_data], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.get(f"/sessions/{session_data['id']}")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def test_afc_dsf_dashboard_contains_five_cards_generate_button_actions_and_dynamic_data(monkeypatch):
+    s = sample_session()
+    result = afc_dsf_compute(s, s["date_debut"], s["date_debut"], ["RAN"])
+    s["afcDsfs"].append({
+        "id": "dsf-actions",
+        "number": 1,
+        "label": "DSF 1",
+        "status": AFC_DSF_STATUS_FINALIZED,
+        "createdAt": "2026-11-16 10:00:00",
+        **result,
+    })
+
+    html = render_afc_dsf_page(monkeypatch, s)
+
+    assert html.count('data-testid="afc-dsf-card-') == 5
+    assert 'id="openAfcDsfModal"' in html and "Générer une DSF" in html
+    assert "273 h" in html and "Remise à niveau (RAN)" in html
+    assert "Voir le PDF" in html
+    assert "Télécharger" in html
+    assert "Annuler la DSF" in html
+    assert "/sessions/s1/afc-dsf/dsf-actions/pdf" in html
+    assert "/sessions/s1/afc-dsf/dsf-actions/download" in html
+    assert "/api/sessions/s1/afc-dsf/dsf-actions/cancel" in html
+
+
+def test_afc_dsf_overbilling_alert_is_conditional(monkeypatch):
+    normal = sample_session()
+    normal_html = render_afc_dsf_page(monkeypatch, normal)
+    assert 'data-testid="afc-dsf-overbilling-alert"' not in normal_html
+
+    overbilled = sample_session()
+    result = afc_dsf_compute(overbilled, overbilled["date_debut"], overbilled["date_debut"], ["RAN"])
+    result["students"][0]["modules"]["RAN"] = 999
+    overbilled["afcDsfs"].append({
+        "id": "over",
+        "number": 1,
+        "label": "DSF 1",
+        "status": AFC_DSF_STATUS_FINALIZED,
+        "createdAt": "2026-11-16 10:00:00",
+        **result,
+    })
+
+    overbilled_html = render_afc_dsf_page(monkeypatch, overbilled)
+    assert 'data-testid="afc-dsf-overbilling-alert"' in overbilled_html
+    assert "Surfacturation détectée" in overbilled_html
+    assert "h-stagiaires au-delà du planning actuel" in overbilled_html

@@ -1560,6 +1560,135 @@ AFC_CATEGORY_COLORS = {
     "BILAN": "#374151",
 }
 
+
+DSF_DIR = os.path.join(DATA_DIR, "afc_dsf")
+os.makedirs(DSF_DIR, exist_ok=True)
+AFC_DSF_STATUS_FINALIZED = "Finalisée"
+AFC_DSF_STATUS_CANCELLED = "Annulée"
+AFC_DSF_MODULES = {
+    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 273, "colors": ["#1e3a8a", "#dbeafe"]},
+    "RAN": {"label": "Remise à niveau (RAN)", "theoreticalHours": 55, "colors": ["#38bdf8", "#e0f2fe"]},
+    "SP": {"label": "Soutien personnalisé (SP)", "theoreticalHours": 45, "colors": ["#a855f7", "#f3e8ff"]},
+    "PAF": {"label": "Préparation à l’après-formation (PAF)", "theoreticalHours": 20, "colors": ["#22c55e", "#dcfce7"]},
+}
+AFC_DSF_FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
+
+def is_afc_aps_ssiap_session(session_data):
+    try:
+        return normalize_training_code(session_data) == "AFC_APS_SSIAP"
+    except ValueError:
+        return False
+
+def afc_dsf_students(session_data):
+    students = session_data.get("apsAttendanceStudents") or []
+    result = []
+    for idx, st in enumerate(students):
+        last = (st.get("lastName") or st.get("nom") or "").strip()
+        first = (st.get("firstName") or st.get("prenom") or "").strip()
+        if not (last or first):
+            continue
+        result.append({"id": st.get("id") or st.get("studentId") or f"student-{idx+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}".strip(), "entryDate": st.get("entryDate") or st.get("dateEntree") or ""})
+    return result
+
+def afc_dsf_module_for_slot(slot):
+    category = slot.get("afcCategory") or slot.get("category") or slot.get("uv")
+    kind = slot.get("afcKind")
+    if kind == "FT" or category in AFC_DSF_FT_CATEGORIES:
+        return "FT"
+    if category in {"RAN", "SP", "PAF"}:
+        return category
+    return None
+
+def afc_dsf_slot_key(session_id, student_id, day, slot, module):
+    return "|".join([str(session_id), str(student_id), day.get("date", ""), slot.get("start", ""), slot.get("end", ""), module])
+
+def afc_dsf_planned_slots(session_data, start_iso=None, end_iso=None, modules=None):
+    modules = set(modules or AFC_DSF_MODULES)
+    slots = []
+    for day in session_data.get("apsPlanningData") or []:
+        d = day.get("date")
+        if start_iso and d < start_iso: continue
+        if end_iso and d > end_iso: continue
+        for slot in day.get("slots") or []:
+            module = afc_dsf_module_for_slot(slot)
+            if module not in modules: continue
+            minutes = int(slot.get("durationMinutes") or round(float(slot.get("duration") or 0) * 60))
+            if minutes <= 0: continue
+            slots.append({"date": d, "start": slot.get("start"), "end": slot.get("end"), "module": module, "minutes": minutes, "title": slot.get("title") or slot.get("content") or slot.get("uv"), "afcCategory": slot.get("afcCategory")})
+    return slots
+
+def afc_dsf_finalized(dsfs):
+    return [d for d in dsfs or [] if d.get("status") == AFC_DSF_STATUS_FINALIZED]
+
+def afc_dsf_billed_keys(dsfs):
+    keys = set()
+    for dsf in afc_dsf_finalized(dsfs):
+        for key in dsf.get("billedSlotKeys") or []:
+            keys.add(key)
+    return keys
+
+def afc_dsf_next_number(session_data):
+    return max([int(d.get("number") or 0) for d in session_data.get("afcDsfs") or []] or [0]) + 1
+
+def afc_dsf_compute(session_data, start_iso, end_iso, modules):
+    if not is_afc_aps_ssiap_session(session_data): raise ValueError("Session AFC France Travail APS + SSIAP requise.")
+    if not modules or len(modules) > 2 or len(set(modules)) != len(modules): raise ValueError("Sélectionnez un ou deux modules maximum.")
+    if any(m not in AFC_DSF_MODULES for m in modules): raise ValueError("Module DSF invalide.")
+    if start_iso > end_iso: raise ValueError("La date de début ne peut pas être postérieure à la date de fin.")
+    if session_data.get("date_debut") and start_iso < session_data.get("date_debut"): raise ValueError("La période doit être comprise dans la session.")
+    if session_data.get("date_fin") and end_iso > session_data.get("date_fin"): raise ValueError("La période doit être comprise dans la session.")
+    students = afc_dsf_students(session_data)
+    if not students: raise ValueError("Au moins un stagiaire est requis.")
+    requested = afc_dsf_planned_slots(session_data, start_iso, end_iso, modules)
+    if not requested:
+        labels = ", ".join(AFC_DSF_MODULES[m]["label"] for m in modules)
+        raise ValueError(f"Aucune heure planifiée pour {labels} sur cette période.")
+    billed_keys = afc_dsf_billed_keys(session_data.get("afcDsfs") or [])
+    student_rows, billed_slot_keys, billed_slots = [], [], []
+    per_student_hours = {m: 0 for m in modules}; already = {m: 0 for m in modules}; requested_hours = {m: 0 for m in modules}
+    for slot in requested:
+        requested_hours[slot["module"]] += slot["minutes"] / 60
+    for st in students:
+        row = {"id": st["id"], "lastName": st["lastName"], "firstName": st["firstName"], "displayName": st["displayName"], "modules": {m: 0 for m in modules}, "totalHours": 0}
+        for slot in requested:
+            key = afc_dsf_slot_key(session_data.get("id"), st["id"], {"date": slot["date"]}, slot, slot["module"])
+            if key in billed_keys:
+                already[slot["module"]] += slot["minutes"] / 60
+                continue
+            hours = slot["minutes"] / 60
+            row["modules"][slot["module"]] += hours; row["totalHours"] += hours
+            billed_slot_keys.append(key); billed_slots.append({**slot, "studentId": st["id"], "studentName": st["displayName"]})
+        student_rows.append(row)
+    for m in modules:
+        per_student_hours[m] = round(sum(r["modules"].get(m, 0) for r in student_rows) / len(students), 2)
+    totals = {m: round(sum(r["modules"].get(m, 0) for r in student_rows), 2) for m in modules}
+    total = round(sum(totals.values()), 2)
+    if total <= 0: raise ValueError("Aucune heure restante à facturer pour les modules et la période sélectionnés.")
+    return {"periodStart": start_iso, "periodEnd": end_iso, "modules": modules, "students": student_rows, "studentCount": len(students), "hoursPerStudent": per_student_hours, "moduleTotals": totals, "totalHours": total, "requestedHours": {m: round(requested_hours[m] * len(students), 2) for m in modules}, "alreadyBilledHours": {m: round(already[m], 2) for m in modules}, "billedSlotKeys": billed_slot_keys, "billedSlots": billed_slots, "hasAlreadyBilled": any(v > 0 for v in already.values())}
+
+def afc_dsf_summary(session_data):
+    students = afc_dsf_students(session_data); planned = {m: 0 for m in AFC_DSF_MODULES}
+    for slot in afc_dsf_planned_slots(session_data): planned[slot["module"]] += slot["minutes"] / 60
+    billed_by_student = {st["id"]: {m: 0 for m in AFC_DSF_MODULES} for st in students}
+    for dsf in afc_dsf_finalized(session_data.get("afcDsfs") or []):
+        for row in dsf.get("students") or []:
+            sid = row.get("id")
+            if sid in billed_by_student:
+                for m, h in (row.get("modules") or {}).items():
+                    if m in billed_by_student[sid]: billed_by_student[sid][m] += float(h or 0)
+    cards = []
+    for m, meta in AFC_DSF_MODULES.items():
+        per = max(0, planned[m]); billed_total = sum(v[m] for v in billed_by_student.values()); remaining_total = max(0, per * len(students) - billed_total)
+        if remaining_total < 0: app.logger.error("DSF AFC remaining negative session=%s module=%s", session_data.get("id"), m); raise ValueError("Décompte DSF négatif détecté.")
+        cards.append({"code": m, **meta, "plannedPerStudent": round(per,2), "billedTotal": round(billed_total,2), "remainingPerStudent": round(max(0, per - (billed_total / len(students) if students else 0)),2), "remainingTotal": round(remaining_total,2)})
+    detail=[]
+    for st in students:
+        row={"student":st,"modules":{},"plannedTotal":0,"billedTotal":0,"remainingTotal":0}
+        for m in AFC_DSF_MODULES:
+            p=planned[m]; b=billed_by_student.get(st["id"],{}).get(m,0); r=max(0,p-b); row["modules"][m]={"planned":round(p,2),"billed":round(b,2),"remaining":round(r,2)}; row["plannedTotal"]+=p; row["billedTotal"]+=b; row["remainingTotal"]+=r
+        detail.append(row)
+    return {"cards": cards, "detail": detail, "total": {"theoreticalHours":393,"billedTotal":round(sum(c["billedTotal"] for c in cards),2),"remainingTotal":round(sum(c["remainingTotal"] for c in cards),2)}}
+
 def parse_interruption_ranges(value):
     ranges = []
     if not value:
@@ -5625,10 +5754,92 @@ def session_detail(sid):
         statuses=statuses,
         order=order,
         now=datetime.now,
-        planning_pdf=session.get("planning_pdf")
-        
+        planning_pdf=session.get("planning_pdf"),
+        afc_dsf_summary=afc_dsf_summary(session) if is_afc_aps_ssiap_session(session) else None,
+        afc_dsf_modules=AFC_DSF_MODULES,
     )
 
+
+
+def generate_afc_dsf_pdf(session_data, dsf, output_path):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    doc = SimpleDocTemplate(output_path, pagesize=landscape(A4), leftMargin=12*mm, rightMargin=12*mm, topMargin=12*mm, bottomMargin=12*mm)
+    styles = getSampleStyleSheet(); body=[]
+    title = ParagraphStyle('dsfTitle', parent=styles['Title'], textColor=colors.HexColor('#111827'), fontSize=18, leading=22)
+    normal = styles['BodyText']
+    logo = aps_pdf_logo_path()
+    header = []
+    if logo: header.append(Image(logo, width=34*mm, height=16*mm, kind='proportional'))
+    header.append(Paragraph(f"<b>Demande de service fait</b><br/>{dsf['label']}<br/>{session_data.get('display_name') or session_data.get('formation') or AFC_APS_SSIAP_LABEL}<br/>Session {session_data.get('id')} — période du {format_date(dsf['periodStart'])} au {format_date(dsf['periodEnd'])}", title))
+    body.append(Table([header], colWidths=[45*mm, 220*mm] if logo else [265*mm])); body.append(Spacer(1, 8))
+    module_labels = [AFC_DSF_MODULES[m]['label'] for m in dsf['modules']]
+    body.append(Paragraph(f"Modules sélectionnés : <b>{', '.join(module_labels)}</b><br/>Date de génération : {format_date(dsf.get('createdAt','')[:10])}<br/>{'<b>ANNULÉE</b>' if dsf.get('status') == AFC_DSF_STATUS_CANCELLED else ''}", normal)); body.append(Spacer(1, 8))
+    total_per_student = sum(dsf['hoursPerStudent'].values())
+    recap = [["Nombre de stagiaires", str(dsf['studentCount']), "Total par stagiaire", f"{total_per_student:g} h", "Total heures-stagiaires", f"{dsf['totalHours']:g} h"]]
+    body.append(Table(recap, colWidths=[42*mm,25*mm,42*mm,25*mm,45*mm,25*mm], style=[('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#f8fafc')),('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#cbd5e1')),('FONTNAME',(0,0),(-1,-1),'Helvetica-Bold'),('PADDING',(0,0),(-1,-1),6)])); body.append(Spacer(1, 10))
+    header_row = ["Nom et prénom"] + module_labels + ["Total"]
+    rows = [header_row]
+    for st in dsf['students']:
+        rows.append([st['displayName']] + [f"{st['modules'].get(m,0):g} h" for m in dsf['modules']] + [f"{st['totalHours']:g} h"])
+    rows.append(["Totaux heures-stagiaires"] + [f"{dsf['moduleTotals'].get(m,0):g} h" for m in dsf['modules']] + [f"{dsf['totalHours']:g} h"])
+    tbl=Table(rows, repeatRows=1, colWidths=[90*mm]+[55*mm]*len(dsf['modules'])+[35*mm])
+    style=[('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#cbd5e1')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#111827')),('TEXTCOLOR',(0,0),(-1,0),colors.white),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('BACKGROUND',(0,-1),(-1,-1),colors.HexColor('#fef3c7')),('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),('ALIGN',(1,1),(-1,-1),'RIGHT'),('PADDING',(0,0),(-1,-1),5)]
+    tbl.setStyle(TableStyle(style)); body.append(tbl); body.append(Spacer(1, 18))
+    body.append(Paragraph("Fait à : ____________________ &nbsp;&nbsp;&nbsp; Date : ____ / ____ / ______<br/><br/>Nom du responsable : ____________________ &nbsp;&nbsp;&nbsp; Signature et tampon : ____________________<br/><br/>Intégrale Academy — document généré depuis le planning central AFC. Page <seq id='page'/>", normal))
+    doc.build(body)
+
+@app.route('/api/sessions/<sid>/afc-dsf/preview', methods=['POST'])
+def api_afc_dsf_preview(sid):
+    data=load_sessions(); sess=find_session(data,sid)
+    if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
+    payload=request.get_json(silent=True) or {}
+    try:
+        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [])
+        return jsonify({'ok':True,'preview':result,'moduleLabels':{k:v['label'] for k,v in AFC_DSF_MODULES.items()}})
+    except Exception as exc:
+        return jsonify({'ok':False,'error':str(exc)}),400
+
+@app.route('/api/sessions/<sid>/afc-dsf/generate', methods=['POST'])
+def api_afc_dsf_generate(sid):
+    data=load_sessions(); sess=find_session(data,sid)
+    if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
+    payload=request.get_json(silent=True) or {}
+    try:
+        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [])
+        number=afc_dsf_next_number(sess); dsf_id=uuid.uuid4().hex; filename=f"dsf_afc_{sid}_DSF_{number}.pdf"; path=os.path.join(DSF_DIR, filename)
+        dsf={"id":dsf_id,"number":number,"label":f"DSF {number}","sessionId":sid,"sessionName":sess.get('display_name') or sess.get('formation'),"createdAt":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"createdBy":session.get('admin_email') or 'admin',"status":AFC_DSF_STATUS_FINALIZED,"pdfFilename":filename,**result}
+        generate_afc_dsf_pdf(sess, dsf, path)
+        if not os.path.exists(path): raise RuntimeError('Génération PDF échouée.')
+        sess.setdefault('afcDsfs',[]).append(dsf); save_sessions(data)
+        return jsonify({'ok':True,'dsf':dsf})
+    except Exception as exc:
+        app.logger.exception('Erreur génération DSF AFC')
+        return jsonify({'ok':False,'error':str(exc)}),400
+
+@app.route('/sessions/<sid>/afc-dsf/<dsf_id>/pdf')
+def view_afc_dsf_pdf(sid, dsf_id):
+    sess=find_session(load_sessions(),sid); dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
+    if not dsf: abort(404)
+    return send_file(os.path.join(DSF_DIR, os.path.basename(dsf.get('pdfFilename',''))), mimetype='application/pdf', as_attachment=False)
+
+@app.route('/sessions/<sid>/afc-dsf/<dsf_id>/download')
+def download_afc_dsf_pdf(sid, dsf_id):
+    sess=find_session(load_sessions(),sid); dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
+    if not dsf: abort(404)
+    return send_file(os.path.join(DSF_DIR, os.path.basename(dsf.get('pdfFilename',''))), mimetype='application/pdf', as_attachment=True, download_name=dsf.get('pdfFilename'))
+
+@app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/cancel', methods=['POST'])
+def api_afc_dsf_cancel(sid, dsf_id):
+    data=load_sessions(); sess=find_session(data,sid)
+    dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
+    if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
+    if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'DSF déjà annulée'}),400
+    dsf['status']=AFC_DSF_STATUS_CANCELLED; dsf['cancelledAt']=datetime.now().strftime('%Y-%m-%d %H:%M:%S'); save_sessions(data)
+    return jsonify({'ok':True})
 
 @app.route("/sessions/<sid>/jury/add", methods=["POST"])
 def add_jury(sid):

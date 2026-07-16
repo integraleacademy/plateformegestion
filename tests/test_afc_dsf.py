@@ -74,6 +74,23 @@ def test_totals_numbering_double_billing_cancel_and_remaining_snapshot():
     snap=dsf2["students"][0]["modules"]["RAN"]; s["apsPlanningData"][0]["slots"][0]["durationMinutes"]=60
     assert dsf2["students"][0]["modules"]["RAN"] == snap
 
+
+def test_summary_does_not_crash_when_finalized_dsf_exceeds_current_planning():
+    s = sample_session()
+    d = s["apsPlanningData"][0]["date"]
+    r = afc_dsf_compute(s, d, d, ["RAN"])
+    r["students"][0]["modules"]["RAN"] = 999
+    r["moduleTotals"]["RAN"] = 999
+    r["totalHours"] = 999
+    s["afcDsfs"].append({"id": "over", "number": 1, "label": "DSF 1", "status": AFC_DSF_STATUS_FINALIZED, **r})
+
+    summary = afc_dsf_summary(s)
+
+    ran = next(card for card in summary["cards"] if card["code"] == "RAN")
+    assert ran["remainingTotal"] == 0
+    assert ran["overbilledTotal"] > 0
+
+
 def test_period_without_hours_refused():
     s=sample_session()
     try: afc_dsf_compute(s,"2026-11-21","2026-11-22",["PAF"]); assert False

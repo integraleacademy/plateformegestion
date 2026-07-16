@@ -2965,6 +2965,20 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     planning_data = session_data.get("apsPlanningData") or []
     planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
     students = session_data.get("apsAttendanceStudents") or []
+    is_afc = training_type == "AFC_APS_SSIAP"
+    default_student_start_date = session_data.get("date_debut") or ""
+
+    def students_for_day(day_date):
+        if not is_afc:
+            return students
+        day_key = str(day_date or "")
+        return [
+            student for student in students
+            if not (student.get("startDate") or default_student_start_date)
+            or not day_key
+            or (student.get("startDate") or default_student_start_date) <= day_key
+        ]
+
     is_ssiap1 = training_type == "SSIAP1" or is_ssiap1_session(session_data)
     if is_ssiap1:
         presentiel_days = []
@@ -3231,14 +3245,16 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             separator = " — " if label and title else ""
             y = draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {label}{separator}{title}", margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
         y -= 5
-        has_am,has_pm=parts(slots); layout=attendance_bottom_layout(y, len(students), int(has_am)+int(has_pm)); y=draw_people_table(y, students, has_am, has_pm, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, block_h=layout["signature_h"])
+        day_students = students_for_day(day.get("date"))
+        has_am,has_pm=parts(slots); layout=attendance_bottom_layout(y, len(day_students), int(has_am)+int(has_pm)); y=draw_people_table(y, day_students, has_am, has_pm, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, block_h=layout["signature_h"])
         footer(page_no); c.showPage(); page_no+=1
 
     for exam_day in exam_days:
         slots=exam_day.get("slots") or []; date_label=format_date(exam_day.get("date")); y=draw_header("FEUILLE DE PRÉSENCE - EXAMEN SSIAP 1", date_label, slots, page_no, exam=True)
         c.setFont("Helvetica-Bold",8.8); c.drawString(margin,y,"Épreuve(s) d’examen"); y-=12
         for slot in slots: y=draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}", margin+8, y, width-2*margin-8, "Helvetica", 8.5, 10)
-        y-=8; layout=attendance_bottom_layout(y, len(students), 2); y=draw_people_table(y, students, True, True, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, exam=True, block_h=layout["signature_h"])
+        day_students = students_for_day(exam_day.get("date"))
+        y-=8; layout=attendance_bottom_layout(y, len(day_students), 2); y=draw_people_table(y, day_students, True, True, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, exam=True, block_h=layout["signature_h"])
         if is_ssiap1 and len(students)<=6 and y-102>footer_top_y+10: y=draw_summary(y)
         footer(page_no); c.showPage(); page_no+=1
 
@@ -6485,6 +6501,10 @@ def import_aps_attendance_students(sid):
     message = None
     if not has_text or not students:
         message = "Impossible d’extraire automatiquement les noms depuis ce PDF. Merci de saisir ou corriger la liste manuellement."
+    if formation == "AFC_APS_SSIAP":
+        default_start = session_data.get("date_debut") or ""
+        for student in students:
+            student["startDate"] = student.get("startDate") or default_start
     return jsonify({"ok": True, "students": students, "message": message})
 
 
@@ -6500,7 +6520,13 @@ def save_aps_attendance_students(sid):
         last = (item.get("lastName") or "").strip().upper()
         first = (item.get("firstName") or "").strip()
         if last and first:
-            students.append({"lastName": last, "firstName": first})
+            student = {"lastName": last, "firstName": first}
+            if formation == "AFC_APS_SSIAP":
+                start_date = (item.get("startDate") or session_data.get("date_debut") or "").strip()
+                if start_date and not re.match(r"^\d{4}-\d{2}-\d{2}$", start_date):
+                    return jsonify({"ok": False, "error": "La date d’entrée en formation doit être au format AAAA-MM-JJ."}), 400
+                student["startDate"] = start_date
+            students.append(student)
     if not students:
         return jsonify({"ok": False, "error": "Veuillez enregistrer au moins un stagiaire."}), 400
     student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"

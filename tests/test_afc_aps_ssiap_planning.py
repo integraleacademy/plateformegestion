@@ -45,6 +45,15 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert next(iter(day_minutes("EXAM_SSIAP1"))) == planning[-1]["date"]
     assert all("None" not in str(slot) for day in planning for slot in day["slots"])
 
+    eligible = [day["date"] for day in planning]
+    assert len(eligible) == 57
+    assert set(eligible) == {day["date"] for day in planning}
+    daily_totals = [sum(slot["durationMinutes"] for slot in day["slots"]) for day in planning]
+    assert daily_totals.count(7 * 60) == 51
+    assert daily_totals.count(6 * 60) == 6
+    assert sum(daily_totals) == 393 * 60
+    assert not any(day["date"].startswith("2027-03") for day in planning)
+
     first_week = [day for day in planning if "2026-11-16" <= day["date"] <= "2026-11-20"]
     assert sum(slot["durationMinutes"] for day in first_week for slot in day["slots"]) == 35 * 60
     assert {slot["afcCategory"] for day in first_week for slot in day["slots"]} == {"RAN"}
@@ -60,7 +69,7 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     flattened = [(day["date"], slot["start"], slot["end"], slot["afcCategory"]) for day in planning for slot in day["slots"]]
     assert next(item for item in flattened if item[3] == "APS")[:2] == ("2026-11-26", "12:00")
     first_sp = next(item for item in flattened if item[3] == "SP")
-    assert first_sp[:2] == ("2026-11-30", "08:30")
+    assert first_sp[:2] == ("2026-12-04", "10:30")
     assert first_sp[0] != accueil_day["date"]
     assert first_sp[0] != next(item for item in flattened if item[3] == "APS")[0]
     aps_before_first_sp = sum(
@@ -104,7 +113,7 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
         assert day_total <= 7 * 60
     for bucket in weekly.values():
         assert bucket["total"] <= 35 * 60
-        assert bucket["technical"] <= 30 * 60
+        assert bucket["technical"] <= (25 * 60 if bucket["SP"] and bucket["PAF"] else 30 * 60)
         assert bucket["SP"] <= 5 * 60
         assert bucket["PAF"] <= 5 * 60
 

@@ -105,3 +105,37 @@ def test_pdf_contains_students_labels_logo_and_no_nulls(tmp_path):
     assert "DUPONT Jean" in text and "MARTIN Sophie" in text
     assert "Remise à niveau (RAN)" in text and "Intégrale Academy" in text
     assert all(x not in text for x in ["None","null","undefined"])
+
+
+def test_cancel_dsf_route_deletes_session_entry_and_pdf(monkeypatch, tmp_path):
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    s = sample_session()
+    d = s["apsPlanningData"][0]["date"]
+    result = afc_dsf_compute(s, d, d, ["RAN"])
+    pdf_path = tmp_path / "dsf.pdf"
+    pdf_path.write_bytes(b"pdf")
+    s["afcDsfs"].append({
+        "id": "dsf-to-delete",
+        "number": 1,
+        "label": "DSF 1",
+        "status": AFC_DSF_STATUS_FINALIZED,
+        "pdfFilename": pdf_path.name,
+        **result,
+    })
+    saved = {"sessions": [s], "jurys": []}
+    monkeypatch.setattr(application, "DSF_DIR", str(tmp_path))
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.post("/api/sessions/s1/afc-dsf/dsf-to-delete/cancel")
+
+    assert response.status_code == 200
+    assert response.get_json()["deleted"] is True
+    assert saved["sessions"][0]["afcDsfs"] == []
+    assert not pdf_path.exists()

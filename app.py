@@ -2513,8 +2513,10 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     margin = 10 * mm
-    footer_top_y = 18 * mm
+    FOOTER_RESERVED_HEIGHT = 16 * mm
     footer_y = 6 * mm
+    footer_top_y = footer_y + FOOTER_RESERVED_HEIGHT
+    content_bottom_limit = footer_top_y + 6
     logo_path = aps_pdf_logo_path()
     stamp_image = find_center_image("tampon", "cachet", "stamp")
     include_summary_page = training_type != "DESP" and not (is_ssiap1 and len(students) <= 6 and exam_days)
@@ -2634,12 +2636,45 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             y-=rh
         return y-8
 
-    def draw_people_table(y, people, has_am, has_pm):
+    def attendance_bottom_layout(table_top, people_count, signatures_count):
+        signature_h = 50 if len(students)>6 else 62
+        observations_h = signature_h
+        header_h = 18
+        spacing_after_table = 12
+        spacing_between_sections = 10
+        min_row_h = 23.5
+        max_row_h = 45
+        available_table_height = (
+            content_bottom_limit
+            - table_top
+            - signature_h
+            - observations_h
+            - spacing_after_table
+            - spacing_between_sections
+        )
+        # ReportLab coordinates descend as content is drawn; convert the available
+        # vertical span to a positive line height while reserving the APS footer.
+        available_table_height = abs(available_table_height) - header_h
+        row_h = max(min_row_h, min(max_row_h, available_table_height / max(people_count, 1)))
+        table_bottom = table_top - header_h - (row_h * max(people_count, 0))
+        signatures_y = table_bottom - spacing_after_table
+        bottom_boxes_y = signatures_y - signature_h - spacing_between_sections
+        bottom_boxes_bottom = bottom_boxes_y - observations_h
+        if bottom_boxes_bottom < content_bottom_limit:
+            row_h = max(min_row_h, (table_top - header_h - spacing_after_table - signature_h - spacing_between_sections - observations_h - content_bottom_limit) / max(people_count, 1))
+            table_bottom = table_top - header_h - (row_h * max(people_count, 0))
+            signatures_y = table_bottom - spacing_after_table
+            bottom_boxes_y = signatures_y - signature_h - spacing_between_sections
+            bottom_boxes_bottom = bottom_boxes_y - observations_h
+        if bottom_boxes_bottom < content_bottom_limit - 0.1:
+            raise ValueError("La feuille de présence ne peut pas être dessinée sans chevauchement du footer.")
+        return {"row_h": row_h, "signature_h": signature_h, "observations_h": observations_h, "signatures_y": signatures_y, "bottom_boxes_y": bottom_boxes_y, "bottom_boxes_bottom": bottom_boxes_bottom}
+
+    def draw_people_table(y, people, has_am, has_pm, row_h):
         reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
         headers=["N°","Nom","Prénom"] + (["Signature matin"] if has_am else []) + (["Signature après-midi"] if has_pm else [])
         if has_am and has_pm: ws=[28,115,95,145,width-2*margin-28-115-95-145]
         else: ws=[28,125,105,width-2*margin-28-125-105]
-        row_h=max(36, min(45, int((y-(footer_top_y+135))/max(len(people),1))))
         c.saveState(); reset_graphics_state(fill=colors.HexColor("#f3f4f6"), stroke=colors.black, line_width=0.75); c.rect(margin,y-18,sum(ws),18,fill=1,stroke=1); c.restoreState(); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica-Bold",8)
         x=margin
         for i,h in enumerate(headers): c.drawString(x+4,y-12,h); x+=ws[i]
@@ -2653,8 +2688,8 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             c.drawString(margin+8,y-14,str(idx)); c.drawString(margin+36,y-14,st.get("lastName", "")); c.drawString(margin+36+ws[1],y-14,st.get("firstName", "")); y-=row_h
         return y-12
 
-    def draw_signature_blocks(y, slots, *, exam=False):
-        has_am, has_pm = parts(slots); gap=18; bw=(width-2*margin-gap)/2; bh=50 if len(students)>6 else 62
+    def draw_signature_blocks(y, slots, *, exam=False, block_h=None):
+        has_am, has_pm = parts(slots); gap=18; bw=(width-2*margin-gap)/2; bh=block_h or (50 if len(students)>6 else 62)
         labels=[]
         if has_am: labels.append(("Signature responsable / intervenant - matin" if exam else ("Signature du formateur - matin" if is_ssiap1 else "Signature formateur matin"), True))
         if has_pm: labels.append(("Signature responsable / intervenant - après-midi" if exam else ("Signature du formateur - après-midi" if is_ssiap1 else "Signature formateur après-midi"), False))
@@ -2664,8 +2699,11 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         y-=bh+10; bw=(width-2*margin-gap)/2
         for i,lab in enumerate(["Observations éventuelles","Cachet du centre"]):
             x=margin+i*(bw+gap); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab)
-            if i==1 and stamp_image: c.drawImage(stamp_image,x+12,y-bh+8,width=bw-24,height=bh-18,preserveAspectRatio=True,anchor="c",mask="auto")
-        return y-bh-8
+            if i==1 and stamp_image: c.drawImage(stamp_image,x+14,y-bh+10,width=bw-28,height=bh-22,preserveAspectRatio=True,anchor="c",mask="auto")
+        bottom = y-bh
+        if bottom < content_bottom_limit - 0.1:
+            raise ValueError("Chevauchement détecté entre les cadres bas et la zone footer réservée.")
+        return bottom-8
 
     def half_day_trainer_label(slots, morning=True):
         names=[]
@@ -2704,14 +2742,14 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
                 title = slot.get("title") or slot.get("content") or ""
                 y = draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {code} — {title}", margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
             y -= 5
-        has_am,has_pm=parts(slots); y=draw_people_table(y, students, has_am, has_pm); y=draw_signature_blocks(y, slots)
+        has_am,has_pm=parts(slots); layout=attendance_bottom_layout(y, len(students), int(has_am)+int(has_pm)); y=draw_people_table(y, students, has_am, has_pm, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, block_h=layout["signature_h"])
         footer(page_no); c.showPage(); page_no+=1
 
     for exam_day in exam_days:
         slots=exam_day.get("slots") or []; date_label=format_date(exam_day.get("date")); y=draw_header("FEUILLE DE PRÉSENCE - EXAMEN SSIAP 1", date_label, slots, page_no, exam=True)
         c.setFont("Helvetica-Bold",8.8); c.drawString(margin,y,"Épreuve(s) d’examen"); y-=12
         for slot in slots: y=draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}", margin+8, y, width-2*margin-8, "Helvetica", 8.5, 10)
-        y-=8; y=draw_people_table(y, students, True, True); y=draw_signature_blocks(y, slots, exam=True)
+        y-=8; layout=attendance_bottom_layout(y, len(students), 2); y=draw_people_table(y, students, True, True, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, exam=True, block_h=layout["signature_h"])
         if is_ssiap1 and len(students)<=6 and y-102>footer_top_y+10: y=draw_summary(y)
         footer(page_no); c.showPage(); page_no+=1
 

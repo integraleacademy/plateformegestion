@@ -227,3 +227,61 @@ def test_desp_attendance_header_text_repeated_on_all_daily_pages(tmp_path):
         assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" not in text
         assert "Dirigeant d’une société de sécurité privée (DESP)" in text
     assert len(reader.pages) == 9
+
+
+def _desp_attendance_pdf_for_layout(tmp_path, student_count=12, room="Salle DESP", extra_slots=None):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    planning = _planning()
+    if extra_slots:
+        planning = [{**day, "slots": [dict(slot) for slot in day.get("slots", [])]} for day in planning]
+        for slot in extra_slots:
+            planning[-1]["slots"].append(slot)
+    students = [{"lastName": f"NOM{i:02d}", "firstName": f"Prenom{i:02d}"} for i in range(1, student_count + 1)]
+    out = tmp_path / f"attendance_desp_layout_{student_count}.pdf"
+    app.generate_aps_attendance_pdf({
+        **_session(),
+        "salle": room,
+        "apsPlanningData": planning,
+        "apsPlanningMode": "desp",
+        "apsAttendanceStudents": students,
+        "display_name": "Session DESP test",
+    }, str(out))
+    return out, pypdf.PdfReader(str(out))
+
+
+@pytest.mark.parametrize("student_count", [10, 11, 12])
+def test_desp_attendance_dynamic_bottom_layout_supports_10_to_12_students(tmp_path, student_count):
+    out, reader = _desp_attendance_pdf_for_layout(tmp_path, student_count=student_count)
+    assert out.exists() and out.stat().st_size > 0
+    assert len(reader.pages) == 9
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert "Signature formateur matin" in text
+    assert "Observations éventuelles" in text
+    assert "Cachet du centre" in text
+    assert "Page 9 / 9" in text
+
+
+def test_desp_attendance_dynamic_layout_reserves_footer_and_uses_table_row_recalculation():
+    src = inspect.getsource(app.generate_attendance_pdf_common)
+    assert "FOOTER_RESERVED_HEIGHT = 16 * mm" in src
+    assert "content_bottom_limit = footer_top_y + 6" in src
+    assert "def attendance_bottom_layout" in src
+    assert "available_table_height" in src
+    assert "signatures_y = table_bottom - spacing_after_table" in src
+    assert "bottom_boxes_bottom < content_bottom_limit" in src
+    assert "Chevauchement détecté" in src
+
+
+def test_desp_attendance_dynamic_layout_accepts_four_modules_and_wrapped_room(tmp_path):
+    extra_slots = [
+        {"start": "16:30", "end": "17:00", "duration": 0, "durationMinutes": 0, "uv": "DESP-P99", "title": "Module complémentaire de contrôle", "modality": "presentiel", "trainer": "BRUANT Christophe", "room": "Salle DESP\nBâtiment A"},
+        {"start": "17:00", "end": "17:30", "duration": 0, "durationMinutes": 0, "uv": "DESP-P98", "title": "Synthèse opérationnelle", "modality": "presentiel", "trainer": "BRUANT Christophe", "room": "Salle DESP\nBâtiment A"},
+    ]
+    out, reader = _desp_attendance_pdf_for_layout(tmp_path, student_count=12, room="Salle DESP\nBâtiment A", extra_slots=extra_slots)
+    assert out.exists() and out.stat().st_size > 0
+    assert len(reader.pages) == 9
+    last_page_text = reader.pages[-1].extract_text() or ""
+    assert "DESP-P99" in last_page_text
+    assert "DESP-P98" in last_page_text
+    assert "Page 9 / 9" in last_page_text

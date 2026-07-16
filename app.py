@@ -854,8 +854,33 @@ def _ssiap1_day_slot(date_value, start, minutes, *, uv, part, title, items, trai
         "room": room, "trainer": trainer, "modality": modality,
     }
 
-def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None):
+def ssiap1_excluded_dates_from_payload(session_data, payload=None):
+    payload = payload or {}
+    raw_values = []
+    for source in (session_data or {}, payload):
+        for key in (
+            "ssiapExcludedDates",
+            "ssiap_excluded_dates",
+            "ssiapNonTrainingDays",
+            "nonTrainingDays",
+            "excludedDates",
+            "excluded_dates",
+        ):
+            value = source.get(key) if isinstance(source, dict) else None
+            if value:
+                raw_values.append(value)
+    excluded = set()
+    for value in raw_values:
+        items = value if isinstance(value, (list, tuple, set)) else re.split(r"[,;\n\s]+", str(value))
+        for item in items:
+            iso = aps_local_date_iso(item)
+            if iso:
+                excluded.add(iso)
+    return excluded
+
+def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None, excluded_dates=None):
     exam_payload = exam_payload or {}
+    excluded_dates = {aps_local_date_iso(value) for value in (excluded_dates or []) if aps_local_date_iso(value)}
     if end_date is None:
         raise ValueError("La date de fin de formation SSIAP 1 est obligatoire.")
     sst_trainer = _ssiap1_role_trainer(exam_payload, "sstTrainer", formateur)
@@ -863,7 +888,7 @@ def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam
     revision_trainer = _ssiap1_role_trainer(exam_payload, "revisionTrainer", ssiap_trainer)
     exam_trainer = _ssiap1_role_trainer(exam_payload, "examTrainer", ssiap_trainer)
 
-    all_days = aps_working_days_between(start_date, end_date, exam_iso)
+    all_days = [day for day in aps_working_days_between(start_date, end_date, exam_iso) if day.isoformat() not in excluded_dates]
     required_total_days = 2 + _ssiap1_required_training_days()
     if len(all_days) < required_total_days:
         raise ValueError(aps_impossible_period_message(start_date, end_date, len(all_days) * APS_MAX_DAILY_MINUTES, (SSIAP1_PRESENCE_TOTAL_HOURS * 60)))
@@ -977,6 +1002,7 @@ def ssiap1_summary_from_data(planning_data):
     sst_minutes = 0
     revision_minutes = 0
     exam = None
+    exam_dates = []
     previous = None
     ssiap_day_minutes = {}
     presence_day_minutes = {}

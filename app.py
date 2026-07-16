@@ -1795,110 +1795,112 @@ def afc_active_weeks(start_date, interruptions, count):
     return weeks
 
 def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None, contractual_end_date=None):
-    """Génère le parcours AFC APS + SSIAP borné par la fin contractuelle."""
-    interruptions = interruptions or []
+    """Génère le parcours AFC APS + SSIAP France Travail sur les 57 jours contractuels."""
+    interruptions = interruptions or [(date(2026, 12, 23), date(2027, 1, 4))]
     end_date = contractual_end_date or date(2027, 2, 15)
     if isinstance(end_date, str):
         parsed = parse_date(end_date); end_date = parsed.date() if parsed else None
     if not end_date:
         raise ValueError("La date de fin contractuelle AFC est invalide.")
-    exam_day = end_date
-    last_training_day = exam_day - timedelta(days=1)
-    while not is_afc_working_day(last_training_day, interruptions):
-        last_training_day -= timedelta(days=1)
+
+    eligible_dates = []
+    day = start_date
+    while day <= end_date:
+        if is_afc_working_day(day, interruptions):
+            eligible_dates.append(day)
+        day += timedelta(days=1)
+    if len(eligible_dates) != 57:
+        raise ValueError("La période sélectionnée ne contient pas les 57 jours prévus par la commande France Travail.")
+    if eligible_dates[-1] != end_date:
+        raise ValueError("La date de fin AFC doit être un jour admissible et contenir l’examen SSIAP 1.")
+
+    six_hour_days = {date(2026, 11, 25), date(2026, 12, 1), date(2026, 12, 8), date(2027, 1, 6), date(2027, 2, 3), date(2027, 2, 11)}
+    if not six_hour_days.issubset(set(eligible_dates)):
+        raise ValueError("Les journées AFC de 6h ne correspondent pas aux jours admissibles.")
+    daily_targets = {d: (6 * 60 if d in six_hour_days else 7 * 60) for d in eligible_dates}
 
     raw = afc_build_main_sequence()
-    sequence = []
-    for m in raw:
-        if m["category"] in {"EXAM_SSIAP1", "BILAN"}:
-            continue
-        sequence.append(dict(m, remainingMinutes=m["durationMinutes"]))
-    # Le bilan est précédé de 30 minutes de FT le 12/02 afin que la demi-journée FT fasse 4h.
-    bilan = dict(next(m for m in raw if m["category"] == "BILAN"), remainingMinutes=210)
+    ran = dict(next(m for m in raw if m["category"] == "RAN"), remainingMinutes=55 * 60)
+    accueil = dict(next(m for m in raw if m["category"] == "ACCUEIL"), remainingMinutes=210)
     exam = dict(next(m for m in raw if m["category"] == "EXAM_SSIAP1"), remainingMinutes=420)
-    planning_map, week = {}, {}
-    idx = 0
-    sp_left, paf_left = 45*60, 20*60
-    aps_completed_minutes = 0
-    first_aps_day = None
-    targets = {
-        date(2026,11,23): (5*60,0), date(2026,11,30): (5*60,0), date(2026,12,7): (5*60,0),
-        date(2026,12,14): (5*60,0), date(2026,12,21): (5*60,0), date(2027,1,4): (5*60,0),
-        date(2027,1,11): (5*60,0), date(2027,1,18): (5*60,5*60), date(2027,1,25): (5*60,5*60),
-        date(2027,2,1): (5*60,5*60), date(2027,2,8): (0,5*60),
-    }
-    def monday(d): return d - timedelta(days=d.weekday())
-    def item(d): return planning_map.setdefault(d.isoformat(), {"date":d.isoformat(), "dayLabel":aps_day_label(d), "category":"afc_aps_ssiap", "slots":[]})
-    def bucket(d): return week.setdefault(d.isocalendar()[:2], {"total":0,"technical":0,"RAN":0,"SP":0,"PAF":0})
+    sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in raw if m["category"] not in {"RAN", "ACCUEIL", "EXAM_SSIAP1"}]
+
+    planning_map = {}
+    def item(d):
+        return planning_map.setdefault(d.isoformat(), {"date": d.isoformat(), "dayLabel": aps_day_label(d), "category": "afc_aps_ssiap", "slots": []})
     def add(d, start, minutes, mod):
-        nonlocal aps_completed_minutes, first_aps_day
-        sl=afc_slot_from_module(d,start,start+minutes,mod,trainer,room); item(d)["slots"].append(sl)
-        if sl["afcCategory"] == "APS":
-            aps_completed_minutes += minutes
-            first_aps_day = first_aps_day or d
-        b=bucket(d); b["total"]+=minutes
-        c=sl["afcCategory"]
-        if c in AFC_TECHNICAL_CODES: b["technical"]+=minutes
-        if c in {"RAN","SP","PAF"}: b[c]+=minutes
-    def has_prior_full_aps_day(d):
-        for iso, day_item in planning_map.items():
-            if iso >= d.isoformat():
-                continue
-            aps_minutes = sum(int(slot.get("durationMinutes") or 0) for slot in day_item.get("slots", []) if slot.get("afcCategory") == "APS")
-            if aps_minutes >= 7 * 60:
-                return True
-        return False
-    def can(d, cat, minutes):
-        b=bucket(d)
-        return b["total"]+minutes<=35*60 and (cat not in AFC_TECHNICAL_CODES or b["technical"]+minutes<=30*60) and (cat!="SP" or b["SP"]+minutes<=5*60) and (cat!="PAF" or b["PAF"]+minutes<=5*60)
-    def add_seq(d, start, minutes):
+        item(d)["slots"].append(afc_slot_from_module(d, start, start + minutes, mod, trainer, room))
+    def module_for(code):
+        return {"code": code, "category": code, "uv": code, "title": AFC_APS_SSIAP_LABELS[code], "content": "Accompagnement transversal", "afcKind": code}
+    # RAN strictement en premier : 7h du 16 au 24/11, puis 6h le 25/11.
+    for d in eligible_dates[:8]:
+        minutes = daily_targets[d]
+        if minutes > ran["remainingMinutes"]:
+            minutes = ran["remainingMinutes"]
+        add(d, 8 * 60 + 30, min(240, minutes), ran)
+        if minutes > 240:
+            add(d, 13 * 60 + 30, minutes - 240, ran)
+        ran["remainingMinutes"] -= minutes
+    if ran["remainingMinutes"] != 0:
+        raise ValueError("Les 55h de RAN n’ont pas pu être placées avant toute autre activité.")
+
+    # Accueil sur une matinée puis démarrage APS dans la même journée.
+    accueil_day = eligible_dates[8]
+    add(accueil_day, 8 * 60 + 30, 210, accueil)
+    free_intervals = {d: [(8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 13 * 60 + 30 + max(0, daily_targets[d] - 240))] for d in eligible_dates}
+    free_intervals[accueil_day] = [(12 * 60, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30)]
+    free_intervals[end_date] = []
+
+    # Accompagnements en fin de semaine, avant le 15/02 et jamais en début de parcours.
+    sp_weeks = {date(2026,11,30), date(2026,12,7), date(2026,12,14), date(2026,12,21), date(2027,1,4), date(2027,1,11), date(2027,1,18), date(2027,1,25), date(2027,2,1)}
+    paf_weeks = {date(2027,1,11), date(2027,1,18), date(2027,1,25), date(2027,2,8)}
+    combo_weeks = {date(2027,1,11), date(2027,1,18), date(2027,1,25)}
+    for monday in sorted(sp_weeks | paf_weeks):
+        week_days = [d for d in eligible_dates if (d - timedelta(days=d.weekday())) == monday and d < end_date]
+        if not week_days:
+            continue
+        if monday in combo_weeks:
+            thursday = next(d for d in week_days if d.weekday() == 3)
+            friday = next(d for d in week_days if d.weekday() == 4)
+            add(thursday, 13*60+30, 180, module_for("SP")); free_intervals[thursday] = [(8*60+30, 12*60+30)]
+            add(friday, 8*60+30, 120, module_for("SP")); add(friday, 10*60+30, 120, module_for("PAF")); add(friday, 13*60+30, 180, module_for("PAF")); free_intervals[friday] = []
+        else:
+            last = week_days[-1]
+            code = "SP" if monday in sp_weeks else "PAF"
+            add(last, 10*60+30, 120, module_for(code)); add(last, 13*60+30, 180, module_for(code))
+            free_intervals[last] = [(8*60+30, 10*60+30)]
+
+    idx = 0
+    def add_technical(d, start, minutes):
         nonlocal idx
-        cur=start; left=minutes
-        while left>0 and idx<len(sequence):
-            m=sequence[idx]; take=min(left, m["remainingMinutes"])
-            add(d, cur, take, m); m["remainingMinutes"]-=take; cur+=take; left-=take
-            if m["remainingMinutes"]==0: idx+=1
-        return cur, left
-    day=start_date
-    while day < exam_day:
-        if not is_afc_working_day(day, interruptions): day+=timedelta(days=1); continue
-        # Réserve le 12/02 matin pour 30 min FT + bilan, puis complète l'après-midi.
-        segments=list(AFC_DAY_SEGMENTS)
-        if day == last_training_day:
-            cur,_=add_seq(day,8*60+30,30); add(day,cur,210,bilan); segments=[(13*60+30,16*60+30)]
-        for seg_start, seg_end in segments:
-            cur=seg_start
-            # Accueil spécial : 3h30 + 30 min APS sur la même matinée.
-            if idx < len(sequence) and sequence[idx]["category"] == "ACCUEIL" and seg_start == 8*60+30 and seg_end == 12*60+30:
-                add(day, cur, 210, sequence[idx]); sequence[idx]["remainingMinutes"]=0; idx+=1; cur += 210
-                cur,_ = add_seq(day, cur, 30)
-                continue
-            # SP/PAF en heures entières selon cibles hebdomadaires, puis FT.
-            sp_t,paf_t=targets.get(monday(day),(0,0))
-            if idx > 1:
-                for code in ("SP","PAF"):
-                    while cur+60<=seg_end and ((code=="SP" and sp_left>0 and aps_completed_minutes >= 7*60 and first_aps_day is not None and day > first_aps_day and has_prior_full_aps_day(day) and bucket(day)["SP"]<sp_t) or (code=="PAF" and paf_left>0 and bucket(day)["PAF"]<paf_t)) and can(day, code, 60):
-                        mod={"code":code,"category":code,"uv":code,"title":AFC_APS_SSIAP_LABELS[code],"content":"Accompagnement transversal","afcKind":code}
-                        add(day,cur,60,mod); cur+=60
-                        if code=="SP": sp_left-=60
-                        else: paf_left-=60
-            while cur < seg_end and idx < len(sequence):
-                if day < last_training_day and sum(m.get("remainingMinutes",0) for m in sequence[idx:]) <= 30:
-                    break
-                cat=sequence[idx]["category"]
-                if cat == "ACCUEIL": break
-                reserve_limit = sum(m.get("remainingMinutes",0) for m in sequence[idx:]) - (30 if day < last_training_day else 0)
-                room_left=min(seg_end-cur, sequence[idx]["remainingMinutes"], reserve_limit, 30*60-bucket(day)["technical"] if cat in AFC_TECHNICAL_CODES else seg_end-cur, 35*60-bucket(day)["total"])
-                if room_left<=0 or not can(day,cat,min(room_left,30)): break
-                cur,_=add_seq(day,cur,room_left)
-        day+=timedelta(days=1)
-    if idx < len(sequence) or sp_left or paf_left:
-        raise ValueError(f"Impossible de planifier les 393 heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les règles actuelles. Veuillez modifier la date de fin ou les contraintes hebdomadaires.")
-    add(exam_day, 8*60+30, 240, exam); add(exam_day, 13*60+30, 180, exam)
-    for it in planning_map.values(): it["slots"].sort(key=lambda x:x["start"])
-    planning=[planning_map[k] for k in sorted(planning_map) if planning_map[k].get("slots")]
-    summary=afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions, contractual_end_date=end_date)
-    if summary["errors"]: raise ValueError(" ".join(summary["errors"]))
+        cur = start; left = minutes
+        while left > 0 and idx < len(sequence):
+            m = sequence[idx]
+            take = min(left, m["remainingMinutes"])
+            add(d, cur, take, m)
+            m["remainingMinutes"] -= take; cur += take; left -= take
+            if m["remainingMinutes"] == 0:
+                idx += 1
+        return left
+
+    for d in eligible_dates[8:-1]:
+        intervals = list(free_intervals.get(d, []))
+        if not intervals:
+            continue
+        for start, end in intervals:
+            if idx >= len(sequence):
+                break
+            add_technical(d, start, end - start)
+    if idx < len(sequence) or any(m.get("remainingMinutes", 0) for m in sequence[idx:]):
+        raise ValueError(f"Impossible de planifier les 393 heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les règles AFC France Travail.")
+    add(end_date, 8*60+30, 240, exam); add(end_date, 13*60+30, 180, exam)
+
+    for it in planning_map.values():
+        it["slots"].sort(key=lambda x: x["start"])
+    planning = [planning_map[d.isoformat()] for d in eligible_dates if planning_map.get(d.isoformat(), {}).get("slots")]
+    summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions, contractual_end_date=end_date)
+    if summary["errors"]:
+        raise ValueError(" ".join(summary["errors"]))
     return planning
 
 def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractual_end_date=None):
@@ -1945,6 +1947,27 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
     for code, expected in AFC_APS_SSIAP_EXPECTED_MINUTES.items():
         if totals.get(code, 0) != expected: errors.append(f"{AFC_APS_SSIAP_LABELS.get(code, code)} doit totaliser {format_duration_from_minutes(expected)} (actuel: {format_duration_from_minutes(totals.get(code,0))}).")
     if total != AFC_APS_SSIAP_TOTAL_HOURS * 60: errors.append(f"Le total AFC doit être de 393h (actuel: {total/60:g}h).")
+    eligible_dates = []
+    if planning_data:
+        first = parse_date(planning_data[0].get("date")); last = parse_date((contractual_end_date.isoformat() if hasattr(contractual_end_date, "isoformat") else contractual_end_date) or planning_data[-1].get("date"))
+        if first and last:
+            cur = first.date(); end = last.date()
+            while cur <= end:
+                if is_afc_working_day(cur, interruptions or []): eligible_dates.append(cur.isoformat())
+                cur += timedelta(days=1)
+            programmed_dates = sorted({d.get("date") for d in planning_data or [] if d.get("slots")})
+            if len(eligible_dates) != 57: errors.append(f"La période AFC doit contenir exactement 57 dates admissibles (actuel: {len(eligible_dates)}).")
+            if len(programmed_dates) != 57: errors.append(f"Le planning AFC doit contenir exactement 57 dates programmées (actuel: {len(programmed_dates)}).")
+            if set(programmed_dates) != set(eligible_dates): errors.append("Chaque date admissible AFC doit contenir de la formation, sans date supplémentaire.")
+    day_values = []
+    for day in planning_data or []:
+        dm = sum(int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60))) for slot in day.get("slots", []))
+        day_values.append(dm)
+        if dm < 6*60: errors.append(f"La journée {day.get('date')} contient moins de 6h.")
+        if dm > 7*60: errors.append(f"La journée {day.get('date')} dépasse 7h.")
+        if day.get("date", "") >= "2027-03-01": errors.append("Aucune activité AFC ne doit être planifiée en mars 2027.")
+    if day_values and day_values.count(7*60) != 51: errors.append(f"Le planning AFC doit contenir 51 journées de 7h (actuel: {day_values.count(7*60)}).")
+    if day_values and day_values.count(6*60) != 6: errors.append(f"Le planning AFC doit contenir 6 journées de 6h (actuel: {day_values.count(6*60)}).")
     ordered_slots = []
     for day in sorted(planning_data or [], key=lambda d: d.get("date") or ""):
         for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
@@ -2638,15 +2661,15 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         _sd=parse_date(planning_data[0]["date"]).date(); _ed=parse_date(planning_data[-1]["date"]).date(); _cur=date(_sd.year,_sd.month,1)
         while _cur <= _ed:
             calendar_month_count += 1; _cur = date(_cur.year + (1 if _cur.month==12 else 0), 1 if _cur.month==12 else _cur.month+1, 1)
-    extra_calendar_pages = math.ceil(calendar_month_count / 2) if document_profile.get("validate") == "afc_aps_ssiap" else 0
+    extra_calendar_pages = 1 if document_profile.get("validate") == "afc_aps_ssiap" and calendar_month_count else 0
     total_pages = len(pages) + compute_summary_page_count() + extra_calendar_pages
     draw_planning_pages(total_pages)
     draw_summary_pages(total_pages)
     if document_profile.get("validate") == "afc_aps_ssiap":
         c.showPage(); page_no += 1
-        from reportlab.lib.pagesizes import landscape
+        from reportlab.lib.pagesizes import landscape, A3
         import calendar
-        c.setPageSize(landscape(A4)); lw, lh = landscape(A4)
+        c.setPageSize(landscape(A3)); lw, lh = landscape(A3)
         logo_path = find_center_image("logo")
         if logo_path:
             c.drawImage(logo_path, 36, lh-58, width=72, height=34, preserveAspectRatio=True, mask="auto")
@@ -2660,15 +2683,16 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             months.append(cur); cur = date(cur.year + (1 if cur.month==12 else 0), 1 if cur.month==12 else cur.month+1, 1)
         fr_months=["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
         short_labels={"RAN":"RAN","ACCUEIL":"Accueil","APS":"APS","EXAM_APS":"Examen APS","H0B0":"H0B0","SSIAP1":"SSIAP 1","EXAM_SSIAP1":"Examen SSIAP 1","SP":"SP","PAF":"PAF","BILAN":"Bilan"}
-        per_page=2
+        months = months[:4]
+        per_page=4
         calendar_page_no = 0
         for page_start in range(0, len(months), per_page):
             if page_start:
-                c.showPage(); page_no += 1; c.setPageSize(landscape(A4))
+                c.showPage(); page_no += 1; c.setPageSize(landscape(A3))
             calendar_page_no += 1
             subset=months[page_start:page_start+per_page]
-            cols=2; rows=1
-            cell_w_month=(lw-72)/cols; cell_h_month=lh-156
+            cols=2; rows=2
+            cell_w_month=(lw-72)/cols; cell_h_month=(lh-176)/rows
             for i,m in enumerate(subset):
                 x=36+(i%cols)*cell_w_month; y=lh-78-(i//cols)*cell_h_month
                 c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(x,y, f"{fr_months[m.month]} {m.year}")
@@ -5814,7 +5838,7 @@ def create_session():
             flash("La date de début est obligatoire pour l'AFC APS + SSIAP.", "error")
             return redirect(url_for("sessions_home"))
         if not contractual_end_date:
-            flash("La date de fin souhaitée est obligatoire pour l'AFC APS + SSIAP.", "error")
+            flash("Date de fin obligatoire pour l'AFC APS + SSIAP.", "error")
             return redirect(url_for("sessions_home"))
         session["display_name"] = "AFC France Travail APS + SSIAP"
         session["interruptions"] = interruptions
@@ -6391,8 +6415,10 @@ def generate_aps_planning_route(sid):
         if is_afc:
             interruption_payload = payload.get("interruptions") if "interruptions" in payload else session_data.get("interruptions")
             interruptions = parse_interruption_ranges(interruption_payload)
-            contractual_raw = payload.get("contractual_end_date") or payload.get("date_fin_contractuelle") or session_data.get("contractual_end_date") or session_data.get("date_fin_contractuelle") or session_data.get("date_fin") or "2027-02-15"
+            contractual_raw = payload.get("contractual_end_date") or payload.get("date_fin_contractuelle") or payload.get("date_fin") or session_data.get("contractual_end_date") or session_data.get("date_fin_contractuelle") or session_data.get("date_fin")
             contractual_dt = parse_date(contractual_raw)
+            if not contractual_raw:
+                raise ValueError("La date de fin est obligatoire pour l’AFC APS + SSIAP.")
             if not contractual_dt:
                 raise ValueError("La date de fin contractuelle AFC est invalide.")
             session_data["contractual_end_date"] = contractual_dt.date().isoformat()

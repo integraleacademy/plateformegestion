@@ -5932,6 +5932,9 @@ def api_afc_dsf_cancel(sid, dsf_id):
             if os.path.exists(pdf_path): os.remove(pdf_path)
         except OSError:
             app.logger.exception('Erreur suppression PDF DSF AFC %s', pdf_filename)
+    if request.accept_mimetypes.best == 'text/html':
+        flash('DSF annulée et supprimée.', 'success')
+        return redirect(url_for('session_detail', sid=sid))
     return jsonify({'ok':True,'deleted':True})
 
 @app.route("/sessions/<sid>/jury/add", methods=["POST"])

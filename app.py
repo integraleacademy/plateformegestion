@@ -23,6 +23,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import logging
+import math
 import threading
 
 from flask import (
@@ -1818,21 +1819,35 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     planning_map, week = {}, {}
     idx = 0
     sp_left, paf_left = 45*60, 20*60
+    aps_completed_minutes = 0
+    first_aps_day = None
     targets = {
         date(2026,11,23): (5*60,0), date(2026,11,30): (5*60,0), date(2026,12,7): (5*60,0),
         date(2026,12,14): (5*60,0), date(2026,12,21): (5*60,0), date(2027,1,4): (5*60,0),
         date(2027,1,11): (5*60,0), date(2027,1,18): (5*60,5*60), date(2027,1,25): (5*60,5*60),
-        date(2027,2,1): (0,5*60), date(2027,2,8): (0,5*60),
+        date(2027,2,1): (5*60,5*60), date(2027,2,8): (0,5*60),
     }
     def monday(d): return d - timedelta(days=d.weekday())
     def item(d): return planning_map.setdefault(d.isoformat(), {"date":d.isoformat(), "dayLabel":aps_day_label(d), "category":"afc_aps_ssiap", "slots":[]})
     def bucket(d): return week.setdefault(d.isocalendar()[:2], {"total":0,"technical":0,"RAN":0,"SP":0,"PAF":0})
     def add(d, start, minutes, mod):
+        nonlocal aps_completed_minutes, first_aps_day
         sl=afc_slot_from_module(d,start,start+minutes,mod,trainer,room); item(d)["slots"].append(sl)
+        if sl["afcCategory"] == "APS":
+            aps_completed_minutes += minutes
+            first_aps_day = first_aps_day or d
         b=bucket(d); b["total"]+=minutes
         c=sl["afcCategory"]
         if c in AFC_TECHNICAL_CODES: b["technical"]+=minutes
         if c in {"RAN","SP","PAF"}: b[c]+=minutes
+    def has_prior_full_aps_day(d):
+        for iso, day_item in planning_map.items():
+            if iso >= d.isoformat():
+                continue
+            aps_minutes = sum(int(slot.get("durationMinutes") or 0) for slot in day_item.get("slots", []) if slot.get("afcCategory") == "APS")
+            if aps_minutes >= 7 * 60:
+                return True
+        return False
     def can(d, cat, minutes):
         b=bucket(d)
         return b["total"]+minutes<=35*60 and (cat not in AFC_TECHNICAL_CODES or b["technical"]+minutes<=30*60) and (cat!="SP" or b["SP"]+minutes<=5*60) and (cat!="PAF" or b["PAF"]+minutes<=5*60)
@@ -1862,7 +1877,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
             sp_t,paf_t=targets.get(monday(day),(0,0))
             if idx > 1:
                 for code in ("SP","PAF"):
-                    while cur+60<=seg_end and ((code=="SP" and sp_left>0 and bucket(day)["SP"]<sp_t) or (code=="PAF" and paf_left>0 and bucket(day)["PAF"]<paf_t)) and can(day, code, 60):
+                    while cur+60<=seg_end and ((code=="SP" and sp_left>0 and aps_completed_minutes >= 7*60 and first_aps_day is not None and day > first_aps_day and has_prior_full_aps_day(day) and bucket(day)["SP"]<sp_t) or (code=="PAF" and paf_left>0 and bucket(day)["PAF"]<paf_t)) and can(day, code, 60):
                         mod={"code":code,"category":code,"uv":code,"title":AFC_APS_SSIAP_LABELS[code],"content":"Accompagnement transversal","afcKind":code}
                         add(day,cur,60,mod); cur+=60
                         if code=="SP": sp_left-=60
@@ -1878,7 +1893,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
                 cur,_=add_seq(day,cur,room_left)
         day+=timedelta(days=1)
     if idx < len(sequence) or sp_left or paf_left:
-        raise ValueError("Impossible de placer les 393h AFC avant la date de fin contractuelle.")
+        raise ValueError(f"Impossible de planifier les 393 heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les règles actuelles. Veuillez modifier la date de fin ou les contraintes hebdomadaires.")
     add(exam_day, 8*60+30, 240, exam); add(exam_day, 13*60+30, 180, exam)
     for it in planning_map.values(): it["slots"].sort(key=lambda x:x["start"])
     planning=[planning_map[k] for k in sorted(planning_map) if planning_map[k].get("slots")]
@@ -1956,6 +1971,26 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
             if cat in {"APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"} and (d, st) < accueil_end:
                 errors.append("Une activité technique/SP/PAF est planifiée avant la fin complète de l’Accueil.")
                 break
+    first_sp = first_time("SP")
+    first_aps = first_time("APS")
+    if first_sp:
+        aps_minutes_before_sp = 0
+        aps_days_before_sp = set()
+        accueil_day = accueil_end[0] if accueil_end else None
+        for d, st, e, cat, slot in ordered_slots:
+            if (d, st) >= first_sp:
+                break
+            if cat == "APS":
+                aps_minutes_before_sp += int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))
+                aps_days_before_sp.add(d)
+        if aps_minutes_before_sp < 7 * 60:
+            errors.append("Le premier SP doit être strictement postérieur à au moins 7h d’APS déjà réalisées (aps_hours_completed_before_first_sp >= 7).")
+        if accueil_day and first_sp[0] == accueil_day:
+            errors.append("Aucun SP ne peut être placé le jour de l’Accueil.")
+        if first_aps and first_sp[0] == first_aps[0]:
+            errors.append("Le premier SP ne peut pas être placé le jour du premier démarrage APS.")
+        if not any(sum(int(round(float(s.get("durationMinutes") or float(s.get("duration") or 0)*60))) for s in day.get("slots", []) if (s.get("afcCategory") or s.get("uv")) == "APS") >= 7*60 for day in planning_data or [] if day.get("date") in aps_days_before_sp):
+            errors.append("Le premier SP doit intervenir après une journée complète de 7h d’APS.")
     if ordered_slots and ordered_slots[-1][3] != "EXAM_SSIAP1":
         errors.append("L’examen SSIAP 1 doit être la dernière activité du parcours AFC.")
     if contractual_end_date:
@@ -2488,7 +2523,6 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             for idx_label,(label,img) in enumerate((("Signature",signature_image),("Tampon",stamp_image))):
                 x=margin+idx_label*(box_w+18); c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(x,y-64,box_w,64,6,fill=1,stroke=1); c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold",9); c.drawString(x+10,y-16,label)
                 if img: c.drawImage(img,x+12,y-58,width=box_w-24,height=40,preserveAspectRatio=True,mask="auto")
-            c.setFont("Helvetica",6.5); c.setFillColor(colors.HexColor("#6b7280")); c.drawCentredString(width/2, 42, "Intégrale Academy — document de synthèse AFC France Travail APS + SSIAP — informations légales compactes")
             page_no += 1
             return
         if document_profile.get("validate") == "ssiap1":
@@ -2599,7 +2633,12 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             count += 1
         return count
 
-    extra_calendar_pages = 1 if document_profile.get("validate") == "afc_aps_ssiap" else 0
+    calendar_month_count = 0
+    if document_profile.get("validate") == "afc_aps_ssiap" and planning_data:
+        _sd=parse_date(planning_data[0]["date"]).date(); _ed=parse_date(planning_data[-1]["date"]).date(); _cur=date(_sd.year,_sd.month,1)
+        while _cur <= _ed:
+            calendar_month_count += 1; _cur = date(_cur.year + (1 if _cur.month==12 else 0), 1 if _cur.month==12 else _cur.month+1, 1)
+    extra_calendar_pages = math.ceil(calendar_month_count / 2) if document_profile.get("validate") == "afc_aps_ssiap" else 0
     total_pages = len(pages) + compute_summary_page_count() + extra_calendar_pages
     draw_planning_pages(total_pages)
     draw_summary_pages(total_pages)
@@ -2613,26 +2652,27 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             c.drawImage(logo_path, 36, lh-58, width=72, height=34, preserveAspectRatio=True, mask="auto")
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 15)
         c.drawString(118, lh-35, "CALENDRIER RÉCAPITULATIF")
-        c.setFont("Helvetica-Bold", 12); c.drawString(118, lh-52, "AFC FRANCE TRAVAIL APS + SSIAP")
+        c.setFont("Helvetica-Bold", 12); c.drawString(118, lh-52, "AFC France Travail APS + SSIAP")
         c.setFont("Helvetica", 9); c.drawString(118, lh-66, f"Du {format_date(planning_data[0]["date"])} au {format_date(planning_data[-1]["date"])}.")
-        c.setFont("Helvetica", 8); c.drawRightString(lw-36, 24, f"Page {total_pages} / {total_pages}")
         colors_by_cat = AFC_CATEGORY_COLORS
         by_date={d.get("date"):d for d in planning_data}; start_d=parse_date(planning_data[0]["date"]).date(); end_d=parse_date(planning_data[-1]["date"]).date(); months=[]; cur=date(start_d.year,start_d.month,1)
         while cur <= end_d:
             months.append(cur); cur = date(cur.year + (1 if cur.month==12 else 0), 1 if cur.month==12 else cur.month+1, 1)
         fr_months=["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
         short_labels={"RAN":"RAN","ACCUEIL":"Accueil","APS":"APS","EXAM_APS":"Examen APS","H0B0":"H0B0","SSIAP1":"SSIAP 1","EXAM_SSIAP1":"Examen SSIAP 1","SP":"SP","PAF":"PAF","BILAN":"Bilan"}
-        per_page=4
-        for page_start in range(0, len(months[:4]), per_page):
+        per_page=2
+        calendar_page_no = 0
+        for page_start in range(0, len(months), per_page):
             if page_start:
-                c.showPage(); page_no += 1; c.setPageSize(landscape(A4)); c.setFont("Helvetica", 8); c.drawRightString(lw-36, 24, f"Page {page_no} / {total_pages}")
-            subset=months[:4][page_start:page_start+per_page]
-            cols=2; rows=2
-            cell_w_month=(lw-72)/cols; cell_h_month=(lh-150)/rows
+                c.showPage(); page_no += 1; c.setPageSize(landscape(A4))
+            calendar_page_no += 1
+            subset=months[page_start:page_start+per_page]
+            cols=2; rows=1
+            cell_w_month=(lw-72)/cols; cell_h_month=lh-156
             for i,m in enumerate(subset):
                 x=36+(i%cols)*cell_w_month; y=lh-78-(i//cols)*cell_h_month
                 c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(x,y, f"{fr_months[m.month]} {m.year}")
-                cell_w=(cell_w_month-8)/7; cell_h=(cell_h_month-34)/7; y0=y-16
+                cell_w=(cell_w_month-8)/7; cell_h=(cell_h_month-34)/6; y0=y-16
                 c.setFont("Helvetica-Bold",6.3)
                 for col,letter in enumerate(["L","M","M","J","V","S","D"]): c.drawCentredString(x+col*cell_w+cell_w/2, y0, letter)
                 c.setFont("Helvetica",5.0)
@@ -2652,17 +2692,23 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                             for half,cats in enumerate((am,pm)):
                                 if not cats: continue
                                 cat=next((c for c in cats if c), cats[0]); yy=cy-9-half*(cell_h/2-2)
-                                c.setFillColor(colors.HexColor(colors_by_cat.get(cat,"#e5e7eb"))); c.rect(cx+9, yy-(cell_h/2-4), cell_w-11, cell_h/2-4, fill=1, stroke=0)
+                                c.setFillColor(colors.HexColor(colors_by_cat.get(cat,"#e5e7eb"))); c.rect(cx+9, yy-(cell_h/2-6), cell_w-12, cell_h/2-7, fill=1, stroke=0)
                                 c.setFillColor(colors.white if cat in {"APS","EXAM_APS","EXAM_SSIAP1","BILAN"} else colors.black)
                                 for li,line in enumerate(wrap_text_lines(short_labels.get(cat,cat), cell_w-13, "Helvetica-Bold", 4.6)[:2]):
                                     c.setFont("Helvetica-Bold",4.6); c.drawString(cx+10, yy-4-li*5, line)
                         elif interrupted:
                             c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica",4.5); c.drawString(cx+2, cy-14, "INTERRUPTION")
-            legend_y=58; legend_cols=5; legend_cell=(lw-72)/legend_cols; c.setFont("Helvetica", 6.6)
+            legend_y=54; legend_cols=5; legend_cell=(lw-72)/legend_cols; c.setFont("Helvetica", 6.1)
             for li, code in enumerate(AFC_APS_SSIAP_SUMMARY_ORDER):
-                label=AFC_APS_SSIAP_LABELS[code]; lx=36+(li%legend_cols)*legend_cell; ly=legend_y-(li//legend_cols)*18
-                c.setFillColor(colors.HexColor(colors_by_cat[code])); c.circle(lx+5, ly+3, 4, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor("#111827")); c.drawString(lx+14, ly, label)
+                label=AFC_APS_SSIAP_LABELS[code]; lx=36+(li%legend_cols)*legend_cell; ly=legend_y-(li//legend_cols)*16
+                c.setFillColor(colors.HexColor("#f8fafc")); c.roundRect(lx, ly-7, legend_cell-5, 13, 3, fill=1, stroke=0)
+                c.setFillColor(colors.HexColor(colors_by_cat[code])); c.circle(lx+6, ly-1, 3, fill=1, stroke=0)
+                c.setFillColor(colors.HexColor("#111827")); draw_wrapped_text(c, label, lx+14, ly+1, legend_cell-22, "Helvetica", 6.1, 6.5)
+            c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(36, 28, lw-36, 28)
+            c.setFillColor(colors.HexColor("#6b7280")); c.setFont("Helvetica", 6.4)
+            c.drawString(36, 18, f"Édité le {edited}")
+            c.drawCentredString(lw/2, 18, "Intégrale Academy — calendrier récapitulatif AFC")
+            c.drawRightString(lw-36, 18, f"Page {page_no - 1} / {total_pages}")
     c.save()
     return {"planning_data": planning_data, "totals": summary["uv_totals"], "total_hours": summary["total_hours"], "summary": summary}
 
@@ -5740,6 +5786,7 @@ def create_session():
     date_debut = request.form.get("date_debut","").strip()
     date_fin = request.form.get("date_fin","").strip()
     date_exam = request.form.get("date_exam","").strip()
+    contractual_end_date = request.form.get("contractual_end_date", "").strip()
     interruptions = request.form.get("interruptions", "").strip()
     dirigeant_location = request.form.get("dirigeant_location", "").upper().strip()
     if formation not in FORMATION_COLORS:
@@ -5766,15 +5813,23 @@ def create_session():
         if not date_debut:
             flash("La date de début est obligatoire pour l'AFC APS + SSIAP.", "error")
             return redirect(url_for("sessions_home"))
+        if not contractual_end_date:
+            flash("La date de fin souhaitée est obligatoire pour l'AFC APS + SSIAP.", "error")
+            return redirect(url_for("sessions_home"))
         session["display_name"] = "AFC France Travail APS + SSIAP"
         session["interruptions"] = interruptions
         session["training_code"] = "AFC_APS_SSIAP"
         session["salle"] = "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"
-        planning_data = build_afc_aps_ssiap_planning_data(parse_date(date_debut).date(), "", session["salle"], parse_interruption_ranges(interruptions))
-        session["date_fin"] = planning_data[-1]["date"]
+        end_dt = parse_date(contractual_end_date)
+        if not end_dt:
+            flash("La date de fin souhaitée AFC est invalide.", "error")
+            return redirect(url_for("sessions_home"))
+        session["contractual_end_date"] = end_dt.date().isoformat()
+        planning_data = build_afc_aps_ssiap_planning_data(parse_date(date_debut).date(), "", session["salle"], parse_interruption_ranges(interruptions), contractual_end_date=end_dt.date())
+        session["date_fin"] = session["contractual_end_date"]
         session["date_exam"] = planning_data[-1]["date"]
         session["apsPlanningData"] = planning_data
-        session["apsPlanningSummary"] = afc_aps_ssiap_summary_from_data(planning_data)
+        session["apsPlanningSummary"] = afc_aps_ssiap_summary_from_data(planning_data, parse_interruption_ranges(interruptions), contractual_end_date=end_dt.date())
         session["apsPlanningMode"] = "full_presentiel"
         filename = f"planning_afc_aps_ssiap_session_{sid}.pdf"
         generate_aps_planning_pdf(session, "", os.path.join(PLANNING_DIR, filename), planning_data=planning_data, planning_mode="full_presentiel", document_profile={"validate":"afc_aps_ssiap", "summary": session["apsPlanningSummary"], "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"})

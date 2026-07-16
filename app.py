@@ -712,6 +712,9 @@ def format_duration_from_minutes(minutes):
     rest = minutes % 60
     return f"{hours:g}h" if rest == 0 else f"{hours:g}h{rest:02d}"
 
+def is_ssiap1_exam_part(part):
+    return (part or "").strip().upper() == "EXAMEN SSIAP 1"
+
 def aps_working_days_between(start_date, end_date, exam_iso=""):
     if not start_date or not end_date or start_date > end_date:
         return []
@@ -1690,7 +1693,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     def period_title(part):
         if document_profile.get("validate") == "ssiap1":
-            if "EXAMEN" in (part or ""):
+            if is_ssiap1_exam_part(part):
                 exam = summary.get("exam") or {}
                 return f"EXAMEN SSIAP 1 — {format_date(exam.get('date'))} — {exam.get('start') or '—'} / {exam.get('end') or '—'}"
             return part
@@ -1813,7 +1816,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                     slot_part = slot.get("part")
                     if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != current_part:
                         current_part = slot_part
-                        band_color = "#b91c1c" if "EXAMEN" in slot_part else ("#6d28d9" if "E-LEARNING" in slot_part else "#0d9488")
+                        band_color = "#b91c1c" if is_ssiap1_exam_part(slot_part) else ("#6d28d9" if "E-LEARNING" in slot_part else "#0d9488")
                         c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
                         c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(slot_part))
                         y -= 34

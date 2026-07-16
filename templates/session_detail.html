@@ -749,7 +749,7 @@ a.back:hover{ background:#d9a848 !important; }
       <a class="detail-nav-link active" href="#session-overview" aria-current="page"><span class="detail-nav-icon">▦</span>Vue d’ensemble</a>
       <a class="detail-nav-link" href="#jury-section"><span class="detail-nav-icon">♙</span>Jury d’examen</a>
       <a class="detail-nav-link" href="#planning-section"><span class="detail-nav-icon">▤</span>Planning PDF</a>
-      {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] or is_ssiap1_session(s) %}
+      {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"] or is_ssiap1_session(s) %}
         <a class="detail-nav-link" href="{{ '#a3p-contracts-section' if s.formation == 'A3P' else '#aps-contracts-section' }}"><span class="detail-nav-icon">📝</span>Contrat formateur</a>
         <a class="detail-nav-link" href="#aps-attendance-section"><span class="detail-nav-icon">📄</span>Feuilles de présence</a>
       {% endif %}
@@ -916,10 +916,10 @@ a.back:hover{ background:#d9a848 !important; }
       {% elif planning_pdf %}
         <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] and planning_pdf and s.apsPlanningData %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] and planning_pdf and s.apsPlanningData %}
         <a class="btn small gold" href="{{ url_for('edit_aps_planning_page', sid=s.id) }}">✏️ Modifier le planning généré</a>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
         <button type="button" class="btn small gold" id="openApsPlanningModal">
           {% if planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
@@ -928,7 +928,7 @@ a.back:hover{ background:#d9a848 !important; }
           {% if a3p_document_exists(s, 'planning') %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] and planning_pdf %}
+      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] and planning_pdf %}
         <button type="button" class="btn small danger" id="openResetApsPlanningModal">🗑️ Réinitialiser le planning</button>
       {% endif %}
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
@@ -955,7 +955,7 @@ a.back:hover{ background:#d9a848 !important; }
     {% if s.planning_modified_at %}
       <div class="planning-status">✏️ Planning modifié le {{ s.planning_modified_at|datetimefr }}</div>
     {% endif %}
-    {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] and planning_pdf and not s.apsPlanningData %}
+    {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] and planning_pdf and not s.apsPlanningData %}
       <div class="flash warning" style="margin-top:10px;">Ce PDF n'a pas encore de données modifiables. Régénérez le planning APS pour créer la structure de modification.</div>
     {% endif %}
     {% if s.planning_history %}
@@ -979,7 +979,7 @@ a.back:hover{ background:#d9a848 !important; }
     </form>
   {% endif %}
 </section>
-{% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT"] or is_ssiap1_session(s) %}
+{% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"] or is_ssiap1_session(s) %}
 <section class="planning-box" id="aps-attendance-section">
   <div class="planning-header">
     <div>
@@ -1054,7 +1054,7 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 </div></div>
 {% endif %}
-{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] %}
+{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
 <div class="modal" id="apsPlanningModal" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
@@ -1062,8 +1062,10 @@ a.back:hover{ background:#d9a848 !important; }
         <h3 style="margin:0;">✨ Générer planning</h3>
         {% if s.formation in ["DESP", "DIRIGEANT"] %}
         <p class="muted" style="margin:6px 0 0;">Planning DESP 244h : 174h e-learning puis 70h présentiel, hors examen, week-ends et jours fériés français.</p>
-        {% elif s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}
+        {% elif s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}
         <p class="muted" style="margin:6px 0 0;">Planning SSIAP 1 : 67h de formation puis examen SSIAP 1 distinct, avec les horaires APS.</p>
+        {% elif s.formation == "AFC_APS_SSIAP" %}
+        <p class="muted" style="margin:6px 0 0;">Planning AFC France Travail APS + SSIAP : 393h, 35h maximum par semaine, 7h par jour, interruptions et jours fériés exclus.</p>
         {% else %}
         <p class="muted" style="margin:6px 0 0;">Planning APS 175h, hors week-ends et jours fériés français.</p>
         <p class="muted" style="margin:6px 0 0;">Choisissez le mode d’organisation de la session APS.</p>
@@ -1072,7 +1074,7 @@ a.back:hover{ background:#d9a848 !important; }
       <button class="modal-close" type="button" id="closeApsPlanningModal" data-modal-close aria-label="Fermer">×</button>
     </div>
     <form id="apsPlanningForm" style="margin-top:18px;">
-      {% if s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% elif s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}<input type="hidden" name="planningMode" value="ssiap1">{% else %}
+      {% if s.formation == "AFC_APS_SSIAP" %}<input type="hidden" name="planningMode" value="full_presentiel"><label><strong>Dates d’interruption (optionnel)</strong><textarea name="interruptions" rows="3" placeholder="Ex : 20/12/2026 au 02/01/2027" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">{{ s.interruptions or '' }}</textarea></label>{% elif s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% elif s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}<input type="hidden" name="planningMode" value="ssiap1">{% else %}
       <fieldset class="aps-planning-mode-fieldset">
         <legend><strong>Type de planning APS</strong> <span aria-hidden="true">*</span></legend>
         <div class="aps-planning-mode-grid" role="radiogroup" aria-required="true">
@@ -1093,7 +1095,7 @@ a.back:hover{ background:#d9a848 !important; }
         </div>
       </fieldset>
       {% endif %}
-      <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>{% if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}Formateur SSIAP 1{% else %}Nom et prénom du formateur{% endif %}</strong></label>
+      <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>{% if s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}Formateur SSIAP 1{% else %}Nom et prénom du formateur{% endif %}</strong></label>
       <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
       <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
       <input id="apsRoom" name="room" type="text" value="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" placeholder="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
@@ -1107,7 +1109,7 @@ a.back:hover{ background:#d9a848 !important; }
       <p class="muted" style="margin:8px 0 0;">Ces dates définissent les deux périodes DESP utilisées pour générer les 174h distancielles puis les 70h présentielles.</p>
       {% endif %}
 
-      {% if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}
+      {% if s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}
       <div class="desp-planning-dates" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;">
         <label><strong>Date d’examen SSIAP 1</strong><input id="ssiapExamDate" name="examDate" type="date" value="{{ s.exam_date or s.date_exam or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
         <label><strong>Salle / lieu d’examen</strong><input id="ssiapExamRoom" name="examRoom" type="text" value="{{ s.exam_room or s.ssiapExamRoom or s.salle or 'Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
@@ -1194,7 +1196,7 @@ a.back:hover{ background:#d9a848 !important; }
 </div></div>
 {% endif %}
 
-{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1"] %}
+{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
 <section class="planning-box" id="aps-contracts-section">
   <div class="planning-header">
     <div>
@@ -1865,7 +1867,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     apsPlanningError.style.display = "block";
     return;
   }
-  if(!formateur){
+  if(!formateur && "{{ s.formation }}" !== "AFC_APS_SSIAP"){
     apsPlanningError.textContent = "Veuillez renseigner le nom et prénom du formateur.";
     apsPlanningError.style.display = "block";
     return;
@@ -1895,7 +1897,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     const response = await fetch("{{ url_for('generate_aps_planning_route', sid=s.id) }}", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({planningMode, trainer: formateur, room, ...despDates, ...ssiapExamData})
+      body: JSON.stringify({planningMode, trainer: formateur, room, interruptions: apsPlanningForm.querySelector('[name="interruptions"]')?.value || "", ...despDates, ...ssiapExamData})
     });
     const payload = await parseApiJson(response, "Réponse invalide pendant la génération du planning.");
     if(!response.ok || !payload.ok){
@@ -1906,7 +1908,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
       showPlanningToast(`Planning généré avec alerte : ${warnings.join(" ")}`, "warning");
     }
     closeApsModal();
-    showPlanningToast(warnings.length ? "Planning généré avec alerte, non bloquant." : {{ ("Planning SSIAP 1 généré avec succès." if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) else "Planning APS généré avec succès.")|tojson }}, warnings.length ? "warning" : "success");
+    showPlanningToast(warnings.length ? "Planning généré avec alerte, non bloquant." : {{ ("Planning SSIAP 1 généré avec succès." if s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") else "Planning APS généré avec succès.")|tojson }}, warnings.length ? "warning" : "success");
     window.open(payload.url, "_blank", "noopener");
     setTimeout(() => window.location.reload(), 800);
   }catch(error){
@@ -2082,7 +2084,7 @@ function renderContractTrainerForm(trainer){
       <label class="aps-contract-field">Diplômes / habilitations<input class="contract-diplomas" placeholder="APS, SST, SSIAP, carte pro..."></label>
       <label class="aps-contract-field">CV formateur<input class="contract-cv" placeholder="à jour / à fournir"></label>
     </div></section>
-    {% if s.formation in ["SSIAP", "SSIAP1"] or "SSIAP" in (s.formation|string|upper) %}
+    {% if s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}
     <section class="aps-contract-section"><h4 class="aps-contract-section__title">Examen SSIAP 1</h4><div class="aps-contract-grid">
       <label class="aps-contract-field">Intervention à l’examen<select class="contract-exam-attends"><option value="false">Non</option><option value="true">Oui</option></select></label>
       <label class="aps-contract-field">Heures examen<input type="number" min="0" step="0.25" class="contract-exam-hours" value="0"></label>

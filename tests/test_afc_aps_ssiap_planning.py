@@ -1,4 +1,9 @@
 from datetime import date, datetime
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 
 from app import (
     AFC_APS_SSIAP_EXPECTED_MINUTES,
@@ -94,3 +99,41 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "Calendrier récapitulatif AFC APS + SSIAP" in text
     last = reader.pages[-1].mediabox
     assert float(last.width) > float(last.height)
+
+
+def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, monkeypatch):
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    session = {
+        "id": "afc-reference",
+        "formation": "AFC_APS_SSIAP",
+        "training_code": "AFC_APS_SSIAP",
+        "display_name": "AFC France Travail APS + SSIAP",
+        "date_debut": "2026-11-16",
+        "interruptions": "23/12/2026 au 04/01/2027",
+    }
+    saved = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+    monkeypatch.setattr(application, "PLANNING_DIR", str(tmp_path))
+
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.post(
+            "/api/sessions/afc-reference/generate-aps-planning",
+            json={
+                "trainer": "VAILLANT Clément",
+                "room": "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS",
+                "interruptions": "23/12/2026 au 04/01/2027",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    assert session["date_exam"] == "2027-02-15"
+    assert session["date_fin"] == "2027-02-15"
+    assert session["apsPlanningSummary"]["total_hours"] == 393

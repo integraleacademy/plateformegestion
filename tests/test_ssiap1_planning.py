@@ -7,6 +7,7 @@ from app import (
     SSIAP1_SEQUENCE_TOTALS,
     SSIAP1_TOTAL_HOURS,
     build_ssiap1_planning_data,
+    is_ssiap1_exam_part,
     ssiap1_summary_from_data,
 )
 
@@ -118,3 +119,8 @@ def test_ssiap1_planning_skips_excluded_dates_from_payload():
     assert "2026-10-19" not in training_dates
     assert training_dates[-1] == "2026-10-28"
     assert ssiap1_summary_from_data(planning)["errors"] == []
+
+
+def test_ssiap1_revision_part_is_not_treated_as_exam_banner():
+    assert is_ssiap1_exam_part("EXAMEN SSIAP 1") is True
+    assert is_ssiap1_exam_part("RÉVISIONS GÉNÉRALES ET PRÉPARATION À L’EXAMEN SSIAP 1 — 3 h") is False

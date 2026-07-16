@@ -1538,7 +1538,7 @@ AFC_APS_SSIAP_EXPECTED_MINUTES = {
     "SP": 45 * 60,
     "PAF": 20 * 60,
 }
-AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "SP", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN", "PAF"]
+AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"]
 AFC_APS_SSIAP_LABELS = {
     "RAN": "RAN", "ACCUEIL": "Accueil", "APS": "APS", "SP": "SP",
     "EXAM_APS": "Examen APS", "H0B0": "H0B0", "SSIAP1": "SSIAP 1",
@@ -1547,6 +1547,18 @@ AFC_APS_SSIAP_LABELS = {
 AFC_DAY_SEGMENTS = ((8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30))
 AFC_TECHNICAL_CODES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
 AFC_ACCOMPANIMENT_CODES = {"SP", "PAF"}
+AFC_CATEGORY_COLORS = {
+    "RAN": "#bfdbfe",
+    "ACCUEIL": "#5eead4",
+    "APS": "#1d4ed8",
+    "EXAM_APS": "#581c87",
+    "H0B0": "#fde047",
+    "SSIAP1": "#fb923c",
+    "EXAM_SSIAP1": "#dc2626",
+    "SP": "#d8b4fe",
+    "PAF": "#86efac",
+    "BILAN": "#374151",
+}
 
 def parse_interruption_ranges(value):
     ranges = []
@@ -1621,68 +1633,121 @@ def afc_active_weeks(start_date, interruptions, count):
     return weeks
 
 def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None):
-    """Génère génériquement les créneaux AFC à partir des demi-journées 08h30-12h30 et 13h30-16h30."""
+    """Génère le parcours AFC via une machine à états stricte.
+
+    La RAN est un bloc initial fermé : aucun Accueil, APS, SP ou PAF n'est
+    éligible tant que les 55h de RAN ne sont pas entièrement consommées.
+    L'Accueil est ensuite consommé avant toute formation technique APS/SSIAP et
+    avant tout accompagnement transversal. Les demi-journées fixes évitent tout
+    créneau traversant la pause déjeuner.
+    """
     interruptions = interruptions or []
-    sp_weeks = set(afc_active_weeks(start_date, interruptions, 9))
-    accompaniment = {week: ("SP" if week in sp_weeks else None) for week in sp_weeks}
-    main_sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in afc_build_main_sequence()]
-    idx = 0; day = start_date; day_map = {}; week_buckets = {}; paf_started = False; paf_remaining = 20*60
-    sp_remaining = 45*60
+    raw_sequence = afc_build_main_sequence()
+    bilan_template = next(m for m in raw_sequence if m["category"] == "BILAN")
+    main_sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in raw_sequence if m["category"] != "BILAN"]
+    bilan_module = dict(bilan_template, remainingMinutes=bilan_template["durationMinutes"])
+    idx = 0
+    day = start_date
+    day_map = {}
+    week_buckets = {}
+    sp_remaining = AFC_APS_SSIAP_EXPECTED_MINUTES["SP"]
+    paf_remaining = AFC_APS_SSIAP_EXPECTED_MINUTES["PAF"]
+    sp_weeks_used = set()
+    paf_weeks_used = set()
+    technical_started = False
+    accueil_completed = False
     safety = 0
-    while (idx < len(main_sequence) or sp_remaining or paf_remaining) and safety < 500:
+
+    def current_week_bucket(current_day):
+        return week_buckets.setdefault(current_day.isocalendar()[:2], {"total": 0, "technical": 0, "RAN": 0, "SP": 0, "PAF": 0})
+
+    def add_slot(current_day, slots, start_minute, minutes, module, bucket):
+        end_minute = start_minute + minutes
+        slot = afc_slot_from_module(current_day, start_minute, end_minute, module, trainer, room)
+        slots.append(slot)
+        cat = slot["afcCategory"]
+        bucket["total"] += minutes
+        if cat in AFC_TECHNICAL_CODES:
+            bucket["technical"] += minutes
+        if cat in {"RAN", "SP", "PAF"}:
+            bucket[cat] += minutes
+        return end_minute
+
+    def transverse_module(code):
+        if code == "SP":
+            return {"code":"SP", "category":"SP", "uv":"SP", "title":"Soutien personnalisé (SP)", "content":"Accompagnement transversal", "afcKind":"SP"}
+        return {"code":"PAF", "category":"PAF", "uv":"PAF", "title":"Préparation à l’après-formation (PAF)", "content":"Accompagnement transversal", "afcKind":"PAF"}
+
+    while (idx < len(main_sequence) or sp_remaining > 0 or paf_remaining > 0 or bilan_module["remainingMinutes"] > 0) and safety < 700:
         safety += 1
         if not is_afc_working_day(day, interruptions):
-            day += timedelta(days=1); continue
+            day += timedelta(days=1)
+            continue
         week = day.isocalendar()[:2]
-        bucket = week_buckets.setdefault(week, {"total":0,"technical":0,"RAN":0,"SP":0,"PAF":0})
+        bucket = current_week_bucket(day)
         slots = []
         for seg_start, seg_end in AFC_DAY_SEGMENTS:
             cursor = seg_start
-            while cursor < seg_end:
+            while cursor < seg_end and bucket["total"] < 35 * 60:
                 remaining_seg = seg_end - cursor
-                code_to_place = None
-                if week in sp_weeks and sp_remaining > 0 and bucket["SP"] < 300 and bucket["total"] < 35*60:
-                    code_to_place = "SP"
-                    take = min(remaining_seg, 300-bucket["SP"], 35*60-bucket["total"], sp_remaining)
-                    module = {"code":"SP", "category":"SP", "uv":"SP", "title":"Soutien personnalisé (SP)", "content":"Accompagnement transversal", "afcKind":"SP"}
-                elif sp_remaining <= 0 and paf_remaining > 0 and bucket["SP"] == 0 and bucket["PAF"] < 300 and bucket["total"] < 35*60:
-                    module = {"code":"PAF", "category":"PAF", "uv":"PAF", "title":"Préparation à l’après-formation (PAF)", "content":"Accompagnement transversal", "afcKind":"PAF"}
-                    take = min(remaining_seg, 300-bucket["PAF"], 35*60-bucket["total"], paf_remaining)
-                    code_to_place = "PAF"
-                elif idx < len(main_sequence):
-                    module = main_sequence[idx]; cat = module["category"]
-                    tech_room = (30*60 - bucket["technical"]) if cat in AFC_TECHNICAL_CODES else 99999
-                    total_room = 35*60 - bucket["total"]
-                    if total_room <= 0 or tech_room <= 0:
-                        break
-                    take = min(remaining_seg, module["remainingMinutes"], total_room, tech_room)
-                    code_to_place = cat
-                elif paf_remaining > 0:
-                    paf_started = True
-                    if bucket["SP"] or bucket["PAF"] >= 300 or bucket["total"] >= 35*60:
-                        break
-                    module = {"code":"PAF", "category":"PAF", "uv":"PAF", "title":"Préparation à l’après-formation (PAF)", "content":"Accompagnement transversal", "afcKind":"PAF"}
-                    take = min(remaining_seg, 300-bucket["PAF"], 35*60-bucket["total"], paf_remaining)
-                    code_to_place = "PAF"
-                else:
+                placed = False
+
+                if idx < len(main_sequence) or (sp_remaining <= 0 and paf_remaining <= 0 and bilan_module["remainingMinutes"] > 0):
+                    module = main_sequence[idx] if idx < len(main_sequence) else bilan_module
+                    cat = module["category"]
+                    total_room = 35 * 60 - bucket["total"]
+                    if cat == "RAN":
+                        take = min(remaining_seg, module["remainingMinutes"], total_room)
+                    elif cat in AFC_TECHNICAL_CODES:
+                        tech_room = 30 * 60 - bucket["technical"]
+                        take = min(remaining_seg, module["remainingMinutes"], total_room, tech_room) if tech_room > 0 and total_room > 0 else 0
+                    else:
+                        take = 0
+                    if take > 0:
+                        cursor = add_slot(day, slots, cursor, take, module, bucket)
+                        module["remainingMinutes"] -= take
+                        placed = True
+                        if cat in AFC_TECHNICAL_CODES and cat != "ACCUEIL":
+                            technical_started = True
+                        if module["remainingMinutes"] == 0:
+                            if cat == "ACCUEIL":
+                                accueil_completed = True
+                            if idx < len(main_sequence) and module is main_sequence[idx]:
+                                idx += 1
+                        continue
+
+                # Accompagnements transversaux uniquement après RAN + Accueil,
+                # et uniquement après avoir tenté de placer la formation du jour.
+                if accueil_completed and technical_started:
+                    total_room = 35 * 60 - bucket["total"]
+                    accomp_room = 5 * 60 - bucket["SP"] - bucket["PAF"]
+                    if total_room > 0 and accomp_room > 0:
+                        code = None
+                        if sp_remaining > 0 and week not in sp_weeks_used and bucket["PAF"] == 0:
+                            code = "SP"
+                        elif sp_remaining <= 0 and paf_remaining > 0 and week not in paf_weeks_used and bucket["SP"] == 0:
+                            code = "PAF"
+                        if code:
+                            take = min(remaining_seg, total_room, accomp_room, sp_remaining if code == "SP" else paf_remaining)
+                            if take > 0:
+                                cursor = add_slot(day, slots, cursor, take, transverse_module(code), bucket)
+                                if code == "SP":
+                                    sp_remaining -= take
+                                    if bucket["SP"] >= 5 * 60:
+                                        sp_weeks_used.add(week)
+                                else:
+                                    paf_remaining -= take
+                                    if bucket["PAF"] >= 5 * 60:
+                                        paf_weeks_used.add(week)
+                                placed = True
+                                continue
+                if not placed:
                     break
-                if take <= 0: break
-                slots.append(afc_slot_from_module(day, cursor, cursor+take, module, trainer, room))
-                bucket["total"] += take
-                if code_to_place in AFC_TECHNICAL_CODES: bucket["technical"] += take
-                if code_to_place == "RAN": bucket["RAN"] += take
-                if code_to_place == "SP": bucket["SP"] += take; sp_remaining -= take
-                if code_to_place == "PAF": bucket["PAF"] += take; paf_remaining -= take
-                if idx < len(main_sequence) and module is main_sequence[idx]:
-                    module["remainingMinutes"] -= take
-                    if module["remainingMinutes"] == 0: idx += 1
-                cursor += take
-                if bucket["total"] >= 35*60: break
         if slots:
             item = day_map.setdefault(day.isoformat(), {"date": day.isoformat(), "dayLabel": aps_day_label(day), "category":"afc_aps_ssiap", "slots": []})
             item["slots"].extend(slots)
         day += timedelta(days=1)
-    if safety >= 500:
+    if safety >= 700:
         raise ValueError("Impossible de générer le planning AFC APS + SSIAP dans une fenêtre raisonnable.")
     planning = [day_map[k] for k in sorted(day_map)]
     summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions)
@@ -1720,6 +1785,39 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None):
     for code, expected in AFC_APS_SSIAP_EXPECTED_MINUTES.items():
         if totals.get(code, 0) != expected: errors.append(f"{AFC_APS_SSIAP_LABELS.get(code, code)} doit totaliser {format_duration_from_minutes(expected)} (actuel: {format_duration_from_minutes(totals.get(code,0))}).")
     if total != AFC_APS_SSIAP_TOTAL_HOURS * 60: errors.append(f"Le total AFC doit être de 393h (actuel: {total/60:g}h).")
+    ordered_slots = []
+    for day in sorted(planning_data or [], key=lambda d: d.get("date") or ""):
+        for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
+            cat = slot.get("afcCategory") or slot.get("uv") or ""
+            ordered_slots.append((day.get("date"), slot.get("start"), slot.get("end"), cat, slot))
+    def first_time(cat):
+        return next(((d, st) for d, st, _e, ccat, _s in ordered_slots if ccat == cat), None)
+    def last_end(cat):
+        matches = [(d, e) for d, _st, e, ccat, _s in ordered_slots if ccat == cat]
+        return matches[-1] if matches else None
+    strict_order = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1"]
+    for before, after in zip(strict_order, strict_order[1:]):
+        if first_time(after) and last_end(before) and first_time(after) < last_end(before):
+            errors.append(f"Ordre AFC invalide: {AFC_APS_SSIAP_LABELS[after]} commence avant la fin de {AFC_APS_SSIAP_LABELS[before]}.")
+    ran_end = last_end("RAN")
+    accueil_end = last_end("ACCUEIL")
+    if ran_end:
+        for d, st, _e, cat, _slot in ordered_slots:
+            if cat != "RAN" and (d, st) < ran_end:
+                errors.append("Une activité non RAN est planifiée avant la fin complète des 55h de RAN.")
+                break
+    if accueil_end:
+        for d, st, _e, cat, _slot in ordered_slots:
+            if cat in {"APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"} and (d, st) < accueil_end:
+                errors.append("Une activité technique/SP/PAF est planifiée avant la fin complète de l’Accueil.")
+                break
+    if ordered_slots and ordered_slots[-1][3] != "BILAN":
+        errors.append("Le Bilan doit être la dernière activité du parcours AFC.")
+    for _d, _st, _e, _cat, slot in ordered_slots:
+        visible = " ".join(str(slot.get(k) or "") for k in ("uv", "sequence", "part", "title", "content"))
+        if any(bad in visible for bad in ("None", "null", "undefined")) or not (slot.get("title") or "").strip():
+            errors.append("Un créneau AFC contient un libellé vide ou invalide.")
+            break
     rows = [{"uv": code, "label": AFC_APS_SSIAP_LABELS[code], "title": AFC_APS_SSIAP_LABELS[code], "hours": round(totals.get(code,0)/60,2), "expected": round(AFC_APS_SSIAP_EXPECTED_MINUTES[code]/60,2), "modality":"presentiel"} for code in AFC_APS_SSIAP_SUMMARY_ORDER]
     return {"total_hours": round(total/60,2), "uv_totals": {k: round(v/60,2) for k,v in totals.items()}, "uv_rows": rows, "modality_totals": {"presentiel": round(total/60,2)}, "weekly": {str(k): {kk: round(vv/60,2) for kk,vv in b.items()} for k,b in week_buckets.items()}, "days_count": len(planning_data or []), "slots_count": sum(len(d.get("slots", [])) for d in planning_data or []), "errors": errors}
 
@@ -2150,7 +2248,10 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                         y -= 34
                     h = planning_card_height(slot, printable_width)
                     c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(margin, y - h + 5, printable_width, h, 6, fill=1, stroke=1)
-                    modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
+                    if document_profile.get("validate") == "afc_aps_ssiap":
+                        modality_color = AFC_CATEGORY_COLORS.get(slot.get("afcCategory"), "#0d9488")
+                    else:
+                        modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
                     c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
                     modality_label = "Examen" if slot.get("modality") == "exam" else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
 
@@ -2224,7 +2325,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setFont("Helvetica", 9)
         if document_profile.get("validate") == "afc_aps_ssiap":
             for code in AFC_APS_SSIAP_SUMMARY_ORDER:
-                c.drawString(margin, y, f"{AFC_APS_SSIAP_LABELS[code]} : {format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace('h', ' h')}"); y -= 13
+                c.setFillColor(colors.HexColor(AFC_CATEGORY_COLORS[code])); c.rect(margin, y - 7, 8, 8, fill=1, stroke=0)
+                c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 12, y, f"{AFC_APS_SSIAP_LABELS[code]} : {format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace('h', ' h')}"); y -= 13
             c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "TOTAL : 393 h"); y -= 20
         elif document_profile.get("validate") == "ssiap1":
             c.drawString(margin, y, f"12/10/2026 : 7 h • 13/10/2026 : 7 h • Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
@@ -2320,7 +2422,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setPageSize(landscape(A4)); lw, lh = landscape(A4)
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16); c.drawString(36, lh-36, "Calendrier récapitulatif AFC APS + SSIAP")
         c.setFont("Helvetica", 8); c.drawRightString(lw-36, 24, f"Page {total_pages} / {total_pages}")
-        colors_by_cat = {"RAN":"#bfdbfe","ACCUEIL":"#5eead4","APS":"#1d4ed8","EXAM_APS":"#581c87","H0B0":"#fde047","SSIAP1":"#fb923c","EXAM_SSIAP1":"#dc2626","SP":"#d8b4fe","PAF":"#86efac","BILAN":"#374151"}
+        colors_by_cat = AFC_CATEGORY_COLORS
         legend_x=36; legend_y=44; c.setFont("Helvetica", 7)
         for code in AFC_APS_SSIAP_SUMMARY_ORDER:
             c.setFillColor(colors.HexColor(colors_by_cat[code])); c.rect(legend_x, legend_y, 10, 8, fill=1, stroke=0); c.setFillColor(colors.HexColor("#111827")); c.drawString(legend_x+13, legend_y, AFC_APS_SSIAP_LABELS[code]); legend_x += 76
@@ -5907,10 +6009,11 @@ def generate_aps_planning_route(sid):
     try:
         session_data["salle"] = room
         if is_afc:
-            interruptions = parse_interruption_ranges(payload.get("interruptions") or session_data.get("interruptions"))
+            interruption_payload = payload.get("interruptions") if "interruptions" in payload else session_data.get("interruptions")
+            interruptions = parse_interruption_ranges(interruption_payload)
             planning_data = build_afc_aps_ssiap_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, interruptions)
-            summary = afc_aps_ssiap_summary_from_data(planning_data)
-            session_data["interruptions"] = payload.get("interruptions") or session_data.get("interruptions") or ""
+            summary = afc_aps_ssiap_summary_from_data(planning_data, interruptions)
+            session_data["interruptions"] = "\n".join(f"{start.isoformat()} au {end.isoformat()}" for start, end in interruptions)
             session_data["date_fin"] = planning_data[-1]["date"]
             session_data["date_exam"] = planning_data[-1]["date"]
             result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="full_presentiel", document_profile={"validate":"afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"})

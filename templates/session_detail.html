@@ -1074,7 +1074,7 @@ a.back:hover{ background:#d9a848 !important; }
       <button class="modal-close" type="button" id="closeApsPlanningModal" data-modal-close aria-label="Fermer">×</button>
     </div>
     <form id="apsPlanningForm" style="margin-top:18px;">
-      {% if s.formation == "AFC_APS_SSIAP" %}<input type="hidden" name="planningMode" value="full_presentiel"><label><strong>Dates d’interruption (optionnel)</strong><textarea name="interruptions" rows="3" placeholder="Ex : 20/12/2026 au 02/01/2027" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">{{ s.interruptions or '' }}</textarea></label>{% elif s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% elif s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}<input type="hidden" name="planningMode" value="ssiap1">{% else %}
+      {% if s.formation == "AFC_APS_SSIAP" %}<input type="hidden" name="planningMode" value="full_presentiel"><label><strong>Date de début</strong><input type="date" value="{{ s.date_debut or '' }}" disabled style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;background:#f9fafb;"></label><div id="afcInterruptionsBuilder" data-initial="{{ s.interruptions or '' }}" style="margin-top:14px;"><strong>Périodes d’interruption inclusives (optionnel)</strong><div id="afcInterruptionsRows" style="display:grid;gap:10px;margin-top:8px;"></div><button type="button" class="btn small" id="addAfcInterruption" style="margin-top:8px;">Ajouter une interruption</button><input type="hidden" name="interruptions" id="afcInterruptionsPayload" value="{{ s.interruptions or '' }}"></div>{% elif s.formation in ["DESP", "DIRIGEANT"] %}<input type="hidden" name="planningMode" value="desp">{% elif s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}<input type="hidden" name="planningMode" value="ssiap1">{% else %}
       <fieldset class="aps-planning-mode-fieldset">
         <legend><strong>Type de planning APS</strong> <span aria-hidden="true">*</span></legend>
         <div class="aps-planning-mode-grid" role="radiogroup" aria-required="true">
@@ -1857,6 +1857,35 @@ confirmResetApsPlanning?.addEventListener("click", async () => {
   }
 });
 
+function collectAfcInterruptions(){
+  const rows = [...document.querySelectorAll(".afc-interruption-row")];
+  const values = rows.map(row => ({start: row.querySelector(".afc-interruption-start")?.value || "", end: row.querySelector(".afc-interruption-end")?.value || ""})).filter(item => item.start && item.end);
+  const payload = document.getElementById("afcInterruptionsPayload");
+  if(payload) payload.value = values.map(item => `${item.start} au ${item.end}`).join("\n");
+  return values;
+}
+function addAfcInterruptionRow(start="", end=""){
+  const wrap = document.getElementById("afcInterruptionsRows");
+  if(!wrap) return;
+  const row = document.createElement("div");
+  row.className = "afc-interruption-row";
+  row.style.cssText = "display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;";
+  row.innerHTML = `<label>Début inclus<input class="afc-interruption-start" type="date" value="${start}" style="width:100%;margin-top:5px;padding:10px;border:1px solid #dcdfe5;border-radius:10px;"></label><label>Fin incluse<input class="afc-interruption-end" type="date" value="${end || start}" style="width:100%;margin-top:5px;padding:10px;border:1px solid #dcdfe5;border-radius:10px;"></label><button type="button" class="btn small danger">Supprimer</button>`;
+  row.querySelector("button")?.addEventListener("click", () => { row.remove(); collectAfcInterruptions(); });
+  row.querySelectorAll("input").forEach(input => input.addEventListener("change", collectAfcInterruptions));
+  wrap.appendChild(row);
+  collectAfcInterruptions();
+}
+document.getElementById("addAfcInterruption")?.addEventListener("click", () => addAfcInterruptionRow());
+(function hydrateAfcInterruptions(){
+  const builder = document.getElementById("afcInterruptionsBuilder");
+  if(!builder) return;
+  const raw = builder.dataset.initial || "";
+  const matches = [...raw.matchAll(/(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})\s*(?:au|à|a|-|→)\s*(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/gi)];
+  const toIso = v => v.includes("/") ? v.split("/").reverse().join("-") : v;
+  if(matches.length) matches.forEach(m => addAfcInterruptionRow(toIso(m[1]), toIso(m[2])));
+})();
+
 apsPlanningForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formateur = apsFormateur.value.trim();
@@ -1897,7 +1926,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     const response = await fetch("{{ url_for('generate_aps_planning_route', sid=s.id) }}", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({planningMode, trainer: formateur, room, interruptions: apsPlanningForm.querySelector('[name="interruptions"]')?.value || "", ...despDates, ...ssiapExamData})
+      body: JSON.stringify({planningMode, trainer: formateur, room, interruptions: collectAfcInterruptions(), ...despDates, ...ssiapExamData})
     });
     const payload = await parseApiJson(response, "Réponse invalide pendant la génération du planning.");
     if(!response.ok || !payload.ok){

@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import (
     AFC_APS_SSIAP_EXPECTED_MINUTES,
+    AFC_CATEGORY_COLORS,
     AFC_TECHNICAL_CODES,
     build_afc_aps_ssiap_planning_data,
     afc_aps_ssiap_summary_from_data,
@@ -26,11 +27,25 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
 
     assert summary["errors"] == []
     assert planning[0]["date"] == "2026-11-16"
-    assert planning[-1]["date"] == "2027-02-15"
+    assert planning[-1]["date"] == "2027-03-16"
     assert "2027-01-05" in {day["date"] for day in planning}
-    assert all(day["date"] < "2027-02-16" for day in planning)
     assert summary["total_hours"] == 393
     assert summary["uv_totals"] == {code: minutes / 60 for code, minutes in AFC_APS_SSIAP_EXPECTED_MINUTES.items()}
+
+    first_week = [day for day in planning if "2026-11-16" <= day["date"] <= "2026-11-20"]
+    assert sum(slot["durationMinutes"] for day in first_week for slot in day["slots"]) == 35 * 60
+    assert {slot["afcCategory"] for day in first_week for slot in day["slots"]} == {"RAN"}
+    for date_value in ("2026-11-23", "2026-11-24"):
+        day = next(item for item in planning if item["date"] == date_value)
+        assert {slot["afcCategory"] for slot in day["slots"]} == {"RAN"}
+    ran_slots = [slot for day in planning for slot in day["slots"] if slot["afcCategory"] == "RAN"]
+    assert ran_slots[-1]["end"] == "15:30"
+    assert next(day for day in planning if day["date"] == "2026-11-25")["slots"][-1]["afcCategory"] == "ACCUEIL"
+    assert next(day for day in planning if day["date"] == "2026-11-26")["slots"][0]["end"] == "11:00"
+    flattened = [(day["date"], slot["start"], slot["end"], slot["afcCategory"]) for day in planning for slot in day["slots"]]
+    assert next(item for item in flattened if item[3] == "APS")[:2] == ("2026-11-26", "11:00")
+    assert next(item for item in flattened if item[3] == "SP") >= ("2026-12-01", "13:30", "", "")
+    assert flattened[-1][3] == "BILAN"
 
     weekly = {}
     for day in planning:
@@ -97,6 +112,8 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "AFC France Travail APS + SSIAP" in text
     assert "Agent de Prévention et de Sécurité" not in text
     assert "Calendrier récapitulatif AFC APS + SSIAP" in text
+    assert set(AFC_CATEGORY_COLORS) == set(AFC_APS_SSIAP_EXPECTED_MINUTES)
+    assert "RAN" in text and "PAF" in text and "Bilan" in text
     last = reader.pages[-1].mediabox
     assert float(last.width) > float(last.height)
 
@@ -134,6 +151,6 @@ def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, mo
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert session["date_exam"] == "2027-02-15"
-    assert session["date_fin"] == "2027-02-15"
+    assert session["date_exam"] == "2027-03-16"
+    assert session["date_fin"] == "2027-03-16"
     assert session["apsPlanningSummary"]["total_hours"] == 393

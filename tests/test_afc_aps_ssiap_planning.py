@@ -154,3 +154,39 @@ def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, mo
     assert session["date_exam"] == "2027-03-16"
     assert session["date_fin"] == "2027-03-16"
     assert session["apsPlanningSummary"]["total_hours"] == 393
+
+
+def test_afc_attendance_pdf_hides_students_before_individual_start_date(tmp_path):
+    from pypdf import PdfReader
+    from app import generate_aps_attendance_pdf
+
+    output = tmp_path / "afc_attendance.pdf"
+    session = {
+        "id": "afc-attendance",
+        "formation": "AFC_APS_SSIAP",
+        "training_code": "AFC_APS_SSIAP",
+        "display_name": "AFC France Travail APS + SSIAP",
+        "date_debut": "2026-11-16",
+        "date_fin": "2026-11-17",
+        "date_exam": "2026-11-17",
+        "salle": "Salle AFC",
+        "apsPlanningMode": "full_presentiel",
+        "apsPlanningData": [
+            {"date": "2026-11-16", "slots": [{"start": "08:30", "end": "12:30", "duration": 4, "uv": "RAN", "title": "RAN", "content": "Accueil", "trainer": "Formateur", "room": "Salle AFC", "modality": "presentiel"}]},
+            {"date": "2026-11-17", "slots": [{"start": "08:30", "end": "12:30", "duration": 4, "uv": "APS", "title": "APS", "content": "Module APS", "trainer": "Formateur", "room": "Salle AFC", "modality": "presentiel"}]},
+        ],
+        "apsAttendanceStudents": [
+            {"lastName": "PREMIER", "firstName": "Alice", "startDate": "2026-11-16"},
+            {"lastName": "RETARD", "firstName": "Bruno", "startDate": "2026-11-17"},
+        ],
+    }
+
+    generate_aps_attendance_pdf(session, str(output))
+
+    reader = PdfReader(str(output))
+    first_day_text = reader.pages[0].extract_text() or ""
+    second_day_text = reader.pages[1].extract_text() or ""
+    assert "PREMIER" in first_day_text
+    assert "RETARD" not in first_day_text
+    assert "PREMIER" in second_day_text
+    assert "RETARD" in second_day_text

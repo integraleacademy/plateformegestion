@@ -1037,7 +1037,7 @@ a.back:hover{ background:#d9a848 !important; }
     <button class="btn" type="submit">Extraire les noms</button>
   </form>
   <div id="apsAttendanceMessage" class="flash warning" style="display:none;margin-top:12px;"></div>
-  <table class="contract-table" style="margin-top:14px;"><thead><tr><th>Nom</th><th>Prénom</th><th>Action</th></tr></thead><tbody id="apsAttendanceStudentsBody"></tbody></table>
+  <table class="contract-table" style="margin-top:14px;"><thead><tr><th>Nom</th><th>Prénom</th>{% if s.formation == "AFC_APS_SSIAP" %}<th>Date d’entrée en formation</th>{% endif %}<th>Action</th></tr></thead><tbody id="apsAttendanceStudentsBody"></tbody></table>
   <div class="planning-actions" style="justify-content:space-between;margin-top:18px;">
     <button type="button" class="btn" id="addApsAttendanceStudent">Ajouter un stagiaire manuellement</button>
     <div><button type="button" class="btn" id="cancelApsAttendance">Annuler</button> <button type="button" class="btn gold" id="saveApsAttendanceStudents">Enregistrer la liste</button></div>
@@ -1956,6 +1956,8 @@ const apsAttendanceStudentsBody = document.getElementById("apsAttendanceStudents
 const apsAttendanceMessage = document.getElementById("apsAttendanceMessage");
 const resetApsAttendanceModal = document.getElementById("resetApsAttendanceModal");
 let apsAttendanceStudents = {{ ((s.a3pAttendanceStudents if s.formation == "A3P" else s.apsAttendanceStudents) or [])|tojson }};
+const apsAttendanceIsAfc = {{ (s.formation == "AFC_APS_SSIAP")|tojson }};
+const apsAttendanceDefaultStartDate = {{ (s.date_debut or "")|tojson }};
 function closeApsAttendanceModal(){ apsAttendanceModal?.classList.remove("open"); apsAttendanceModal?.setAttribute("aria-hidden", "true"); }
 function renderApsAttendanceStudents(){
   const container = document.getElementById("apsAttendanceStudentsBody");
@@ -1964,6 +1966,7 @@ function renderApsAttendanceStudents(){
     const row = document.createElement("tr");
     const lastNameCell = document.createElement("td");
     const firstNameCell = document.createElement("td");
+    const startDateCell = document.createElement("td");
     const actionCell = document.createElement("td");
     const lastNameInput = document.createElement("input");
     lastNameInput.dataset.index = String(index);
@@ -1975,6 +1978,12 @@ function renderApsAttendanceStudents(){
     firstNameInput.dataset.field = "firstName";
     firstNameInput.value = student.firstName || "";
     firstNameInput.style.cssText = "width:100%;padding:8px;";
+    const startDateInput = document.createElement("input");
+    startDateInput.type = "date";
+    startDateInput.dataset.index = String(index);
+    startDateInput.dataset.field = "startDate";
+    startDateInput.value = student.startDate || apsAttendanceDefaultStartDate || "";
+    startDateInput.style.cssText = "width:100%;padding:8px;";
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "btn small danger";
@@ -1982,8 +1991,11 @@ function renderApsAttendanceStudents(){
     deleteButton.textContent = "Supprimer";
     lastNameCell.append(lastNameInput);
     firstNameCell.append(firstNameInput);
+    if(apsAttendanceIsAfc){ startDateCell.append(startDateInput); }
     actionCell.append(deleteButton);
-    row.append(lastNameCell, firstNameCell, actionCell);
+    row.append(lastNameCell, firstNameCell);
+    if(apsAttendanceIsAfc){ row.append(startDateCell); }
+    row.append(actionCell);
     return row;
   }));
 }
@@ -2000,7 +2012,7 @@ document.getElementById("openApsAttendanceManage")?.addEventListener("click", op
 document.getElementById("openApsAttendanceManageFromList")?.addEventListener("click", openApsAttendanceModal);
 document.getElementById("closeApsAttendanceModal")?.addEventListener("click", closeApsAttendanceModal);
 document.getElementById("cancelApsAttendance")?.addEventListener("click", closeApsAttendanceModal);
-document.getElementById("addApsAttendanceStudent")?.addEventListener("click", () => { syncApsAttendanceStudents(); apsAttendanceStudents.push({lastName:"", firstName:""}); renderApsAttendanceStudents(); });
+document.getElementById("addApsAttendanceStudent")?.addEventListener("click", () => { syncApsAttendanceStudents(); apsAttendanceStudents.push({lastName:"", firstName:"", startDate: apsAttendanceIsAfc ? apsAttendanceDefaultStartDate : ""}); renderApsAttendanceStudents(); });
 apsAttendanceStudentsBody?.addEventListener("click", (event) => {
   const btn = event.target.closest("[data-delete-student]");
   if(!btn) return;
@@ -2018,14 +2030,14 @@ apsAttendanceImportForm?.addEventListener("submit", async (event) => {
     const response = await fetch(`/api/sessions/{{ s.id }}/aps-attendance/import-students`, {method:"POST", body});
     const payload = await response.json();
     if(!response.ok || !payload.ok) throw new Error(payload.error || "Import impossible.");
-    apsAttendanceStudents = payload.students || [];
+    apsAttendanceStudents = (payload.students || []).map(student => ({...student, startDate: apsAttendanceIsAfc ? (student.startDate || apsAttendanceDefaultStartDate || "") : (student.startDate || "")}));
     renderApsAttendanceStudents();
     if(payload.message){ apsAttendanceMessage.textContent = payload.message; apsAttendanceMessage.style.display = "block"; }
   }catch(error){ apsAttendanceMessage.textContent = error.message; apsAttendanceMessage.style.display = "block"; }
 });
 document.getElementById("saveApsAttendanceStudents")?.addEventListener("click", async () => {
   syncApsAttendanceStudents();
-  const students = apsAttendanceStudents.map(s => ({lastName:(s.lastName || "").trim(), firstName:(s.firstName || "").trim()})).filter(s => s.lastName && s.firstName);
+  const students = apsAttendanceStudents.map(s => ({lastName:(s.lastName || "").trim(), firstName:(s.firstName || "").trim(), startDate: apsAttendanceIsAfc ? (s.startDate || apsAttendanceDefaultStartDate || "") : (s.startDate || "")})).filter(s => s.lastName && s.firstName);
   try{
     const response = await fetch(`/api/sessions/{{ s.id }}/aps-attendance/students`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({students})});
     const payload = await response.json();

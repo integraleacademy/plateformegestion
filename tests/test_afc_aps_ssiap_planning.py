@@ -31,6 +31,17 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert "2027-01-05" in {day["date"] for day in planning}
     assert summary["total_hours"] == 393
     assert summary["uv_totals"] == {code: minutes / 60 for code, minutes in AFC_APS_SSIAP_EXPECTED_MINUTES.items()}
+    def day_minutes(cat):
+        return {day["date"]: sum(slot["durationMinutes"] for slot in day["slots"] if slot["afcCategory"] == cat) for day in planning if any(slot["afcCategory"] == cat for slot in day["slots"])}
+    assert day_minutes("APS").get("2026-12-07") == 420 and day_minutes("APS").get("2026-12-08") == 420
+    sst_days = [day for day in planning if any(slot["uv"] == "UV1" and "SST" in slot["title"] for slot in day["slots"])]
+    assert [day["date"] for day in sst_days] == ["2026-12-07", "2026-12-08"]
+    assert all(sum(slot["durationMinutes"] for slot in day["slots"]) == 420 for day in sst_days)
+    assert list(day_minutes("EXAM_APS").values()) == [420]
+    assert list(day_minutes("H0B0").values()) == [420]
+    assert list(day_minutes("EXAM_SSIAP1").values()) == [420]
+    assert next(iter(day_minutes("EXAM_SSIAP1"))) == planning[-1]["date"]
+    assert all("None" not in str(slot) for day in planning for slot in day["slots"])
 
     first_week = [day for day in planning if "2026-11-16" <= day["date"] <= "2026-11-20"]
     assert sum(slot["durationMinutes"] for day in first_week for slot in day["slots"]) == 35 * 60
@@ -40,12 +51,15 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
         assert {slot["afcCategory"] for slot in day["slots"]} == {"RAN"}
     ran_slots = [slot for day in planning for slot in day["slots"] if slot["afcCategory"] == "RAN"]
     assert ran_slots[-1]["end"] == "15:30"
-    assert next(day for day in planning if day["date"] == "2026-11-25")["slots"][-1]["afcCategory"] == "ACCUEIL"
-    assert next(day for day in planning if day["date"] == "2026-11-26")["slots"][0]["end"] == "11:00"
+    assert {slot["afcCategory"] for slot in next(day for day in planning if day["date"] == "2026-11-25")["slots"]} == {"RAN"}
+    accueil_day = next(day for day in planning if day["date"] == "2026-11-26")
+    assert [slot["afcCategory"] for slot in accueil_day["slots"][:1]] == ["ACCUEIL"]
+    assert accueil_day["slots"][0]["start"] == "08:30" and accueil_day["slots"][0]["end"] == "12:00"
+    assert all(not (slot["start"] < "12:30" and slot["afcCategory"] != "ACCUEIL") for slot in accueil_day["slots"])
     flattened = [(day["date"], slot["start"], slot["end"], slot["afcCategory"]) for day in planning for slot in day["slots"]]
-    assert next(item for item in flattened if item[3] == "APS")[:2] == ("2026-11-26", "11:00")
+    assert next(item for item in flattened if item[3] == "APS")[:2] == ("2026-11-26", "13:30")
     assert next(item for item in flattened if item[3] == "SP") >= ("2026-12-01", "13:30", "", "")
-    assert flattened[-1][3] == "BILAN"
+    assert flattened[-1][3] == "EXAM_SSIAP1"
 
     weekly = {}
     for day in planning:
@@ -111,7 +125,10 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "Parcours complet" in text
     assert "AFC France Travail APS + SSIAP" in text
     assert "Agent de Prévention et de Sécurité" not in text
-    assert "Calendrier récapitulatif AFC APS + SSIAP" in text
+    assert "CALENDRIER RÉCAPITULATIF" in text
+    assert "AFC FRANCE TRAVAIL APS + SSIAP" in text
+    assert "Novembre 2026" in text and "Mars 2027" in text
+    assert "November" not in text and "March" not in text
     assert set(AFC_CATEGORY_COLORS) == set(AFC_APS_SSIAP_EXPECTED_MINUTES)
     assert "RAN" in text and "PAF" in text and "Bilan" in text
     last = reader.pages[-1].mediabox

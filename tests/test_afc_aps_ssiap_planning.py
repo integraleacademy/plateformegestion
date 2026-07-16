@@ -59,7 +59,22 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert [(slot["start"], slot["end"], slot["afcCategory"]) for slot in accueil_day["slots"][:2]] == [("08:30", "12:00", "ACCUEIL"), ("12:00", "12:30", "APS")]
     flattened = [(day["date"], slot["start"], slot["end"], slot["afcCategory"]) for day in planning for slot in day["slots"]]
     assert next(item for item in flattened if item[3] == "APS")[:2] == ("2026-11-26", "12:00")
-    assert next(item for item in flattened if item[3] == "SP") >= ("2026-11-23", "00:00", "", "")
+    first_sp = next(item for item in flattened if item[3] == "SP")
+    assert first_sp[:2] == ("2026-11-30", "08:30")
+    assert first_sp[0] != accueil_day["date"]
+    assert first_sp[0] != next(item for item in flattened if item[3] == "APS")[0]
+    aps_before_first_sp = sum(
+        slot["durationMinutes"]
+        for day in planning
+        for slot in day["slots"]
+        if slot["afcCategory"] == "APS" and (day["date"], slot["start"]) < first_sp[:2]
+    )
+    assert aps_before_first_sp >= 7 * 60
+    assert any(
+        sum(slot["durationMinutes"] for slot in day["slots"] if slot["afcCategory"] == "APS") == 7 * 60
+        for day in planning
+        if day["date"] < first_sp[0]
+    )
     assert flattened[-1][3] == "EXAM_SSIAP1"
 
     weekly = {}
@@ -164,6 +179,7 @@ def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, mo
                 "trainer": "VAILLANT Clément",
                 "room": "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS",
                 "interruptions": "23/12/2026 au 04/01/2027",
+                "contractual_end_date": "2027-02-15",
             },
         )
 

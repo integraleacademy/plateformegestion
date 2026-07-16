@@ -1811,6 +1811,22 @@ cancelResetApsPlanning?.addEventListener("click", closeResetApsModal);
 resetApsPlanningModal?.addEventListener("click", (event) => {
   if(event.target === resetApsPlanningModal) closeResetApsModal();
 });
+
+async function parseApiJson(response, fallbackMessage){
+  const contentType = response.headers.get("content-type") || "";
+  const text = await response.text();
+  if(contentType.includes("application/json")){
+    try{
+      return text ? JSON.parse(text) : {};
+    }catch(error){
+      throw new Error(fallbackMessage || "Réponse JSON invalide du serveur.");
+    }
+  }
+  const cleanedText = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const details = cleanedText ? ` Détail serveur : ${cleanedText.slice(0, 180)}` : "";
+  throw new Error(`${fallbackMessage || "Le serveur n’a pas renvoyé une réponse JSON valide."}${details}`);
+}
+
 confirmResetApsPlanning?.addEventListener("click", async () => {
   if(resetApsPlanningError){
     resetApsPlanningError.style.display = "none";
@@ -1820,7 +1836,7 @@ confirmResetApsPlanning?.addEventListener("click", async () => {
   confirmResetApsPlanning.textContent = "Réinitialisation...";
   try{
     const response = await fetch("{{ url_for('reset_aps_planning_api', sid=s.id) }}", { method: "DELETE" });
-    const payload = await response.json();
+    const payload = await parseApiJson(response, "Réponse invalide pendant la réinitialisation du planning.");
     if(!response.ok || !payload.success){
       throw new Error(payload.message || "Erreur pendant la réinitialisation du planning.");
     }
@@ -1881,7 +1897,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({planningMode, trainer: formateur, room, ...despDates, ...ssiapExamData})
     });
-    const payload = await response.json();
+    const payload = await parseApiJson(response, "Réponse invalide pendant la génération du planning.");
     if(!response.ok || !payload.ok){
       throw new Error(payload.error || "Erreur pendant la génération du planning.");
     }

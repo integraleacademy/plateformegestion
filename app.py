@@ -1594,7 +1594,7 @@ def afc_dsf_students(session_data):
         first = (st.get("firstName") or st.get("prenom") or "").strip()
         if not (last or first):
             continue
-        result.append({"id": st.get("id") or st.get("studentId") or f"student-{idx+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}".strip(), "entryDate": st.get("entryDate") or st.get("dateEntree") or ""})
+        result.append({"id": st.get("id") or st.get("studentId") or f"student-{idx+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}".strip(), "entryDate": st.get("entryDate") or st.get("dateEntree") or st.get("startDate") or ""})
     return result
 
 def afc_dsf_module_for_slot(slot):
@@ -1637,6 +1637,12 @@ def afc_dsf_billed_keys(dsfs):
 def afc_dsf_next_number(session_data):
     return max([int(d.get("number") or 0) for d in session_data.get("afcDsfs") or []] or [0]) + 1
 
+def afc_dsf_effective_start(period_start, student):
+    entry = (student.get("entryDate") or "").strip()
+    if entry and re.match(r"^\d{4}-\d{2}-\d{2}$", entry):
+        return max(period_start, entry)
+    return period_start
+
 def afc_dsf_compute(session_data, start_iso, end_iso, modules):
     if not is_afc_aps_ssiap_session(session_data): raise ValueError("Session AFC France Travail APS + SSIAP requise.")
     if not modules or len(modules) > 2 or len(set(modules)) != len(modules): raise ValueError("Sélectionnez un ou deux modules maximum.")
@@ -1656,8 +1662,11 @@ def afc_dsf_compute(session_data, start_iso, end_iso, modules):
     for slot in requested:
         requested_hours[slot["module"]] += slot["minutes"] / 60
     for st in students:
-        row = {"id": st["id"], "lastName": st["lastName"], "firstName": st["firstName"], "displayName": st["displayName"], "modules": {m: 0 for m in modules}, "totalHours": 0}
+        row = {"id": st["id"], "lastName": st["lastName"], "firstName": st["firstName"], "displayName": st["displayName"], "entryDate": st.get("entryDate") or "", "modules": {m: 0 for m in modules}, "totalHours": 0}
+        effective_start = afc_dsf_effective_start(start_iso, st)
         for slot in requested:
+            if slot["date"] < effective_start:
+                continue
             key = afc_dsf_slot_key(session_data.get("id"), st["id"], {"date": slot["date"]}, slot, slot["module"])
             if key in billed_keys:
                 already[slot["module"]] += slot["minutes"] / 60
@@ -1674,8 +1683,15 @@ def afc_dsf_compute(session_data, start_iso, end_iso, modules):
     return {"periodStart": start_iso, "periodEnd": end_iso, "modules": modules, "students": student_rows, "studentCount": len(students), "hoursPerStudent": per_student_hours, "moduleTotals": totals, "totalHours": total, "requestedHours": {m: round(requested_hours[m] * len(students), 2) for m in modules}, "alreadyBilledHours": {m: round(already[m], 2) for m in modules}, "billedSlotKeys": billed_slot_keys, "billedSlots": billed_slots, "hasAlreadyBilled": any(v > 0 for v in already.values())}
 
 def afc_dsf_summary(session_data):
-    students = afc_dsf_students(session_data); planned = {m: 0 for m in AFC_DSF_MODULES}
-    for slot in afc_dsf_planned_slots(session_data): planned[slot["module"]] += slot["minutes"] / 60
+    students = afc_dsf_students(session_data)
+    all_slots = afc_dsf_planned_slots(session_data)
+    planned_by_student = {st["id"]: {m: 0 for m in AFC_DSF_MODULES} for st in students}
+    for st in students:
+        effective_start = afc_dsf_effective_start(session_data.get("date_debut") or "", st)
+        for slot in all_slots:
+            if slot["date"] < effective_start:
+                continue
+            planned_by_student[st["id"]][slot["module"]] += slot["minutes"] / 60
     billed_by_student = {st["id"]: {m: 0 for m in AFC_DSF_MODULES} for st in students}
     for dsf in afc_dsf_finalized(session_data.get("afcDsfs") or []):
         for row in dsf.get("students") or []:
@@ -1685,14 +1701,18 @@ def afc_dsf_summary(session_data):
                     if m in billed_by_student[sid]: billed_by_student[sid][m] += float(h or 0)
     cards = []
     for m, meta in AFC_DSF_MODULES.items():
-        per = max(0, planned[m]); billed_total = sum(v[m] for v in billed_by_student.values()); remaining_total = max(0, per * len(students) - billed_total)
-        if remaining_total < 0: app.logger.error("DSF AFC remaining negative session=%s module=%s", session_data.get("id"), m); raise ValueError("Décompte DSF négatif détecté.")
-        cards.append({"code": m, **meta, "plannedPerStudent": round(per,2), "billedTotal": round(billed_total,2), "remainingPerStudent": round(max(0, per - (billed_total / len(students) if students else 0)),2), "remainingTotal": round(remaining_total,2)})
+        planned_values = [planned_by_student.get(st["id"], {}).get(m, 0) for st in students]
+        planned_total = sum(planned_values)
+        billed_total = sum(v[m] for v in billed_by_student.values())
+        remaining_total = planned_total - billed_total
+        if remaining_total < -0.0001: app.logger.error("DSF AFC remaining negative session=%s module=%s", session_data.get("id"), m); raise ValueError("Décompte DSF négatif détecté.")
+        remaining_total = max(0, remaining_total)
+        cards.append({"code": m, **meta, "plannedPerStudent": round((planned_total / len(students)) if students else 0,2), "plannedTotal": round(planned_total,2), "billedTotal": round(billed_total,2), "remainingPerStudent": round((remaining_total / len(students)) if students else 0,2), "remainingTotal": round(remaining_total,2)})
     detail=[]
     for st in students:
         row={"student":st,"modules":{},"plannedTotal":0,"billedTotal":0,"remainingTotal":0}
         for m in AFC_DSF_MODULES:
-            p=planned[m]; b=billed_by_student.get(st["id"],{}).get(m,0); r=max(0,p-b); row["modules"][m]={"planned":round(p,2),"billed":round(b,2),"remaining":round(r,2)}; row["plannedTotal"]+=p; row["billedTotal"]+=b; row["remainingTotal"]+=r
+            p=planned_by_student.get(st["id"],{}).get(m,0); b=billed_by_student.get(st["id"],{}).get(m,0); r=max(0,p-b); row["modules"][m]={"planned":round(p,2),"billed":round(b,2),"remaining":round(r,2)}; row["plannedTotal"]+=p; row["billedTotal"]+=b; row["remainingTotal"]+=r
         detail.append(row)
     return {"cards": cards, "detail": detail, "total": {"theoreticalHours":393,"billedTotal":round(sum(c["billedTotal"] for c in cards),2),"remainingTotal":round(sum(c["remainingTotal"] for c in cards),2)}}
 

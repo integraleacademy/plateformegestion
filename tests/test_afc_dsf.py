@@ -34,6 +34,23 @@ def test_inclusive_dates_and_planning_hours_absences_ignored_no_presence_depende
     assert res["hoursPerStudent"]["RAN"] == 7
     assert res["totalHours"] == 14
 
+
+def test_student_entry_date_reduces_only_that_student_hours():
+    s = sample_session()
+    first_day = s["apsPlanningData"][0]["date"]
+    second_day = s["apsPlanningData"][1]["date"]
+    s["apsAttendanceStudents"][1]["startDate"] = second_day
+    res = afc_dsf_compute(s, first_day, second_day, ["RAN"])
+    rows = {row["lastName"]: row for row in res["students"]}
+    assert rows["DUPONT"]["modules"]["RAN"] == 14
+    assert rows["MARTIN"]["modules"]["RAN"] == 7
+    assert res["moduleTotals"]["RAN"] == 21
+    summary = afc_dsf_summary(s)
+    ran = next(card for card in summary["cards"] if card["code"] == "RAN")
+    assert ran["plannedTotal"] == 103
+    martin = next(row for row in summary["detail"] if row["student"]["lastName"] == "MARTIN")
+    assert martin["modules"]["RAN"]["planned"] == 48
+
 def test_afc_categories_grouped_and_modules_separated():
     s=sample_session(); all_start=s["date_debut"]; all_end=s["date_fin"]
     res=afc_dsf_compute(s,all_start,all_end,["FT","RAN"])

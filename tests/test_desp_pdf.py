@@ -117,12 +117,11 @@ def _attendance_text(tmp_path, planning=None):
 def test_desp_attendance_generates_only_in_person_days_and_70_hours(tmp_path):
     out, reader, text = _attendance_text(tmp_path)
     assert out.exists() and out.stat().st_size > 0
-    assert len(reader.pages) == 10  # 9 journées présentielles + synthèse
-    assert "FEUILLE DE PRÉSENCE — FORMATION DESP" in text
-    assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" in text
-    assert "Nombre de journées présentielles : 9" in text
-    assert "Nombre total d’heures présentielles : 70h" in text
-    assert "Modalité : Présentiel au centre" in text
+    assert len(reader.pages) == 9
+    assert "FEUILLE DE PRÉSENCE" in text
+    assert "FEUILLE DE PRÉSENCE — FORMATION DESP" not in text
+    assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" not in text
+    assert "Synthèse des feuilles de présence" not in text
     for label in ["20/07/2026", "21/07/2026", "22/07/2026", "23/07/2026", "24/07/2026", "27/07/2026", "28/07/2026", "29/07/2026", "30/07/2026"]:
         assert label in text
     for label in ["12/06/2026", "17/07/2026", "31/07/2026"]:
@@ -161,7 +160,7 @@ def test_desp_attendance_helper_excludes_empty_elearning_distance_exam_slots():
 def test_desp_attendance_no_blank_sheet_for_day_without_in_person_slot(tmp_path):
     planning = _planning() + [{"date": "2026-07-18", "dayLabel": "Samedi 18/07/2026", "slots": [{"start": "08:30", "end": "10:30", "duration": 2, "durationMinutes": 120, "uv": "DESP-E99", "title": "Journée vide", "modality": "elearning"}]}]
     _out, reader, text = _attendance_text(tmp_path, planning)
-    assert len(reader.pages) == 10
+    assert len(reader.pages) == 9
     assert "18/07/2026" not in text
     assert "DESP-E99" not in text
 
@@ -176,18 +175,14 @@ def test_desp_attendance_header_layout_stays_right_of_logo():
     margin = 10 * mm
     header = app.desp_attendance_header_layout(width, height, margin, stringWidth)
     logo = header["logo"]
-    assert header["text_left"] == logo["x"] + logo["width"] + 14
-    assert header["text_left"] > logo["x"] + logo["width"]
-    assert header["text_right"] == width - margin
-    for line in header["lines"]:
-        assert line["x"] >= margin
-        assert line["x"] >= header["text_left"]
-        assert line["x"] + line["width"] <= header["text_right"]
-        assert line["width"] <= header["text_width"]
-        assert line["x"] >= logo["x"] + logo["width"]
+    aps_header = app.attendance_header_layout(width, height, margin, stringWidth, subtitle="Agent de Prévention et de Sécurité (APS)")
+    assert header["logo"] == aps_header["logo"]
+    assert header["title"]["x"] == aps_header["title"]["x"]
+    assert header["title"]["y"] == aps_header["title"]["y"]
+    assert header["session_y"] == aps_header["session_y"]
     assert header["lines"][0]["text"].startswith("FEUILLE DE PRÉSENCE")
     assert "FEUILLES DE PRÉSENCE" not in header["lines"][0]["text"]
-    assert "PÉRIODE PRÉSENTIELLE" in header["lines"][1]["text"]
+    assert "PÉRIODE PRÉSENTIELLE" not in "\n".join(line["text"] for line in header["lines"])
     assert header["session_y"] < min(line["y"] for line in header["lines"]) - 20
 
 
@@ -196,8 +191,8 @@ def test_desp_attendance_header_text_repeated_on_all_daily_pages(tmp_path):
     assert out.exists()
     for page in reader.pages[:9]:
         text = page.extract_text() or ""
-        assert "FEUILLE DE PRÉSENCE — FORMATION DESP" in text
-        assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" in text
+        assert "FEUILLE DE PRÉSENCE" in text
+        assert "FEUILLE DE PRÉSENCE — FORMATION DESP" not in text
+        assert "PÉRIODE PRÉSENTIELLE — 70 HEURES" not in text
         assert "Dirigeant d’une société de sécurité privée (DESP)" in text
-    summary_text = reader.pages[-1].extract_text() or ""
-    assert "FEUILLE DE PRÉSENCE — FORMATION DESP" not in summary_text
+    assert len(reader.pages) == 9

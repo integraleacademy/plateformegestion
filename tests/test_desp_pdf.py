@@ -114,6 +114,37 @@ def _attendance_text(tmp_path, planning=None):
     return out, reader, text
 
 
+
+def test_desp_attendance_renderer_resets_state_and_removes_session_background_box():
+    src = inspect.getsource(app.generate_attendance_pdf_common)
+    assert "def reset_graphics_state" in src
+    assert "setFillAlpha(1)" in src
+    assert "setStrokeAlpha(1)" in src
+    assert "No filled background box here" in src
+    assert "c.rect(margin, y - row_h*4 - 4" not in src
+    assert "c.rect(0, 0, width, height, fill=1, stroke=0)" in src
+
+
+def test_desp_attendance_renderer_forces_black_text_and_aps_table_borders():
+    src = inspect.getsource(app.generate_attendance_pdf_common)
+    assert "reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)" in src
+    assert 'reset_graphics_state(fill=colors.HexColor("#f3f4f6"), stroke=colors.black, line_width=0.75)' in src
+    assert "c.rect(margin,y-18,sum(ws),18,fill=1,stroke=1)" in src
+    assert "c.rect(margin,y-row_h,sum(ws),row_h)" in src
+
+
+def test_desp_attendance_visible_session_fields_are_present(tmp_path):
+    _out, reader, text = _attendance_text(tmp_path)
+    first_page_text = reader.pages[0].extract_text() or ""
+    assert "Session" in first_page_text
+    assert "Date" in first_page_text
+    assert "Formateur" in first_page_text
+    assert "Modules et horaires du jour" in first_page_text
+    assert "Session DESP test" in first_page_text
+    assert "20/07/2026" in first_page_text
+    assert "BRUANT Christophe" in first_page_text
+    assert "DESP-P01" in text
+
 def test_desp_attendance_generates_only_in_person_days_and_70_hours(tmp_path):
     out, reader, text = _attendance_text(tmp_path)
     assert out.exists() and out.stat().st_size > 0

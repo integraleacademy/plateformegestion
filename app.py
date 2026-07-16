@@ -5918,11 +5918,21 @@ def download_afc_dsf_pdf(sid, dsf_id):
 @app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/cancel', methods=['POST'])
 def api_afc_dsf_cancel(sid, dsf_id):
     data=load_sessions(); sess=find_session(data,sid)
-    dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
+    if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
+    dsfs=sess.get('afcDsfs') or []
+    dsf=next((d for d in dsfs if d.get('id')==dsf_id),None)
     if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
     if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'DSF déjà annulée'}),400
-    dsf['status']=AFC_DSF_STATUS_CANCELLED; dsf['cancelledAt']=datetime.now().strftime('%Y-%m-%d %H:%M:%S'); save_sessions(data)
-    return jsonify({'ok':True})
+    pdf_filename=os.path.basename(dsf.get('pdfFilename',''))
+    sess['afcDsfs']=[d for d in dsfs if d.get('id')!=dsf_id]
+    save_sessions(data)
+    if pdf_filename:
+        pdf_path=os.path.join(DSF_DIR, pdf_filename)
+        try:
+            if os.path.exists(pdf_path): os.remove(pdf_path)
+        except OSError:
+            app.logger.exception('Erreur suppression PDF DSF AFC %s', pdf_filename)
+    return jsonify({'ok':True,'deleted':True})
 
 @app.route("/sessions/<sid>/jury/add", methods=["POST"])
 def add_jury(sid):

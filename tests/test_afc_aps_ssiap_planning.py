@@ -11,6 +11,7 @@ from app import (
     AFC_TECHNICAL_CODES,
     build_afc_aps_ssiap_planning_data,
     afc_aps_ssiap_summary_from_data,
+    afc_nth_working_day,
     is_french_working_day,
 )
 
@@ -18,6 +19,12 @@ from app import (
 def _minutes(value):
     h, m = value.split(":")
     return int(h) * 60 + int(m)
+
+
+def test_afc_nth_working_day_skips_interruptions_and_holidays():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+
+    assert afc_nth_working_day(date(2026, 11, 16), interruption) == date(2027, 2, 15)
 
 
 def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
@@ -159,6 +166,47 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "RAN" in text and "PAF" in text and "Bilan" in text
     last = reader.pages[-1].mediabox
     assert float(last.width) > float(last.height)
+
+
+def test_afc_generation_route_repairs_stale_end_date_from_interruptions(tmp_path, monkeypatch):
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    session = {
+        "id": "afc-stale-end",
+        "formation": "AFC_APS_SSIAP",
+        "training_code": "AFC_APS_SSIAP",
+        "display_name": "AFC France Travail APS + SSIAP",
+        "date_debut": "2026-11-16",
+        "date_fin": "2027-02-12",
+        "contractual_end_date": "2027-02-12",
+        "interruptions": "23/12/2026 au 04/01/2027",
+    }
+    saved = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+    monkeypatch.setattr(application, "PLANNING_DIR", str(tmp_path))
+
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.post(
+            "/api/sessions/afc-stale-end/generate-aps-planning",
+            json={
+                "trainer": "VAILLANT Clément",
+                "room": "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS",
+                "interruptions": [{"start": "2026-12-23", "end": "2027-01-04"}],
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    assert session["date_exam"] == "2027-02-15"
+    assert session["date_fin"] == "2027-02-15"
+    assert session["contractual_end_date"] == "2027-02-15"
+    assert session["apsPlanningSummary"]["total_hours"] == 393
 
 
 def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, monkeypatch):

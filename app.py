@@ -1794,6 +1794,18 @@ def afc_active_weeks(start_date, interruptions, count):
         day += timedelta(days=1)
     return weeks
 
+def afc_nth_working_day(start_date, interruptions=None, count=57):
+    if not start_date:
+        return None
+    remaining, day = count, start_date
+    while remaining > 0:
+        if is_afc_working_day(day, interruptions or []):
+            remaining -= 1
+            if remaining == 0:
+                return day
+        day += timedelta(days=1)
+    return None
+
 def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None, contractual_end_date=None):
     """Génère le parcours AFC APS + SSIAP France Travail sur les 57 jours contractuels."""
     interruptions = interruptions or [(date(2026, 12, 23), date(2027, 1, 4))]
@@ -6415,15 +6427,29 @@ def generate_aps_planning_route(sid):
         if is_afc:
             interruption_payload = payload.get("interruptions") if "interruptions" in payload else session_data.get("interruptions")
             interruptions = parse_interruption_ranges(interruption_payload)
+            start_dt = parse_date(session_data.get("date_debut"))
+            if not start_dt:
+                raise ValueError("La date de début AFC est invalide.")
             contractual_raw = payload.get("contractual_end_date") or payload.get("date_fin_contractuelle") or payload.get("date_fin") or session_data.get("contractual_end_date") or session_data.get("date_fin_contractuelle") or session_data.get("date_fin")
-            contractual_dt = parse_date(contractual_raw)
-            if not contractual_raw:
-                raise ValueError("La date de fin est obligatoire pour l’AFC APS + SSIAP.")
+            contractual_dt = parse_date(contractual_raw) if contractual_raw else None
+            auto_end_date = afc_nth_working_day(start_dt.date(), interruptions, 57)
+            if not auto_end_date:
+                raise ValueError("Impossible de déterminer la 57e date admissible AFC.")
             if not contractual_dt:
-                raise ValueError("La date de fin contractuelle AFC est invalide.")
-            session_data["contractual_end_date"] = contractual_dt.date().isoformat()
-            planning_data = build_afc_aps_ssiap_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, interruptions, contractual_end_date=contractual_dt.date())
-            summary = afc_aps_ssiap_summary_from_data(planning_data, interruptions, contractual_end_date=contractual_dt.date())
+                contractual_date = auto_end_date
+            else:
+                contractual_date = contractual_dt.date()
+                eligible_count = 0
+                day = start_dt.date()
+                while day <= contractual_date:
+                    if is_afc_working_day(day, interruptions):
+                        eligible_count += 1
+                    day += timedelta(days=1)
+                if eligible_count != 57 or not is_afc_working_day(contractual_date, interruptions):
+                    contractual_date = auto_end_date
+            session_data["contractual_end_date"] = contractual_date.isoformat()
+            planning_data = build_afc_aps_ssiap_planning_data(start_dt.date(), formateur, room, interruptions, contractual_end_date=contractual_date)
+            summary = afc_aps_ssiap_summary_from_data(planning_data, interruptions, contractual_end_date=contractual_date)
             session_data["interruptions"] = "\n".join(f"{start.isoformat()} au {end.isoformat()}" for start, end in interruptions)
             session_data["date_fin"] = planning_data[-1]["date"]
             session_data["date_exam"] = planning_data[-1]["date"]

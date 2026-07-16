@@ -1926,6 +1926,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                     modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
                     c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
                     modality_label = "Examen" if slot.get("modality") == "exam" else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
+
+                    def draw_modality_badge(badge_x, badge_y):
+                        c.setFillColor(colors.HexColor(modality_color))
+                        c.roundRect(badge_x, badge_y, 76, 14, 4, fill=1, stroke=0)
+                        c.setFillColor(colors.white)
+                        c.setFont("Helvetica-Bold", 7)
+                        c.drawCentredString(badge_x + 38, badge_y + 4, modality_label)
+
                     if slot.get("partNumber") and slot.get("sequenceNumber"):
                         text_x = margin + 16; text_w = printable_width - 32
                         cursor_y = draw_wrapped_text(c, planning_slot_title(slot), text_x, y - 8, text_w, "Helvetica-Bold", 9.4, 11)
@@ -1941,14 +1949,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                             item_y = draw_wrapped_text(c, slot.get("subpartProgressLabel"), text_x + 8, item_y, text_w - 12, "Helvetica-Oblique", 7.6, 9)
                         for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
                             item_y = draw_wrapped_text(c, f"• {item}", text_x + 8, item_y, text_w - 12, "Helvetica", 8.7, 10)
-                        draw_wrapped_text(c, f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or salle}", text_x, y - h + 19, text_w, "Helvetica", 7.8, 9)
+                        draw_wrapped_text(c, f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or salle}", text_x, y - h + 19, text_w - 112, "Helvetica", 7.8, 9)
+                        draw_modality_badge(width - margin - 86, y - h + 14)
                     else:
                         title_w = printable_width - 225
                         draw_wrapped_text(c, planning_slot_title(slot), margin + 16, y - 8, title_w, "Helvetica-Bold", 8.2, 9)
                         c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
                         c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
-                        c.setFillColor(colors.HexColor(modality_color)); c.roundRect(width - margin - 86, y - h + 14, 76, 14, 4, fill=1, stroke=0)
-                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7); c.drawCentredString(width - margin - 48, y - h + 18, modality_label)
+                        draw_modality_badge(width - margin - 86, y - h + 14)
                         if slot.get("modality") != "elearning":
                             c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica", 8)
                             draw_wrapped_text(c, f"Salle : {slot.get('room') or salle} • Formateur : {slot.get('trainer') or '—'}", margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
@@ -1996,7 +2004,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "D. Examen SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
             c.drawString(margin, y, f"28/10/2026 — {exam_slot.get('start') or '08:30'} - {exam_slot.get('end') or '16:30'} — journée distincte"); y -= 16
             c.setFont("Helvetica-Bold", 9)
-            c.drawString(margin, y, f"Total SST : {summary.get('sst_hours', 0):g} h • Total SSIAP 1 réglementaire : {summary['total_hours']:g} h • Total révisions complémentaires : {summary.get('revision_hours', 0):g} h • Total de présence avant examen : {summary.get('presence_total_hours', 0):g} h • Examen : distinct"); y -= 22
+            y = draw_wrapped_text(c, f"Total SST : {summary.get('sst_hours', 0):g} h • Total SSIAP 1 réglementaire : {summary['total_hours']:g} h • Total révisions complémentaires : {summary.get('revision_hours', 0):g} h • Total de présence avant examen : {summary.get('presence_total_hours', 0):g} h • Examen : distinct", margin, y, printable_width, "Helvetica-Bold", 9, 11) - 11
         else:
             if modality_ranges.get("elearning"):
                 c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13

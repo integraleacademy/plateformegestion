@@ -2670,7 +2670,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         room = (slots[0].get("room") if slots else "") or session_data.get("exam_room") or session_data.get("salle") or "—"
         am = period_amplitude(slots, True); pm = period_amplitude(slots, False)
         rows = [("Session", session_name, "Date de l’examen" if exam else "Date", date_label), ("Responsable(s) / intervenant(s)" if exam else "Formateur", ", ".join(trainers), "Lieu / salle", room), ("Période de formation", f"du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", "Date d’examen", format_date(session_data.get('date_exam'))), ("Horaires du matin", am if am != "—" else "", "Horaires de l’après-midi", pm if pm != "—" else "")]
-        col_w = (width - 2 * margin - 12) / 2; label_w = 83; row_h = 21
+        col_w = (width - 2 * margin - 12) / 2; label_w = 112; row_h = 21
         # No filled background box here: DESP must use the same readable APS text flow,
         # without a pale rectangle covering or tinting the session information.
         reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
@@ -2678,7 +2678,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         for l1,v1,l2,v2 in rows:
             for x,l,v in [(margin+6,l1,v1),(margin+6+col_w+12,l2,v2)]:
                 reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-                c.setFont("Helvetica-Bold", 7.8); c.drawString(x, cy, f"{l} :")
+                c.setFont("Helvetica-Bold", 7.4); c.drawString(x, cy, f"{l} :")
                 reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
                 c.setFont("Helvetica", 7.8)
                 tx = x + label_w
@@ -2857,7 +2857,9 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     if include_summary_page:
         y=height-70
         if logo_path: c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
-        c.setFont("Helvetica-Bold",16); c.drawString(margin,y,"Synthèse des feuilles de présence SSIAP 1" if is_ssiap1 else "Synthèse des feuilles de présence"); y-=28
+        c.setFont("Helvetica-Bold",16)
+        title_x = margin + 100 if logo_path else margin
+        c.drawString(title_x, y, "Synthèse des feuilles de présence SSIAP 1" if is_ssiap1 else "Synthèse des feuilles de présence"); y-=28
         draw_summary(y); footer(page_no)
     c.save()
 

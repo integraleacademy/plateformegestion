@@ -101,3 +101,20 @@ def test_ssiap1_october_2026_places_sst_then_ssiap_and_revision_without_excluded
     assert all(slot["trainer"] == "Sophie SST" for day in sst_days for slot in day["slots"])
     assert all(slot["trainer"] == "Rémi Révision" for slot in ssiap_days[-1]["slots"] if slot["modality"] == "revision")
     assert planning[-1]["slots"][0]["trainer"] == "Eva Examen"
+
+
+def test_ssiap1_planning_skips_excluded_dates_from_payload():
+    planning, _, _ = build_ssiap1_planning_data(
+        date(2026, 10, 12),
+        "Jean SSIAP",
+        "Salle 1",
+        end_date=date(2026, 10, 28),
+        exam_iso="2026-10-29",
+        exam_payload={"date": "2026-10-29", "start": "08:30", "end": "16:30", "room": "Salle Examen", "durationMinutes": 480},
+        excluded_dates={"2026-10-19"},
+    )
+    training_dates = [day["date"] for day in planning if not day.get("exam")]
+
+    assert "2026-10-19" not in training_dates
+    assert training_dates[-1] == "2026-10-28"
+    assert ssiap1_summary_from_data(planning)["errors"] == []

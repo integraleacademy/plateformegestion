@@ -810,9 +810,110 @@ def build_aps_planning(start_date, end_date=None, exam_iso=""):
 def normalize_formation_code(value):
     return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
 
+
+UNSUPPORTED_TRAINING_TYPE_MESSAGE = "Impossible de générer le document : le type de formation de cette session n’est pas reconnu."
+TRAINING_CODE_ALIASES = {
+    "APS": "APS",
+    "A3P": "A3P",
+    "SSIAP": "SSIAP1",
+    "SSIAP1": "SSIAP1",
+    "DIRIGEANT": "DESP",
+    "DESP": "DESP",
+}
+
+
+def normalize_training_code(session_data):
+    """Return the stable business training code, never inferred from display title."""
+    session_data = session_data or {}
+    for key in ("training_code", "formation_type", "program_code", "formation"):
+        raw = session_data.get(key)
+        if raw in (None, ""):
+            continue
+        code = normalize_formation_code(raw)
+        if code in TRAINING_CODE_ALIASES:
+            return TRAINING_CODE_ALIASES[code]
+        raise ValueError(UNSUPPORTED_TRAINING_TYPE_MESSAGE)
+    raise ValueError(UNSUPPORTED_TRAINING_TYPE_MESSAGE)
+
+
 def is_ssiap1_session(session_data):
-    formation = normalize_formation_code((session_data or {}).get("formation"))
-    return formation in {"SSIAP", "SSIAP1"} or formation.startswith("SSIAP1")
+    try:
+        return normalize_training_code(session_data) == "SSIAP1"
+    except ValueError:
+        return False
+
+
+def select_training_builder(session_data, builders):
+    code = normalize_training_code(session_data)
+    builder = builders.get(code)
+    if builder is None:
+        raise ValueError(UNSUPPORTED_TRAINING_TYPE_MESSAGE)
+    return code, builder
+
+
+
+def build_aps_session_planning(session_data, payload=None):
+    payload = payload or {}
+    mode = (payload.get("planningMode") or session_data.get("apsPlanningMode") or "").strip()
+    if mode not in {"full_presentiel", "elearning_presentiel"}:
+        raise ValueError("Le type de planning APS est obligatoire.")
+    start_dt = parse_date(session_data.get("date_debut"))
+    end_dt = parse_date(session_data.get("date_fin"))
+    if not start_dt:
+        raise ValueError("La date de début de session est obligatoire.")
+    formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
+    room = (payload.get("room") or session_data.get("salle") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS").strip()
+    return build_aps_planning_data(start_dt.date(), formateur, room, mode, end_date=end_dt.date() if end_dt else None, exam_iso=aps_local_date_iso(session_data.get("date_exam")), session_id=session_data.get("id"))[0]
+
+
+def build_ssiap_planning(session_data, payload=None):
+    payload = payload or {}
+    formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
+    room = (payload.get("room") or session_data.get("salle") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS").strip()
+    exam = ssiap1_exam_payload(session_data, payload)
+    end_dt = parse_date(session_data.get("date_fin"))
+    return build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam, excluded_dates=ssiap1_excluded_dates_from_payload(session_data, payload))[0]
+
+
+def build_desp_planning(session_data, payload=None):
+    payload = payload or {}
+    elearning_start = parse_date(payload.get("despElearningStart") or session_data.get("despElearningStart") or session_data.get("date_debut"))
+    elearning_end = parse_date(payload.get("despElearningEnd") or session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
+    presentiel_start = parse_date(payload.get("despPresentielStart") or session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
+    presentiel_end = parse_date(payload.get("despPresentielEnd") or session_data.get("despPresentielEnd") or session_data.get("date_fin"))
+    if not all([elearning_start, elearning_end, presentiel_start, presentiel_end]):
+        raise ValueError("Les dates de début/fin distanciel et début/fin présentiel DESP sont obligatoires.")
+    return generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), payload.get("trainer") or payload.get("formateur") or "", payload.get("room") or session_data.get("salle") or "", exam_iso=aps_local_date_iso(session_data.get("date_exam")), allow_saturday=bool(payload.get("allowSaturday") or session_data.get("despAllowSaturday")))
+
+
+def build_a3p_planning(session_data, payload=None):
+    return session_data.get("a3pPlanningData") or generateA3pSchedule(session_data.get("a3pPlanningConfig") or {})
+
+
+def build_aps_presence_days(session_data):
+    return _aps_presentiel_days(session_data.get("apsPlanningData"), session_data.get("apsPlanningMode") or "full_presentiel")
+
+
+def build_a3p_presence_days(session_data):
+    _, converted = _a3p_session_for_shared_docs(session_data)
+    return _aps_presentiel_days(converted, "full_presentiel")
+
+
+def build_ssiap_presence_days(session_data):
+    days = []
+    for day in session_data.get("apsPlanningData") or []:
+        slots = [slot for slot in day.get("slots", []) if is_in_person_slot(slot) or _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"sst", "revision"}]
+        if slots:
+            copied = dict(day); copied["slots"] = slots; days.append(copied)
+    return days
+
+
+def build_desp_presence_days(session_data):
+    return _aps_presentiel_days(session_data.get("apsPlanningData"), "desp")
+
+
+PLANNING_BUILDERS = {"APS": build_aps_session_planning, "A3P": build_a3p_planning, "SSIAP1": build_ssiap_planning, "DESP": build_desp_planning}
+PRESENCE_BUILDERS = {"APS": build_aps_presence_days, "A3P": build_a3p_presence_days, "SSIAP1": build_ssiap_presence_days, "DESP": build_desp_presence_days}
 
 def ssiap1_exam_payload(session_data, payload=None):
     payload = payload or {}
@@ -1810,7 +1911,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 day_total_minutes = logical_day_totals.get(day.get("date"), sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", [])))
                 suite = " — suite" if day.get("date") in seen_dates_on_previous_pages else ""
                 day_total_label = format_duration_from_minutes(day_total_minutes).replace("h", " h")
-                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{planning_day_title(day, document_profile)}{suite} — Total journée : {day_total_label}")
+                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{planning_day_title(day, document_profile)}{suite} — {day_total_label.replace(' ', '')} — Total journée : {day_total_label}")
                 y -= 30
                 for slot in day.get("slots", []):
                     slot_part = slot.get("part")
@@ -2561,7 +2662,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.black, line_width=0.75)
         c.setFont("Helvetica-Bold", 16 if exam else 17)
         c.drawCentredString(width / 2, height - 38, title)
-        c.setFont("Helvetica", 9); c.drawCentredString(width / 2, height - 54, subtitle or "Service de Sécurité Incendie et d’Assistance à Personnes - Niveau 1")
+        c.setFont("Helvetica", 9); c.drawCentredString(width / 2, height - 54, subtitle or "Agent de Prévention et de Sécurité (APS)")
         y = height - 84
         if continuation:
             c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"Suite de la feuille de présence du {date_label}"); y -= 16
@@ -5469,10 +5570,13 @@ def generate_aps_planning_route(sid):
     session_data = find_session(data, sid)
     if not session_data:
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    is_desp = formation in {"DESP", "DIRIGEANT"}
-    is_ssiap1 = is_ssiap1_session(session_data)
-    if formation != "APS" and not is_desp and not is_ssiap1:
+    try:
+        training_code = normalize_training_code(session_data)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    is_desp = training_code == "DESP"
+    is_ssiap1 = training_code == "SSIAP1"
+    if training_code not in {"APS", "SSIAP1", "DESP"}:
         return jsonify({"ok": False, "error": "Le planning automatique est réservé aux sessions APS, SSIAP 1 ou DESP."}), 400
 
     payload = request.get_json(silent=True) or {}
@@ -5988,34 +6092,37 @@ def save_aps_attendance_students(sid):
 def generate_aps_attendance_sheets(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
-    planning_key = "a3pPlanningData" if formation == "A3P" else "apsPlanningData"
-    student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
+    try:
+        training_code = normalize_training_code(session_data)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    formation = training_code
+    planning_key = "a3pPlanningData" if training_code == "A3P" else "apsPlanningData"
+    student_key = "a3pAttendanceStudents" if training_code == "A3P" else "apsAttendanceStudents"
     if not session_data.get(planning_key):
         message = "Le planning SSIAP 1 doit être généré avant les feuilles de présence." if is_ssiap1_session(session_data) else f"Veuillez générer le planning {formation} avant de générer les feuilles de présence."
         return jsonify({"ok": False, "error": message}), 400
     if not session_data.get(student_key):
         return jsonify({"ok": False, "error": "Aucune liste de stagiaires n’est enregistrée."}), 400
     shared_session = session_data
-    if formation == "A3P":
+    if training_code == "A3P":
         shared_session, converted = _a3p_session_for_shared_docs(session_data)
         if not _aps_presentiel_days(converted, "full_presentiel"):
             return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
-    elif not _aps_presentiel_days(session_data.get("apsPlanningData"), "desp" if is_ssiap1_session(session_data) else (session_data.get("apsPlanningMode") or "full_presentiel")):
+    elif not _aps_presentiel_days(session_data.get("apsPlanningData"), "desp" if training_code == "DESP" else ("ssiap1" if training_code == "SSIAP1" else (session_data.get("apsPlanningMode") or "full_presentiel"))):
         return jsonify({"ok": False, "error": "Aucun jour présentiel n’est trouvé."}), 400
-    filename_formation = "ssiap1" if is_ssiap1_session(session_data) else formation.lower()
+    filename_formation = training_code.lower()
     filename = f"feuilles_presence_{filename_formation}_{sid}.pdf"
-    output_dir = A3P_DOC_DIR if formation == "A3P" else APS_ATTENDANCE_DIR
+    output_dir = A3P_DOC_DIR if training_code == "A3P" else APS_ATTENDANCE_DIR
     output_path = os.path.join(output_dir, filename)
     temp_path = f"{output_path}.tmp"
     try:
-        generate_a3p_attendance_pdf(session_data, temp_path) if formation == "A3P" else generate_aps_attendance_pdf(session_data, temp_path)
+        generate_a3p_attendance_pdf(session_data, temp_path) if training_code == "A3P" else generate_aps_attendance_pdf(session_data, temp_path)
         if not os.path.exists(temp_path) or os.path.getsize(temp_path) <= 0:
             raise ValueError("Le PDF généré est vide.")
         os.replace(temp_path, output_path)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if formation == "A3P":
+        if training_code == "A3P":
             session_data["a3pAttendanceSheetsPdfUrl"] = url_for("view_a3p_document", sid=sid, kind="attendance")
             session_data["a3pAttendanceSheetsFilename"] = filename
             session_data["a3pAttendanceSheetsGeneratedAt"] = session_data.get("a3pAttendanceSheetsGeneratedAt") or now

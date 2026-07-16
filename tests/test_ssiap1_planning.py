@@ -124,3 +124,35 @@ def test_ssiap1_planning_skips_excluded_dates_from_payload():
 def test_ssiap1_revision_part_is_not_treated_as_exam_banner():
     assert is_ssiap1_exam_part("EXAMEN SSIAP 1") is True
     assert is_ssiap1_exam_part("RÉVISIONS GÉNÉRALES ET PRÉPARATION À L’EXAMEN SSIAP 1 — 3 h") is False
+
+def test_ssiap1_attendance_uses_same_daily_program_list_as_aps_and_dirigeant(tmp_path):
+    pypdf = pytest.importorskip("pypdf")
+    pytest.importorskip("reportlab")
+    import app
+
+    planning, _, _ = build_ssiap1_planning_data(
+        date(2026, 1, 5),
+        "Jean Dupont",
+        "Salle 1",
+        end_date=date(2026, 1, 20),
+        exam_iso="2026-01-21",
+        exam_payload={**_exam(), "sstTrainer": "Sophie SST", "revisionTrainer": "Jean Dupont", "examTrainer": "Resp Examen"},
+    )
+    output = tmp_path / "attendance_ssiap.pdf"
+    app.generate_aps_attendance_pdf({
+        "id": "ssiap-test",
+        "formation": "SSIAP",
+        "date_debut": "2026-01-05",
+        "date_fin": "2026-01-20",
+        "date_exam": "2026-01-21",
+        "salle": "Salle 1",
+        "apsPlanningData": planning,
+        "apsAttendanceStudents": [{"lastName": "DURAND", "firstName": "Alice"}],
+        "display_name": "Session SSIAP test",
+    }, str(output))
+
+    first_page_text = pypdf.PdfReader(str(output)).pages[0].extract_text() or ""
+    assert "Modules et horaires du jour" in first_page_text
+    assert "Programme et horaires du jour" not in first_page_text
+    assert "Horaires\nPartie / Séquence\nType\nIntitulé" not in first_page_text
+    assert "08h30 - 12h30 : SST-J1" in first_page_text

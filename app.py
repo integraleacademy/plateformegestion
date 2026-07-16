@@ -2841,16 +2841,22 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
             subtitle = page_subtitle
         y=draw_header(page_title, date_label, slots, page_no)
         subtitle = original_subtitle
-        if is_ssiap1:
-            y=draw_modules(y, slots)
-        else:
-            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-            c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Modules et horaires du jour"); y -= 12
-            for slot in slots:
-                code = slot.get("code") or slot.get("uv") or ""
-                title = slot.get("title") or slot.get("content") or ""
-                y = draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {code} — {title}", margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
-            y -= 5
+        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
+        c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Modules et horaires du jour"); y -= 12
+        for slot in slots:
+            code = slot.get("code") or slot.get("uv") or ""
+            title = slot.get("content") or slot.get("title") or ""
+            if is_ssiap1:
+                detail = SSIAP1_SEQUENCE_DETAIL_BY_CODE.get(code, {})
+                items = slot.get("subpartDisplayItems") or slot.get("subpartItems") or []
+                sequence = f"Partie {detail.get('part_number')} - Séquence {detail.get('sequence_number')}" if detail else code
+                title = " ; ".join(items[:2]) if items else title or detail.get("title") or ""
+                label = f"{code} — {sequence}" if sequence and sequence != code else code
+            else:
+                label = code
+            separator = " — " if label and title else ""
+            y = draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {label}{separator}{title}", margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
+        y -= 5
         has_am,has_pm=parts(slots); layout=attendance_bottom_layout(y, len(students), int(has_am)+int(has_pm)); y=draw_people_table(y, students, has_am, has_pm, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, block_h=layout["signature_h"])
         footer(page_no); c.showPage(); page_no+=1
 

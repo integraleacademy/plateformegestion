@@ -2441,40 +2441,30 @@ def aps_extract_students_from_pdf(file_storage):
 
 
 
-def desp_attendance_header_layout(page_width, page_height, margin, string_width):
-    """Return safe drawing instructions for the DESP daily attendance header."""
-    logo_width = 76
+def attendance_header_layout(page_width, page_height, margin, string_width, title="FEUILLE DE PRÉSENCE", subtitle=None):
+    """Return the shared APS/DESP attendance header geometry."""
+    logo_width = 91
     logo_height = 55
-    logo_gap = 14
     logo_x = margin
     logo_y = page_height - 72
-    text_left = logo_x + logo_width + logo_gap
-    text_right = page_width - margin
-    text_width = max(0, text_right - text_left)
-    center_x = text_left + text_width / 2
     lines = [
-        {"text": "FEUILLE DE PRÉSENCE — FORMATION DESP", "font": "Helvetica-Bold", "size": 16, "y": page_height - 36},
-        {"text": "PÉRIODE PRÉSENTIELLE — 70 HEURES", "font": "Helvetica-Bold", "size": 11, "y": page_height - 51},
-        {"text": DESP_LABEL, "font": "Helvetica", "size": 9.5, "y": page_height - 65},
+        {"text": title, "font": "Helvetica-Bold", "size": 17, "x": page_width / 2, "y": page_height - 38, "align": "center"},
+        {"text": subtitle or "Agent de Prévention et de Sécurité (APS)", "font": "Helvetica", "size": 9, "x": page_width / 2, "y": page_height - 54, "align": "center"},
     ]
     for line in lines:
         line["width"] = string_width(line["text"], line["font"], line["size"])
-        while line["width"] > text_width and line["size"] > 8:
-            line["size"] -= 0.5
-            line["width"] = string_width(line["text"], line["font"], line["size"])
-        line["x"] = max(text_left, min(center_x - line["width"] / 2, text_right - line["width"]))
-        if line["x"] < margin:
-            line["x"] = margin
-        if line["x"] + line["width"] > text_right:
-            line["x"] = max(margin, text_right - line["width"])
     return {
         "logo": {"x": logo_x, "y": logo_y, "width": logo_width, "height": logo_height},
-        "text_left": text_left,
-        "text_right": text_right,
-        "text_width": text_width,
         "lines": lines,
-        "session_y": page_height - 96,
+        "session_y": page_height - 84,
+        "title": lines[0],
+        "subtitle": lines[1],
     }
+
+
+def desp_attendance_header_layout(page_width, page_height, margin, string_width):
+    """Compatibility wrapper: DESP now uses the shared APS header layout."""
+    return attendance_header_layout(page_width, page_height, margin, string_width, subtitle=DESP_LABEL)
 
 def generate_attendance_pdf_common(session_data, output_path, training_type=None, subtitle=None):
     try:
@@ -2524,7 +2514,8 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     footer_y = 6 * mm
     logo_path = aps_pdf_logo_path()
     stamp_image = find_center_image("tampon", "cachet", "stamp")
-    total_pages = len(presentiel_days) + len(exam_days) + (0 if is_ssiap1 and len(students) <= 6 and exam_days else 1)
+    include_summary_page = training_type != "DESP" and not (is_ssiap1 and len(students) <= 6 and exam_days)
+    total_pages = len(presentiel_days) + len(exam_days) + (1 if include_summary_page else 0)
     raw_session_name = (session_data.get("display_name") or session_data.get("name") or "").strip()
     session_id = str(session_data.get("id") or "").strip()
     session_name = raw_session_name if raw_session_name and raw_session_name != f"Session {session_id}" else (session_id or raw_session_name or "—")
@@ -2544,8 +2535,6 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16 if exam else 17)
         c.drawCentredString(width / 2, height - 38, title)
         c.setFont("Helvetica", 9); c.drawCentredString(width / 2, height - 54, subtitle or "Service de Sécurité Incendie et d’Assistance à Personnes - Niveau 1")
-        if training_type == "DESP":
-            c.setFont("Helvetica-Bold", 9); c.drawCentredString(width / 2, height - 68, "PÉRIODE PRÉSENTIELLE — 70 HEURES")
         y = height - 84
         if continuation:
             c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"Suite de la feuille de présence du {date_label}"); y -= 16
@@ -2658,7 +2647,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         if is_ssiap1 and all((slot.get("modality") or "") == "sst" for slot in slots):
             page_title = "FEUILLE DE PRÉSENCE — FORMATION SST"; page_subtitle = "Formation intégrée au parcours SSIAP 1"
         else:
-            page_title = "FEUILLE DE PRÉSENCE — FORMATION SSIAP 1" if is_ssiap1 else ("FEUILLE DE PRÉSENCE — FORMATION DESP" if training_type == "DESP" else "FEUILLE DE PRÉSENCE"); page_subtitle = subtitle
+            page_title = "FEUILLE DE PRÉSENCE — FORMATION SSIAP 1" if is_ssiap1 else "FEUILLE DE PRÉSENCE"; page_subtitle = subtitle
         original_subtitle = subtitle
         if page_subtitle != subtitle:
             subtitle = page_subtitle
@@ -2684,7 +2673,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         if is_ssiap1 and len(students)<=6 and y-102>footer_top_y+10: y=draw_summary(y)
         footer(page_no); c.showPage(); page_no+=1
 
-    if not (is_ssiap1 and len(students)<=6 and exam_days):
+    if include_summary_page:
         y=height-70
         if logo_path: c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
         c.setFont("Helvetica-Bold",16); c.drawString(margin,y,"Synthèse des feuilles de présence SSIAP 1" if is_ssiap1 else "Synthèse des feuilles de présence"); y-=28

@@ -5987,8 +5987,10 @@ def api_afc_dsf_cancel(sid, dsf_id):
             if os.path.exists(pdf_path): os.remove(pdf_path)
         except OSError:
             app.logger.exception('Erreur suppression PDF DSF AFC %s', pdf_filename)
-    if request.accept_mimetypes.best == 'text/html':
-        flash('DSF annulée et supprimée.', 'success')
+    best_response = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+    wants_json = request.headers.get('X-Requested-With') == 'fetch' or best_response != 'text/html'
+    if not wants_json:
+        flash('DSF supprimée définitivement.', 'success')
         return redirect(url_for('session_detail', sid=sid))
     return jsonify({'ok':True,'deleted':True})
 

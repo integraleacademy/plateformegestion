@@ -1705,9 +1705,14 @@ def afc_dsf_summary(session_data):
         planned_total = sum(planned_values)
         billed_total = sum(v[m] for v in billed_by_student.values())
         remaining_total = planned_total - billed_total
-        if remaining_total < -0.0001: app.logger.error("DSF AFC remaining negative session=%s module=%s", session_data.get("id"), m); raise ValueError("Décompte DSF négatif détecté.")
+        overbilled_total = max(0, -remaining_total)
+        if overbilled_total > 0.0001:
+            app.logger.warning(
+                "DSF AFC overbilled summary session=%s module=%s planned=%.2f billed=%.2f overbilled=%.2f",
+                session_data.get("id"), m, planned_total, billed_total, overbilled_total,
+            )
         remaining_total = max(0, remaining_total)
-        cards.append({"code": m, **meta, "plannedPerStudent": round((planned_total / len(students)) if students else 0,2), "plannedTotal": round(planned_total,2), "billedTotal": round(billed_total,2), "remainingPerStudent": round((remaining_total / len(students)) if students else 0,2), "remainingTotal": round(remaining_total,2)})
+        cards.append({"code": m, **meta, "plannedPerStudent": round((planned_total / len(students)) if students else 0,2), "plannedTotal": round(planned_total,2), "billedTotal": round(billed_total,2), "overbilledTotal": round(overbilled_total,2), "remainingPerStudent": round((remaining_total / len(students)) if students else 0,2), "remainingTotal": round(remaining_total,2)})
     detail=[]
     for st in students:
         row={"student":st,"modules":{},"plannedTotal":0,"billedTotal":0,"remainingTotal":0}

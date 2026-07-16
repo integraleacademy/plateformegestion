@@ -1584,6 +1584,23 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     weekly = {}
     sp_remaining = AFC_APS_SSIAP_SP_HOURS * 60
     aps_started = False
+    sp_module = {"code": "SP", "title": "Soutien personnalisé (SP)", "kind": "SP"}
+
+    def add_sp_when_possible(current_day):
+        nonlocal sp_remaining
+        if not aps_started or sp_remaining <= 0:
+            return current_day
+        week = current_day.isocalendar()[:2]
+        bucket = weekly.setdefault(week, {"FT": 0, "SPPAF": 0})
+        day_minutes = sum(int(s.get("durationMinutes") or 0) for s in day_map.get(current_day.isoformat(), {}).get("slots", []))
+        free = min(APS_MAX_DAILY_MINUTES - day_minutes, 5*60 - bucket["SPPAF"], sp_remaining)
+        if free > 0:
+            start_sp = 8*60+30 if day_minutes < 240 else 13*60+30 + max(0, day_minutes-240)
+            afc_add_slot(day_map, current_day, start_sp, free, sp_module, trainer, room)
+            bucket["SPPAF"] += free
+            sp_remaining -= free
+        return current_day
+
     for module in AFC_APS_SSIAP_MODULES:
         remaining = int(round(module["hours"] * 60))
         while remaining > 0:
@@ -1613,17 +1630,16 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
             remaining -= take
             if is_ft: bucket["FT"] += take
             if is_sppaf: bucket["SPPAF"] += take
-            # Ajoute 5h de SP le vendredi dès la 1ère semaine APS, dans la limite de 45h.
-            if aps_started and sp_remaining > 0 and bucket["SPPAF"] < 5*60:
-                day_minutes = sum(int(s.get("durationMinutes") or 0) for s in day_map.get(day.isoformat(), {}).get("slots", []))
-                free = min(APS_MAX_DAILY_MINUTES - day_minutes, 5*60 - bucket["SPPAF"], sp_remaining)
-                if free > 0:
-                    sp_module = {"code": "SP", "title": "Soutien personnalisé (SP)", "kind": "SP"}
-                    start_sp = 8*60+30 if day_minutes < 240 else 13*60+30 + max(0, day_minutes-240)
-                    afc_add_slot(day_map, day, start_sp, free, sp_module, trainer, room)
-                    bucket["SPPAF"] += free; sp_remaining -= free
+            add_sp_when_possible(day)
             if sum(int(s.get("durationMinutes") or 0) for s in day_map.get(day.isoformat(), {}).get("slots", [])) >= APS_MAX_DAILY_MINUTES:
                 day += timedelta(days=1)
+    while sp_remaining > 0:
+        if not is_french_working_day(day) or is_interrupted_day(day, interruptions):
+            day += timedelta(days=1); continue
+        before = sp_remaining
+        add_sp_when_possible(day)
+        if sp_remaining == before or sum(int(s.get("durationMinutes") or 0) for s in day_map.get(day.isoformat(), {}).get("slots", [])) >= APS_MAX_DAILY_MINUTES:
+            day += timedelta(days=1)
     return [day_map[k] for k in sorted(day_map)]
 
 def afc_aps_ssiap_summary_from_data(planning_data):

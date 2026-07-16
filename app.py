@@ -1522,28 +1522,47 @@ def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_pr
         return generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso, session_id=session_id)
     return generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso)
 
+
+AFC_APS_SSIAP_LABEL = "AFC France Travail APS + SSIAP"
 AFC_APS_SSIAP_TOTAL_HOURS = 393
 AFC_APS_SSIAP_TECHNICAL_HOURS = 273
-AFC_APS_SSIAP_MODULES = [
-    {"code": "RAN", "title": "Remise à niveau (RAN)", "hours": 55, "kind": "RAN"},
-    {"code": "ACCUEIL", "title": "Accueil", "hours": 3.5, "kind": "FT"},
-    {"code": "APS", "title": "APS — formation technique", "hours": 175, "kind": "FT"},
-    {"code": "EXAM_APS", "title": "Examen APS", "hours": 7, "kind": "FT"},
-    {"code": "H0B0", "title": "Habilitation électrique H0B0", "hours": 7, "kind": "FT"},
-    {"code": "SSIAP1", "title": "SSIAP 1 — formation technique", "hours": 70, "kind": "FT"},
-    {"code": "EXAM_SSIAP1", "title": "Examen SSIAP 1", "hours": 7, "kind": "FT"},
-    {"code": "BILAN", "title": "Bilan de formation", "hours": 3.5, "kind": "FT"},
-    {"code": "PAF", "title": "Préparation à l’après formation (PAF)", "hours": 20, "kind": "PAF"},
-]
-AFC_APS_SSIAP_SP_HOURS = 45
+AFC_APS_SSIAP_EXPECTED_MINUTES = {
+    "RAN": 55 * 60,
+    "ACCUEIL": 210,
+    "APS": 175 * 60,
+    "EXAM_APS": 7 * 60,
+    "H0B0": 7 * 60,
+    "SSIAP1": 70 * 60,
+    "EXAM_SSIAP1": 7 * 60,
+    "BILAN": 210,
+    "SP": 45 * 60,
+    "PAF": 20 * 60,
+}
+AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "SP", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN", "PAF"]
+AFC_APS_SSIAP_LABELS = {
+    "RAN": "RAN", "ACCUEIL": "Accueil", "APS": "APS", "SP": "SP",
+    "EXAM_APS": "Examen APS", "H0B0": "H0B0", "SSIAP1": "SSIAP 1",
+    "EXAM_SSIAP1": "Examen SSIAP 1", "BILAN": "Bilan", "PAF": "PAF",
+}
+AFC_DAY_SEGMENTS = ((8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30))
+AFC_TECHNICAL_CODES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
+AFC_ACCOMPANIMENT_CODES = {"SP", "PAF"}
 
 def parse_interruption_ranges(value):
     ranges = []
     if not value:
         return ranges
-    items = value if isinstance(value, (list, tuple)) else re.split(r"[,;\n]+", str(value))
+    if isinstance(value, (list, tuple)):
+        items = []
+        for item in value:
+            if isinstance(item, dict):
+                items.append(f"{item.get('start') or item.get('startDate') or ''} au {item.get('end') or item.get('endDate') or ''}")
+            else:
+                items.append(item)
+    else:
+        items = re.split(r"[,;\n]+", str(value))
     for item in items:
-        parts = re.split(r"\s+(?:au|à|a|-)\s+", str(item).strip(), maxsplit=1, flags=re.I)
+        parts = re.split(r"\s+(?:au|à|a|-|→)\s+", str(item).strip(), maxsplit=1, flags=re.I)
         if len(parts) == 1 and ".." in parts[0]:
             parts = parts[0].split("..", 1)
         start = parse_date(parts[0].strip()) if parts and parts[0].strip() else None
@@ -1555,116 +1574,154 @@ def parse_interruption_ranges(value):
     return ranges
 
 def is_interrupted_day(day, interruptions):
-    return any(start <= day <= end for start, end in interruptions)
+    return any(start <= day <= end for start, end in (interruptions or []))
 
-def afc_add_slot(day_map, day, start_minute, minutes, module, trainer, room):
-    end_minute = start_minute + minutes
-    slot = {
-        "start": f"{start_minute//60:02d}:{start_minute%60:02d}",
-        "end": f"{end_minute//60:02d}:{end_minute%60:02d}",
-        "duration": round(minutes / 60, 2),
-        "durationMinutes": minutes,
-        "uv": module["code"],
-        "part": module["title"],
-        "sequence": module["code"],
-        "title": module["title"],
-        "content": module["title"],
-        "room": room,
-        "trainer": trainer,
-        "modality": "presentiel",
-        "afcKind": module.get("kind"),
-    }
-    item = day_map.setdefault(day.isoformat(), {"date": day.isoformat(), "dayLabel": aps_day_label(day), "category": "afc_aps_ssiap", "slots": []})
-    item["slots"].append(slot)
+def is_afc_working_day(day, interruptions=None):
+    return is_french_working_day(day) and not is_interrupted_day(day, interruptions or [])
+
+def afc_minutes_to_hhmm(minute):
+    return f"{minute//60:02d}:{minute%60:02d}"
+
+def afc_build_main_sequence():
+    seq = [
+        {"code":"RAN", "category":"RAN", "uv":"RAN", "title":"Remise à niveau (RAN)", "durationMinutes":55*60, "afcKind":"RAN"},
+        {"code":"ACCUEIL", "category":"ACCUEIL", "uv":"ACCUEIL", "title":"Accueil", "durationMinutes":210, "afcKind":"FT"},
+    ]
+    for name, hours in APS_MODULES:
+        uv, title = split_uv_title(name)
+        seq.append({"code":"APS", "category":"APS", "uv":uv, "title":title, "content":title, "durationMinutes":int(hours*60), "afcKind":"FT"})
+    seq.extend([
+        {"code":"EXAM_APS", "category":"EXAM_APS", "uv":"EXAM_APS", "title":"Examen APS", "durationMinutes":420, "afcKind":"FT"},
+        {"code":"H0B0", "category":"H0B0", "uv":"H0B0", "title":"Habilitation électrique H0B0", "durationMinutes":420, "afcKind":"FT"},
+    ])
+    for detail in SSIAP1_SEQUENCE_DETAILS:
+        seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":detail["code"], "sequence":detail["code"], "part":detail["part_title"], "title":detail["sequence_title"], "content":detail["sequence_title"], "durationMinutes":detail["total_duration_minutes"], "afcKind":"FT", "partNumber":detail["part_number"], "sequenceNumber":detail["sequence_number"], "sequenceTitle":detail["sequence_title"], "totalSequenceDurationMinutes":detail["total_duration_minutes"], "subpartItems":detail.get("content_items") or detail.get("application_items") or []})
+    seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":"REV-SSIAP1", "title":"Révisions générales SSIAP 1", "content":"Révisions générales et préparation pédagogique SSIAP 1", "durationMinutes":180, "afcKind":"FT"})
+    seq.extend([
+        {"code":"EXAM_SSIAP1", "category":"EXAM_SSIAP1", "uv":"EXAM_SSIAP1", "title":"Examen SSIAP 1", "durationMinutes":420, "afcKind":"FT"},
+        {"code":"BILAN", "category":"BILAN", "uv":"BILAN", "title":"Bilan de formation", "durationMinutes":210, "afcKind":"FT"},
+    ])
+    return seq
+
+def afc_slot_from_module(day, start, end, module, trainer, room):
+    minutes = end - start
+    slot = {"start": afc_minutes_to_hhmm(start), "end": afc_minutes_to_hhmm(end), "duration": round(minutes/60,2), "durationMinutes": minutes, "uv": module.get("uv") or module["code"], "sequence": module.get("sequence") or module.get("uv") or module["code"], "part": module.get("part") or AFC_APS_SSIAP_LABELS.get(module.get("category") or module["code"], module.get("title")), "title": module.get("title"), "content": module.get("content") or module.get("title"), "room": room, "trainer": trainer, "modality": "presentiel", "afcKind": module.get("afcKind"), "afcCategory": module.get("category") or module["code"]}
+    for key in ("partNumber", "sequenceNumber", "sequenceTitle", "totalSequenceDurationMinutes", "subpartItems"):
+        if module.get(key) is not None: slot[key] = module[key]
+    return slot
+
+def afc_active_weeks(start_date, interruptions, count):
+    weeks, seen, day = [], set(), start_date
+    while len(weeks) < count:
+        if is_afc_working_day(day, interruptions):
+            key = day.isocalendar()[:2]
+            if key not in seen:
+                seen.add(key); weeks.append(key)
+        day += timedelta(days=1)
+    return weeks
 
 def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None):
+    """Génère génériquement les créneaux AFC à partir des demi-journées 08h30-12h30 et 13h30-16h30."""
     interruptions = interruptions or []
-    day = start_date
-    day_map = {}
-    weekly = {}
-    sp_remaining = AFC_APS_SSIAP_SP_HOURS * 60
-    aps_started = False
-    sp_module = {"code": "SP", "title": "Soutien personnalisé (SP)", "kind": "SP"}
-
-    def add_sp_when_possible(current_day):
-        nonlocal sp_remaining
-        if not aps_started or sp_remaining <= 0:
-            return current_day
-        week = current_day.isocalendar()[:2]
-        bucket = weekly.setdefault(week, {"FT": 0, "SPPAF": 0})
-        day_minutes = sum(int(s.get("durationMinutes") or 0) for s in day_map.get(current_day.isoformat(), {}).get("slots", []))
-        free = min(APS_MAX_DAILY_MINUTES - day_minutes, 5*60 - bucket["SPPAF"], sp_remaining)
-        if free > 0:
-            start_sp = 8*60+30 if day_minutes < 240 else 13*60+30 + max(0, day_minutes-240)
-            afc_add_slot(day_map, current_day, start_sp, free, sp_module, trainer, room)
-            bucket["SPPAF"] += free
-            sp_remaining -= free
-        return current_day
-
-    for module in AFC_APS_SSIAP_MODULES:
-        remaining = int(round(module["hours"] * 60))
-        while remaining > 0:
-            if not is_french_working_day(day) or is_interrupted_day(day, interruptions):
-                day += timedelta(days=1); continue
-            week = day.isocalendar()[:2]
-            bucket = weekly.setdefault(week, {"FT": 0, "SPPAF": 0})
-            if module["code"] == "APS":
-                aps_started = True
-            is_ft = module["kind"] == "FT"
-            is_sppaf = module["kind"] in {"SP", "PAF"}
-            day_minutes = sum(int(s.get("durationMinutes") or 0) for s in day_map.get(day.isoformat(), {}).get("slots", []))
-            start_minute = 8*60+30 if day_minutes < 240 else 13*60+30 + max(0, day_minutes-240)
-            if day_minutes >= APS_MAX_DAILY_MINUTES:
-                day += timedelta(days=1); continue
-            cap = APS_MAX_DAILY_MINUTES - day_minutes
-            if is_ft:
-                cap = min(cap, 30*60 - bucket["FT"])
-            elif is_sppaf:
-                cap = min(cap, 5*60 - bucket["SPPAF"])
-            if cap <= 0:
-                day += timedelta(days=1); continue
-            take = min(remaining, cap)
-            if take <= 0:
-                day += timedelta(days=1); continue
-            afc_add_slot(day_map, day, start_minute, take, module, trainer, room)
-            remaining -= take
-            if is_ft: bucket["FT"] += take
-            if is_sppaf: bucket["SPPAF"] += take
-            add_sp_when_possible(day)
-            if sum(int(s.get("durationMinutes") or 0) for s in day_map.get(day.isoformat(), {}).get("slots", [])) >= APS_MAX_DAILY_MINUTES:
-                day += timedelta(days=1)
-    while sp_remaining > 0:
-        if not is_french_working_day(day) or is_interrupted_day(day, interruptions):
+    sp_weeks = set(afc_active_weeks(start_date, interruptions, 9))
+    accompaniment = {week: ("SP" if week in sp_weeks else None) for week in sp_weeks}
+    main_sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in afc_build_main_sequence()]
+    idx = 0; day = start_date; day_map = {}; week_buckets = {}; paf_started = False; paf_remaining = 20*60
+    sp_remaining = 45*60
+    safety = 0
+    while (idx < len(main_sequence) or sp_remaining or paf_remaining) and safety < 500:
+        safety += 1
+        if not is_afc_working_day(day, interruptions):
             day += timedelta(days=1); continue
-        before = sp_remaining
-        add_sp_when_possible(day)
-        if sp_remaining == before or sum(int(s.get("durationMinutes") or 0) for s in day_map.get(day.isoformat(), {}).get("slots", [])) >= APS_MAX_DAILY_MINUTES:
-            day += timedelta(days=1)
-    return [day_map[k] for k in sorted(day_map)]
+        week = day.isocalendar()[:2]
+        bucket = week_buckets.setdefault(week, {"total":0,"technical":0,"RAN":0,"SP":0,"PAF":0})
+        slots = []
+        for seg_start, seg_end in AFC_DAY_SEGMENTS:
+            cursor = seg_start
+            while cursor < seg_end:
+                remaining_seg = seg_end - cursor
+                code_to_place = None
+                if week in sp_weeks and sp_remaining > 0 and bucket["SP"] < 300 and bucket["total"] < 35*60:
+                    code_to_place = "SP"
+                    take = min(remaining_seg, 300-bucket["SP"], 35*60-bucket["total"], sp_remaining)
+                    module = {"code":"SP", "category":"SP", "uv":"SP", "title":"Soutien personnalisé (SP)", "content":"Accompagnement transversal", "afcKind":"SP"}
+                elif sp_remaining <= 0 and paf_remaining > 0 and bucket["SP"] == 0 and bucket["PAF"] < 300 and bucket["total"] < 35*60:
+                    module = {"code":"PAF", "category":"PAF", "uv":"PAF", "title":"Préparation à l’après-formation (PAF)", "content":"Accompagnement transversal", "afcKind":"PAF"}
+                    take = min(remaining_seg, 300-bucket["PAF"], 35*60-bucket["total"], paf_remaining)
+                    code_to_place = "PAF"
+                elif idx < len(main_sequence):
+                    module = main_sequence[idx]; cat = module["category"]
+                    tech_room = (30*60 - bucket["technical"]) if cat in AFC_TECHNICAL_CODES else 99999
+                    total_room = 35*60 - bucket["total"]
+                    if total_room <= 0 or tech_room <= 0:
+                        break
+                    take = min(remaining_seg, module["remainingMinutes"], total_room, tech_room)
+                    code_to_place = cat
+                elif paf_remaining > 0:
+                    paf_started = True
+                    if bucket["SP"] or bucket["PAF"] >= 300 or bucket["total"] >= 35*60:
+                        break
+                    module = {"code":"PAF", "category":"PAF", "uv":"PAF", "title":"Préparation à l’après-formation (PAF)", "content":"Accompagnement transversal", "afcKind":"PAF"}
+                    take = min(remaining_seg, 300-bucket["PAF"], 35*60-bucket["total"], paf_remaining)
+                    code_to_place = "PAF"
+                else:
+                    break
+                if take <= 0: break
+                slots.append(afc_slot_from_module(day, cursor, cursor+take, module, trainer, room))
+                bucket["total"] += take
+                if code_to_place in AFC_TECHNICAL_CODES: bucket["technical"] += take
+                if code_to_place == "RAN": bucket["RAN"] += take
+                if code_to_place == "SP": bucket["SP"] += take; sp_remaining -= take
+                if code_to_place == "PAF": bucket["PAF"] += take; paf_remaining -= take
+                if idx < len(main_sequence) and module is main_sequence[idx]:
+                    module["remainingMinutes"] -= take
+                    if module["remainingMinutes"] == 0: idx += 1
+                cursor += take
+                if bucket["total"] >= 35*60: break
+        if slots:
+            item = day_map.setdefault(day.isoformat(), {"date": day.isoformat(), "dayLabel": aps_day_label(day), "category":"afc_aps_ssiap", "slots": []})
+            item["slots"].extend(slots)
+        day += timedelta(days=1)
+    if safety >= 500:
+        raise ValueError("Impossible de générer le planning AFC APS + SSIAP dans une fenêtre raisonnable.")
+    planning = [day_map[k] for k in sorted(day_map)]
+    summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions)
+    if summary["errors"]:
+        raise ValueError(" ".join(summary["errors"]))
+    return planning
 
-def afc_aps_ssiap_summary_from_data(planning_data):
-    totals = {}
-    errors = []
-    total = 0
-    week_buckets = {}
+def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None):
+    totals = {k: 0 for k in AFC_APS_SSIAP_EXPECTED_MINUTES}
+    errors = []; week_buckets = {}; total = 0
     for day in planning_data or []:
-        d = parse_date(day.get("date"))
+        d = parse_date(day.get("date")); day_minutes = 0; intervals = []
         if not d or not is_french_working_day(d.date()): errors.append(f"Jour non ouvré dans le planning AFC: {day.get('date')}.")
-        day_minutes = 0
-        for slot in day.get("slots", []):
-            minutes = int(slot.get("durationMinutes") or 0); day_minutes += minutes; total += minutes
-            code = slot.get("uv") or ""; totals[code] = totals.get(code, 0) + minutes
+        if d and is_interrupted_day(d.date(), interruptions or []): errors.append(f"Jour d'interruption dans le planning AFC: {day.get('date')}.")
+        for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
+            minutes = int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))
+            cat = slot.get("afcCategory") or slot.get("uv") or ""; totals[cat] = totals.get(cat, 0) + minutes; total += minutes; day_minutes += minutes
+            try:
+                sm = int(slot["start"][:2])*60 + int(slot["start"][3:5]); em = int(slot["end"][:2])*60 + int(slot["end"][3:5])
+                if em <= sm or em-sm != minutes: errors.append(f"Créneau invalide le {day.get('date')} {slot.get('start')}-{slot.get('end')}.")
+                if not any(sm >= a and em <= b for a,b in AFC_DAY_SEGMENTS): errors.append(f"Créneau traversant une demi-journée le {day.get('date')} {slot.get('start')}-{slot.get('end')}.")
+                if any(sm < old_end and em > old_start for old_start, old_end in intervals): errors.append(f"Chevauchement le {day.get('date')} {slot.get('start')}-{slot.get('end')}.")
+                intervals.append((sm, em))
+            except Exception: errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
             if d:
-                b = week_buckets.setdefault(d.date().isocalendar()[:2], {"FT": 0, "SPPAF": 0})
-                if slot.get("afcKind") == "FT": b["FT"] += minutes
-                if slot.get("afcKind") in {"SP", "PAF"}: b["SPPAF"] += minutes
+                b = week_buckets.setdefault(d.date().isocalendar()[:2], {"total":0,"technical":0,"RAN":0,"SP":0,"PAF":0})
+                b["total"] += minutes
+                if cat in AFC_TECHNICAL_CODES: b["technical"] += minutes
+                if cat in {"RAN", "SP", "PAF"}: b[cat] += minutes
         if day_minutes > APS_MAX_DAILY_MINUTES: errors.append(f"La journée {day.get('date')} dépasse 7h.")
     for week, b in week_buckets.items():
-        if b["FT"] > 30*60: errors.append(f"La semaine {week} dépasse 30h de formation technique.")
-        if b["SPPAF"] > 5*60: errors.append(f"La semaine {week} dépasse 5h de SP/PAF.")
+        if b["total"] > 35*60: errors.append(f"La semaine {week} dépasse 35h.")
+        if b["technical"] > 30*60: errors.append(f"La semaine {week} dépasse 30h de formation technique.")
+        if b["SP"] + b["PAF"] > 5*60: errors.append(f"La semaine {week} dépasse 5h de SP/PAF.")
+    for code, expected in AFC_APS_SSIAP_EXPECTED_MINUTES.items():
+        if totals.get(code, 0) != expected: errors.append(f"{AFC_APS_SSIAP_LABELS.get(code, code)} doit totaliser {format_duration_from_minutes(expected)} (actuel: {format_duration_from_minutes(totals.get(code,0))}).")
     if total != AFC_APS_SSIAP_TOTAL_HOURS * 60: errors.append(f"Le total AFC doit être de 393h (actuel: {total/60:g}h).")
-    rows = [{"uv": code, "label": code, "hours": round(minutes/60, 2), "expected": round(minutes/60, 2)} for code, minutes in totals.items()]
-    return {"total_hours": round(total/60,2), "uv_totals": {k: round(v/60,2) for k,v in totals.items()}, "uv_rows": rows, "modality_totals": {"presentiel": round(total/60,2)}, "days_count": len(planning_data or []), "slots_count": sum(len(d.get("slots", [])) for d in planning_data or []), "errors": errors}
+    rows = [{"uv": code, "label": AFC_APS_SSIAP_LABELS[code], "title": AFC_APS_SSIAP_LABELS[code], "hours": round(totals.get(code,0)/60,2), "expected": round(AFC_APS_SSIAP_EXPECTED_MINUTES[code]/60,2), "modality":"presentiel"} for code in AFC_APS_SSIAP_SUMMARY_ORDER]
+    return {"total_hours": round(total/60,2), "uv_totals": {k: round(v/60,2) for k,v in totals.items()}, "uv_rows": rows, "modality_totals": {"presentiel": round(total/60,2)}, "weekly": {str(k): {kk: round(vv/60,2) for kk,vv in b.items()} for k,b in week_buckets.items()}, "days_count": len(planning_data or []), "slots_count": sum(len(d.get("slots", [])) for d in planning_data or []), "errors": errors}
 
 def aps_summary_from_data(planning_data):
     uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
@@ -1797,6 +1854,7 @@ def planning_pdf_profile(document_profile, planning_mode, summary):
     profile = dict(document_profile or {})
     is_desp = profile.get("validate") == "desp"
     is_ssiap1 = profile.get("validate") == "ssiap1"
+    is_afc = profile.get("validate") == "afc_aps_ssiap"
     totals = summary.get("modality_totals", {}) if summary else {}
     if is_ssiap1:
         profile.setdefault("planning_title", "PLANNING DE FORMATION SSIAP 1")
@@ -1805,6 +1863,13 @@ def planning_pdf_profile(document_profile, planning_mode, summary):
         profile.setdefault("legend_elearning", "Examen SSIAP 1")
         profile.setdefault("legend_presentiel", "Formation SSIAP 1 — 67h")
         profile.setdefault("short_label", "SSIAP 1")
+    elif is_afc:
+        profile.setdefault("planning_title", "PLANNING AFC FRANCE TRAVAIL APS + SSIAP")
+        profile.setdefault("subtitle", "Parcours complet — 393 heures")
+        profile.setdefault("modality_line", "Modalité : présentiel • Parcours complet : 393h")
+        profile.setdefault("legend_elearning", "Accompagnements SP / PAF")
+        profile.setdefault("legend_presentiel", "Formation AFC APS + SSIAP")
+        profile.setdefault("short_label", "AFC APS + SSIAP")
     elif is_desp:
         profile.setdefault("planning_title", "PLANNING DE FORMATION DESP")
         profile.setdefault("subtitle", f"{DESP_LABEL} — {DESP_TOTAL_HOURS} heures")
@@ -1885,16 +1950,17 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     start_dt = parse_date(session_data.get("date_debut"))
     exam_dt = parse_date(session_data.get("date_exam"))
+    is_afc_document = document_profile.get("validate") == "afc_aps_ssiap"
     if not start_dt:
         raise ValueError("La date de début de session est obligatoire.")
-    if not exam_dt:
+    if not exam_dt and not is_afc_document:
         raise ValueError("La date d'examen est obligatoire pour générer le planning APS.")
 
     salle = session_data.get("salle") or session_data.get("room") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
     session_end = parse_date(session_data.get("date_fin"))
-    latest_training_date = session_end.date() if session_end else (exam_dt.date() - timedelta(days=1))
-    if latest_training_date >= exam_dt.date() and document_profile.get("validate") not in {"ssiap1", "afc_aps_ssiap"}:
+    latest_training_date = session_end.date() if session_end else ((exam_dt.date() - timedelta(days=1)) if exam_dt else None)
+    if exam_dt and latest_training_date and latest_training_date >= exam_dt.date() and document_profile.get("validate") not in {"ssiap1", "afc_aps_ssiap"}:
         raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
         planning_data, _, _ = (build_ssiap1_planning_data(start_dt.date(), formateur, salle, end_date=latest_training_date, exam_iso=exam_iso, exam_payload=ssiap1_exam_payload(session_data), excluded_dates=ssiap1_excluded_dates_from_payload(session_data)) if document_profile.get("validate") == "ssiap1" else build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id")))
@@ -1925,7 +1991,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     logo_path = aps_pdf_logo_path()
     title = document_profile.get("planning_title") or "PLANNING DE FORMATION APS"
     edited = datetime.now().strftime("%d/%m/%Y à %H:%M")
-    period = f"Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin')) if session_data.get('date_fin') else '—'}"
+    computed_end = (planning_data[-1].get("date") if planning_data else session_data.get("date_fin"))
+    period = f"Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin') or computed_end) if (session_data.get('date_fin') or computed_end) else '—'}"
     trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and (slot.get("trainer") or "").strip()})
     trainer_label = ", ".join(trainers[:4]) + ("…" if len(trainers) > 4 else "") if trainers else "—"
     modality_ranges = aps_modality_ranges(planning_data)
@@ -2010,7 +2077,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.drawString(margin + 88, height - 35, title)
         c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
         c.drawString(margin + 88, height - 50, document_profile.get("subtitle"))
-        info_y = draw_wrapped_text(c, f"{period} • Examen prévu le {format_date(session_data.get('date_exam'))} • Formateur(s) présentiel : {trainer_label}", margin + 88, height - 64, width - margin - (margin + 88), "Helvetica", 9, 11)
+        exam_bits = ""
+        if document_profile.get("validate") == "afc_aps_ssiap":
+            aps_exam = next((d.get("date") for d in planning_data for sl in d.get("slots", []) if sl.get("afcCategory") == "EXAM_APS"), None)
+            ssiap_exam = next((d.get("date") for d in planning_data for sl in d.get("slots", []) if sl.get("afcCategory") == "EXAM_SSIAP1"), None)
+            exam_bits = f" • Examen APS : {format_date(aps_exam)} • Examen SSIAP 1 : {format_date(ssiap_exam)}"
+        else:
+            exam_bits = f" • Examen prévu le {format_date(session_data.get('date_exam'))}"
+        info_y = draw_wrapped_text(c, f"{period}{exam_bits} • Formateur(s) présentiel : {trainer_label}", margin + 88, height - 64, width - margin - (margin + 88), "Helvetica", 9, 11)
         modality_y = info_y - 1
         c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
         c.drawString(margin + 88, modality_y, document_profile.get("modality_line"))
@@ -2024,6 +2098,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 date_lines.append(f"SSIAP 1 : {aps_format_range(modality_ranges.get('presentiel'))}")
             date_lines.append(f"Examen SSIAP 1 : le {format_date(session_data.get('date_exam'))}")
         else:
+            if document_profile.get("validate") == "afc_aps_ssiap":
+                date_lines.append(period)
             if modality_ranges.get("elearning"):
                 date_lines.append(f"Période e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
             if modality_ranges.get("presentiel"):
@@ -2143,10 +2219,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             y -= 96
         c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
         y -= 18
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. SST")
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. AFC France Travail APS + SSIAP" if document_profile.get("validate") == "afc_aps_ssiap" else "A. SST")
         y -= 14
         c.setFont("Helvetica", 9)
-        if document_profile.get("validate") == "ssiap1":
+        if document_profile.get("validate") == "afc_aps_ssiap":
+            for code in AFC_APS_SSIAP_SUMMARY_ORDER:
+                c.drawString(margin, y, f"{AFC_APS_SSIAP_LABELS[code]} : {format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace('h', ' h')}"); y -= 13
+            c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "TOTAL : 393 h"); y -= 20
+        elif document_profile.get("validate") == "ssiap1":
             c.drawString(margin, y, f"12/10/2026 : 7 h • 13/10/2026 : 7 h • Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Formation réglementaire SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
             c.drawString(margin, y, f"du {format_date(modality_ranges.get('presentiel', {}).get('start'))} au {format_date(modality_ranges.get('presentiel', {}).get('end'))} — total : {summary['total_hours']:g} h"); y -= 14
@@ -2157,6 +2237,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             c.setFont("Helvetica-Bold", 9)
             y = draw_wrapped_text(c, f"Total SST : {summary.get('sst_hours', 0):g} h • Total SSIAP 1 réglementaire : {summary['total_hours']:g} h • Total révisions complémentaires : {summary.get('revision_hours', 0):g} h • Total de présence avant examen : {summary.get('presence_total_hours', 0):g} h • Examen : distinct", margin, y, printable_width, "Helvetica-Bold", 9, 11) - 11
         else:
+            if document_profile.get("validate") == "afc_aps_ssiap":
+                date_lines.append(period)
             if modality_ranges.get("elearning"):
                 c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13
             if modality_ranges.get("presentiel"):
@@ -2187,7 +2269,10 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, total_label)
         y -= 34
         exam_summary = summary.get("exam") or {}
-        exam_line = f"Examen SSIAP 1 : {format_date(exam_summary.get('date'))} de {exam_summary.get('start') or '—'} à {exam_summary.get('end') or '—'}" if document_profile.get("validate") == "ssiap1" else f"Examen le {format_date(session_data.get('date_exam'))}."
+        if document_profile.get("validate") == "afc_aps_ssiap":
+            exam_line = "Examens APS et SSIAP 1 : voir dates calculées en en-tête."
+        else:
+            exam_line = f"Examen SSIAP 1 : {format_date(exam_summary.get('date'))} de {exam_summary.get('start') or '—'} à {exam_summary.get('end') or '—'}" if document_profile.get("validate") == "ssiap1" else f"Examen le {format_date(session_data.get('date_exam'))}."
         c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, exam_line)
         y -= 24
         box_w = (width - 2 * margin - 18) / 2; signature_box_h = 92; signature_label_h = 18
@@ -2225,9 +2310,45 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             count += 1
         return count
 
-    total_pages = len(pages) + compute_summary_page_count()
+    extra_calendar_pages = 1 if document_profile.get("validate") == "afc_aps_ssiap" else 0
+    total_pages = len(pages) + compute_summary_page_count() + extra_calendar_pages
     draw_planning_pages(total_pages)
     draw_summary_pages(total_pages)
+    if document_profile.get("validate") == "afc_aps_ssiap":
+        c.showPage(); page_no += 1
+        from reportlab.lib.pagesizes import landscape
+        c.setPageSize(landscape(A4)); lw, lh = landscape(A4)
+        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16); c.drawString(36, lh-36, "Calendrier récapitulatif AFC APS + SSIAP")
+        c.setFont("Helvetica", 8); c.drawRightString(lw-36, 24, f"Page {total_pages} / {total_pages}")
+        colors_by_cat = {"RAN":"#bfdbfe","ACCUEIL":"#5eead4","APS":"#1d4ed8","EXAM_APS":"#581c87","H0B0":"#fde047","SSIAP1":"#fb923c","EXAM_SSIAP1":"#dc2626","SP":"#d8b4fe","PAF":"#86efac","BILAN":"#374151"}
+        legend_x=36; legend_y=44; c.setFont("Helvetica", 7)
+        for code in AFC_APS_SSIAP_SUMMARY_ORDER:
+            c.setFillColor(colors.HexColor(colors_by_cat[code])); c.rect(legend_x, legend_y, 10, 8, fill=1, stroke=0); c.setFillColor(colors.HexColor("#111827")); c.drawString(legend_x+13, legend_y, AFC_APS_SSIAP_LABELS[code]); legend_x += 76
+        by_date={d.get("date"):d for d in planning_data}; start_d=parse_date(planning_data[0]["date"]).date(); end_d=parse_date(planning_data[-1]["date"]).date(); months=[]; cur=date(start_d.year,start_d.month,1)
+        while cur <= end_d:
+            months.append(cur); cur = date(cur.year + (1 if cur.month==12 else 0), 1 if cur.month==12 else cur.month+1, 1)
+        import calendar
+        for i,m in enumerate(months[:4]):
+            x=36+(i%2)*386; y=lh-70-(i//2)*250; c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 11); c.drawString(x,y, m.strftime("%B %Y"))
+            cell_w=52; cell_h=28; y0=y-22; c.setFont("Helvetica",5.5)
+            for r,week in enumerate(calendar.monthcalendar(m.year,m.month)):
+                for col,dd in enumerate(week):
+                    cx=x+col*cell_w; cy=y0-r*cell_h
+                    if not dd: continue
+                    curd=date(m.year,m.month,dd); iso=curd.isoformat(); bg="#f3f4f6" if curd.weekday()>=5 else ("#fee2e2" if curd in french_holidays(curd.year) else "#ffffff")
+                    if is_interrupted_day(curd, parse_interruption_ranges(session_data.get("interruptions"))): bg="#d1d5db"
+                    c.setFillColor(colors.HexColor(bg)); c.rect(cx,cy-cell_h+3,cell_w-2,cell_h-2,fill=1,stroke=1)
+                    c.setFillColor(colors.HexColor("#111827")); c.drawString(cx+2,cy-6,str(dd))
+                    if iso in by_date:
+                        cats=[]
+                        for sl in by_date[iso].get("slots",[]):
+                            cat=sl.get("afcCategory");
+                            if cat not in cats: cats.append(cat)
+                        ty=cy-14
+                        for cat in cats[:2]:
+                            c.setFillColor(colors.HexColor(colors_by_cat.get(cat,"#e5e7eb"))); c.rect(cx+14,ty-4,cell_w-18,6,fill=1,stroke=0); c.setFillColor(colors.white if cat in {"APS","EXAM_APS","EXAM_SSIAP1","BILAN"} else colors.black); c.drawString(cx+16,ty-3,AFC_APS_SSIAP_LABELS.get(cat,cat)[:10]); ty-=8
+                    elif is_interrupted_day(curd, parse_interruption_ranges(session_data.get("interruptions"))):
+                        c.setFillColor(colors.HexColor("#374151")); c.drawString(cx+6, cy-17, "INTERRUPTION")
     c.save()
     return {"planning_data": planning_data, "totals": summary["uv_totals"], "total_hours": summary["total_hours"], "summary": summary}
 
@@ -3034,8 +3155,9 @@ def generate_aps_attendance_pdf(session_data, output_path):
         training_type = "SSIAP1"
         subtitle = "Service de Sécurité Incendie et d’Assistance à Personnes - Niveau 1"
     else:
-        training_type = "DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS"
-        subtitle = DESP_LABEL if training_type == "DESP" else None
+        code = normalize_training_code(session_data)
+        training_type = "AFC_APS_SSIAP" if code == "AFC_APS_SSIAP" else ("DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS")
+        subtitle = AFC_APS_SSIAP_LABEL if training_type == "AFC_APS_SSIAP" else (DESP_LABEL if training_type == "DESP" else None)
     return generate_attendance_pdf_common(session_data, output_path, training_type=training_type, subtitle=subtitle)
 
 

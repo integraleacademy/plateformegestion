@@ -2520,19 +2520,41 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     session_id = str(session_data.get("id") or "").strip()
     session_name = raw_session_name if raw_session_name and raw_session_name != f"Session {session_id}" else (session_id or raw_session_name or "—")
 
+    def reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75):
+        if hasattr(c, "setFillAlpha"):
+            c.setFillAlpha(1)
+        if hasattr(c, "setStrokeAlpha"):
+            c.setStrokeAlpha(1)
+        c.setFillColor(fill)
+        c.setStrokeColor(stroke)
+        c.setLineWidth(line_width)
+
     def footer(page_no):
-        c.saveState(); c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, footer_top_y, width - margin, footer_top_y)
-        page_label = f"Page {page_no} / {total_pages}"; c.setFillColor(colors.HexColor("#6b7280")); c.setFont("Helvetica", 6.4)
+        c.saveState()
+        reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.HexColor("#4b5563"), line_width=0.75)
+        c.line(margin, footer_top_y, width - margin, footer_top_y)
+        page_label = f"Page {page_no} / {total_pages}"; c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica", 6.4)
         lines = APS_LEGAL_LINES[:]
         if is_ssiap1 and SSIAP1_AGREMENT_LINE not in lines: lines.append(SSIAP1_AGREMENT_LINE)
         y = footer_top_y - 6
         for line in lines[:5]:
+            reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.HexColor("#4b5563"), line_width=0.75)
+            c.setFont("Helvetica", 6.4)
             c.drawString(margin, y, line[:155]); y -= 6.2
+        reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.HexColor("#4b5563"), line_width=0.75)
+        c.setFont("Helvetica", 6.4)
         c.drawRightString(width - margin, footer_y, page_label); c.restoreState()
 
     def draw_header(title, date_label, slots, page_no, *, exam=False, continuation=False):
-        if logo_path: c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16 if exam else 17)
+        c.saveState()
+        reset_graphics_state(fill=colors.white, stroke=colors.white, line_width=0)
+        c.rect(0, 0, width, height, fill=1, stroke=0)
+        c.restoreState()
+        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
+        if logo_path:
+            c.saveState(); c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto"); c.restoreState()
+        reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.black, line_width=0.75)
+        c.setFont("Helvetica-Bold", 16 if exam else 17)
         c.drawCentredString(width / 2, height - 38, title)
         c.setFont("Helvetica", 9); c.drawCentredString(width / 2, height - 54, subtitle or "Service de Sécurité Incendie et d’Assistance à Personnes - Niveau 1")
         y = height - 84
@@ -2543,11 +2565,15 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         am = period_amplitude(slots, True); pm = period_amplitude(slots, False)
         rows = [("Session", session_name, "Date de l’examen" if exam else "Date", date_label), ("Responsable(s) / intervenant(s)" if exam else "Formateur", ", ".join(trainers), "Lieu / salle", room), ("Période de formation", f"du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", "Date d’examen", format_date(session_data.get('date_exam'))), ("Horaires du matin", am if am != "—" else "", "Horaires de l’après-midi", pm if pm != "—" else "")]
         col_w = (width - 2 * margin - 12) / 2; label_w = 83; row_h = 21
-        c.setStrokeColor(colors.HexColor("#d1d5db")); c.setFillColor(colors.HexColor("#f9fafb")); c.rect(margin, y - row_h*4 - 4, width - 2*margin, row_h*4 + 6, fill=1, stroke=1)
+        # No filled background box here: DESP must use the same readable APS text flow,
+        # without a pale rectangle covering or tinting the session information.
+        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
         cy = y - 14
         for l1,v1,l2,v2 in rows:
             for x,l,v in [(margin+6,l1,v1),(margin+6+col_w+12,l2,v2)]:
+                reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
                 c.setFont("Helvetica-Bold", 7.8); c.drawString(x, cy, f"{l} :")
+                reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
                 c.setFont("Helvetica", 7.8)
                 tx = x + label_w
                 for i,line in enumerate(wrap_text_lines(v, col_w - label_w - 8, "Helvetica", 7.8)[:2]): c.drawString(tx, cy - i*8, line)
@@ -2580,17 +2606,25 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         return out
 
     def draw_modules(y, slots):
+        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
         c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Programme et horaires du jour"); y-=12
         headers=["Horaires","Partie / Séquence","Type","Intitulé"]; ws=[70,105,62,width-2*margin-70-105-62]
         row_data=[headers]+module_rows(slots); x0=margin
         for r,row in enumerate(row_data):
             line_lists=[wrap_text_lines(cell, ws[i]-6, "Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5) or [""] for i,cell in enumerate(row)]
             rh=max(16, max(len(ll) for ll in line_lists)*9.5+6)
-            c.setFillColor(colors.HexColor("#f3f4f6") if r==0 else colors.white); c.rect(x0, y-rh, sum(ws), rh, fill=1, stroke=1)
+            c.saveState()
+            reset_graphics_state(fill=colors.HexColor("#f3f4f6") if r==0 else colors.white, stroke=colors.black, line_width=0.75)
+            c.rect(x0, y-rh, sum(ws), rh, fill=1, stroke=1)
+            c.restoreState()
+            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
             x=x0
             for i,ll in enumerate(line_lists):
-                if i: c.line(x, y, x, y-rh)
-                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5)
+                if i:
+                    reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
+                    c.line(x, y, x, y-rh)
+                reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
+                c.setFont("Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5)
                 ty=y-11
                 for line in ll: c.drawString(x+3, ty, line); ty-=9.5
                 x+=ws[i]
@@ -2598,17 +2632,21 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         return y-8
 
     def draw_people_table(y, people, has_am, has_pm):
+        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
         headers=["N°","Nom","Prénom"] + (["Signature matin"] if has_am else []) + (["Signature après-midi"] if has_pm else [])
         if has_am and has_pm: ws=[28,115,95,145,width-2*margin-28-115-95-145]
         else: ws=[28,125,105,width-2*margin-28-125-105]
         row_h=max(36, min(45, int((y-(footer_top_y+135))/max(len(people),1))))
-        c.setFillColor(colors.HexColor("#f3f4f6")); c.rect(margin,y-18,sum(ws),18,fill=1,stroke=1); c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold",8)
+        c.saveState(); reset_graphics_state(fill=colors.HexColor("#f3f4f6"), stroke=colors.black, line_width=0.75); c.rect(margin,y-18,sum(ws),18,fill=1,stroke=1); c.restoreState(); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica-Bold",8)
         x=margin
         for i,h in enumerate(headers): c.drawString(x+4,y-12,h); x+=ws[i]
-        y-=18; c.setFont("Helvetica",8.5)
+        y-=18; reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica",8.5)
         for idx, st in enumerate(people,1):
+            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
             c.rect(margin,y-row_h,sum(ws),row_h); x=margin
             for w in ws[:-1]: x+=w; c.line(x,y,x,y-row_h)
+            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
+            c.setFont("Helvetica",8.5)
             c.drawString(margin+8,y-14,str(idx)); c.drawString(margin+36,y-14,st.get("lastName", "")); c.drawString(margin+36+ws[1],y-14,st.get("firstName", "")); y-=row_h
         return y-12
 
@@ -2619,10 +2657,10 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         if has_pm: labels.append(("Signature responsable / intervenant - après-midi" if exam else ("Signature du formateur - après-midi" if is_ssiap1 else "Signature formateur après-midi"), False))
         if len(labels)==1: bw=width-2*margin; gap=0
         for i,(lab,morn) in enumerate(labels):
-            x=margin+i*(bw+gap); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab); c.setFont("Helvetica",8); c.drawString(x+8,y-27,half_day_trainer_label(slots,morn))
+            x=margin+i*(bw+gap); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica",8); c.drawString(x+8,y-27,half_day_trainer_label(slots,morn))
         y-=bh+10; bw=(width-2*margin-gap)/2
         for i,lab in enumerate(["Observations éventuelles","Cachet du centre"]):
-            x=margin+i*(bw+gap); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab)
+            x=margin+i*(bw+gap); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab)
             if i==1 and stamp_image: c.drawImage(stamp_image,x+12,y-bh+8,width=bw-24,height=bh-18,preserveAspectRatio=True,anchor="c",mask="auto")
         return y-bh-8
 
@@ -2656,6 +2694,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         if is_ssiap1:
             y=draw_modules(y, slots)
         else:
+            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
             c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Modules et horaires du jour"); y -= 12
             for slot in slots:
                 code = slot.get("code") or slot.get("uv") or ""

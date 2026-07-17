@@ -39,6 +39,26 @@
     {
       "id": "conclusion",
       "name": "Conclusion"
+    },
+    {
+      "id": "launch",
+      "name": "Lancement"
+    },
+    {
+      "id": "urgency",
+      "name": "Urgence"
+    },
+    {
+      "id": "proof",
+      "name": "Preuve"
+    },
+    {
+      "id": "saas",
+      "name": "SaaS"
+    },
+    {
+      "id": "dates",
+      "name": "Dates clés"
     }
   ],
   "templates": [
@@ -714,6 +734,999 @@
       "renderer": "renderCarouselFinalCta",
       "status": "ready",
       "version": 2
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_metric_wall",
+      "family": "saas",
+      "name": "Mur de métriques SaaS",
+      "description": "Mur de métriques SaaS",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "cta"
+      ],
+      "density": "dashboard",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsDashboard"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_kpi_cards",
+      "family": "saas",
+      "name": "Cartes KPI SaaS",
+      "description": "Cartes KPI SaaS",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "availability"
+      ],
+      "density": "dashboard",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsDashboard"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_growth_bars",
+      "family": "saas",
+      "name": "Barres de croissance",
+      "description": "Barres de croissance",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "cta"
+      ],
+      "density": "dashboard",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsBars"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_success_gauge",
+      "family": "saas",
+      "name": "Jauge taux de réussite",
+      "description": "Jauge taux de réussite",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "highlightedText"
+      ],
+      "density": "dashboard",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsRadialGauge"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "giant_success_rate",
+      "family": "proof",
+      "name": "Taux de réussite géant",
+      "description": "Taux de réussite géant",
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "introduction"
+      ],
+      "density": "minimal",
+      "style": "impact",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsBigNumber"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "giant_places_left",
+      "family": "urgency",
+      "name": "Places restantes géantes",
+      "description": "Places restantes géantes",
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "availability",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsBigNumber"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "giant_countdown",
+      "family": "urgency",
+      "name": "Compte à rebours géant",
+      "description": "Compte à rebours géant",
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "daysRemaining",
+        "availability",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionCountdown"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "almost_full_alert",
+      "family": "urgency",
+      "name": "Bientôt complet",
+      "description": "Bientôt complet",
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "availability",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionCountdown"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "new_session_open",
+      "family": "launch",
+      "name": "Nouvelle session ouverte",
+      "description": "Nouvelle session ouverte",
+      "suitableRoles": [
+        "launch"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "duration",
+        "location",
+        "availability"
+      ],
+      "density": "dynamic",
+      "style": "launch",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionTicket"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "opening_date_hero",
+      "family": "dates",
+      "name": "Date d’ouverture héro",
+      "description": "Date d’ouverture héro",
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "startDate",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "impact",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderTypographicPosterCenter"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "exam_date_focus",
+      "family": "dates",
+      "name": "Date examen focus",
+      "description": "Date examen focus",
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "examDate",
+        "location"
+      ],
+      "density": "institutional",
+      "style": "date",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionCalendar"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "timeline_dates",
+      "family": "dates",
+      "name": "Timeline dates clés",
+      "description": "Timeline dates clés",
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "steps",
+        "startDate",
+        "examDate"
+      ],
+      "density": "editorial",
+      "style": "date",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderProcessHorizontalTimeline"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "session_route_visual",
+      "family": "launch",
+      "name": "Parcours nouvelle session",
+      "description": "Parcours nouvelle session",
+      "suitableRoles": [
+        "launch"
+      ],
+      "supportedContent": [
+        "title",
+        "steps",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "launch",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderProcessRoute"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "launch_split_saas",
+      "family": "launch",
+      "name": "Lancement split SaaS",
+      "description": "Lancement split SaaS",
+      "suitableRoles": [
+        "launch"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "availability",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderEditorialSplitColumns"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "proof_dashboard",
+      "family": "proof",
+      "name": "Dashboard preuves",
+      "description": "Dashboard preuves",
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "quote"
+      ],
+      "density": "dashboard",
+      "style": "proof",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsDashboard"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "proof_big_quote",
+      "family": "proof",
+      "name": "Preuve + citation",
+      "description": "Preuve + citation",
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "quote",
+        "introduction",
+        "author",
+        "stats"
+      ],
+      "density": "minimal",
+      "style": "proof",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderQuoteManifesto"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "conversion_final_places",
+      "family": "urgency",
+      "name": "CTA dernières places",
+      "description": "CTA dernières places",
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "cta",
+        "availability",
+        "footer"
+      ],
+      "density": "conversion",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderCarouselFinalCta"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "conversion_booking_date",
+      "family": "dates",
+      "name": "CTA réservation datée",
+      "description": "CTA réservation datée",
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "cta",
+        "startDate",
+        "footer"
+      ],
+      "density": "conversion",
+      "style": "date",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderCarouselFinalCta"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_pricing_metric",
+      "family": "saas",
+      "name": "Bloc financement SaaS",
+      "description": "Bloc financement SaaS",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "financing",
+        "price"
+      ],
+      "density": "dashboard",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsBigNumber"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "visual_modules_numbers",
+      "family": "program",
+      "name": "Modules numérotés visuels",
+      "description": "Modules numérotés visuels",
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "modules",
+        "duration"
+      ],
+      "density": "dynamic",
+      "style": "impact",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderProgramModulesGrid"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "visual_stair_numbers",
+      "family": "process",
+      "name": "Escalier chiffres géants",
+      "description": "Escalier chiffres géants",
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "steps"
+      ],
+      "density": "dynamic",
+      "style": "impact",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderProcessStaircase"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "visual_before_after_rate",
+      "family": "comparison",
+      "name": "Avant après taux",
+      "description": "Avant après taux",
+      "suitableRoles": [
+        "comparison"
+      ],
+      "supportedContent": [
+        "title",
+        "before",
+        "after",
+        "stats"
+      ],
+      "density": "editorial",
+      "style": "proof",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderComparisonBeforeAfter"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "faq_places_open",
+      "family": "faq",
+      "name": "FAQ inscriptions ouvertes",
+      "description": "FAQ inscriptions ouvertes",
+      "suitableRoles": [
+        "faq"
+      ],
+      "supportedContent": [
+        "title",
+        "faq",
+        "availability"
+      ],
+      "density": "editorial",
+      "style": "conversion",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderFaqStackedCards"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "cover_giant_acronym",
+      "family": "cover",
+      "name": "Sigle géant impact",
+      "description": "Sigle géant impact",
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "date",
+        "availability"
+      ],
+      "density": "minimal",
+      "style": "impact",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderTypographicPosterOffset"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "cover_date_badge",
+      "family": "cover",
+      "name": "Affiche date badge",
+      "description": "Affiche date badge",
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "date",
+        "location",
+        "badges"
+      ],
+      "density": "dynamic",
+      "style": "date",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderEditorialDiagonal"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "session_capacity_cards",
+      "family": "session",
+      "name": "Capacité places visuelle",
+      "description": "Capacité places visuelle",
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "availability",
+        "sessionNumber"
+      ],
+      "density": "editorial",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionTicket"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "session_calendar_open",
+      "family": "session",
+      "name": "Calendrier ouverture",
+      "description": "Calendrier ouverture",
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "endDate",
+        "availability"
+      ],
+      "density": "institutional",
+      "style": "launch",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionCalendar"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "stats_completion_alert",
+      "family": "stats",
+      "name": "Alerte remplissage",
+      "description": "Alerte remplissage",
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "availability"
+      ],
+      "density": "dashboard",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsRadialGauge"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "stats_success_wall",
+      "family": "stats",
+      "name": "Mur réussite",
+      "description": "Mur réussite",
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dashboard",
+      "style": "proof",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsDashboard"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "stats_big_date",
+      "family": "stats",
+      "name": "Date géante",
+      "description": "Date géante",
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats",
+        "startDate"
+      ],
+      "density": "minimal",
+      "style": "date",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsBigNumber"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_waitlist",
+      "family": "saas",
+      "name": "Liste d’attente SaaS",
+      "description": "Liste d’attente SaaS",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "daysRemaining",
+        "availability",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionCountdown"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "launch_ticket_premium",
+      "family": "launch",
+      "name": "Ticket lancement premium",
+      "description": "Ticket lancement premium",
+      "suitableRoles": [
+        "launch"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "location",
+        "availability"
+      ],
+      "density": "premium",
+      "style": "launch",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionTicket"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "dates_calendar_premium",
+      "family": "dates",
+      "name": "Calendrier premium",
+      "description": "Calendrier premium",
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "examDate",
+        "location"
+      ],
+      "density": "premium",
+      "style": "date",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderSessionCalendar"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "proof_constellation",
+      "family": "proof",
+      "name": "Constellation résultats",
+      "description": "Constellation résultats",
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "title",
+        "careers",
+        "highlightedText"
+      ],
+      "density": "dynamic",
+      "style": "proof",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderCareersConstellation"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "urgency_diagonal",
+      "family": "urgency",
+      "name": "Diagonale urgence",
+      "description": "Diagonale urgence",
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "date",
+        "availability"
+      ],
+      "density": "dynamic",
+      "style": "urgent",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderEditorialDiagonal"
+    },
+    {
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "variantId": "default",
+      "themeId": "formation_default",
+      "status": "ready",
+      "version": 2,
+      "id": "saas_final_cta",
+      "family": "saas",
+      "name": "CTA SaaS final",
+      "description": "CTA SaaS final",
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "cta",
+        "footer"
+      ],
+      "density": "conversion",
+      "style": "saas",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderCarouselFinalCta"
     }
   ]
 }

@@ -199,6 +199,7 @@ def test_afc_dsf_dashboard_contains_five_cards_generate_button_actions_and_dynam
     assert "/sessions/s1/afc-dsf/dsf-actions/pdf" in html
     assert "/sessions/s1/afc-dsf/dsf-actions/download" in html
     assert "/api/sessions/s1/afc-dsf/dsf-actions/delete" in html
+    assert "window.SaasDialog?await window.SaasDialog.confirm" in html
 
 
 def test_afc_dsf_overbilling_alert_is_conditional(monkeypatch):

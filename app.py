@@ -10733,6 +10733,43 @@ def api_social_visuals_save():
     save_social_visuals(DATA_DIR, data)
     return jsonify({"ok": True, "post": post})
 
+
+@app.post("/api/admin/studio/media")
+def api_studio_media_upload():
+    uploaded = request.files.get("file")
+    media_type = (request.form.get("type") or "image").lower()
+    if not uploaded or not uploaded.filename:
+        return jsonify({"success": False, "error": "Aucun fichier reçu."}), 400
+    ext = os.path.splitext(secure_filename(uploaded.filename))[1].lower()
+    allowed = {".png", ".svg", ".webp", ".jpg", ".jpeg"}
+    if ext not in allowed:
+        return jsonify({"success": False, "error": "Format non autorisé."}), 400
+    uploaded.seek(0, os.SEEK_END)
+    size = uploaded.tell()
+    uploaded.seek(0)
+    if size > 5 * 1024 * 1024:
+        return jsonify({"success": False, "error": "Le fichier dépasse 5 Mo."}), 400
+    studio_dir = os.path.join(DATA_DIR, "studio_media")
+    os.makedirs(studio_dir, exist_ok=True)
+    media_id = uuid.uuid4().hex
+    filename = f"{media_type}_{media_id}{ext}"
+    path = os.path.join(studio_dir, filename)
+    data = uploaded.read()
+    if ext == ".svg":
+        text = data.decode("utf-8", errors="ignore")
+        lowered = text.lower()
+        if "<script" in lowered or "javascript:" in lowered or "onload=" in lowered or "onerror=" in lowered:
+            return jsonify({"success": False, "error": "SVG refusé : contenu actif détecté."}), 400
+        data = text.encode("utf-8")
+    with open(path, "wb") as handle:
+        handle.write(data)
+    media = {"id": media_id, "type": media_type, "url": url_for("studio_media_file", filename=filename), "width": None, "height": None}
+    return jsonify({"success": True, "media": media})
+
+@app.get("/media/studio/<path:filename>")
+def studio_media_file(filename):
+    return send_from_directory(os.path.join(DATA_DIR, "studio_media"), filename)
+
 @app.post("/api/admin/social-visuals/generate")
 def api_social_visuals_generate():
     payload = request.get_json(silent=True) or {}

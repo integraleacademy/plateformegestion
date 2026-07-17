@@ -462,7 +462,7 @@ def test_afc_invoice_routes_unique_and_historical_download(monkeypatch):
     with application.app.test_client() as client:
         with client.session_transaction() as flask_session:
             flask_session["admin_logged"] = True; flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
-        assert client.get('/api/sessions/s1/afc-dsf/dsf1/invoice/preview').json['preview']['invoiceType'] in ('intermediate','final')
+        assert client.get('/api/sessions/s1/afc-dsf/dsf1/invoice/preview').json['preview']['invoiceType'] == ''
         payload={"invoice_number":"INV001","invoice_date":"2026-07-17","invoice_place":"PUGET SUR ARGENS","invoice_type":"intermediate","kairos_engagement_reference":"41C32B061177_N1"}
         resp=client.post('/api/sessions/s1/afc-dsf/dsf1/invoice', json=payload)
         assert resp.status_code == 200
@@ -478,3 +478,70 @@ def test_afc_invoice_button_visibility(monkeypatch):
     assert "Générer la facture" in html
     s_non=sample_session(); s_non["formation"]="APS"; s_non["afcDsfs"]=[s["afcDsfs"][0]]
     assert "Générer la facture" not in render_afc_dsf_page(monkeypatch, s_non)
+
+
+def test_afc_invoice_decimal_money_reference_and_type_cases():
+    from openpyxl import load_workbook
+    from services.afc_france_travail_invoice_excel import (
+        MONEY_FORMAT,
+        amount_to_french_words,
+        build_invoice_snapshot,
+        build_kairos_dsf_reference,
+        generate_invoice_excel_from_snapshot,
+        normalize_dsf_sequence_number,
+    )
+    s = sample_session()
+    s["france_travail"] = {"engagement_kairos": "41C32B061177_N1", "marche_afc": "51190"}
+    dsf_snapshot = {
+        "number": "1",
+        "periodStart": "2026-07-01",
+        "periodEnd": "2026-07-31",
+        "hourlyRate": "12.10",
+        "session": {"france_travail": s["france_travail"], "name": "AFC", "date_debut": "2026-07-01", "date_fin": "2026-07-31"},
+        "students": [],
+        "moduleTotals": {"FT": 200, "RAN": 75},
+        "studentCount": 1,
+        "totalHours": 275,
+    }
+    dsf = {"id": "dsf1", "number": "1", "status": AFC_DSF_STATUS_FINALIZED, "amountTotal": "3327.50", "modules": ["FT", "RAN"], "franceTravailExcelSnapshot": dsf_snapshot}
+    inv = build_invoice_snapshot(s, dsf, {"invoice_number": "INV-DEC", "invoice_date": "2026-07-17", "invoice_place": "PUGET", "invoice_type": "intermediate"}, "tester")
+    wb = load_workbook(generate_invoice_excel_from_snapshot(inv, Path(__file__).resolve().parents[1]), data_only=False)
+    ws = wb["FACTURE DSF1"]
+    assert ws["H33"].value == 12.10 and isinstance(ws["H33"].value, float)
+    assert ws["H33"].number_format == MONEY_FORMAT
+    assert ws["H34"].value == 12.10 and ws["H34"].number_format == MONEY_FORMAT
+    assert ws["I33"].value == 2420.00 and ws["I34"].value == 907.50
+    assert ws["I38"].value == 3327.50 and ws["C42"].value == 3327.50
+    assert ws["F42"].value == "TROIS MILLE TROIS CENT VINGT-SEPT EUROS ET CINQUANTE CENTIMES"
+    assert ws["H2"].value == ws["D24"].value == "41C32B061177_N1"
+    assert ws["A22"].value.startswith("☒") and ws["I22"].value.startswith("☐")
+    inv_final = {**inv, "invoice_type": "final"}
+    ws_final = load_workbook(generate_invoice_excel_from_snapshot(inv_final, Path(__file__).resolve().parents[1]), data_only=False)["FACTURE DSF1"]
+    assert ws_final["A22"].value.startswith("☐") and ws_final["I22"].value.startswith("☒")
+    assert amount_to_french_words("3327.50") == "TROIS MILLE TROIS CENT VINGT-SEPT EUROS ET CINQUANTE CENTIMES"
+    assert build_kairos_dsf_reference("41C32B061177", 1) == "41C32B061177_N1"
+    assert build_kairos_dsf_reference("41C32B061177", 2) == "41C32B061177_N2"
+    assert [normalize_dsf_sequence_number(v) for v in (1, "1", "DSF1", "N1", "_N1")] == [1, 1, 1, 1, 1]
+    assert build_kairos_dsf_reference("41C32B061177_N1", 2) == "41C32B061177_N2"
+
+
+def test_afc_invoice_type_required_backend_and_frontend(monkeypatch):
+    import app as application
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    s = sample_session(); s["france_travail"] = {"engagement_kairos": "41C32B061177", "marche_afc": "51190"}
+    dsf_snapshot = {"number": "1", "periodStart": "2026-07-01", "periodEnd": "2026-07-31", "hourlyRate": "12.10", "session": {"france_travail": s["france_travail"]}, "moduleTotals": {"RAN": 75}, "students": [], "studentCount": 1, "totalHours": 75}
+    s["afcDsfs"].append({"id": "dsf1", "number": "1", "label": "DSF 1", "status": AFC_DSF_STATUS_FINALIZED, "amountTotal": "907.50", "modules": ["RAN"], "franceTravailExcelSnapshot": dsf_snapshot})
+    saved = {"sessions": [s], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+    html = render_afc_dsf_page(monkeypatch, s)
+    assert 'name="afcInvoiceType" value="intermediate"' in html
+    assert 'name="afcInvoiceType" value="final"' in html
+    assert "confirmAfcInvoice').disabled=true" in html
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True; flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        payload = {"invoice_number": "INV-NOTYPE", "invoice_date": "2026-07-17", "invoice_place": "PUGET"}
+        resp = client.post('/api/sessions/s1/afc-dsf/dsf1/invoice', json=payload)
+        assert resp.status_code == 400
+        assert resp.json["error"] == "Veuillez sélectionner Facture intermédiaire ou Facture de solde."

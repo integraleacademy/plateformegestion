@@ -760,7 +760,7 @@
       "density": "dashboard",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsDashboard"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -787,7 +787,7 @@
       "density": "dashboard",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsDashboard"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -814,7 +814,7 @@
       "density": "dashboard",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsBars"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -841,7 +841,7 @@
       "density": "dashboard",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsRadialGauge"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -868,7 +868,7 @@
       "density": "minimal",
       "style": "impact",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsBigNumber"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -896,7 +896,7 @@
       "density": "minimal",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsBigNumber"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -924,7 +924,7 @@
       "density": "minimal",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionCountdown"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -951,7 +951,7 @@
       "density": "dynamic",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionCountdown"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -980,7 +980,7 @@
       "density": "dynamic",
       "style": "launch",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionTicket"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1008,7 +1008,7 @@
       "density": "minimal",
       "style": "impact",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderTypographicPosterCenter"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1036,7 +1036,7 @@
       "density": "institutional",
       "style": "date",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionCalendar"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1064,7 +1064,7 @@
       "density": "editorial",
       "style": "date",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderProcessHorizontalTimeline"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1091,7 +1091,7 @@
       "density": "dynamic",
       "style": "launch",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderProcessRoute"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1120,7 +1120,7 @@
       "density": "editorial",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderEditorialSplitColumns"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1147,7 +1147,7 @@
       "density": "dashboard",
       "style": "proof",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsDashboard"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1175,7 +1175,7 @@
       "density": "minimal",
       "style": "proof",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderQuoteManifesto"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1203,7 +1203,7 @@
       "density": "conversion",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderCarouselFinalCta"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1231,7 +1231,7 @@
       "density": "conversion",
       "style": "date",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderCarouselFinalCta"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1259,7 +1259,7 @@
       "density": "dashboard",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsBigNumber"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1286,7 +1286,7 @@
       "density": "dynamic",
       "style": "impact",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderProgramModulesGrid"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1312,7 +1312,7 @@
       "density": "dynamic",
       "style": "impact",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderProcessStaircase"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1340,7 +1340,7 @@
       "density": "editorial",
       "style": "proof",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderComparisonBeforeAfter"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1367,7 +1367,7 @@
       "density": "editorial",
       "style": "conversion",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderFaqStackedCards"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1395,7 +1395,7 @@
       "density": "minimal",
       "style": "impact",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderTypographicPosterOffset"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1424,7 +1424,7 @@
       "density": "dynamic",
       "style": "date",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderEditorialDiagonal"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1452,7 +1452,7 @@
       "density": "editorial",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionTicket"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1480,7 +1480,7 @@
       "density": "institutional",
       "style": "launch",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionCalendar"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1507,7 +1507,7 @@
       "density": "dashboard",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsRadialGauge"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1533,7 +1533,7 @@
       "density": "dashboard",
       "style": "proof",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsDashboard"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1560,7 +1560,7 @@
       "density": "minimal",
       "style": "date",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderStatsBigNumber"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1588,7 +1588,7 @@
       "density": "dynamic",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionCountdown"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1616,7 +1616,7 @@
       "density": "premium",
       "style": "launch",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionTicket"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1644,7 +1644,7 @@
       "density": "premium",
       "style": "date",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderSessionCalendar"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1671,7 +1671,7 @@
       "density": "dynamic",
       "style": "proof",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderCareersConstellation"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1699,7 +1699,7 @@
       "density": "dynamic",
       "style": "urgent",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderEditorialDiagonal"
+      "renderer": "renderMarketingTemplate"
     },
     {
       "supportedFormats": [
@@ -1726,7 +1726,7 @@
       "density": "conversion",
       "style": "saas",
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
-      "renderer": "renderCarouselFinalCta"
+      "renderer": "renderMarketingTemplate"
     }
   ]
 }

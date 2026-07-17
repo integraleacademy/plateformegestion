@@ -10694,14 +10694,13 @@ def social_visuals_studio():
         source = find_session(load_sessions(), source_session_id)
         if source:
             prefill = session_to_social_prefill(source)
+    from services.studio_template_service import load_studio_config
+    config = load_studio_config(current_app.root_path)
+    config.update({"defaultSlide": prefill, "sourceSessionId": source_session_id})
     return render_template(
-        "social_visuals.html",
+        "admin/studio_visuals/editor.html",
         title="Studio visuels réseaux sociaux",
-        formations=FORMATIONS,
-        templates=TEMPLATES,
-        themes=VISUAL_THEMES,
-        default_slide=prefill,
-        source_session_id=source_session_id,
+        config=config,
     )
 
 @app.get("/admin/social-posts")

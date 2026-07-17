@@ -913,7 +913,8 @@ a.back:hover{ background:#d9a848 !important; }
   <div class="planning-header">
     <h2 style="margin:0;">📅 Planning de formation (PDF)</h2>
 
-    <div class="planning-actions">
+    <div class="planning-actions"><a class="btn small gold" href="{{ url_for('create_social_post_from_session', sid=s.id) }}">Créer un visuel</a>
+
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
         <a class="btn small" href="{{ url_for('view_a3p_document', sid=s.id, kind='planning') }}" target="_blank">👀 Voir le planning</a>
       {% elif planning_pdf %}

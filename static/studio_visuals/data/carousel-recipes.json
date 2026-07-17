@@ -1,0 +1,454 @@
+{
+  "recipes": [
+    {
+      "id": "session_announcement_6_slides",
+      "name": "Session Announcement",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "formation_overview_6_slides",
+      "name": "Formation Overview",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "program_6_slides",
+      "name": "Program",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "careers_6_slides",
+      "name": "Careers",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "funding_6_slides",
+      "name": "Funding",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "faq_6_slides",
+      "name": "Faq",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "prerequisites_6_slides",
+      "name": "Prerequisites",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "last_seats_6_slides",
+      "name": "Last Seats",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "recruitment_6_slides",
+      "name": "Recruitment",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "myth_reality_6_slides",
+      "name": "Myth Reality",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "regulation_6_slides",
+      "name": "Regulation",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "testimonial_6_slides",
+      "name": "Testimonial",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "results_6_slides",
+      "name": "Results",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "registration_steps_6_slides",
+      "name": "Registration Steps",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    },
+    {
+      "id": "formation_comparison_6_slides",
+      "name": "Formation Comparison",
+      "slides": [
+        {
+          "role": "cover",
+          "family": "editorial_cover"
+        },
+        {
+          "role": "session_details",
+          "family": "program"
+        },
+        {
+          "role": "program",
+          "family": "careers"
+        },
+        {
+          "role": "prerequisites",
+          "family": "alerts"
+        },
+        {
+          "role": "careers",
+          "family": "conversion"
+        },
+        {
+          "role": "cta",
+          "family": "editorial_cover"
+        }
+      ]
+    }
+  ]
+}

@@ -232,6 +232,7 @@ def test_afc_dsf_student_detail_uses_grouped_module_headers_and_dynamic_values(m
     assert 'data-testid="afc-dsf-student-detail"' in html
     assert 'afc-dsf-accordion afc-dsf-accordion--detail' in html
     assert 'Lecture par stagiaire, regroupée par module AFC' in html
+    assert html.index('scope="colgroup" title="Remise à niveau (RAN)">RAN</th>') < html.index('scope="colgroup" title="Formation technique (FT)">FT</th>')
     assert 'scope="colgroup" title="Formation technique (FT)">FT</th>' in html
     assert 'scope="colgroup" title="Remise à niveau (RAN)">RAN</th>' in html
     assert 'scope="colgroup" title="Soutien personnalisé (SP)">SP</th>' in html

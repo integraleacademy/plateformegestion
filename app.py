@@ -1584,8 +1584,8 @@ os.makedirs(DSF_DIR, exist_ok=True)
 AFC_DSF_STATUS_FINALIZED = "Finalisée"
 AFC_DSF_STATUS_CANCELLED = "Annulée"
 AFC_DSF_MODULES = {
-    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 273, "colors": ["#1e3a8a", "#dbeafe"]},
     "RAN": {"label": "Remise à niveau (RAN)", "theoreticalHours": 55, "colors": ["#38bdf8", "#e0f2fe"]},
+    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 273, "colors": ["#1e3a8a", "#dbeafe"]},
     "SP": {"label": "Soutien personnalisé (SP)", "theoreticalHours": 45, "colors": ["#a855f7", "#f3e8ff"]},
     "PAF": {"label": "Préparation à l’après-formation (PAF)", "theoreticalHours": 20, "colors": ["#22c55e", "#dcfce7"]},
 }

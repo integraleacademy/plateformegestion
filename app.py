@@ -1780,7 +1780,7 @@ def afc_build_main_sequence():
 def afc_slot_from_module(day, start, end, module, trainer, room):
     minutes = end - start
     slot = {"start": afc_minutes_to_hhmm(start), "end": afc_minutes_to_hhmm(end), "duration": round(minutes/60,2), "durationMinutes": minutes, "uv": module.get("uv") or module["code"], "sequence": module.get("sequence") or module.get("uv") or module["code"], "part": module.get("part") or AFC_APS_SSIAP_LABELS.get(module.get("category") or module["code"], module.get("title")), "title": module.get("title"), "content": module.get("content") or module.get("title"), "room": room, "trainer": trainer, "modality": "presentiel", "afcKind": module.get("afcKind"), "afcCategory": module.get("category") or module["code"]}
-    for key in ("partNumber", "sequenceNumber", "sequenceTitle", "totalSequenceDurationMinutes", "subpartItems"):
+    for key in ("partNumber", "sequenceNumber", "sequenceTitle", "totalSequenceDurationMinutes", "subpartItems", "blockId", "blockType", "blockTotalMinutes", "is_atomic", "can_split", "required_same_date"):
         if module.get(key) is not None: slot[key] = module[key]
     return slot
 
@@ -1807,7 +1807,7 @@ def afc_nth_working_day(start_date, interruptions=None, count=57):
     return None
 
 def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None, contractual_end_date=None):
-    """Génère le parcours AFC APS + SSIAP France Travail sur les 57 jours contractuels."""
+    """Génère le parcours AFC APS + SSIAP en réservant d'abord les blocs métier indivisibles."""
     interruptions = interruptions or [(date(2026, 12, 23), date(2027, 1, 4))]
     end_date = contractual_end_date or date(2027, 2, 15)
     if isinstance(end_date, str):
@@ -1815,11 +1815,9 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     if not end_date:
         raise ValueError("La date de fin contractuelle AFC est invalide.")
 
-    eligible_dates = []
-    day = start_date
+    eligible_dates, day = [], start_date
     while day <= end_date:
-        if is_afc_working_day(day, interruptions):
-            eligible_dates.append(day)
+        if is_afc_working_day(day, interruptions): eligible_dates.append(day)
         day += timedelta(days=1)
     if len(eligible_dates) != 57:
         raise ValueError("La période sélectionnée ne contient pas les 57 jours prévus par la commande France Travail.")
@@ -1827,102 +1825,80 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
         raise ValueError("La date de fin AFC doit être un jour admissible et contenir l’examen SSIAP 1.")
 
     six_hour_days = {date(2026, 11, 25), date(2026, 12, 1), date(2026, 12, 8), date(2027, 1, 6), date(2027, 2, 3), date(2027, 2, 11)}
-    if not six_hour_days.issubset(set(eligible_dates)):
-        raise ValueError("Les journées AFC de 6h ne correspondent pas aux jours admissibles.")
     daily_targets = {d: (6 * 60 if d in six_hour_days else 7 * 60) for d in eligible_dates}
+    planning_map = {}
+    free_intervals = {d: [(8*60+30, 12*60+30), (13*60+30, 13*60+30 + max(0, daily_targets[d] - 240))] for d in eligible_dates}
+
+    def item(d):
+        return planning_map.setdefault(d.isoformat(), {"date": d.isoformat(), "dayLabel": aps_day_label(d), "category": "afc_aps_ssiap", "slots": []})
+    def atomic(mod, block_id=None, block_type=None, total=None):
+        m = dict(mod)
+        m.update({"is_atomic": True, "can_split": False, "required_same_date": True})
+        if block_id: m["blockId"] = block_id
+        if block_type: m["blockType"] = block_type
+        if total: m["blockTotalMinutes"] = total
+        return m
+    def add(d, start, minutes, mod):
+        item(d)["slots"].append(afc_slot_from_module(d, start, start + minutes, mod, trainer, room))
+    def module_for(code, block_id=None):
+        return atomic({"code": code, "category": code, "uv": code, "title": AFC_APS_SSIAP_LABELS[code], "content": "Accompagnement transversal", "afcKind": code}, block_id, code, 300)
+    def reserve_full_day(d, mod):
+        add(d, 8*60+30, 240, mod); add(d, 13*60+30, 180, mod); free_intervals[d] = []
+    def reserve_support(d, code, block_id):
+        add(d, 10*60+30, 120, module_for(code, block_id)); add(d, 13*60+30, 180, module_for(code, block_id)); free_intervals[d] = [(8*60+30, 10*60+30)]
 
     raw = afc_build_main_sequence()
     ran = dict(next(m for m in raw if m["category"] == "RAN"), remainingMinutes=55 * 60)
-    accueil = dict(next(m for m in raw if m["category"] == "ACCUEIL"), remainingMinutes=210)
-    exam = dict(next(m for m in raw if m["category"] == "EXAM_SSIAP1"), remainingMinutes=420)
-    sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in raw if m["category"] not in {"RAN", "ACCUEIL", "EXAM_SSIAP1"}]
+    accueil = atomic(dict(next(m for m in raw if m["category"] == "ACCUEIL")), "ACCUEIL", "ACCUEIL", 210)
+    exam_aps = atomic(dict(next(m for m in raw if m["category"] == "EXAM_APS")), "EXAM_APS", "EXAM_APS", 420)
+    h0b0 = atomic(dict(next(m for m in raw if m["category"] == "H0B0")), "H0B0", "H0B0", 420)
+    exam_ssiap = atomic(dict(next(m for m in raw if m["category"] == "EXAM_SSIAP1")), "EXAM_SSIAP1", "EXAM_SSIAP1", 420)
+    bilan = atomic(dict(next(m for m in raw if m["category"] == "BILAN")), "BILAN", "BILAN", 210)
 
-    planning_map = {}
-    def item(d):
-        return planning_map.setdefault(d.isoformat(), {"date": d.isoformat(), "dayLabel": aps_day_label(d), "category": "afc_aps_ssiap", "slots": []})
-    def add(d, start, minutes, mod):
-        item(d)["slots"].append(afc_slot_from_module(d, start, start + minutes, mod, trainer, room))
-    def module_for(code):
-        return {"code": code, "category": code, "uv": code, "title": AFC_APS_SSIAP_LABELS[code], "content": "Accompagnement transversal", "afcKind": code}
-    # RAN strictement en premier : 7h du 16 au 24/11, puis 6h le 25/11.
+    # Blocs indivisibles réservés avant le remplissage APS/SSIAP.
+    reserve_full_day(end_date, exam_ssiap)
+    reserve_full_day(date(2027, 1, 25), exam_aps)
+    reserve_full_day(date(2027, 1, 26), h0b0)
+    sp_dates = [date(2026,12,4), date(2026,12,11), date(2026,12,18), date(2026,12,22), date(2027,1,8), date(2027,1,15), date(2027,1,22), date(2027,1,29), date(2027,2,5)]
+    paf_dates = [date(2027,1,14), date(2027,1,21), date(2027,1,28), date(2027,2,11)]
+    for d in sp_dates: reserve_support(d, "SP", f"SP-{d.isocalendar().year}-W{d.isocalendar().week:02d}")
+    for d in paf_dates: reserve_support(d, "PAF", f"PAF-{d.isocalendar().year}-W{d.isocalendar().week:02d}")
+
     for d in eligible_dates[:8]:
-        minutes = daily_targets[d]
-        if minutes > ran["remainingMinutes"]:
-            minutes = ran["remainingMinutes"]
-        add(d, 8 * 60 + 30, min(240, minutes), ran)
-        if minutes > 240:
-            add(d, 13 * 60 + 30, minutes - 240, ran)
+        minutes = min(daily_targets[d], ran["remainingMinutes"])
+        add(d, 8*60+30, min(240, minutes), ran)
+        if minutes > 240: add(d, 13*60+30, minutes - 240, ran)
+        free_intervals[d] = []
         ran["remainingMinutes"] -= minutes
-    if ran["remainingMinutes"] != 0:
-        raise ValueError("Les 55h de RAN n’ont pas pu être placées avant toute autre activité.")
+    if ran["remainingMinutes"] != 0: raise ValueError("Les 55h de RAN n’ont pas pu être placées avant toute autre activité.")
 
-    # Accueil sur une matinée puis démarrage APS dans la même journée.
     accueil_day = eligible_dates[8]
-    add(accueil_day, 8 * 60 + 30, 210, accueil)
-    free_intervals = {d: [(8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 13 * 60 + 30 + max(0, daily_targets[d] - 240))] for d in eligible_dates}
-    free_intervals[accueil_day] = [(12 * 60, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30)]
-    free_intervals[end_date] = []
+    add(accueil_day, 8*60+30, 210, accueil)
+    free_intervals[accueil_day] = [(12*60, 12*60+30), (13*60+30, 16*60+30)]
+    add(date(2027,2,12), 8*60+30, 210, bilan)
+    free_intervals[date(2027,2,12)] = [(12*60, 12*60+30), (13*60+30, 16*60+30)]
 
-    # Accompagnements en fin de semaine, avant le dernier jour et jamais en début de parcours.
-    # Quand une semaine contient SP et PAF, le SP précède immédiatement le PAF et le PAF
-    # occupe les cinq dernières heures de la semaine.
-    sp_weeks = {date(2026,11,30), date(2026,12,7), date(2026,12,14), date(2026,12,21), date(2027,1,4), date(2027,1,11), date(2027,1,18), date(2027,1,25), date(2027,2,1)}
-    paf_weeks = {date(2027,1,11), date(2027,1,18), date(2027,1,25), date(2027,2,8)}
-    for monday in sorted(sp_weeks | paf_weeks):
-        week_days = [d for d in eligible_dates if (d - timedelta(days=d.weekday())) == monday and d < end_date]
-        if not week_days:
-            continue
-        last = week_days[-1]
-        has_sp = monday in sp_weeks
-        has_paf = monday in paf_weeks
-        if has_sp and has_paf:
-            prev = week_days[-2] if len(week_days) >= 2 else None
-            if not prev:
-                raise ValueError("Impossible de placer SP puis PAF sur la semaine AFC.")
-            add(prev, 13*60+30, 180, module_for("SP"))
-            add(last, 8*60+30, 120, module_for("SP"))
-            add(last, 10*60+30, 120, module_for("PAF"))
-            add(last, 13*60+30, 180, module_for("PAF"))
-            free_intervals[prev] = [(8*60+30, 12*60+30)]
-            free_intervals[last] = []
-        elif has_sp:
-            add(last, 10*60+30, 120, module_for("SP")); add(last, 13*60+30, 180, module_for("SP"))
-            free_intervals[last] = [(8*60+30, 10*60+30)]
-        elif has_paf:
-            add(last, 10*60+30, 120, module_for("PAF")); add(last, 13*60+30, 180, module_for("PAF"))
-            free_intervals[last] = [(8*60+30, 10*60+30)]
-
+    sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in raw if m["category"] in {"APS", "SSIAP1"}]
     idx = 0
     def add_technical(d, start, minutes):
         nonlocal idx
-        cur = start; left = minutes
+        cur, left = start, minutes
         while left > 0 and idx < len(sequence):
             m = sequence[idx]
             take = min(left, m["remainingMinutes"])
             add(d, cur, take, m)
             m["remainingMinutes"] -= take; cur += take; left -= take
-            if m["remainingMinutes"] == 0:
-                idx += 1
-        return left
-
-    for d in eligible_dates[8:-1]:
-        intervals = list(free_intervals.get(d, []))
-        if not intervals:
-            continue
-        for start, end in intervals:
-            if idx >= len(sequence):
-                break
-            add_technical(d, start, end - start)
+            if m["remainingMinutes"] == 0: idx += 1
+    for d in eligible_dates:
+        for start, end in list(free_intervals.get(d, [])):
+            if idx < len(sequence): add_technical(d, start, end - start)
     if idx < len(sequence) or any(m.get("remainingMinutes", 0) for m in sequence[idx:]):
         raise ValueError(f"Impossible de planifier les 393 heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les règles AFC France Travail.")
-    add(end_date, 8*60+30, 240, exam); add(end_date, 13*60+30, 180, exam)
 
-    for it in planning_map.values():
-        it["slots"].sort(key=lambda x: x["start"])
+    for it in planning_map.values(): it["slots"].sort(key=lambda x: x["start"])
     planning = [planning_map[d.isoformat()] for d in eligible_dates if planning_map.get(d.isoformat(), {}).get("slots")]
     summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions, contractual_end_date=end_date)
-    if summary["errors"]:
-        raise ValueError(" ".join(summary["errors"]))
+    if summary["errors"]: raise ValueError(" ".join(summary["errors"]))
     return planning
 
 def calculate_actual_afc_hours(events):
@@ -2028,16 +2004,18 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         if parsed:
             weekly_ordered.setdefault(parsed.date().isocalendar()[:2], []).append((d, st, e, cat, slot))
     for week, slots in weekly_ordered.items():
-        support_slots = [slot for slot in slots if slot[3] in AFC_ACCOMPANIMENT_CODES]
-        if support_slots:
-            if slots[-len(support_slots):] != support_slots:
-                errors.append(f"La semaine {week} ne place pas le bloc SP/PAF dans les 5 dernières heures.")
+        sp_slots = [slot for slot in slots if slot[3] == "SP"]
+        paf_slots = [slot for slot in slots if slot[3] == "PAF"]
+        if sp_slots and slots[-len(sp_slots):] != sp_slots:
+            errors.append(f"La semaine {week} ne place pas le bloc SP dans les 5 dernières heures.")
+        if paf_slots and sp_slots and max((d, e) for d, _st, e, _cat, _slot in paf_slots) >= min((d, st) for d, st, _e, _cat, _slot in sp_slots):
+            errors.append(f"La semaine {week} doit placer la PAF avant le SP.")
     def first_time(cat):
         return next(((d, st) for d, st, _e, ccat, _s in ordered_slots if ccat == cat), None)
     def last_end(cat):
         matches = [(d, e) for d, _st, e, ccat, _s in ordered_slots if ccat == cat]
         return matches[-1] if matches else None
-    strict_order = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1"]
+    strict_order = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "EXAM_SSIAP1"]
     for before, after in zip(strict_order, strict_order[1:]):
         if first_time(after) and last_end(before) and first_time(after) < last_end(before):
             errors.append(f"Ordre AFC invalide: {AFC_APS_SSIAP_LABELS[after]} commence avant la fin de {AFC_APS_SSIAP_LABELS[before]}.")
@@ -2084,6 +2062,47 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         exam_slots = [x for x in ordered_slots if x[0] == end_iso]
         if len(exam_slots) != 2 or any(x[3] != "EXAM_SSIAP1" for x in exam_slots):
             errors.append("La date de fin contractuelle doit contenir uniquement les deux créneaux d’examen SSIAP 1.")
+    def _dt_tuple(d, t):
+        return (d or "", t or "")
+    def _cat_slots(cat):
+        return [(d, st, e, slot, int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))) for d, st, e, ccat, slot in ordered_slots if ccat == cat]
+    for cat, expected, label in (("EXAM_APS", 420, "L’examen APS"), ("H0B0", 420, "Le H0B0"), ("EXAM_SSIAP1", 420, "L’examen SSIAP 1")):
+        slots = _cat_slots(cat); dates = {d for d, _st, _e, _slot, _m in slots}
+        if sum(m for *_rest, m in slots) != expected: errors.append(f"{label} doit totaliser exactement {format_duration_from_minutes(expected)}.")
+        if len(dates) != 1: errors.append(f"{label} doit être placé sur une seule date.")
+        if dates:
+            day_slots = [(d, st, e, ccat, slot) for d, st, e, ccat, slot in ordered_slots if d in dates]
+            if any(ccat != cat for _d, _st, _e, ccat, _slot in day_slots): errors.append(f"{label} doit occuper une journée sans autre activité.")
+            if sum(int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60))) for _d, _st, _e, _ccat, slot in day_slots) != expected: errors.append(f"La journée de {label.lower()} doit durer exactement 7h.")
+    exam_aps_slots = _cat_slots("EXAM_APS")
+    aps_slots = _cat_slots("APS")
+    if exam_aps_slots and aps_slots:
+        first_exam = min(_dt_tuple(d, st) for d, st, _e, _slot, _m in exam_aps_slots)
+        aps_before = sum(m for d, _st, e, _slot, m in aps_slots if _dt_tuple(d, e) <= first_exam)
+        if aps_before != AFC_APS_SSIAP_EXPECTED_MINUTES["APS"]: errors.append("L’examen APS ne peut commencer qu’après les 175h d’APS.")
+    h0b0_slots = _cat_slots("H0B0")
+    if exam_aps_slots and h0b0_slots and min(d for d, *_ in h0b0_slots) <= max(d for d, *_ in exam_aps_slots): errors.append("Le H0B0 doit être postérieur à la journée d’examen APS.")
+    for cat, expected, label in (("ACCUEIL", 210, "L’Accueil"), ("BILAN", 210, "Le Bilan")):
+        slots = _cat_slots(cat); dates = {d for d, _st, _e, _slot, _m in slots}
+        if sum(m for *_rest, m in slots) != expected or len(dates) != 1 or len(slots) != 1:
+            errors.append(f"{label} doit être un événement continu unique de {format_duration_from_minutes(expected)}.")
+    bilan_slots = _cat_slots("BILAN")
+    if bilan_slots:
+        bilan_start = min(_dt_tuple(d, st) for d, st, _e, _slot, _m in bilan_slots)
+        for cat, label in (("SP", "SP"), ("PAF", "PAF")):
+            slots = _cat_slots(cat)
+            if slots and max(_dt_tuple(d, e) for d, _st, e, _slot, _m in slots) >= bilan_start:
+                errors.append(f"Aucun {label} ne doit exister après le début du Bilan.")
+    for cat, count, label in (("SP", 9, "SP"), ("PAF", 4, "PAF")):
+        slots = _cat_slots(cat); blocks = {}
+        for d, st, e, slot, m in slots:
+            bid = slot.get("blockId") or f"{cat}-{d}"
+            blocks.setdefault(bid, []).append((d, st, e, m))
+        if sum(m for *_rest, m in slots) != count * 300: errors.append(f"Le total {label} doit être exactement {count*5}h.")
+        if len(blocks) != count: errors.append(f"Le planning doit contenir exactement {count} blocs {label} de 5h.")
+        for bid, parts in blocks.items():
+            if sum(m for *_rest, m in parts) != 300 or len({d for d, *_ in parts}) != 1:
+                errors.append(f"Le bloc {bid} doit faire exactement 5h sur une seule date.")
     for _d, _st, _e, _cat, slot in ordered_slots:
         visible = " ".join(str(slot.get(k) or "") for k in ("uv", "sequence", "part", "title", "content"))
         if any(bad in visible for bad in ("None", "null", "undefined")) or not (slot.get("title") or "").strip():

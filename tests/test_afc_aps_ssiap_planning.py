@@ -141,7 +141,7 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert [week for week, bucket in support_weeks.items() if bucket["PAF"]] == [(2027, 2), (2027, 3), (2027, 4), (2027, 6)]
 
     paf_dates = [day["date"] for day in planning if any(slot["afcCategory"] == "PAF" for slot in day["slots"])]
-    assert paf_dates == ["2027-01-15", "2027-01-22", "2027-01-29", "2027-02-12"]
+    assert paf_dates == ["2027-01-14", "2027-01-21", "2027-01-28", "2027-02-11"]
     assert len(paf_dates) == 4
     assert sum(day_minutes("PAF").values()) == 20 * 60
     assert sum(day_minutes("SP").values()) == 45 * 60
@@ -346,3 +346,66 @@ def test_afc_attendance_pdf_hides_students_before_individual_start_date(tmp_path
     assert "RETARD" not in first_day_text
     assert "PREMIER" in second_day_text
     assert "RETARD" in second_day_text
+
+
+def _slot(cat, start, end, minutes, block_id=None):
+    slot = {
+        "start": start,
+        "end": end,
+        "duration": minutes / 60,
+        "durationMinutes": minutes,
+        "uv": cat,
+        "sequence": cat,
+        "part": cat,
+        "title": cat,
+        "content": cat,
+        "afcCategory": cat,
+        "afcKind": "FT" if cat in AFC_TECHNICAL_CODES else cat,
+    }
+    if block_id:
+        slot["blockId"] = block_id
+    return slot
+
+
+def test_afc_validation_rejects_split_exam_aps_h0b0_sp_and_paf_after_bilan():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
+
+    for day in planning:
+        day["slots"] = [slot for slot in day["slots"] if slot["afcCategory"] not in {"EXAM_APS", "H0B0", "SP", "BILAN", "PAF"}]
+    replacements = {
+        "2027-01-20": [_slot("EXAM_APS", "16:00", "16:30", 30)],
+        "2027-01-21": [_slot("EXAM_APS", "08:30", "12:30", 240)],
+        "2027-01-25": [_slot("EXAM_APS", "08:30", "11:00", 150), _slot("H0B0", "11:00", "12:30", 90), _slot("H0B0", "13:30", "16:30", 180)],
+        "2027-01-26": [_slot("H0B0", "08:30", "11:00", 150)],
+        "2027-01-28": [_slot("SP", "13:30", "16:30", 180, "SP-BAD")],
+        "2027-01-29": [_slot("SP", "08:30", "10:30", 120, "SP-BAD")],
+        "2027-02-12": [_slot("BILAN", "08:30", "12:00", 210), _slot("PAF", "13:30", "16:30", 180, "PAF-BAD")],
+    }
+    for day in planning:
+        day["slots"].extend(replacements.get(day["date"], []))
+        day["slots"].sort(key=lambda slot: slot["start"])
+
+    errors = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))["errors"]
+    assert any("examen APS" in error and "une seule date" in error for error in errors)
+    assert any("H0B0" in error and "une seule date" in error for error in errors)
+    assert any("SP-BAD" in error and "5h sur une seule date" in error for error in errors)
+    assert any("Aucun PAF" in error and "Bilan" in error for error in errors)
+
+
+def test_afc_validation_rejects_incomplete_support_blocks():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
+    for day in planning:
+        for slot in day["slots"]:
+            if slot.get("blockId") == "SP-2027-W05" and slot["start"] == "13:30":
+                slot["afcCategory"] = "SSIAP1"
+                slot["uv"] = "REV-SSIAP1"
+                slot["afcKind"] = "FT"
+            if slot.get("blockId") == "PAF-2027-W06" and slot["start"] == "13:30":
+                slot["afcCategory"] = "SSIAP1"
+                slot["uv"] = "REV-SSIAP1"
+                slot["afcKind"] = "FT"
+    errors = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))["errors"]
+    assert any("SP-2027-W05" in error and "5h" in error for error in errors)
+    assert any("PAF-2027-W06" in error and "5h" in error for error in errors)

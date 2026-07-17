@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+from decimal import Decimal, ROUND_HALF_UP
 import base64
 import time
 import tempfile
@@ -1581,6 +1582,23 @@ AFC_DSF_MODULES = {
 }
 AFC_DSF_FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
 
+AFC_DSF_HOURLY_RATE = Decimal("12.10")
+
+def afc_dsf_decimal(value):
+    return Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+def afc_dsf_money(value):
+    amount = afc_dsf_decimal(value)
+    text = f"{amount:,.2f}".replace(",", " ").replace(".", ",")
+    return f"{text} €"
+
+def afc_dsf_amount(hours):
+    return (afc_dsf_decimal(hours) * AFC_DSF_HOURLY_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+def afc_dsf_fmt_hours(value):
+    d = afc_dsf_decimal(value)
+    return f"{int(d)}" if d == d.to_integral() else str(d).replace(".", ",")
+
 def is_afc_aps_ssiap_session(session_data):
     try:
         return normalize_training_code(session_data) == "AFC_APS_SSIAP"
@@ -1644,83 +1662,78 @@ def afc_dsf_effective_start(period_start, student):
         return max(period_start, entry)
     return period_start
 
-def afc_dsf_compute(session_data, start_iso, end_iso, modules):
-    if not is_afc_aps_ssiap_session(session_data): raise ValueError("Session AFC France Travail APS + SSIAP requise.")
-    if not modules or len(modules) > 2 or len(set(modules)) != len(modules): raise ValueError("Sélectionnez un ou deux modules maximum.")
-    if any(m not in AFC_DSF_MODULES for m in modules): raise ValueError("Module DSF invalide.")
-    if start_iso > end_iso: raise ValueError("La date de début ne peut pas être postérieure à la date de fin.")
-    if session_data.get("date_debut") and start_iso < session_data.get("date_debut"): raise ValueError("La période doit être comprise dans la session.")
-    if session_data.get("date_fin") and end_iso > session_data.get("date_fin"): raise ValueError("La période doit être comprise dans la session.")
+def afc_dsf_billed_hours_by_student(session_data):
     students = afc_dsf_students(session_data)
-    if not students: raise ValueError("Au moins un stagiaire est requis.")
-    requested = afc_dsf_planned_slots(session_data, start_iso, end_iso, modules)
-    if not requested:
-        labels = ", ".join(AFC_DSF_MODULES[m]["label"] for m in modules)
-        raise ValueError(f"Aucune heure planifiée pour {labels} sur cette période.")
-    billed_keys = afc_dsf_billed_keys(session_data.get("afcDsfs") or [])
-    student_rows, billed_slot_keys, billed_slots = [], [], []
-    per_student_hours = {m: 0 for m in modules}; already = {m: 0 for m in modules}; requested_hours = {m: 0 for m in modules}
-    for slot in requested:
-        requested_hours[slot["module"]] += slot["minutes"] / 60
-    for st in students:
-        row = {"id": st["id"], "lastName": st["lastName"], "firstName": st["firstName"], "displayName": st["displayName"], "entryDate": st.get("entryDate") or "", "modules": {m: 0 for m in modules}, "totalHours": 0}
-        effective_start = afc_dsf_effective_start(start_iso, st)
-        for slot in requested:
-            if slot["date"] < effective_start:
-                continue
-            key = afc_dsf_slot_key(session_data.get("id"), st["id"], {"date": slot["date"]}, slot, slot["module"])
-            if key in billed_keys:
-                already[slot["module"]] += slot["minutes"] / 60
-                continue
-            hours = slot["minutes"] / 60
-            row["modules"][slot["module"]] += hours; row["totalHours"] += hours
-            billed_slot_keys.append(key); billed_slots.append({**slot, "studentId": st["id"], "studentName": st["displayName"]})
-        student_rows.append(row)
-    for m in modules:
-        per_student_hours[m] = round(sum(r["modules"].get(m, 0) for r in student_rows) / len(students), 2)
-    totals = {m: round(sum(r["modules"].get(m, 0) for r in student_rows), 2) for m in modules}
-    total = round(sum(totals.values()), 2)
-    if total <= 0: raise ValueError("Aucune heure restante à facturer pour les modules et la période sélectionnés.")
-    return {"periodStart": start_iso, "periodEnd": end_iso, "modules": modules, "students": student_rows, "studentCount": len(students), "hoursPerStudent": per_student_hours, "moduleTotals": totals, "totalHours": total, "requestedHours": {m: round(requested_hours[m] * len(students), 2) for m in modules}, "alreadyBilledHours": {m: round(already[m], 2) for m in modules}, "billedSlotKeys": billed_slot_keys, "billedSlots": billed_slots, "hasAlreadyBilled": any(v > 0 for v in already.values())}
-
-def afc_dsf_summary(session_data):
-    students = afc_dsf_students(session_data)
-    all_slots = afc_dsf_planned_slots(session_data)
-    planned_by_student = {st["id"]: {m: 0 for m in AFC_DSF_MODULES} for st in students}
-    for st in students:
-        effective_start = afc_dsf_effective_start(session_data.get("date_debut") or "", st)
-        for slot in all_slots:
-            if slot["date"] < effective_start:
-                continue
-            planned_by_student[st["id"]][slot["module"]] += slot["minutes"] / 60
-    billed_by_student = {st["id"]: {m: 0 for m in AFC_DSF_MODULES} for st in students}
+    billed = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
+    billed_keys = set()
     for dsf in afc_dsf_finalized(session_data.get("afcDsfs") or []):
+        for key in dsf.get("billedSlotKeys") or []:
+            billed_keys.add(key)
         for row in dsf.get("students") or []:
             sid = row.get("id")
-            if sid in billed_by_student:
-                for m, h in (row.get("modules") or {}).items():
-                    if m in billed_by_student[sid]: billed_by_student[sid][m] += float(h or 0)
-    cards = []
-    for m, meta in AFC_DSF_MODULES.items():
-        planned_values = [planned_by_student.get(st["id"], {}).get(m, 0) for st in students]
-        planned_total = sum(planned_values)
-        billed_total = sum(v[m] for v in billed_by_student.values())
-        remaining_total = planned_total - billed_total
-        overbilled_total = max(0, -remaining_total)
-        if overbilled_total > 0.0001:
-            app.logger.warning(
-                "DSF AFC overbilled summary session=%s module=%s planned=%.2f billed=%.2f overbilled=%.2f",
-                session_data.get("id"), m, planned_total, billed_total, overbilled_total,
-            )
-        remaining_total = max(0, remaining_total)
-        cards.append({"code": m, **meta, "plannedPerStudent": round((planned_total / len(students)) if students else 0,2), "plannedTotal": round(planned_total,2), "billedTotal": round(billed_total,2), "overbilledTotal": round(overbilled_total,2), "remainingPerStudent": round((remaining_total / len(students)) if students else 0,2), "remainingTotal": round(remaining_total,2)})
-    detail=[]
+            if sid not in billed:
+                continue
+            for m, h in (row.get("modules") or {}).items():
+                if m in billed[sid]:
+                    billed[sid][m] += afc_dsf_decimal(h)
+    return billed, billed_keys
+
+def afc_dsf_build_invoice_state(session_data, billing_until=None, period_start=None, period_end=None):
+    if not is_afc_aps_ssiap_session(session_data):
+        raise ValueError("Session AFC France Travail APS + SSIAP requise.")
+    today = datetime.now().date().isoformat()
+    cutoff = billing_until or period_end or today
+    period_end = period_end or cutoff
+    if period_start and period_start > period_end:
+        raise ValueError("La date de début ne peut pas être postérieure à la date de fin.")
+    students = afc_dsf_students(session_data)
+    all_slots = afc_dsf_planned_slots(session_data)
+    billed_by_student, billed_keys = afc_dsf_billed_hours_by_student(session_data)
+    module_totals = {m: {"planned": Decimal("0"), "billable": Decimal("0"), "billed": Decimal("0"), "toInvoice": Decimal("0"), "remaining": Decimal("0"), "advanceOver": Decimal("0"), "definitiveOver": Decimal("0")} for m in AFC_DSF_MODULES}
+    detail = []
+    anomaly_count = Decimal("0")
     for st in students:
-        row={"student":st,"modules":{},"plannedTotal":0,"billedTotal":0,"remainingTotal":0}
+        sid = st["id"]
+        entry = st.get("entryDate") or session_data.get("date_debut") or ""
+        row = {"student": st, "modules": {}, "plannedTotal": Decimal("0"), "billableTotal": Decimal("0"), "billedTotal": Decimal("0"), "toInvoiceTotal": Decimal("0"), "remainingTotal": Decimal("0"), "amountToInvoice": Decimal("0"), "anomalies": []}
         for m in AFC_DSF_MODULES:
             p=planned_by_student.get(st["id"],{}).get(m,0); b=billed_by_student.get(st["id"],{}).get(m,0); r=max(0,p-b); over=max(0,b-p); progress=0 if p<=0 else min(100, round((b/p)*100, 1)); row["modules"][m]={"planned":round(p,2),"billed":round(b,2),"remaining":round(r,2),"overbilled":round(over,2),"progress":progress}; row["plannedTotal"]+=p; row["billedTotal"]+=b; row["remainingTotal"]+=r
         detail.append(row)
-    return {"cards": cards, "detail": detail, "total": {"theoreticalHours":393,"billedTotal":round(sum(c["billedTotal"] for c in cards),2),"remainingTotal":round(sum(c["remainingTotal"] for c in cards),2)}}
+    cards=[]
+    for m, meta in AFC_DSF_MODULES.items():
+        t=module_totals[m]; t.update({"amountBilled":afc_dsf_amount(t["billed"]),"amountToInvoice":afc_dsf_amount(t["toInvoice"]),"amountRemaining":afc_dsf_amount(t["remaining"])})
+        cards.append({"code":m, **meta, **t, "plannedTotal": round(float(t["planned"]),2), "billedTotal": round(float(t["billed"]),2), "remainingTotal": (0 if t["billed"] > t["planned"] else round(float(t["remaining"]),2)), "overbilledTotal": round(float(max(Decimal("0"), t["billed"] - t["planned"])),2), "plannedPerStudent": round(float(t["planned"] / max(Decimal(len(students)), Decimal(1))),2), "remainingPerStudent": round(float(t["remaining"] / max(Decimal(len(students)), Decimal(1))),2)})
+    total = {"studentCount": len(students), "studentsToInvoice": sum(1 for r in detail if r["toInvoiceTotal"] > 0), "planned": sum(c["planned"] for c in cards), "billable": sum(c["billable"] for c in cards), "billed": sum(c["billed"] for c in cards), "toInvoice": sum(c["toInvoice"] for c in cards), "remaining": sum(c["remaining"] for c in cards), "anomalyCount": int(anomaly_count)}
+    total.update({"amountBilled": afc_dsf_amount(total["billed"]), "amountToInvoice": afc_dsf_amount(total["toInvoice"]), "amountRemaining": afc_dsf_amount(total["remaining"])})
+    return {"billingUntil": cutoff, "periodStart": period_start or "", "periodEnd": period_end, "cards": cards, "detail": detail, "total": total, "rate": str(AFC_DSF_HOURLY_RATE)}
+
+def afc_dsf_compute(session_data, start_iso, end_iso, modules, excluded_students=None):
+    if not modules or len(modules) > 2 or len(set(modules)) != len(modules): raise ValueError("Sélectionnez un ou deux modules maximum.")
+    if any(m not in AFC_DSF_MODULES for m in modules): raise ValueError("Module DSF invalide.")
+    state = afc_dsf_build_invoice_state(session_data, billing_until=end_iso, period_start=start_iso, period_end=end_iso)
+    excluded_students = set(excluded_students or [])
+    billed_keys = afc_dsf_billed_keys(session_data.get("afcDsfs") or [])
+    students=[]; billed_slot_keys=[]; billed_slots=[]; totals={m:0 for m in modules}
+    slots=afc_dsf_planned_slots(session_data, start_iso, end_iso, modules)
+    for row in state["detail"]:
+        st=row["student"]
+        if st["id"] in excluded_students: continue
+        out={"id":st["id"],"lastName":st["lastName"],"firstName":st["firstName"],"displayName":st["displayName"],"entryDate":st.get("entryDate") or "","modules":{m:float(row["modules"][m]["toInvoice"]) for m in modules},"totalHours":float(sum(row["modules"][m]["toInvoice"] for m in modules)),"amountToInvoice":str(afc_dsf_amount(sum(row["modules"][m]["toInvoice"] for m in modules)))}
+        if out["totalHours"] <= 0: continue
+        for slot in slots:
+            if slot["module"] not in modules or slot["date"] < (st.get("entryDate") or ""):
+                continue
+            key=afc_dsf_slot_key(session_data.get("id"), st["id"], {"date": slot["date"]}, slot, slot["module"])
+            if key not in billed_keys:
+                billed_slot_keys.append(key); billed_slots.append({**slot,"studentId":st["id"],"studentName":st["displayName"]})
+        for m in modules: totals[m]+=out["modules"][m]
+        students.append(out)
+    total=round(sum(totals.values()),2)
+    if total <= 0: raise ValueError("Aucune heure restante à facturer pour les modules et la période sélectionnés.")
+    return {"periodStart":start_iso,"periodEnd":end_iso,"billingUntil":end_iso,"modules":modules,"students":students,"studentCount":len(students),"moduleTotals":{m:round(totals[m],2) for m in modules},"totalHours":total,"amountTotal":str(afc_dsf_amount(total)),"billedSlotKeys":billed_slot_keys,"billedSlots":billed_slots,"hoursPerStudent":{m:round(totals[m]/max(len(students),1),2) for m in modules},"requestedHours":{m:round(totals[m],2) for m in modules},"alreadyBilledHours":{m:0 for m in modules},"hasAlreadyBilled":False,"anomalies":[a for r in state["detail"] for a in r["anomalies"]]}
+
+def afc_dsf_summary(session_data, billing_until=None, period_start=None, period_end=None):
+    return afc_dsf_build_invoice_state(session_data, billing_until=billing_until, period_start=period_start, period_end=period_end)
 
 
 def afc_dsf_detail_report_context(session_data):
@@ -6027,8 +6040,10 @@ def session_detail(sid):
         order=order,
         now=datetime.now,
         planning_pdf=session.get("planning_pdf"),
-        afc_dsf_summary=afc_dsf_summary(session) if is_afc_aps_ssiap_session(session) else None,
+        afc_dsf_summary=afc_dsf_summary(session, request.args.get("billingUntil"), request.args.get("periodStart"), request.args.get("periodEnd")) if is_afc_aps_ssiap_session(session) else None,
         afc_dsf_modules=AFC_DSF_MODULES,
+        afc_dsf_money=afc_dsf_money,
+        afc_dsf_hours=afc_dsf_fmt_hours,
     )
 
 
@@ -6107,7 +6122,7 @@ def api_afc_dsf_preview(sid):
     if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
     payload=request.get_json(silent=True) or {}
     try:
-        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [])
+        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [])
         return jsonify({'ok':True,'preview':result,'moduleLabels':{k:v['label'] for k,v in AFC_DSF_MODULES.items()}})
     except Exception as exc:
         return jsonify({'ok':False,'error':str(exc)}),400
@@ -6118,7 +6133,7 @@ def api_afc_dsf_generate(sid):
     if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
     payload=request.get_json(silent=True) or {}
     try:
-        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [])
+        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [])
         number=afc_dsf_next_number(sess); dsf_id=uuid.uuid4().hex; filename=f"dsf_afc_{sid}_DSF_{number}.pdf"; path=os.path.join(DSF_DIR, filename)
         dsf={"id":dsf_id,"number":number,"label":f"DSF {number}","sessionId":sid,"sessionName":sess.get('display_name') or sess.get('formation'),"createdAt":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"createdBy":session.get('admin_email') or 'admin',"status":AFC_DSF_STATUS_FINALIZED,"pdfFilename":filename,**result}
         generate_afc_dsf_pdf(sess, dsf, path)

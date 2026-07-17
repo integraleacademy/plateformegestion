@@ -762,6 +762,7 @@ a.back:hover{ background:#d9a848 !important; }
     <div class="detail-sidebar-shortcuts">
       <p class="detail-nav-label" style="margin-top:0;">Actions rapides</p>
       <a class="detail-nav-link primary" href="{{ url_for('edit_session', sid=s.id) }}"><span class="detail-nav-icon">✎</span>Modifier la session</a>
+      <a class="detail-nav-link" href="{{ url_for('create_social_post_from_session', sid=s.id) }}" target="_blank" rel="noopener"><span class="detail-nav-icon">🎨</span>Créer un post</a>
       <button class="detail-nav-link" type="button" id="sidebarOpenJury"><span class="detail-nav-icon">＋</span>Notifier un jury</button>
     </div>
     <div class="detail-sidebar-foot"><a href="{{ url_for('sessions_home') }}">← Retour à toutes les sessions</a></div>

@@ -10676,3 +10676,69 @@ def planning_disponibilites():
 
 
     
+
+# ------------------------------------------------------------
+# Studio visuels réseaux sociaux
+# ------------------------------------------------------------
+from social_visuals import (
+    DEFAULT_SLIDE, FORMATIONS, TEMPLATES, VISUAL_THEMES,
+    generate_content_from_topic, load_social_visuals, save_social_visuals,
+    session_to_social_prefill,
+)
+
+@app.get("/admin/studio-visuels")
+def social_visuals_studio():
+    prefill = dict(DEFAULT_SLIDE)
+    source_session_id = request.args.get("session_id") or ""
+    if source_session_id:
+        source = find_session(load_sessions(), source_session_id)
+        if source:
+            prefill = session_to_social_prefill(source)
+    return render_template(
+        "social_visuals.html",
+        title="Studio visuels réseaux sociaux",
+        formations=FORMATIONS,
+        templates=TEMPLATES,
+        themes=VISUAL_THEMES,
+        default_slide=prefill,
+        source_session_id=source_session_id,
+    )
+
+@app.get("/admin/social-posts")
+def social_posts_alias():
+    return redirect(url_for("social_visuals_studio", **request.args))
+
+@app.get("/api/admin/social-visuals")
+def api_social_visuals_list():
+    return jsonify(load_social_visuals(DATA_DIR))
+
+@app.post("/api/admin/social-visuals")
+def api_social_visuals_save():
+    payload = request.get_json(silent=True) or {}
+    data = load_social_visuals(DATA_DIR)
+    post = payload.get("post") if isinstance(payload.get("post"), dict) else payload
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    post_id = post.get("id") or uuid.uuid4().hex
+    post.update({"id": post_id, "updated_at": now})
+    post.setdefault("created_at", now)
+    post.setdefault("status", "draft")
+    post.setdefault("slides", [DEFAULT_SLIDE])
+    replaced = False
+    for idx, existing in enumerate(data["posts"]):
+        if existing.get("id") == post_id:
+            data["posts"][idx] = post
+            replaced = True
+            break
+    if not replaced:
+        data["posts"].insert(0, post)
+    save_social_visuals(DATA_DIR, data)
+    return jsonify({"ok": True, "post": post})
+
+@app.post("/api/admin/social-visuals/generate")
+def api_social_visuals_generate():
+    payload = request.get_json(silent=True) or {}
+    return jsonify({"ok": True, "content": generate_content_from_topic(payload.get("topic") or "")})
+
+@app.get("/sessions/<sid>/social-post/new")
+def create_social_post_from_session(sid):
+    return redirect(url_for("social_visuals_studio", session_id=sid))

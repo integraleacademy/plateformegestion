@@ -1,0 +1,26 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/social_visuals.css') }}">
+<script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script defer src="{{ url_for('static', filename='js/social_visuals.js') }}"></script>
+<script id="studio-config" type="application/json">{{ {"themes":themes,"templates":templates,"defaultSlide":default_slide,"sourceSessionId":source_session_id}|tojson }}</script>
+</head><body>
+<header class="studio-top"><div><p>ADMIN • STUDIO VISUELS</p><h1>Générateur de posts sociaux</h1></div><a href="{{ url_for('index') }}">← Tableau de bord</a></header>
+<main class="studio-shell">
+<section class="editor-panel">
+  <div class="panel-card ai-card"><label>Sujet pour l’IA structurée</label><textarea id="aiTopic" rows="3" placeholder="Annonce nouvelle session A3P septembre 2026"></textarea><button id="generateAi" class="primary">Générer le contenu avec l’IA</button><small>L’IA renvoie uniquement un JSON injecté dans les templates fixes.</small></div>
+  <div class="panel-card grid2">
+    <label>Type de post<select id="postType"><option>Post portrait</option><option>Carrousel</option></select></label>
+    <label>Formation / univers<select data-field="formation" id="formationSelect">{% for f in formations %}<option value="{{f}}">{{f}}</option>{% endfor %}</select></label>
+    <label>Template<select data-field="template" id="templateSelect">{% for t in templates %}<option value="{{t.id}}">{{t.name}}</option>{% endfor %}</select></label>
+    <label>Titre<input data-field="title"></label><label>Partie à surligner<input data-field="highlight_text"></label><label>Sous-titre / intro<textarea data-field="intro"></textarea></label>
+    <label>Texte court<textarea data-field="text"></textarea></label><label>Points clés (1 par ligne)<textarea data-list="key_points"></textarea></label><label>Chiffres (label: valeur)<textarea data-stats="stats"></textarea></label>
+    <label>Badges (1 par ligne)<textarea data-list="badges"></textarea></label><label>CTA<input data-field="cta"></label><label>Lieu<input data-field="location"></label>
+    <label>Date<input data-field="date"></label><label>Durée<input data-field="duration"></label><label>Prix<input data-field="price"></label><label>Financement<input data-field="financing"></label>
+    <label>Nom du centre<input data-field="center_name"></label><label>Téléphone<input data-field="phone"></label><label>Site web<input data-field="website"></label>
+    <label>Slide<input data-field="slide_number" type="number" min="1"></label><label>Total slides<input data-field="slide_total" type="number" min="1"></label>
+  </div>
+  <div class="actions panel-card"><button id="variantBtn">Créer une variante</button><button id="duplicateBtn">Dupliquer la slide</button><button id="addSlideBtn">Ajouter une slide</button><button id="saveBtn" class="primary">Enregistrer brouillon</button><button id="exportBtn" class="dark">Exporter PNG HD</button></div>
+  <div class="panel-card"><h3>Brouillons / modèles</h3><div id="savedPosts" class="saved-list"></div></div>
+</section>
+<section class="preview-panel"><div class="preview-toolbar"><strong>Aperçu live</strong><select id="quickTemplate"></select><select id="quickTheme"></select><input id="zoomRange" type="range" min="35" max="100" value="52"><span id="slideCounter"></span></div><div class="canvas-wrap"><article id="visualCanvas" class="visual-canvas"></article></div><div id="carouselDots" class="carousel-dots"></div></section>
+</main></body></html>

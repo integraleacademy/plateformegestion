@@ -1689,21 +1689,64 @@ def afc_dsf_build_invoice_state(session_data, billing_until=None, period_start=N
     students = afc_dsf_students(session_data)
     all_slots = afc_dsf_planned_slots(session_data)
     billed_by_student, billed_keys = afc_dsf_billed_hours_by_student(session_data)
+    planned_by_student = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
+    billable_by_student = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
+    unbilled_billable_by_student = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
+    session_id = session_data.get("id")
+    for st in students:
+        sid = st["id"]
+        effective_start = afc_dsf_effective_start(period_start or "0000-00-00", st)
+        entry = st.get("entryDate") or session_data.get("date_debut") or ""
+        for slot in all_slots:
+            if entry and slot["date"] < entry:
+                continue
+            module = slot["module"]
+            hours = afc_dsf_decimal(Decimal(slot["minutes"]) / Decimal(60))
+            planned_by_student[sid][module] += hours
+            if slot["date"] < effective_start or slot["date"] > period_end:
+                continue
+            billable_by_student[sid][module] += hours
+            key = afc_dsf_slot_key(session_id, sid, {"date": slot["date"]}, slot, module)
+            if key not in billed_keys:
+                unbilled_billable_by_student[sid][module] += hours
+
     module_totals = {m: {"planned": Decimal("0"), "billable": Decimal("0"), "billed": Decimal("0"), "toInvoice": Decimal("0"), "remaining": Decimal("0"), "advanceOver": Decimal("0"), "definitiveOver": Decimal("0")} for m in AFC_DSF_MODULES}
     detail = []
     anomaly_count = Decimal("0")
     for st in students:
         sid = st["id"]
-        entry = st.get("entryDate") or session_data.get("date_debut") or ""
         row = {"student": st, "modules": {}, "plannedTotal": Decimal("0"), "billableTotal": Decimal("0"), "billedTotal": Decimal("0"), "toInvoiceTotal": Decimal("0"), "remainingTotal": Decimal("0"), "amountToInvoice": Decimal("0"), "anomalies": []}
         for m in AFC_DSF_MODULES:
-            p=planned_by_student.get(st["id"],{}).get(m,0); b=billed_by_student.get(st["id"],{}).get(m,0); r=max(0,p-b); over=max(0,b-p); progress=0 if p<=0 else min(100, round((b/p)*100, 1)); row["modules"][m]={"planned":round(p,2),"billed":round(b,2),"remaining":round(r,2),"overbilled":round(over,2),"progress":progress}; row["plannedTotal"]+=p; row["billedTotal"]+=b; row["remainingTotal"]+=r
+            planned = planned_by_student[sid][m]
+            billable = billable_by_student[sid][m]
+            billed = billed_by_student.get(sid, {}).get(m, Decimal("0"))
+            remaining = max(Decimal("0"), planned - billed)
+            to_invoice = min(remaining, unbilled_billable_by_student[sid][m])
+            overbilled = max(Decimal("0"), billed - planned)
+            progress = Decimal("0") if planned <= 0 else min(Decimal("100"), (billed / planned * Decimal("100")).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+            row["modules"][m] = {"planned": round(planned, 2), "billable": round(billable, 2), "billed": round(billed, 2), "toInvoice": round(to_invoice, 2), "remaining": round(remaining, 2), "overbilled": round(overbilled, 2), "progress": progress}
+            row["plannedTotal"] += planned
+            row["billableTotal"] += billable
+            row["billedTotal"] += billed
+            row["toInvoiceTotal"] += to_invoice
+            row["remainingTotal"] += remaining
+            row["amountToInvoice"] += afc_dsf_amount(to_invoice)
+            module_totals[m]["planned"] += planned
+            module_totals[m]["billable"] += billable
+            module_totals[m]["billed"] += billed
+            module_totals[m]["toInvoice"] += to_invoice
+            module_totals[m]["remaining"] += remaining
+            module_totals[m]["advanceOver"] += max(Decimal("0"), billed - billable)
+            module_totals[m]["definitiveOver"] += overbilled
+            if overbilled > 0:
+                anomaly_count += 1
+                row["anomalies"].append({"module": m, "type": "overbilling", "hours": round(overbilled, 2)})
         detail.append(row)
     cards=[]
     for m, meta in AFC_DSF_MODULES.items():
         t=module_totals[m]; t.update({"amountBilled":afc_dsf_amount(t["billed"]),"amountToInvoice":afc_dsf_amount(t["toInvoice"]),"amountRemaining":afc_dsf_amount(t["remaining"])})
         cards.append({"code":m, **meta, **t, "plannedTotal": round(float(t["planned"]),2), "billedTotal": round(float(t["billed"]),2), "remainingTotal": (0 if t["billed"] > t["planned"] else round(float(t["remaining"]),2)), "overbilledTotal": round(float(max(Decimal("0"), t["billed"] - t["planned"])),2), "plannedPerStudent": round(float(t["planned"] / max(Decimal(len(students)), Decimal(1))),2), "remainingPerStudent": round(float(t["remaining"] / max(Decimal(len(students)), Decimal(1))),2)})
-    total = {"studentCount": len(students), "studentsToInvoice": sum(1 for r in detail if r["toInvoiceTotal"] > 0), "planned": sum(c["planned"] for c in cards), "billable": sum(c["billable"] for c in cards), "billed": sum(c["billed"] for c in cards), "toInvoice": sum(c["toInvoice"] for c in cards), "remaining": sum(c["remaining"] for c in cards), "anomalyCount": int(anomaly_count)}
+    total = {"studentCount": len(students), "studentsToInvoice": sum(1 for r in detail if r["toInvoiceTotal"] > 0), "planned": sum(c["planned"] for c in cards), "billable": sum(c["billable"] for c in cards), "billed": sum(c["billed"] for c in cards), "toInvoice": sum(c["toInvoice"] for c in cards), "remaining": sum(c["remaining"] for c in cards), "overbilled": sum(c["overbilledTotal"] for c in cards), "anomalyCount": int(anomaly_count)}
     total.update({"amountBilled": afc_dsf_amount(total["billed"]), "amountToInvoice": afc_dsf_amount(total["toInvoice"]), "amountRemaining": afc_dsf_amount(total["remaining"])})
     return {"billingUntil": cutoff, "periodStart": period_start or "", "periodEnd": period_end, "cards": cards, "detail": detail, "total": total, "rate": str(AFC_DSF_HOURLY_RATE)}
 

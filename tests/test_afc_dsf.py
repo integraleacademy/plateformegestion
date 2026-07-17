@@ -224,3 +224,59 @@ def test_afc_dsf_student_detail_uses_grouped_module_headers_and_dynamic_values(m
     assert 'Rouge = heures restantes à facturer' in html
     assert 'afc-dsf-module-cell--ft afc-dsf-module-cell--first' in html
     assert 'afc-dsf-module-cell--ft afc-dsf-module-cell--last is-positive' in html
+
+def render_afc_dsf_print(monkeypatch, session_data):
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    saved = {"sessions": [session_data], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.get(f"/sessions/{session_data['id']}/afc-detail/print")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def test_afc_dsf_print_template_is_dedicated_without_navigation_or_sidebar(monkeypatch):
+    html = render_afc_dsf_print(monkeypatch, sample_session())
+
+    assert 'data-testid="afc-dsf-print-report"' in html
+    assert "Détail des heures par stagiaire" in html
+    assert "Suivi des heures prévues, facturées et restant à facturer" in html
+    assert '<aside' not in html.lower()
+    assert 'class="sidebar' not in html.lower()
+    assert "detail-nav" not in html
+    assert "Vue imprimable" not in html
+    assert "Exporter en PDF" not in html
+
+
+def test_afc_dsf_print_css_prevents_blank_pages_and_bad_page_breaks(monkeypatch):
+    html = render_afc_dsf_print(monkeypatch, sample_session())
+
+    assert "@page { size: A4 portrait; margin: 10mm 12mm; }" in html
+    assert "height: auto !important" in html
+    assert "min-height: 0 !important" in html
+    assert "max-height: none !important" in html
+    assert "overflow: visible !important" in html
+    assert "page-break-inside: avoid" in html
+    assert "break-inside: avoid" in html
+    assert "page-break-after: auto" in html
+
+
+def test_afc_dsf_print_statuses_and_overbilling_are_visible(monkeypatch):
+    s = sample_session()
+    full = afc_dsf_compute(s, s["date_debut"], s["date_fin"], ["RAN", "FT"])
+    over = afc_dsf_compute(s, s["date_debut"], s["date_debut"], ["RAN"])
+    over["students"][0]["modules"]["RAN"] = 999
+    s["afcDsfs"].append({"id": "all", "number": 1, "label": "DSF 1", "status": AFC_DSF_STATUS_FINALIZED, **full})
+    s["afcDsfs"].append({"id": "over", "number": 2, "label": "DSF 2", "status": AFC_DSF_STATUS_FINALIZED, **over})
+
+    html = render_afc_dsf_print(monkeypatch, s)
+
+    assert "green" in html
+    assert " h à facturer" in html
+    assert "Dépassement de " in html
+    assert "orange : dépassement des heures prévues" in html

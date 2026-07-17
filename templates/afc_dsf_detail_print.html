@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Détail des heures par stagiaire — {{ s.display_name or s.formation }}</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body, main, .page-container, .content, .content-wrapper, .print-report { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
+    body { margin: 0 !important; background: white !important; color: #172033; font: 10pt/1.35 Arial, Helvetica, sans-serif; }
+    .sidebar, nav, .navbar, .btn, button, .filters, .toast, .notification, footer, .site-footer { display: none !important; }
+    .print-report { width: 100%; max-width: none !important; }
+    .report-header { border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 10px; }
+    h1 { margin: 0; color: #1e3a8a; font-size: 20pt; }
+    .subtitle { margin: 3px 0 0; color: #475569; font-size: 10pt; }
+    .meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; color: #334155; }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 10px 0; }
+    .card { border: 1px solid #d8e0ea; border-radius: 8px; padding: 7px; background: #f8fafc; }
+    .card span { display: block; color: #64748b; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .03em; }
+    .card strong { display: block; margin-top: 2px; color: #0f172a; font-size: 14pt; }
+    .legend { display: flex; gap: 12px; margin: 8px 0 10px; color: #334155; }
+    .dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; margin-right: 4px; }
+    .red { color: #b91c1c; } .green { color: #15803d; } .orange { color: #c2410c; } .blue { color: #1e3a8a; }
+    .dot.red { background:#ef4444; } .dot.green { background:#22c55e; } .dot.orange { background:#f97316; }
+    .student-card { border: 1px solid #d8e0ea; border-radius: 10px; margin: 0 0 9px; page-break-inside: avoid; break-inside: avoid; overflow: hidden; background: #fff; }
+    .student-head { display: grid; grid-template-columns: 1.8fr repeat(3, .72fr) 1.05fr; gap: 6px; align-items: center; padding: 8px 9px; background: #eef5ff; border-bottom: 1px solid #d8e0ea; }
+    .student-name { font-size: 13pt; font-weight: 700; color: #0f2f66; }
+    .metric { text-align: right; }
+    .metric span { display:block; color:#64748b; font-size:8pt; }
+    .metric strong { font-size: 11pt; }
+    .badge { justify-self: end; border-radius: 999px; padding: 4px 7px; font-weight: 700; font-size: 9pt; border: 1px solid; white-space: nowrap; }
+    .badge.red { background:#fef2f2; border-color:#fecaca; } .badge.green { background:#f0fdf4; border-color:#bbf7d0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 5px 7px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
+    th { color:#334155; text-align:left; background:#fbfdff; font-size:9pt; }
+    td.num, th.num { text-align:right; white-space: nowrap; }
+    tr.total td, tr.total th { font-weight: 700; background:#f8fafc; border-top: 1px solid #d8e0ea; }
+    .progress { height: 7px; border-radius: 999px; background:#e5e7eb; overflow:hidden; min-width: 70px; }
+    .progress > i { display:block; height:100%; background:#2563eb; border-radius:999px; }
+    .over { display:block; font-size:8.5pt; margin-top:2px; font-weight:700; }
+    .report-footer { margin-top: 8px; text-align: center; color:#64748b; font-size:8.5pt; }
+    @media print { a { color: inherit; text-decoration: none; } .student-card:last-child { page-break-after: auto; break-after: auto; } }
+  </style>
+</head>
+<body>
+<main class="print-report" data-testid="afc-dsf-print-report">
+  <header class="report-header">
+    <h1>Détail des heures par stagiaire</h1>
+    <p class="subtitle">Suivi des heures prévues, facturées et restant à facturer.</p>
+    <div class="meta"><strong>{{ s.display_name or s.formation }}</strong><span>Session : {{ s.date_debut|datefr }}{% if s.date_fin %} au {{ s.date_fin|datefr }}{% endif %}</span><span>Généré le {{ generated_at }}</span></div>
+  </header>
+  <section class="cards" aria-label="Synthèse globale">
+    <div class="card"><span>Stagiaires</span><strong>{{ summary.detail|length }}</strong></div>
+    <div class="card"><span>Heures prévues</span><strong>{{ totals.planned }} h</strong></div>
+    <div class="card"><span>Heures facturées</span><strong>{{ totals.billed }} h</strong></div>
+    <div class="card"><span>Restant à facturer</span><strong class="{{ 'red' if totals.remaining else 'green' }}">{{ totals.remaining }} h</strong></div>
+  </section>
+  <section class="legend"><span><i class="dot red"></i>rouge : heures restant à facturer</span><span><i class="dot green"></i>vert : aucune heure restante</span><span><i class="dot orange"></i>orange : dépassement des heures prévues</span></section>
+  {% for row in summary.detail %}
+  <article class="student-card" data-testid="afc-dsf-print-student-card">
+    <div class="student-head">
+      <div class="student-name">{{ row.student.displayName }}</div>
+      <div class="metric"><span>Total prévu</span><strong>{{ row.plannedTotal|round(2) }} h</strong></div>
+      <div class="metric"><span>Total facturé</span><strong>{{ row.billedTotal|round(2) }} h</strong></div>
+      <div class="metric"><span>Total restant</span><strong class="{{ 'red' if row.remainingTotal else 'green' }}">{{ row.remainingTotal|round(2) }} h</strong></div>
+      <div class="badge {{ 'red' if row.remainingTotal else 'green' }}">{{ (row.remainingTotal|round(2) ~ ' h à facturer') if row.remainingTotal else 'Facturation terminée' }}</div>
+    </div>
+    <table>
+      <thead><tr><th>Module</th><th class="num blue">Prévue</th><th class="num">Facturée</th><th class="num">Restante</th><th>Avancement</th></tr></thead>
+      <tbody>
+      {% for code, meta in modules.items() %}{% set mod = row.modules[code] %}
+        <tr><th>{{ meta.label }}</th><td class="num blue">{{ mod.planned }} h</td><td class="num"><strong>{{ mod.billed }} h</strong></td><td class="num {{ 'red' if mod.remaining else 'green' }}"><strong>{{ mod.remaining }} h</strong>{% if mod.overbilled %}<span class="over orange">Dépassement de {{ mod.overbilled }} h</span>{% endif %}</td><td><div class="progress"><i style="width: {{ mod.progress }}%"></i></div></td></tr>
+      {% endfor %}
+        <tr class="total"><th>Total</th><td class="num blue">{{ row.plannedTotal|round(2) }} h</td><td class="num">{{ row.billedTotal|round(2) }} h</td><td class="num {{ 'red' if row.remainingTotal else 'green' }}">{{ row.remainingTotal|round(2) }} h</td><td></td></tr>
+      </tbody>
+    </table>
+  </article>
+  {% endfor %}
+  <div class="report-footer">Intégrale Academy — {{ s.display_name or s.formation }}</div>
+</main>
+</body>
+</html>

@@ -1697,39 +1697,7 @@ def afc_dsf_build_invoice_state(session_data, billing_until=None, period_start=N
         entry = st.get("entryDate") or session_data.get("date_debut") or ""
         row = {"student": st, "modules": {}, "plannedTotal": Decimal("0"), "billableTotal": Decimal("0"), "billedTotal": Decimal("0"), "toInvoiceTotal": Decimal("0"), "remainingTotal": Decimal("0"), "amountToInvoice": Decimal("0"), "anomalies": []}
         for m in AFC_DSF_MODULES:
-            planned = Decimal("0"); billable = Decimal("0")
-            for slot in all_slots:
-                if slot["module"] != m or (entry and slot["date"] < entry):
-                    continue
-                if period_start and slot["date"] < period_start:
-                    pass
-                hours = afc_dsf_decimal(Decimal(slot["minutes"]) / Decimal(60))
-                planned += hours
-                if slot["date"] <= cutoff and (not period_start or slot["date"] >= period_start) and slot["date"] <= period_end:
-                    billable += hours
-            billed = billed_by_student.get(sid, {}).get(m, Decimal("0"))
-            to_invoice = max(Decimal("0"), billable - billed)
-            remaining = max(Decimal("0"), planned - billed - to_invoice)
-            adv = max(Decimal("0"), billed - billable)
-            definitive = max(Decimal("0"), billed - planned)
-            anomalies=[]
-            if adv:
-                anomalies.append({"type":"advance","level":"orange","message":f"{afc_dsf_fmt_hours(adv)} h ont été facturées en avance par rapport au planning réalisé à cette date."})
-            if definitive:
-                anomalies.append({"type":"definitive","level":"red","message":f"Surfacturation détectée : {afc_dsf_fmt_hours(definitive)} h ont été facturées au-delà du parcours prévu, soit {afc_dsf_money(afc_dsf_amount(definitive))}."})
-            anomaly_count += len(anomalies)
-            mod = {"planned": planned, "billable": billable, "billed": billed, "toInvoice": to_invoice, "remaining": remaining, "amountBilled": afc_dsf_amount(billed), "amountToInvoice": afc_dsf_amount(to_invoice), "amountRemaining": afc_dsf_amount(remaining), "advanceOver": adv, "definitiveOver": definitive, "anomalies": anomalies}
-            row["modules"][m]=mod
-            for key in ["planned","billable","billed","toInvoice","remaining","advanceOver","definitiveOver"]: module_totals[m][key]+=mod[key]
-            row["plannedTotal"] += planned; row["billableTotal"] += billable; row["billedTotal"] += billed; row["toInvoiceTotal"] += to_invoice; row["remainingTotal"] += remaining
-            row["anomalies"].extend(anomalies)
-        row["amountToInvoice"] = afc_dsf_amount(row["toInvoiceTotal"])
-        if any(x["type"]=="definitive" for x in row["anomalies"]): row["status"]="Surfacturation détectée"; row["statusClass"]="red"
-        elif any(x["type"]=="advance" for x in row["anomalies"]): row["status"]="Facturation en avance"; row["statusClass"]="orange"
-        elif row["toInvoiceTotal"] > 0: row["status"]="À facturer"; row["statusClass"]="blue"
-        elif row["billableTotal"] == 0: row["status"]="Rien à facturer à cette date"; row["statusClass"]="gray"
-        elif row["remainingTotal"] > 0: row["status"]="Partiellement facturé"; row["statusClass"]="red"
-        else: row["status"]="Entièrement facturé"; row["statusClass"]="green"
+            p=planned_by_student.get(st["id"],{}).get(m,0); b=billed_by_student.get(st["id"],{}).get(m,0); r=max(0,p-b); over=max(0,b-p); progress=0 if p<=0 else min(100, round((b/p)*100, 1)); row["modules"][m]={"planned":round(p,2),"billed":round(b,2),"remaining":round(r,2),"overbilled":round(over,2),"progress":progress}; row["plannedTotal"]+=p; row["billedTotal"]+=b; row["remainingTotal"]+=r
         detail.append(row)
     cards=[]
     for m, meta in AFC_DSF_MODULES.items():
@@ -1766,6 +1734,16 @@ def afc_dsf_compute(session_data, start_iso, end_iso, modules, excluded_students
 
 def afc_dsf_summary(session_data, billing_until=None, period_start=None, period_end=None):
     return afc_dsf_build_invoice_state(session_data, billing_until=billing_until, period_start=period_start, period_end=period_end)
+
+
+def afc_dsf_detail_report_context(session_data):
+    summary = afc_dsf_summary(session_data)
+    totals = {
+        "planned": round(sum(row.get("plannedTotal", 0) for row in summary["detail"]), 2),
+        "billed": round(sum(row.get("billedTotal", 0) for row in summary["detail"]), 2),
+        "remaining": round(sum(row.get("remainingTotal", 0) for row in summary["detail"]), 2),
+    }
+    return {"summary": summary, "totals": totals, "modules": AFC_DSF_MODULES}
 
 def parse_interruption_ranges(value):
     ranges = []
@@ -5990,6 +5968,28 @@ def create_session():
     save_sessions(data)
     return redirect(url_for("session_detail", sid=sid))
 
+@app.route("/sessions/<sid>/afc-detail/print")
+def afc_dsf_detail_print(sid):
+    sess = find_session(load_sessions(), sid)
+    if not sess or not is_afc_aps_ssiap_session(sess):
+        abort(404)
+    return render_template(
+        "afc_dsf_detail_print.html",
+        title="Détail des heures par stagiaire",
+        s=sess,
+        generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        **afc_dsf_detail_report_context(sess),
+    )
+
+@app.route("/sessions/<sid>/afc-detail/pdf")
+def afc_dsf_detail_pdf(sid):
+    sess = find_session(load_sessions(), sid)
+    if not sess or not is_afc_aps_ssiap_session(sess):
+        abort(404)
+    path = os.path.join(DSF_DIR, f"afc_detail_{sid}.pdf")
+    generate_afc_dsf_detail_report_pdf(sess, path)
+    return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=f"detail-heures-stagiaires-{sid}.pdf")
+
 @app.route("/sessions/<sid>")
 def session_detail(sid):
     # --- 🔐 Vérification accès préfecture si ?key= est présent ---
@@ -6078,6 +6078,43 @@ def generate_afc_dsf_pdf(session_data, dsf, output_path):
     tbl.setStyle(TableStyle(style)); body.append(tbl); body.append(Spacer(1, 18))
     body.append(Paragraph("Fait à : ____________________ &nbsp;&nbsp;&nbsp; Date : ____ / ____ / ______<br/><br/>Nom du responsable : ____________________ &nbsp;&nbsp;&nbsp; Signature et tampon : ____________________<br/><br/>Intégrale Academy — document généré depuis le planning central AFC. Page <seq id='page'/>", normal))
     doc.build(body)
+
+
+def generate_afc_dsf_detail_report_pdf(session_data, output_path):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    ctx = afc_dsf_detail_report_context(session_data)
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle('afcPrintTitle', parent=styles['Title'], fontSize=19, leading=23, textColor=colors.HexColor('#1e3a8a'), alignment=0)
+    h2 = ParagraphStyle('afcStudent', parent=styles['Heading2'], fontSize=12, leading=15, textColor=colors.HexColor('#0f2f66'), spaceAfter=4)
+    small = ParagraphStyle('afcSmall', parent=styles['BodyText'], fontSize=8.5, leading=11, textColor=colors.HexColor('#475569'))
+    normal = ParagraphStyle('afcNormal', parent=styles['BodyText'], fontSize=9, leading=11)
+    doc = SimpleDocTemplate(output_path, pagesize=A4, leftMargin=12*mm, rightMargin=12*mm, topMargin=10*mm, bottomMargin=10*mm)
+    story = [Paragraph('Détail des heures par stagiaire', title), Paragraph(f"{session_data.get('display_name') or session_data.get('formation')} — Session du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}<br/>Généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}<br/>Suivi des heures prévues, facturées et restant à facturer.", small), Spacer(1, 5)]
+    totals = ctx['totals']
+    recap = [['Stagiaires', len(ctx['summary']['detail']), 'Heures prévues', f"{totals['planned']:g} h", 'Heures facturées', f"{totals['billed']:g} h", 'Restant', f"{totals['remaining']:g} h"]]
+    story.append(Table(recap, colWidths=[22*mm,13*mm,26*mm,19*mm,29*mm,19*mm,18*mm,19*mm], style=[('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#d8e0ea')),('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#f8fafc')),('FONTNAME',(0,0),(-1,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8.5),('PADDING',(0,0),(-1,-1),4)]))
+    story += [Spacer(1, 4), Paragraph('Légende : <font color="#b91c1c"><b>rouge</b></font> = heures restant à facturer · <font color="#15803d"><b>vert</b></font> = aucune heure restante · <font color="#c2410c"><b>orange</b></font> = dépassement des heures prévues', small), Spacer(1, 6)]
+    for row in ctx['summary']['detail']:
+        badge = f"<font color=\"{'#b91c1c' if row['remainingTotal'] else '#15803d'}\"><b>{(str(round(row['remainingTotal'],2))+' h à facturer') if row['remainingTotal'] else 'Facturation terminée'}</b></font>"
+        block = [Paragraph(f"{row['student']['displayName']} — prévu {row['plannedTotal']:.2f} h · facturé {row['billedTotal']:.2f} h · restant {row['remainingTotal']:.2f} h — {badge}", h2)]
+        rows = [['Module','Prévue','Facturée','Restante','Avancement']]
+        for code, meta in ctx['modules'].items():
+            m = row['modules'][code]
+            rest_color = '#b91c1c' if m['remaining'] else '#15803d'
+            rest = f"<font color=\"{rest_color}\"><b>{m['remaining']:g} h</b></font>"
+            if m.get('overbilled'):
+                rest += f"<br/><font color=\"#c2410c\"><b>Dépassement de {m['overbilled']:g} h</b></font>"
+            rows.append([Paragraph(meta['label'], normal), f"{m['planned']:g} h", f"{m['billed']:g} h", Paragraph(rest, normal), f"{m.get('progress',0):g} %"])
+        rows.append(['Total', f"{row['plannedTotal']:.2f} h", f"{row['billedTotal']:.2f} h", f"{row['remainingTotal']:.2f} h", ''])
+        tbl = Table(rows, colWidths=[72*mm,24*mm,25*mm,31*mm,25*mm], repeatRows=1)
+        tbl.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.35,colors.HexColor('#d8e0ea')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#eef5ff')),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('BACKGROUND',(0,-1),(-1,-1),colors.HexColor('#f8fafc')),('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),('ALIGN',(1,1),(-1,-1),'RIGHT'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('FONTSIZE',(0,0),(-1,-1),8.5),('PADDING',(0,0),(-1,-1),4)]))
+        block += [tbl, Spacer(1, 6)]
+        story.append(KeepTogether(block))
+    doc.build(story)
 
 @app.route('/api/sessions/<sid>/afc-dsf/preview', methods=['POST'])
 def api_afc_dsf_preview(sid):

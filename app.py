@@ -273,6 +273,43 @@ def stagiaires_docs_response(payload, stale=False):
     }
 
 
+GLOBAL_DEFAULT_ZOOM_STYLE = """
+<style id="global-default-zoom">
+  html {
+    zoom: 80%;
+  }
+
+  @supports not (zoom: 1) {
+    body {
+      transform: scale(0.8);
+      transform-origin: top left;
+      width: 125%;
+      min-height: 125vh;
+    }
+  }
+</style>
+"""
+
+
+@app.after_request
+def apply_global_default_zoom(response):
+    if response.mimetype != "text/html" or response.direct_passthrough:
+        return response
+
+    html = response.get_data(as_text=True)
+    if "global-default-zoom" in html:
+        return response
+
+    head_end = html.lower().find("</head>")
+    if head_end == -1:
+        return response
+
+    html = f"{html[:head_end]}{GLOBAL_DEFAULT_ZOOM_STYLE}{html[head_end:]}"
+    response.set_data(html)
+    response.content_length = len(response.get_data())
+    return response
+
+
 # ------------------------------------------------------------
 # 🔐 AUTHENTIFICATION ADMIN
 # ------------------------------------------------------------

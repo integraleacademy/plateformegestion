@@ -1013,10 +1013,14 @@ a.back:hover{ background:#d9a848 !important; }
     <button type="button" class="afc-dsf-primary-btn" id="openAfcDsfModal"><span aria-hidden="true"><svg><use href="#icon-plus-circle"></use></svg></span>Générer une DSF</button>
   </article>
 
+  {% if afc_dsf_summary.total.overbilled %}
+    <div class="flash error" data-testid="afc-dsf-overbilling-alert">Surfacturation détectée : {{ afc_dsf_hours(afc_dsf_summary.total.overbilled) }} h-stagiaires au-delà du planning actuel.</div>
+  {% endif %}
+
   <div class="afc-dsf-cards" aria-label="Synthèse de facturation par module">
     {% for card in afc_dsf_summary.cards %}
       <article class="afc-dsf-card afc-dsf-card--{{ module_theme.get(card.code, 'ft') }}" data-testid="afc-dsf-card-{{ card.code }}">
-        <div class="afc-dsf-card__head"><span class="afc-dsf-card__icon" aria-hidden="true"><svg><use href="#icon-{{ module_icon.get(card.code, 'file-check') }}"></use></svg></span><h3>{{ card.label }}</h3></div>
+        <div class="afc-dsf-card__head"><span class="afc-dsf-card__icon" aria-hidden="true"><svg><use href="#icon-{{ module_icon.get(card.code, 'file-check') }}"></use></svg></span><h3>{{ card.label }}</h3><small>{{ afc_dsf_hours(card.plannedPerStudent) }} h par stagiaire</small></div>
         <div class="afc-dsf-now"><span>À facturer maintenant</span><strong>{{ afc_dsf_hours(card.toInvoice) }} h</strong><b>{{ afc_dsf_money(card.amountToInvoice) }}</b></div>
         <div class="afc-dsf-card__stats">
           <div class="afc-dsf-stat"><span>Heures prévues</span><strong>{{ afc_dsf_hours(card.planned) }} h</strong></div>

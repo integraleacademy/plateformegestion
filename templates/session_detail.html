@@ -1002,7 +1002,10 @@ a.back:hover{ background:#d9a848 !important; }
     <label>Date de début de période<input type="date" name="periodStart" value="{{ afc_dsf_summary.periodStart }}"></label>
     <label>Date de fin de période<input type="date" name="periodEnd" value="{{ afc_dsf_summary.periodEnd }}"></label>
     <label class="afc-dsf-rate-field">Tarif horaire / stagiaire<span><input type="number" name="hourlyRate" min="0" step="0.01" value="{{ afc_dsf_summary.rate }}" inputmode="decimal"><b>€</b></span></label>
-    <button class="afc-dsf-primary-btn" type="submit">Recalculer</button>
+    <div class="afc-dsf-filter-actions">
+      <button class="afc-dsf-primary-btn" type="submit">Recalculer</button>
+      <button class="afc-dsf-secondary-btn" type="button" data-afc-dsf-clear-period>Enlever les dates de période</button>
+    </div>
   </form>
 
   <article class="afc-dsf-invoice-summary" data-testid="afc-dsf-card-total">
@@ -2454,6 +2457,17 @@ document.querySelectorAll(".save-contract-phone-btn").forEach(btn => btn.addEven
   }catch(error){ showPlanningToast(error.message, "error"); }
   finally{ btn.disabled = false; btn.textContent = previousLabel; }
 }));
+document.querySelectorAll("[data-afc-dsf-clear-period]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const form = button.closest("form");
+    if (!form) return;
+    const start = form.elements.periodStart;
+    const end = form.elements.periodEnd;
+    if (start) start.value = "";
+    if (end) end.value = "";
+    form.requestSubmit ? form.requestSubmit() : form.submit();
+  });
+});
 document.querySelectorAll("[data-contract-id]").forEach(updateContractYousignActionState);
 document.querySelectorAll(".delete-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); if(!(await SaasDialog.confirm("Supprimer ce contrat ?", { danger: true }))) return; const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}`, {method:"DELETE"}); const p = await r.json(); if(!r.ok || !p.ok){ showPlanningToast(p.error || "Suppression impossible", "error"); return; } showPlanningToast("Contrat supprimé.", "success"); card.remove(); }));
 const sendContractModal = document.getElementById("sendContractModal");

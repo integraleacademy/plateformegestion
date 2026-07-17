@@ -1526,18 +1526,18 @@ def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_pr
 
 AFC_APS_SSIAP_LABEL = "AFC France Travail APS + SSIAP"
 AFC_APS_SSIAP_TOTAL_HOURS = 393
-AFC_APS_SSIAP_TECHNICAL_HOURS = 273
+AFC_APS_SSIAP_TECHNICAL_HOURS = 288
 AFC_APS_SSIAP_EXPECTED_MINUTES = {
     "RAN": 55 * 60,
     "ACCUEIL": 210,
     "APS": 175 * 60,
     "EXAM_APS": 7 * 60,
     "H0B0": 7 * 60,
-    "SSIAP1": 70 * 60,
+    "SSIAP1": 85 * 60,
     "EXAM_SSIAP1": 7 * 60,
     "BILAN": 210,
     "SP": 45 * 60,
-    "PAF": 20 * 60,
+    "PAF": 5 * 60,
 }
 AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"]
 AFC_APS_SSIAP_LABELS = {
@@ -1574,10 +1574,10 @@ os.makedirs(DSF_DIR, exist_ok=True)
 AFC_DSF_STATUS_FINALIZED = "Finalisée"
 AFC_DSF_STATUS_CANCELLED = "Annulée"
 AFC_DSF_MODULES = {
-    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 273, "colors": ["#1e3a8a", "#dbeafe"]},
+    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 288, "colors": ["#1e3a8a", "#dbeafe"]},
     "RAN": {"label": "Remise à niveau (RAN)", "theoreticalHours": 55, "colors": ["#38bdf8", "#e0f2fe"]},
     "SP": {"label": "Soutien personnalisé (SP)", "theoreticalHours": 45, "colors": ["#a855f7", "#f3e8ff"]},
-    "PAF": {"label": "Préparation à l’après-formation (PAF)", "theoreticalHours": 20, "colors": ["#22c55e", "#dcfce7"]},
+    "PAF": {"label": "Préparation à l’après-formation (PAF)", "theoreticalHours": 5, "colors": ["#22c55e", "#dcfce7"]},
 }
 AFC_DSF_FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
 
@@ -1770,7 +1770,7 @@ def afc_build_main_sequence():
     ])
     for detail in SSIAP1_SEQUENCE_DETAILS:
         seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":detail["code"], "sequence":detail["code"], "part":detail["part_title"], "title":detail["sequence_title"], "content":detail["sequence_title"], "durationMinutes":detail["total_duration_minutes"], "afcKind":"FT", "partNumber":detail["part_number"], "sequenceNumber":detail["sequence_number"], "sequenceTitle":detail["sequence_title"], "totalSequenceDurationMinutes":detail["total_duration_minutes"], "subpartItems":detail.get("content_items") or detail.get("application_items") or []})
-    seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":"REV-SSIAP1", "title":"Révisions générales SSIAP 1", "content":"Révisions générales et préparation pédagogique SSIAP 1", "durationMinutes":180, "afcKind":"FT"})
+    seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":"REV-SSIAP1", "title":"Révisions générales SSIAP 1", "content":"Révisions générales et préparation pédagogique SSIAP 1", "durationMinutes":1080, "afcKind":"FT"})
     seq.extend([
         {"code":"EXAM_SSIAP1", "category":"EXAM_SSIAP1", "uv":"EXAM_SSIAP1", "title":"Examen SSIAP 1", "durationMinutes":420, "afcKind":"FT"},
         {"code":"BILAN", "category":"BILAN", "uv":"BILAN", "title":"Bilan de formation", "durationMinutes":210, "afcKind":"FT"},
@@ -1863,24 +1863,19 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     free_intervals[accueil_day] = [(12 * 60, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30)]
     free_intervals[end_date] = []
 
-    # Accompagnements en fin de semaine, avant le 15/02 et jamais en début de parcours.
+    # Accompagnements en fin de semaine, avant le dernier jour et jamais en début de parcours.
+    # Une semaine civile ne peut porter qu'un seul type d'accompagnement: SP, PAF ou aucun.
     sp_weeks = {date(2026,11,30), date(2026,12,7), date(2026,12,14), date(2026,12,21), date(2027,1,4), date(2027,1,11), date(2027,1,18), date(2027,1,25), date(2027,2,1)}
-    paf_weeks = {date(2027,1,11), date(2027,1,18), date(2027,1,25), date(2027,2,8)}
-    combo_weeks = {date(2027,1,11), date(2027,1,18), date(2027,1,25)}
-    for monday in sorted(sp_weeks | paf_weeks):
+    paf_weeks = {date(2027,2,8)}
+    weekly_support_type = {monday: "SP" for monday in sp_weeks}
+    weekly_support_type.update({monday: "PAF" for monday in paf_weeks if monday not in weekly_support_type})
+    for monday, code in sorted(weekly_support_type.items()):
         week_days = [d for d in eligible_dates if (d - timedelta(days=d.weekday())) == monday and d < end_date]
         if not week_days:
             continue
-        if monday in combo_weeks:
-            thursday = next(d for d in week_days if d.weekday() == 3)
-            friday = next(d for d in week_days if d.weekday() == 4)
-            add(thursday, 13*60+30, 180, module_for("SP")); free_intervals[thursday] = [(8*60+30, 12*60+30)]
-            add(friday, 8*60+30, 120, module_for("SP")); add(friday, 10*60+30, 120, module_for("PAF")); add(friday, 13*60+30, 180, module_for("PAF")); free_intervals[friday] = []
-        else:
-            last = week_days[-1]
-            code = "SP" if monday in sp_weeks else "PAF"
-            add(last, 10*60+30, 120, module_for(code)); add(last, 13*60+30, 180, module_for(code))
-            free_intervals[last] = [(8*60+30, 10*60+30)]
+        last = week_days[-1]
+        add(last, 10*60+30, 120, module_for(code)); add(last, 13*60+30, 180, module_for(code))
+        free_intervals[last] = [(8*60+30, 10*60+30)]
 
     idx = 0
     def add_technical(d, start, minutes):
@@ -1952,10 +1947,13 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
                 errors.append(f"La demi-journée {half} du {day.get('date')} contient {format_duration_from_minutes(minutes)} en {billing}, non facturable en heures entières.")
         if day_minutes > APS_MAX_DAILY_MINUTES: errors.append(f"La journée {day.get('date')} dépasse 7h.")
     for week, b in week_buckets.items():
+        support_minutes = b["SP"] + b["PAF"]
         if b["total"] > 35*60: errors.append(f"La semaine {week} dépasse 35h.")
         if b["technical"] > 30*60: errors.append(f"La semaine {week} dépasse 30h de formation technique.")
-        if b["SP"] > 5*60: errors.append(f"La semaine {week} dépasse 5h de SP.")
-        if b["PAF"] > 5*60: errors.append(f"La semaine {week} dépasse 5h de PAF.")
+        if b["SP"] > 0 and b["PAF"] > 0: errors.append(f"La semaine {week} cumule SP et PAF, ce qui est interdit.")
+        if support_minutes not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de SP/PAF (actuel: {format_duration_from_minutes(support_minutes)}).")
+        if b["SP"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de SP (actuel: {format_duration_from_minutes(b['SP'])}).")
+        if b["PAF"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de PAF (actuel: {format_duration_from_minutes(b['PAF'])}).")
     for code, expected in AFC_APS_SSIAP_EXPECTED_MINUTES.items():
         if totals.get(code, 0) != expected: errors.append(f"{AFC_APS_SSIAP_LABELS.get(code, code)} doit totaliser {format_duration_from_minutes(expected)} (actuel: {format_duration_from_minutes(totals.get(code,0))}).")
     if total != AFC_APS_SSIAP_TOTAL_HOURS * 60: errors.append(f"Le total AFC doit être de 393h (actuel: {total/60:g}h).")
@@ -1985,6 +1983,18 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
             cat = slot.get("afcCategory") or slot.get("uv") or ""
             ordered_slots.append((day.get("date"), slot.get("start"), slot.get("end"), cat, slot))
+    weekly_ordered = {}
+    for d, st, e, cat, slot in ordered_slots:
+        parsed = parse_date(d)
+        if parsed:
+            weekly_ordered.setdefault(parsed.date().isocalendar()[:2], []).append((d, st, e, cat, slot))
+    for week, slots in weekly_ordered.items():
+        support_slots = [slot for slot in slots if slot[3] in AFC_ACCOMPANIMENT_CODES]
+        if support_slots:
+            if any(slot[3] != support_slots[0][3] for slot in support_slots):
+                errors.append(f"La semaine {week} contient plusieurs types d'accompagnement.")
+            if slots[-len(support_slots):] != support_slots:
+                errors.append(f"La semaine {week} ne place pas le bloc SP/PAF dans les 5 dernières heures.")
     def first_time(cat):
         return next(((d, st) for d, st, _e, ccat, _s in ordered_slots if ccat == cat), None)
     def last_end(cat):

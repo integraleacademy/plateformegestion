@@ -120,9 +120,25 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
         assert day_total <= 7 * 60
     for bucket in weekly.values():
         assert bucket["total"] <= 35 * 60
-        assert bucket["technical"] <= (25 * 60 if bucket["SP"] and bucket["PAF"] else 30 * 60)
-        assert bucket["SP"] <= 5 * 60
-        assert bucket["PAF"] <= 5 * 60
+        assert bucket["technical"] <= 30 * 60
+        assert not (bucket["SP"] > 0 and bucket["PAF"] > 0)
+        assert bucket["SP"] + bucket["PAF"] in {0, 5 * 60}
+        assert bucket["SP"] in {0, 5 * 60}
+        assert bucket["PAF"] in {0, 5 * 60}
+
+    support_weeks = {week: bucket for week, bucket in weekly.items() if bucket["SP"] or bucket["PAF"]}
+    assert [week for week, bucket in support_weeks.items() if bucket["SP"]] == [
+        (2026, 49),
+        (2026, 50),
+        (2026, 51),
+        (2026, 52),
+        (2027, 1),
+        (2027, 2),
+        (2027, 3),
+        (2027, 4),
+        (2027, 5),
+    ]
+    assert [week for week, bucket in support_weeks.items() if bucket["PAF"]] == [(2027, 6)]
 
 
 def test_afc_reuses_detailed_aps_and_ssiap_sequences():

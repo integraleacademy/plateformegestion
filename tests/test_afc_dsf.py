@@ -203,3 +203,22 @@ def test_afc_dsf_overbilling_alert_is_conditional(monkeypatch):
     assert 'data-testid="afc-dsf-overbilling-alert"' in overbilled_html
     assert "Surfacturation détectée" in overbilled_html
     assert "h-stagiaires au-delà du planning actuel" in overbilled_html
+
+
+def test_afc_dsf_student_detail_uses_grouped_module_headers_and_dynamic_values(monkeypatch):
+    s = sample_session()
+    html = render_afc_dsf_page(monkeypatch, s)
+
+    assert 'data-testid="afc-dsf-student-detail"' in html
+    assert 'afc-dsf-accordion afc-dsf-accordion--detail' in html
+    assert 'Lecture par stagiaire, regroupée par module AFC' in html
+    assert 'scope="colgroup">Formation technique (FT)</th>' in html
+    assert 'scope="colgroup">Remise à niveau (RAN)</th>' in html
+    assert 'scope="colgroup">Soutien personnalisé (SP)</th>' in html
+    assert 'scope="colgroup">Préparation à l’après-formation (PAF)</th>' in html
+    assert html.count('class="afc-dsf-metric-head afc-dsf-metric-head--ft" scope="col">Prévue</th>') == 1
+    assert html.count('scope="col">Facturée</th>') >= 4
+    assert html.count('scope="col">Restante</th>') >= 4
+    assert '<span>DUPONT Jean</span>' in html
+    assert '<td class="afc-dsf-hour-cell afc-dsf-hour-cell--planned">273.0 h</td>' in html
+    assert '<td class="afc-dsf-hour-cell afc-dsf-hour-cell--remaining is-positive">273.0 h</td>' in html

@@ -1037,9 +1037,52 @@ a.back:hover{ background:#d9a848 !important; }
     </article>
   </div>
 
-  <details class="afc-dsf-accordion">
-    <summary><span class="afc-dsf-chevron" aria-hidden="true"><svg><use href="#icon-chevron-right"></use></svg></span><strong>Détail des heures par stagiaire</strong><span class="afc-dsf-summary-icon" aria-hidden="true"><svg><use href="#icon-calendar-days"></use></svg></span></summary>
-    <div class="afc-dsf-table-wrap afc-dsf-table-wrap--detail"><table class="contract-table afc-dsf-table"><thead><tr><th>Stagiaire</th>{% for m, meta in afc_dsf_modules.items() %}<th>{{ meta.label }} prévue</th><th>facturée</th><th>restante</th>{% endfor %}<th>Total prévu</th><th>Total facturé</th><th>Total restant</th></tr></thead><tbody>{% for row in afc_dsf_summary.detail %}<tr><td>{{ row.student.displayName }}</td>{% for m, meta in afc_dsf_modules.items() %}<td>{{ row.modules[m].planned }} h</td><td>{{ row.modules[m].billed }} h</td><td>{{ row.modules[m].remaining }} h</td>{% endfor %}<td>{{ row.plannedTotal }} h</td><td>{{ row.billedTotal }} h</td><td>{{ row.remainingTotal }} h</td></tr>{% endfor %}</tbody></table></div>
+  <details class="afc-dsf-accordion afc-dsf-accordion--detail">
+    <summary>
+      <span class="afc-dsf-chevron" aria-hidden="true"><svg><use href="#icon-chevron-right"></use></svg></span>
+      <span class="afc-dsf-summary-text"><strong>Détail des heures par stagiaire</strong><small>Lecture par stagiaire, regroupée par module AFC</small></span>
+      <span class="afc-dsf-summary-icon" aria-hidden="true"><svg><use href="#icon-calendar-days"></use></svg></span>
+    </summary>
+    <div class="afc-dsf-detail-panel">
+      <div class="afc-dsf-table-wrap afc-dsf-table-wrap--detail" data-testid="afc-dsf-student-detail">
+        <table class="contract-table afc-dsf-table afc-dsf-table--students">
+          <thead>
+            <tr class="afc-dsf-module-head-row">
+              <th class="afc-dsf-student-head" rowspan="2" scope="col">Stagiaire</th>
+              {% for m, meta in afc_dsf_modules.items() %}
+                <th class="afc-dsf-module-head afc-dsf-module-head--{{ module_theme.get(m, 'ft') }}" colspan="3" scope="colgroup">{{ meta.label }}</th>
+              {% endfor %}
+              <th class="afc-dsf-module-head afc-dsf-module-head--total" colspan="3" scope="colgroup">Total</th>
+            </tr>
+            <tr class="afc-dsf-metric-head-row">
+              {% for m, meta in afc_dsf_modules.items() %}
+                <th class="afc-dsf-metric-head afc-dsf-metric-head--{{ module_theme.get(m, 'ft') }}" scope="col">Prévue</th>
+                <th class="afc-dsf-metric-head afc-dsf-metric-head--{{ module_theme.get(m, 'ft') }}" scope="col">Facturée</th>
+                <th class="afc-dsf-metric-head afc-dsf-metric-head--{{ module_theme.get(m, 'ft') }}" scope="col">Restante</th>
+              {% endfor %}
+              <th class="afc-dsf-metric-head afc-dsf-metric-head--total" scope="col">Prévu</th>
+              <th class="afc-dsf-metric-head afc-dsf-metric-head--total" scope="col">Facturé</th>
+              <th class="afc-dsf-metric-head afc-dsf-metric-head--total" scope="col">Restant</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in afc_dsf_summary.detail %}
+              <tr>
+                <th class="afc-dsf-student-cell" scope="row"><span>{{ row.student.displayName }}</span></th>
+                {% for m, meta in afc_dsf_modules.items() %}
+                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--planned">{{ row.modules[m].planned }} h</td>
+                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--billed">{{ row.modules[m].billed }} h</td>
+                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--remaining {{ 'is-positive' if row.modules[m].remaining else 'is-neutral' }}">{{ row.modules[m].remaining }} h</td>
+                {% endfor %}
+                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total">{{ row.plannedTotal }} h</td>
+                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total">{{ row.billedTotal }} h</td>
+                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total afc-dsf-hour-cell--remaining {{ 'is-positive' if row.remainingTotal else 'is-neutral' }}">{{ row.remainingTotal }} h</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </details>
 
   <section class="afc-dsf-generated" aria-labelledby="afc-dsf-generated-title">

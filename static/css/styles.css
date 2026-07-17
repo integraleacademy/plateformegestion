@@ -1005,3 +1005,37 @@ a{color:inherit;text-decoration:none}
 @media (max-width:1500px){.afc-dsf-cards{grid-template-columns:repeat(3,minmax(0,1fr));}.afc-dsf-card--total{grid-column:span 1;}}
 @media (max-width:1100px){.afc-dsf-dashboard{padding:22px;}.afc-dsf-cards{grid-template-columns:repeat(2,minmax(0,1fr));}.afc-dsf-hero{align-items:flex-start;flex-direction:column;}.afc-dsf-primary-btn{align-self:flex-start;}}
 @media (max-width:700px){.afc-dsf-dashboard{padding:16px;border-radius:16px;}.afc-dsf-hero__content{flex-direction:column;gap:12px;}.afc-dsf-hero__icon{width:56px;height:56px;flex-basis:56px;}.afc-dsf-primary-btn{width:100%;min-width:0;}.afc-dsf-cards{grid-template-columns:1fr;}.afc-dsf-card{min-height:auto;}.afc-dsf-stat{align-items:flex-start;}.afc-dsf-actions{min-width:260px;}.afc-dsf-action{white-space:nowrap;}.afc-dsf-table.contract-table{min-width:900px;}}
+.afc-dsf-accordion--detail{margin-top:32px;border:1px solid #dbe3ef;border-radius:18px;background:#fff;box-shadow:0 14px 34px rgba(15,23,42,.06);overflow:hidden;}
+.afc-dsf-accordion--detail summary{min-height:78px;padding:0 22px;background:#fff;gap:16px;}
+.afc-dsf-accordion--detail[open] summary{border-bottom:1px solid #e8eef7;background:linear-gradient(180deg,#fff,#f8fbff);}
+.afc-dsf-accordion--detail summary:hover{background:#f8fbff;}
+.afc-dsf-accordion--detail .afc-dsf-chevron{width:36px;height:36px;border-radius:12px;background:#eff6ff;color:#2563eb !important;}
+.afc-dsf-summary-text{display:grid;gap:4px;min-width:0;}
+.afc-dsf-summary-text strong{font-size:18px;letter-spacing:-.02em;color:#0f172a !important;}
+.afc-dsf-summary-text small{font-size:13px;font-weight:700;color:#64748b !important;}
+.afc-dsf-accordion--detail .afc-dsf-summary-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569 !important;}
+.afc-dsf-detail-panel{padding:20px;background:linear-gradient(180deg,#fff,#fbfdff);}
+.afc-dsf-table-wrap--detail{border:1px solid #dbe3ef;border-radius:16px;background:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.7);overflow:auto;}
+.afc-dsf-table--students.contract-table{min-width:1220px;font-size:13px;border-collapse:separate;border-spacing:0;}
+.afc-dsf-table--students.contract-table th,.afc-dsf-table--students.contract-table td{border-right:1px solid #edf2f7;}
+.afc-dsf-table--students.contract-table th:last-child,.afc-dsf-table--students.contract-table td:last-child{border-right:0;}
+.afc-dsf-table--students .afc-dsf-student-head{position:sticky;left:0;z-index:4;min-width:210px;background:#f8fafc;color:#0f172a !important;text-align:left;box-shadow:8px 0 18px rgba(15,23,42,.04);}
+.afc-dsf-table--students .afc-dsf-module-head{padding:14px 16px 10px;text-align:center;font-size:13px;font-weight:900;letter-spacing:.01em;border-bottom:0;color:var(--module-color) !important;background:linear-gradient(180deg,var(--module-tint),#fff);}
+.afc-dsf-module-head--ft,.afc-dsf-metric-head--ft{--module-color:#2563eb;--module-tint:#eff6ff;}
+.afc-dsf-module-head--ran,.afc-dsf-metric-head--ran{--module-color:#7c3aed;--module-tint:#f5f3ff;}
+.afc-dsf-module-head--sp,.afc-dsf-metric-head--sp{--module-color:#059669;--module-tint:#ecfdf5;}
+.afc-dsf-module-head--paf,.afc-dsf-metric-head--paf{--module-color:#f97316;--module-tint:#fff7ed;}
+.afc-dsf-module-head--total,.afc-dsf-metric-head--total{--module-color:#0f172a;--module-tint:#f8fafc;}
+.afc-dsf-table--students .afc-dsf-metric-head{padding:8px 14px 12px;text-align:center;text-transform:uppercase;font-size:11px;letter-spacing:.08em;font-weight:800;color:#64748b !important;background:var(--module-tint);border-bottom:1px solid #dbe3ef;}
+.afc-dsf-table--students.contract-table tbody tr:nth-child(even) td,.afc-dsf-table--students.contract-table tbody tr:nth-child(even) .afc-dsf-student-cell{background:#fcfdff;}
+.afc-dsf-table--students.contract-table tbody tr:hover td,.afc-dsf-table--students.contract-table tbody tr:hover .afc-dsf-student-cell{background:#f8fbff;}
+.afc-dsf-table--students.contract-table td,.afc-dsf-table--students.contract-table .afc-dsf-student-cell{padding:18px 16px;border-bottom:1px solid #edf2f7;vertical-align:middle;}
+.afc-dsf-table--students .afc-dsf-student-cell{position:sticky;left:0;z-index:2;min-width:210px;background:#fff;text-align:left;box-shadow:8px 0 18px rgba(15,23,42,.035);}
+.afc-dsf-table--students .afc-dsf-student-cell span{display:block;color:#0f172a !important;font-size:14px;font-weight:900;line-height:1.35;white-space:normal;}
+.afc-dsf-hour-cell{text-align:center;font-weight:800;color:#334155 !important;white-space:nowrap;}
+.afc-dsf-hour-cell--planned{color:#1e293b !important;}
+.afc-dsf-hour-cell--billed{color:#475569 !important;}
+.afc-dsf-hour-cell--remaining.is-positive{color:#059669 !important;background:linear-gradient(180deg,#f0fdf4,#fff);}
+.afc-dsf-hour-cell--remaining.is-neutral{color:#64748b !important;}
+.afc-dsf-hour-cell--total{font-weight:900;color:#0f172a !important;background:#f8fafc;}
+@media (max-width:700px){.afc-dsf-accordion--detail summary{min-height:72px;padding:12px 14px;align-items:flex-start;}.afc-dsf-summary-text strong{font-size:16px;}.afc-dsf-summary-text small{font-size:12px;}.afc-dsf-accordion--detail .afc-dsf-summary-icon{width:34px;height:34px;}.afc-dsf-detail-panel{padding:12px;}.afc-dsf-table-wrap--detail{border-radius:14px;-webkit-overflow-scrolling:touch;}.afc-dsf-table--students.contract-table{min-width:1120px;font-size:12px;}.afc-dsf-table--students .afc-dsf-student-head,.afc-dsf-table--students .afc-dsf-student-cell{min-width:170px;}.afc-dsf-table--students.contract-table td,.afc-dsf-table--students.contract-table .afc-dsf-student-cell{padding:16px 12px;}}

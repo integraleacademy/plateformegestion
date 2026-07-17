@@ -1,20 +1,24 @@
 {
   "families": [
     {
-      "id": "editorial_cover",
-      "name": "Couvertures éditoriales"
+      "id": "cover",
+      "name": "Couverture"
     },
     {
-      "id": "session_announcement",
+      "id": "session",
       "name": "Annonce de session"
     },
     {
-      "id": "key_figures",
+      "id": "stats",
       "name": "Chiffres clés"
     },
     {
+      "id": "process",
+      "name": "Étapes"
+    },
+    {
       "id": "program",
-      "name": "Programme de formation"
+      "name": "Programme"
     },
     {
       "id": "comparison",
@@ -29,2198 +33,687 @@
       "name": "Débouchés"
     },
     {
-      "id": "funding",
-      "name": "Financement"
+      "id": "quote",
+      "name": "Citation"
     },
     {
-      "id": "testimonial",
-      "name": "Témoignage"
-    },
-    {
-      "id": "alerts",
-      "name": "Alerte et réglementation"
-    },
-    {
-      "id": "checklist",
-      "name": "Checklist"
-    },
-    {
-      "id": "process",
-      "name": "Processus et étapes"
-    },
-    {
-      "id": "conversion",
-      "name": "Offre et conversion"
-    },
-    {
-      "id": "brand_quote",
-      "name": "Citation ou message de marque"
-    },
-    {
-      "id": "carousel_conclusion",
-      "name": "Conclusion de carrousel"
+      "id": "conclusion",
+      "name": "Conclusion"
     }
   ],
   "templates": [
     {
-      "id": "editorial_cover_v1",
-      "family": "editorial_cover",
-      "name": "Couvertures éditoriales 1",
-      "description": "Composition 1 pour couvertures éditoriales.",
+      "id": "typographic_poster_center",
+      "family": "cover",
+      "name": "Affiche typographique centrale",
+      "description": "Affiche typographique centrale",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "cover"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
         "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/editorial_cover_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "editorial_cover_v2",
-      "family": "editorial_cover",
-      "name": "Couvertures éditoriales 2",
-      "description": "Composition 2 pour couvertures éditoriales.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
+        "startDate",
         "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/editorial_cover_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "editorial_cover_v3",
-      "family": "editorial_cover",
-      "name": "Couvertures éditoriales 3",
-      "description": "Composition 3 pour couvertures éditoriales.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/editorial_cover_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "editorial_cover_v4",
-      "family": "editorial_cover",
-      "name": "Couvertures éditoriales 4",
-      "description": "Composition 4 pour couvertures éditoriales.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/editorial_cover_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "editorial",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/typographic_poster_center.svg",
+      "renderer": "renderTypographicPosterCenter",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "session_announcement_v1",
-      "family": "session_announcement",
-      "name": "Annonce de session 1",
-      "description": "Composition 1 pour annonce de session.",
+      "id": "typographic_poster_offset",
+      "family": "cover",
+      "name": "Affiche typographique décalée",
+      "description": "Affiche typographique décalée",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "cover"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
         "highlightedText",
-        "introduction",
         "date",
-        "examDate",
         "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/session_announcement_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "session_announcement_v2",
-      "family": "session_announcement",
-      "name": "Annonce de session 2",
-      "description": "Composition 2 pour annonce de session.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/session_announcement_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "session_announcement_v3",
-      "family": "session_announcement",
-      "name": "Annonce de session 3",
-      "description": "Composition 3 pour annonce de session.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/session_announcement_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "session_announcement_v4",
-      "family": "session_announcement",
-      "name": "Annonce de session 4",
-      "description": "Composition 4 pour annonce de session.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "availability"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/session_announcement_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/typographic_poster_offset.svg",
+      "renderer": "renderTypographicPosterOffset",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "key_figures_v1",
-      "family": "key_figures",
-      "name": "Chiffres clés 1",
-      "description": "Composition 1 pour chiffres clés.",
+      "id": "editorial_split_columns",
+      "family": "cover",
+      "name": "Couverture en deux colonnes",
+      "description": "Couverture en deux colonnes",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "cover"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
         "introduction",
-        "date",
-        "examDate",
+        "startDate",
+        "endDate",
         "location",
         "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "cta"
       ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/key_figures_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "editorial",
+      "style": "editorial",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/editorial_split_columns.svg",
+      "renderer": "renderEditorialSplitColumns",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "key_figures_v2",
-      "family": "key_figures",
-      "name": "Chiffres clés 2",
-      "description": "Composition 2 pour chiffres clés.",
+      "id": "editorial_diagonal",
+      "family": "cover",
+      "name": "Couverture avec bloc diagonal",
+      "description": "Couverture avec bloc diagonal",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "cover"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
         "introduction",
         "date",
-        "examDate",
         "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "badges"
       ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/key_figures_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "editorial",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/editorial_diagonal.svg",
+      "renderer": "renderEditorialDiagonal",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "key_figures_v3",
-      "family": "key_figures",
-      "name": "Chiffres clés 3",
-      "description": "Composition 3 pour chiffres clés.",
+      "id": "session_calendar",
+      "family": "session",
+      "name": "Calendrier de session",
+      "description": "Calendrier de session",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "session"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
+        "startDate",
+        "endDate",
         "examDate",
         "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "availability"
       ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/key_figures_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "institutional",
+      "style": "editorial",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/session_calendar.svg",
+      "renderer": "renderSessionCalendar",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "key_figures_v4",
-      "family": "key_figures",
-      "name": "Chiffres clés 4",
-      "description": "Composition 4 pour chiffres clés.",
+      "id": "session_ticket",
+      "family": "session",
+      "name": "Ticket de session",
+      "description": "Ticket de session",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "session"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
+        "startDate",
+        "endDate",
+        "duration",
         "location",
         "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "sessionNumber"
+      ],
+      "density": "editorial",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/session_ticket.svg",
+      "renderer": "renderSessionTicket",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "session_countdown",
+      "family": "session",
+      "name": "Compte à rebours",
+      "description": "Compte à rebours",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "availability",
+        "daysRemaining",
+        "date",
+        "cta"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/key_figures_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/session_countdown.svg",
+      "renderer": "renderSessionCountdown",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "program_v1",
-      "family": "program",
-      "name": "Programme de formation 1",
-      "description": "Composition 1 pour programme de formation.",
+      "id": "stats_dashboard",
+      "family": "stats",
+      "name": "Dashboard complet",
+      "description": "Dashboard complet",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "stats"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
         "stats",
         "badges",
-        "cta",
-        "footer"
+        "duration",
+        "location",
+        "financing"
       ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/program_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "data",
+      "style": "data",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/stats_dashboard.svg",
+      "renderer": "renderStatsDashboard",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "program_v2",
-      "family": "program",
-      "name": "Programme de formation 2",
-      "description": "Composition 2 pour programme de formation.",
+      "id": "stats_big_number",
+      "family": "stats",
+      "name": "Chiffre géant",
+      "description": "Chiffre géant",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "stats"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
         "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/program_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "program_v3",
-      "family": "program",
-      "name": "Programme de formation 3",
-      "description": "Composition 3 pour programme de formation.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
+        "duration",
         "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/program_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "program_v4",
-      "family": "program",
-      "name": "Programme de formation 4",
-      "description": "Composition 4 pour programme de formation.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "financing"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/program_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "data",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
+      "renderer": "renderStatsBigNumber",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "comparison_v1",
-      "family": "comparison",
-      "name": "Comparatif 1",
-      "description": "Composition 1 pour comparatif.",
+      "id": "stats_bars",
+      "family": "stats",
+      "name": "Graphique en barres",
+      "description": "Graphique en barres",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "stats"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
         "stats",
-        "badges",
-        "cta",
-        "footer"
+        "introduction"
       ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/comparison_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "data",
+      "style": "data",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/stats_bars.svg",
+      "renderer": "renderStatsBars",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "comparison_v2",
-      "family": "comparison",
-      "name": "Comparatif 2",
-      "description": "Composition 2 pour comparatif.",
+      "id": "stats_radial_gauge",
+      "family": "stats",
+      "name": "Jauge circulaire",
+      "description": "Jauge circulaire",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "stats"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
         "stats",
-        "badges",
-        "cta",
-        "footer"
+        "introduction"
       ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/comparison_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "data",
+      "style": "data",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/stats_radial_gauge.svg",
+      "renderer": "renderStatsRadialGauge",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "comparison_v3",
-      "family": "comparison",
-      "name": "Comparatif 3",
-      "description": "Composition 3 pour comparatif.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/comparison_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "comparison_v4",
-      "family": "comparison",
-      "name": "Comparatif 4",
-      "description": "Composition 4 pour comparatif.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/comparison_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "faq_v1",
-      "family": "faq",
-      "name": "FAQ 1",
-      "description": "Composition 1 pour faq.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/faq_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "faq_v2",
-      "family": "faq",
-      "name": "FAQ 2",
-      "description": "Composition 2 pour faq.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/faq_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "faq_v3",
-      "family": "faq",
-      "name": "FAQ 3",
-      "description": "Composition 3 pour faq.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/faq_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "faq_v4",
-      "family": "faq",
-      "name": "FAQ 4",
-      "description": "Composition 4 pour faq.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/faq_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "careers_v1",
-      "family": "careers",
-      "name": "Débouchés 1",
-      "description": "Composition 1 pour débouchés.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/careers_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "careers_v2",
-      "family": "careers",
-      "name": "Débouchés 2",
-      "description": "Composition 2 pour débouchés.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/careers_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "careers_v3",
-      "family": "careers",
-      "name": "Débouchés 3",
-      "description": "Composition 3 pour débouchés.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/careers_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "careers_v4",
-      "family": "careers",
-      "name": "Débouchés 4",
-      "description": "Composition 4 pour débouchés.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/careers_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "funding_v1",
-      "family": "funding",
-      "name": "Financement 1",
-      "description": "Composition 1 pour financement.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/funding_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "funding_v2",
-      "family": "funding",
-      "name": "Financement 2",
-      "description": "Composition 2 pour financement.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/funding_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "funding_v3",
-      "family": "funding",
-      "name": "Financement 3",
-      "description": "Composition 3 pour financement.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/funding_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "funding_v4",
-      "family": "funding",
-      "name": "Financement 4",
-      "description": "Composition 4 pour financement.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/funding_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "testimonial_v1",
-      "family": "testimonial",
-      "name": "Témoignage 1",
-      "description": "Composition 1 pour témoignage.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/testimonial_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "testimonial_v2",
-      "family": "testimonial",
-      "name": "Témoignage 2",
-      "description": "Composition 2 pour témoignage.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/testimonial_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "testimonial_v3",
-      "family": "testimonial",
-      "name": "Témoignage 3",
-      "description": "Composition 3 pour témoignage.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/testimonial_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "testimonial_v4",
-      "family": "testimonial",
-      "name": "Témoignage 4",
-      "description": "Composition 4 pour témoignage.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/testimonial_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "alerts_v1",
-      "family": "alerts",
-      "name": "Alerte et réglementation 1",
-      "description": "Composition 1 pour alerte et réglementation.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/alerts_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "alerts_v2",
-      "family": "alerts",
-      "name": "Alerte et réglementation 2",
-      "description": "Composition 2 pour alerte et réglementation.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/alerts_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "alerts_v3",
-      "family": "alerts",
-      "name": "Alerte et réglementation 3",
-      "description": "Composition 3 pour alerte et réglementation.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/alerts_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "alerts_v4",
-      "family": "alerts",
-      "name": "Alerte et réglementation 4",
-      "description": "Composition 4 pour alerte et réglementation.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/alerts_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "checklist_v1",
-      "family": "checklist",
-      "name": "Checklist 1",
-      "description": "Composition 1 pour checklist.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/checklist_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "checklist_v2",
-      "family": "checklist",
-      "name": "Checklist 2",
-      "description": "Composition 2 pour checklist.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/checklist_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "checklist_v3",
-      "family": "checklist",
-      "name": "Checklist 3",
-      "description": "Composition 3 pour checklist.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/checklist_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "checklist_v4",
-      "family": "checklist",
-      "name": "Checklist 4",
-      "description": "Composition 4 pour checklist.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/checklist_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "process_v1",
+      "id": "process_vertical_timeline",
       "family": "process",
-      "name": "Processus et étapes 1",
-      "description": "Composition 1 pour processus et étapes.",
+      "name": "Timeline verticale",
+      "description": "Timeline verticale",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "process"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
         "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "steps"
       ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/process_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "editorial",
+      "style": "institutional",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/process_vertical_timeline.svg",
+      "renderer": "renderProcessVerticalTimeline",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "process_v2",
+      "id": "process_horizontal_timeline",
       "family": "process",
-      "name": "Processus et étapes 2",
-      "description": "Composition 2 pour processus et étapes.",
+      "name": "Timeline horizontale",
+      "description": "Timeline horizontale",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "process"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
         "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "steps"
       ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/process_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "editorial",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/process_horizontal_timeline.svg",
+      "renderer": "renderProcessHorizontalTimeline",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "process_v3",
+      "id": "process_staircase",
       "family": "process",
-      "name": "Processus et étapes 3",
-      "description": "Composition 3 pour processus et étapes.",
+      "name": "Escalier de progression",
+      "description": "Escalier de progression",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "process"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "steps",
+        "cta"
       ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/process_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "dynamic",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/process_staircase.svg",
+      "renderer": "renderProcessStaircase",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "process_v4",
+      "id": "process_route",
       "family": "process",
-      "name": "Processus et étapes 4",
-      "description": "Composition 4 pour processus et étapes.",
+      "name": "Route ou parcours",
+      "description": "Route ou parcours",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "process"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "steps",
+        "location"
+      ],
+      "density": "dynamic",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/process_route.svg",
+      "renderer": "renderProcessRoute",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "program_modules_grid",
+      "family": "program",
+      "name": "Programme en grille",
+      "description": "Programme en grille",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "modules",
+        "duration"
+      ],
+      "density": "institutional",
+      "style": "institutional",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/program_modules_grid.svg",
+      "renderer": "renderProgramModulesGrid",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "program_editorial_index",
+      "family": "program",
+      "name": "Programme type sommaire",
+      "description": "Programme type sommaire",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "modules",
+        "introduction"
+      ],
+      "density": "editorial",
+      "style": "editorial",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/program_editorial_index.svg",
+      "renderer": "renderProgramEditorialIndex",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "comparison_face_to_face",
+      "family": "comparison",
+      "name": "Comparatif face-à-face",
+      "description": "Comparatif face-à-face",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "comparison"
+      ],
+      "supportedContent": [
+        "title",
+        "comparison",
+        "cta"
+      ],
+      "density": "institutional",
+      "style": "institutional",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/comparison_face_to_face.svg",
+      "renderer": "renderComparisonFaceToFace",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "comparison_before_after",
+      "family": "comparison",
+      "name": "Avant / après",
+      "description": "Avant / après",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "comparison"
+      ],
+      "supportedContent": [
+        "title",
+        "before",
+        "after",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/comparison_before_after.svg",
+      "renderer": "renderComparisonBeforeAfter",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "faq_stacked_cards",
+      "family": "faq",
+      "name": "FAQ cartes empilées",
+      "description": "FAQ cartes empilées",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "faq"
+      ],
+      "supportedContent": [
+        "title",
+        "faq"
+      ],
+      "density": "institutional",
+      "style": "institutional",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/faq_stacked_cards.svg",
+      "renderer": "renderFaqStackedCards",
+      "status": "ready",
+      "version": 2
+    },
+    {
+      "id": "faq_true_false",
+      "family": "faq",
+      "name": "Vrai ou faux",
+      "description": "Vrai ou faux",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story"
+      ],
+      "suitableRoles": [
+        "faq"
+      ],
+      "supportedContent": [
+        "title",
+        "question",
+        "answer",
+        "explanation"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/process_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/faq_true_false.svg",
+      "renderer": "renderFaqTrueFalse",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "conversion_v1",
-      "family": "conversion",
-      "name": "Offre et conversion 1",
-      "description": "Composition 1 pour offre et conversion.",
+      "id": "careers_constellation",
+      "family": "careers",
+      "name": "Débouchés en constellation",
+      "description": "Débouchés en constellation",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "careers"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "careers"
       ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/conversion_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "density": "dynamic",
+      "style": "dynamic",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/careers_constellation.svg",
+      "renderer": "renderCareersConstellation",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "conversion_v2",
-      "family": "conversion",
-      "name": "Offre et conversion 2",
-      "description": "Composition 2 pour offre et conversion.",
+      "id": "quote_manifesto",
+      "family": "quote",
+      "name": "Citation manifeste",
+      "description": "Citation manifeste",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "quote"
       ],
       "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
+        "quote",
         "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/conversion_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "conversion_v3",
-      "family": "conversion",
-      "name": "Offre et conversion 3",
-      "description": "Composition 3 pour offre et conversion.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
+        "author",
         "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/conversion_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "conversion_v4",
-      "family": "conversion",
-      "name": "Offre et conversion 4",
-      "description": "Composition 4 pour offre et conversion.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/conversion_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "editorial",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/quote_manifesto.svg",
+      "renderer": "renderQuoteManifesto",
+      "status": "ready",
+      "version": 2
     },
     {
-      "id": "brand_quote_v1",
-      "family": "brand_quote",
-      "name": "Citation ou message de marque 1",
-      "description": "Composition 1 pour citation ou message de marque.",
+      "id": "carousel_final_cta",
+      "family": "conclusion",
+      "name": "Conclusion avec CTA",
+      "description": "Conclusion avec CTA",
       "supportedFormats": [
-        "instagram_portrait",
         "instagram_square",
-        "story"
+        "instagram_portrait",
+        "instagram_story"
       ],
       "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
+        "conclusion"
       ],
       "supportedContent": [
-        "eyebrow",
         "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
         "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/brand_quote_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "brand_quote_v2",
-      "family": "brand_quote",
-      "name": "Citation ou message de marque 2",
-      "description": "Composition 2 pour citation ou message de marque.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/brand_quote_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "brand_quote_v3",
-      "family": "brand_quote",
-      "name": "Citation ou message de marque 3",
-      "description": "Composition 3 pour citation ou message de marque.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/brand_quote_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "brand_quote_v4",
-      "family": "brand_quote",
-      "name": "Citation ou message de marque 4",
-      "description": "Composition 4 pour citation ou message de marque.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
+        "footer",
+        "qrCode"
       ],
       "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/brand_quote_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "carousel_conclusion_v1",
-      "family": "carousel_conclusion",
-      "name": "Conclusion de carrousel 1",
-      "description": "Composition 1 pour conclusion de carrousel.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "comfortable",
-      "style": "v1",
-      "thumbnail": "/static/studio_visuals/templates/carousel_conclusion_v1.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "carousel_conclusion_v2",
-      "family": "carousel_conclusion",
-      "name": "Conclusion de carrousel 2",
-      "description": "Composition 2 pour conclusion de carrousel.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "medium",
-      "style": "v2",
-      "thumbnail": "/static/studio_visuals/templates/carousel_conclusion_v2.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "carousel_conclusion_v3",
-      "family": "carousel_conclusion",
-      "name": "Conclusion de carrousel 3",
-      "description": "Composition 3 pour conclusion de carrousel.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "dense",
-      "style": "v3",
-      "thumbnail": "/static/studio_visuals/templates/carousel_conclusion_v3.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
-    },
-    {
-      "id": "carousel_conclusion_v4",
-      "family": "carousel_conclusion",
-      "name": "Conclusion de carrousel 4",
-      "description": "Composition 4 pour conclusion de carrousel.",
-      "supportedFormats": [
-        "instagram_portrait",
-        "instagram_square",
-        "story"
-      ],
-      "suitableRoles": [
-        "cover",
-        "session",
-        "content",
-        "cta"
-      ],
-      "supportedContent": [
-        "eyebrow",
-        "title",
-        "highlightedText",
-        "introduction",
-        "date",
-        "examDate",
-        "location",
-        "availability",
-        "stats",
-        "badges",
-        "cta",
-        "footer"
-      ],
-      "density": "minimal",
-      "style": "v4",
-      "thumbnail": "/static/studio_visuals/templates/carousel_conclusion_v4.webp",
-      "renderer": "renderStructuredTemplate",
-      "version": 1
+      "style": "conversion",
+      "variantId": "default",
+      "themeId": "formation_default",
+      "thumbnail": "/static/studio_visuals/templates/carousel_final_cta.svg",
+      "renderer": "renderCarouselFinalCta",
+      "status": "ready",
+      "version": 2
     }
   ]
 }

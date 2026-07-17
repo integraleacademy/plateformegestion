@@ -52,6 +52,12 @@ from services.afc_dsf_france_travail_excel import (
     generate_dsf_excel_from_snapshot,
     page_count_for_snapshot,
 )
+from services.afc_france_travail_invoice_excel import (
+    build_invoice_snapshot,
+    generate_invoice_excel_from_snapshot,
+    invoice_excel_filename,
+    validate_invoice_against_dsf,
+)
 
 
 
@@ -63,6 +69,7 @@ time.tzset()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 app = Flask(__name__)
+_invoice_creation_lock = threading.Lock()
 app.register_blueprint(prospecting_bp)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1919,6 +1926,64 @@ def afc_dsf_validate_number(session_data, number):
 
 def afc_dsf_summary(session_data, billing_until=None, period_start=None, period_end=None, hourly_rate=None):
     return afc_dsf_build_invoice_state(session_data, billing_until=billing_until, period_start=period_start, period_end=period_end, hourly_rate=hourly_rate)
+
+def afc_dsf_find(sess, dsf_id):
+    return next((d for d in (sess or {}).get('afcDsfs', []) if d.get('id') == dsf_id), None)
+
+def afc_dsf_invoice_exists(sess, dsf_id):
+    dsf = afc_dsf_find(sess, dsf_id)
+    return bool((dsf or {}).get('invoice'))
+
+def afc_dsf_invoice_number_used(data, invoice_number, current_dsf_id=None):
+    text = str(invoice_number or '').strip()
+    for s in data.get('sessions') or []:
+        for d in s.get('afcDsfs') or []:
+            inv = d.get('invoice') or {}
+            if current_dsf_id and d.get('id') == current_dsf_id:
+                continue
+            if str(inv.get('invoice_number') or '').strip() == text:
+                return True
+    return False
+
+def afc_invoice_next_number(data):
+    nums = []
+    for s in data.get('sessions') or []:
+        for d in s.get('afcDsfs') or []:
+            n = str(((d.get('invoice') or {}).get('invoice_number')) or '')
+            if n.isdigit():
+                nums.append(int(n))
+    return str((max(nums) + 1) if nums else int(datetime.now().strftime('%Y0001')))
+
+def afc_invoice_default_place(sess):
+    return os.environ.get('ORGANISME_VILLE') or (sess.get('ville') or 'PUGET SUR ARGENS')
+
+def afc_invoice_default_kairos_reference(sess, dsf):
+    ft = sess.get('france_travail') or {}
+    engagement = str(ft.get('engagement_kairos') or ft.get('convention') or '').strip()
+    if engagement:
+        return f"{engagement}_N{dsf.get('number')}"
+    snap = dsf.get('franceTravailExcelSnapshot') or {}
+    return f"N{snap.get('number') or dsf.get('number')}"
+
+def afc_invoice_suggest_type(sess):
+    try:
+        summary = afc_dsf_summary(sess)
+        remaining = afc_dsf_decimal(summary.get('total', {}).get('remaining'))
+        return 'final' if remaining <= 0 else 'intermediate'
+    except Exception:
+        return 'intermediate'
+
+def afc_invoice_preview_payload(data, sess, dsf):
+    snap = dsf.get('franceTravailExcelSnapshot') or {}
+    return {
+        'session': sess.get('display_name') or sess.get('formation'), 'dsfId': dsf.get('id'), 'dsfNumber': str(dsf.get('number') or ''),
+        'periodStart': snap.get('periodStart') or dsf.get('periodStart'), 'periodEnd': snap.get('periodEnd') or dsf.get('periodEnd'),
+        'studentCount': snap.get('studentCount') or dsf.get('studentCount'), 'totalHours': snap.get('totalHours') or dsf.get('totalHours'),
+        'hourlyRate': snap.get('hourlyRate'), 'amountTotal': dsf.get('amountTotal'), 'moduleTotals': snap.get('moduleTotals') or dsf.get('moduleTotals'),
+        'invoiceType': afc_invoice_suggest_type(sess), 'invoiceNumber': afc_invoice_next_number(data),
+        'invoiceDate': datetime.now().date().isoformat(), 'invoicePlace': afc_invoice_default_place(sess),
+        'kairosEngagementReference': afc_invoice_default_kairos_reference(sess, dsf),
+    }
 
 
 def afc_dsf_detail_report_context(session_data):
@@ -6359,6 +6424,70 @@ def download_afc_dsf_excel(sid, dsf_id):
     if not snapshot: abort(404)
     output=generate_dsf_excel_from_snapshot(snapshot, current_app.root_path)
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=dsf_excel_filename(snapshot))
+
+@app.get('/api/sessions/<sid>/afc-dsf/<dsf_id>/invoice/preview')
+@login_required
+def preview_afc_dsf_invoice(sid, dsf_id):
+    data=load_sessions(); sess=find_session(data,sid)
+    if not sess or not is_afc_aps_ssiap_session(sess): return jsonify({'ok':False,'error':'Session AFC introuvable'}),404
+    dsf=afc_dsf_find(sess, dsf_id)
+    if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
+    if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'La DSF doit être finalisée.'}),400
+    if dsf.get('invoice'):
+        return jsonify({'ok':True,'exists':True,'invoice':dsf.get('invoice')})
+    return jsonify({'ok':True,'exists':False,'preview':afc_invoice_preview_payload(data, sess, dsf)})
+
+@app.post('/api/sessions/<sid>/afc-dsf/<dsf_id>/invoice')
+@login_required
+def create_afc_dsf_invoice(sid, dsf_id):
+    payload=request.get_json(silent=True) or {}
+    with _invoice_creation_lock:
+        data=load_sessions(); sess=find_session(data,sid)
+        if not sess or not is_afc_aps_ssiap_session(sess): return jsonify({'ok':False,'error':'Session AFC introuvable'}),404
+        dsf=afc_dsf_find(sess, dsf_id)
+        if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
+        try:
+            if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: raise ValueError('La DSF doit être finalisée.')
+            if dsf.get('invoice'): raise ValueError('Une facture existe déjà pour cette DSF.')
+            number=str(payload.get('invoice_number') or '').strip()
+            if not number: raise ValueError('Le numéro de facture est obligatoire.')
+            if afc_dsf_invoice_number_used(data, number): raise ValueError('Ce numéro de facture est déjà utilisé.')
+            invoice_date=str(payload.get('invoice_date') or '').strip()
+            datetime.strptime(invoice_date, '%Y-%m-%d')
+            if not os.path.exists(os.path.join(current_app.root_path, 'static', 'upload', 'facture.xlsx')): raise FileNotFoundError('Modèle de facture introuvable.')
+            invoice_payload={
+                'invoice_number': number,
+                'invoice_date': invoice_date,
+                'invoice_place': payload.get('invoice_place') or afc_invoice_default_place(sess),
+                'invoice_type': payload.get('invoice_type') if payload.get('invoice_type') in ('intermediate','final') else afc_invoice_suggest_type(sess),
+                'kairos_engagement_reference': payload.get('kairos_engagement_reference') or afc_invoice_default_kairos_reference(sess, dsf),
+            }
+            snapshot=build_invoice_snapshot(sess, dsf, invoice_payload, session.get('admin_email') or 'admin')
+            dsf['invoice']={
+                'status':'generated','invoice_id':snapshot['invoice_id'],'invoice_number':snapshot['invoice_number'],
+                'invoice_date':snapshot['invoice_date'],'invoice_place':snapshot['invoice_place'],'invoice_type':snapshot['invoice_type'],
+                'kairos_engagement_reference':snapshot['kairos_engagement_reference'],'created_at':snapshot['created_at'],
+                'created_by':snapshot['created_by'],'snapshot':snapshot,
+            }
+            save_sessions(data)
+            return jsonify({'ok':True,'invoice':dsf['invoice'],'downloadUrl':url_for('download_afc_dsf_invoice', sid=sid, dsf_id=dsf_id)})
+        except Exception as exc:
+            app.logger.exception('Erreur génération facture DSF AFC')
+            return jsonify({'ok':False,'error':str(exc)}),400
+
+@app.get('/sessions/<sid>/afc-dsf/<dsf_id>/invoice.xlsx')
+@login_required
+def download_afc_dsf_invoice(sid, dsf_id):
+    sess=find_session(load_sessions(),sid)
+    if not sess or not is_afc_aps_ssiap_session(sess): abort(404)
+    dsf=afc_dsf_find(sess, dsf_id)
+    if not dsf or dsf.get('status') != AFC_DSF_STATUS_FINALIZED: abort(404)
+    invoice=dsf.get('invoice') or {}
+    snapshot=invoice.get('snapshot')
+    if not snapshot: abort(404)
+    output=generate_invoice_excel_from_snapshot(snapshot, current_app.root_path)
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=invoice_excel_filename(snapshot))
+
 
 @app.route('/sessions/<sid>/afc-dsf/<dsf_id>/pdf')
 def view_afc_dsf_pdf(sid, dsf_id):

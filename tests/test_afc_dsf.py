@@ -485,8 +485,10 @@ def test_afc_invoice_decimal_money_reference_and_type_cases():
     from services.afc_france_travail_invoice_excel import (
         MONEY_FORMAT,
         amount_to_french_words,
+        build_full_kairos_reference,
         build_invoice_snapshot,
         build_kairos_dsf_reference,
+        normalize_kairos_base_reference,
         generate_invoice_excel_from_snapshot,
         normalize_dsf_sequence_number,
     )
@@ -521,8 +523,11 @@ def test_afc_invoice_decimal_money_reference_and_type_cases():
     assert amount_to_french_words("3327.50") == "TROIS MILLE TROIS CENT VINGT-SEPT EUROS ET CINQUANTE CENTIMES"
     assert build_kairos_dsf_reference("41C32B061177", 1) == "41C32B061177_N1"
     assert build_kairos_dsf_reference("41C32B061177", 2) == "41C32B061177_N2"
-    assert [normalize_dsf_sequence_number(v) for v in (1, "1", "DSF1", "N1", "_N1")] == [1, 1, 1, 1, 1]
+    assert [normalize_dsf_sequence_number(v) for v in (1, "1", "DSF1", "N1", "_N1", "41C32B061177_N1")] == [1, 1, 1, 1, 1, 1]
+    assert normalize_kairos_base_reference("41C32B061177_N1") == "41C32B061177"
     assert build_kairos_dsf_reference("41C32B061177_N1", 2) == "41C32B061177_N2"
+    assert build_full_kairos_reference("41C32B061177", "DSF1") == "41C32B061177_N1"
+    assert all(cell.value not in ("N1_N1", "N1 N1") for row in ws.iter_rows() for cell in row)
 
 
 def test_afc_invoice_type_required_backend_and_frontend(monkeypatch):

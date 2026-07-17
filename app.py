@@ -53,11 +53,11 @@ from services.afc_dsf_france_travail_excel import (
     page_count_for_snapshot,
 )
 from services.afc_france_travail_invoice_excel import (
-    build_kairos_dsf_reference,
+    build_full_kairos_reference,
     build_invoice_snapshot,
     generate_invoice_excel_from_snapshot,
     invoice_excel_filename,
-    kairos_base_reference,
+    normalize_kairos_base_reference,
     normalize_dsf_sequence_number,
     validate_invoice_against_dsf,
 )
@@ -1853,8 +1853,8 @@ def afc_dsf_compute(session_data, start_iso, end_iso, modules, excluded_students
 def afc_dsf_session_snapshot(session_data, dsf_result, number, hourly_rate):
     ft = session_data.get("france_travail") or {}
     dsf_sequence_number = normalize_dsf_sequence_number(number)
-    engagement_kairos_base = kairos_base_reference(ft.get("engagement_kairos") or ft.get("convention") or "")
-    full_dsf_reference = build_kairos_dsf_reference(engagement_kairos_base, dsf_sequence_number)
+    engagement_kairos_base = normalize_kairos_base_reference(ft.get("engagement_kairos") or ft.get("convention") or "")
+    full_dsf_reference = build_full_kairos_reference(engagement_kairos_base, dsf_sequence_number)
     org_name = os.environ.get("ORGANISME_RAISON_SOCIALE", "INTEGRALE SECURITE FORMATIONS")
     org_address = os.environ.get("ORGANISME_ADRESSE", "54 chemin du Carreou, 83480 PUGET SUR ARGENS")
     source_students = {st["id"]: st for st in afc_dsf_students(session_data)}
@@ -1922,6 +1922,7 @@ def afc_dsf_preview_metadata(session_data, result, number, hourly_rate):
         "moduleTotals": snapshot["moduleTotals"],
         "missingFranceTravailIds": snapshot["missingFranceTravailIds"],
         "excelPageCount": page_count_for_snapshot(snapshot),
+        "fullDsfReference": snapshot["full_dsf_reference"],
         "message": "Cette DSF est calculée depuis le planning central AFC. Les absences ne sont pas automatiquement déduites.",
     }
 
@@ -1971,8 +1972,8 @@ def afc_invoice_default_kairos_reference(sess, dsf):
     snap = dsf.get('franceTravailExcelSnapshot') or {}
     if snap.get('full_dsf_reference'):
         return snap.get('full_dsf_reference')
-    engagement = kairos_base_reference(snap.get('engagement_kairos_base') or ft.get('engagement_kairos') or ft.get('convention') or '')
-    return build_kairos_dsf_reference(engagement, snap.get('dsf_sequence_number') or dsf.get('number') or snap.get('number'))
+    engagement = normalize_kairos_base_reference(snap.get('engagement_kairos_base') or ft.get('engagement_kairos') or ft.get('convention') or '')
+    return build_full_kairos_reference(engagement, snap.get('dsf_sequence_number') or snap.get('number') or dsf.get('number'))
 
 def afc_invoice_suggest_type(sess):
     try:

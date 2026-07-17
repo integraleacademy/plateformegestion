@@ -96,16 +96,24 @@ def normalize_dsf_sequence_number(value: Any) -> int:
     return int(match.group(1))
 
 
+def normalize_kairos_base_reference(value: Any) -> str:
+    return re.sub(r"_N\d+$", "", str(value or "").strip(), flags=re.IGNORECASE)
+
+
 def kairos_base_reference(base_reference: Any) -> str:
-    return re.sub(r"_N\d+$", "", str(base_reference or "").strip(), flags=re.IGNORECASE)
+    return normalize_kairos_base_reference(base_reference)
 
 
-def build_kairos_dsf_reference(base_reference: Any, dsf_number: Any) -> str:
-    base = kairos_base_reference(base_reference)
+def build_full_kairos_reference(base_reference: Any, dsf_number: Any) -> str:
+    base = normalize_kairos_base_reference(base_reference)
     number = normalize_dsf_sequence_number(dsf_number)
     if not base:
         return f"N{number}"
     return f"{base}_N{number}"
+
+
+def build_kairos_dsf_reference(base_reference: Any, dsf_number: Any) -> str:
+    return build_full_kairos_reference(base_reference, dsf_number)
 
 
 def _module_total(dsf_snapshot: dict[str, Any], module: str) -> Decimal:
@@ -120,12 +128,12 @@ def build_invoice_snapshot(session_data: dict[str, Any], dsf: dict[str, Any], in
     if not dsf_snapshot:
         raise ValueError("Snapshot DSF France Travail absent : impossible de générer la facture.")
     rate = dec(dsf_snapshot.get("hourlyRate") or dsf_snapshot.get("hourly_rate") or invoice_data.get("hourlyRate"))
-    dsf_sequence_number = normalize_dsf_sequence_number(dsf.get("number") or dsf_snapshot.get("number"))
+    dsf_sequence_number = normalize_dsf_sequence_number(dsf_snapshot.get("dsf_sequence_number") or dsf_snapshot.get("number") or dsf.get("number"))
     ft = session_data.get("france_travail") or {}
-    base_reference = kairos_base_reference(
+    base_reference = normalize_kairos_base_reference(
         dsf_snapshot.get("engagement_kairos_base") or ft.get("engagement_kairos") or ft.get("convention") or invoice_data.get("kairos_engagement_reference")
     )
-    full_reference = dsf_snapshot.get("full_dsf_reference") or build_kairos_dsf_reference(base_reference, dsf_sequence_number)
+    full_reference = str(dsf_snapshot.get("full_dsf_reference") or build_full_kairos_reference(base_reference, dsf_sequence_number)).strip()
     modules = []
     for code in MODULE_ORDER:
         hours = _module_total(dsf_snapshot, code)
@@ -166,7 +174,7 @@ def validate_invoice_against_dsf(invoice_snapshot: dict[str, Any], dsf: dict[str
 
 
 def populate_invoice_references(ws, snap):
-    full_ref = snap.get("full_dsf_reference") or snap.get("kairos_engagement_reference") or snap.get("dsf_reference") or ""
+    full_ref = str(snap.get("full_dsf_reference") or snap.get("kairos_engagement_reference") or snap.get("dsf_reference") or "").strip()
     ws["H2"] = full_ref; ws["H2"].number_format = "@"
     ws["H4"] = snap.get("invoice_number") or ""; ws["H4"].number_format = "@"
     ws["D6"] = f"A {snap.get('invoice_place') or ''}".strip(); ws["H6"] = fmt_date(snap.get("invoice_date"))

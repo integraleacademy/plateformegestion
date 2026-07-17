@@ -53,9 +53,12 @@ from services.afc_dsf_france_travail_excel import (
     page_count_for_snapshot,
 )
 from services.afc_france_travail_invoice_excel import (
+    build_kairos_dsf_reference,
     build_invoice_snapshot,
     generate_invoice_excel_from_snapshot,
     invoice_excel_filename,
+    kairos_base_reference,
+    normalize_dsf_sequence_number,
     validate_invoice_against_dsf,
 )
 
@@ -1849,6 +1852,9 @@ def afc_dsf_compute(session_data, start_iso, end_iso, modules, excluded_students
 
 def afc_dsf_session_snapshot(session_data, dsf_result, number, hourly_rate):
     ft = session_data.get("france_travail") or {}
+    dsf_sequence_number = normalize_dsf_sequence_number(number)
+    engagement_kairos_base = kairos_base_reference(ft.get("engagement_kairos") or ft.get("convention") or "")
+    full_dsf_reference = build_kairos_dsf_reference(engagement_kairos_base, dsf_sequence_number)
     org_name = os.environ.get("ORGANISME_RAISON_SOCIALE", "INTEGRALE SECURITE FORMATIONS")
     org_address = os.environ.get("ORGANISME_ADRESSE", "54 chemin du Carreou, 83480 PUGET SUR ARGENS")
     source_students = {st["id"]: st for st in afc_dsf_students(session_data)}
@@ -1878,6 +1884,9 @@ def afc_dsf_session_snapshot(session_data, dsf_result, number, hourly_rate):
     total_hours = round(sum(st["totalHours"] for st in students), 2)
     return {
         "number": str(number),
+        "engagement_kairos_base": engagement_kairos_base,
+        "dsf_sequence_number": dsf_sequence_number,
+        "full_dsf_reference": full_dsf_reference,
         "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "periodStart": dsf_result.get("periodStart"),
         "periodEnd": dsf_result.get("periodEnd"),
@@ -1959,11 +1968,11 @@ def afc_invoice_default_place(sess):
 
 def afc_invoice_default_kairos_reference(sess, dsf):
     ft = sess.get('france_travail') or {}
-    engagement = str(ft.get('engagement_kairos') or ft.get('convention') or '').strip()
-    if engagement:
-        return f"{engagement}_N{dsf.get('number')}"
     snap = dsf.get('franceTravailExcelSnapshot') or {}
-    return f"N{snap.get('number') or dsf.get('number')}"
+    if snap.get('full_dsf_reference'):
+        return snap.get('full_dsf_reference')
+    engagement = kairos_base_reference(snap.get('engagement_kairos_base') or ft.get('engagement_kairos') or ft.get('convention') or '')
+    return build_kairos_dsf_reference(engagement, snap.get('dsf_sequence_number') or dsf.get('number') or snap.get('number'))
 
 def afc_invoice_suggest_type(sess):
     try:
@@ -1976,11 +1985,11 @@ def afc_invoice_suggest_type(sess):
 def afc_invoice_preview_payload(data, sess, dsf):
     snap = dsf.get('franceTravailExcelSnapshot') or {}
     return {
-        'session': sess.get('display_name') or sess.get('formation'), 'dsfId': dsf.get('id'), 'dsfNumber': str(dsf.get('number') or ''),
+        'session': sess.get('display_name') or sess.get('formation'), 'dsfId': dsf.get('id'), 'dsfNumber': afc_invoice_default_kairos_reference(sess, dsf),
         'periodStart': snap.get('periodStart') or dsf.get('periodStart'), 'periodEnd': snap.get('periodEnd') or dsf.get('periodEnd'),
         'studentCount': snap.get('studentCount') or dsf.get('studentCount'), 'totalHours': snap.get('totalHours') or dsf.get('totalHours'),
         'hourlyRate': snap.get('hourlyRate'), 'amountTotal': dsf.get('amountTotal'), 'moduleTotals': snap.get('moduleTotals') or dsf.get('moduleTotals'),
-        'invoiceType': afc_invoice_suggest_type(sess), 'invoiceNumber': afc_invoice_next_number(data),
+        'invoiceType': '', 'invoiceNumber': afc_invoice_next_number(data),
         'invoiceDate': datetime.now().date().isoformat(), 'invoicePlace': afc_invoice_default_place(sess),
         'kairosEngagementReference': afc_invoice_default_kairos_reference(sess, dsf),
     }
@@ -6454,13 +6463,16 @@ def create_afc_dsf_invoice(sid, dsf_id):
             if afc_dsf_invoice_number_used(data, number): raise ValueError('Ce numéro de facture est déjà utilisé.')
             invoice_date=str(payload.get('invoice_date') or '').strip()
             datetime.strptime(invoice_date, '%Y-%m-%d')
+            invoice_type=str(payload.get('invoice_type') or '').strip()
+            if invoice_type not in ('intermediate','final'):
+                raise ValueError('Veuillez sélectionner Facture intermédiaire ou Facture de solde.')
             if not os.path.exists(os.path.join(current_app.root_path, 'static', 'upload', 'facture.xlsx')): raise FileNotFoundError('Modèle de facture introuvable.')
             invoice_payload={
                 'invoice_number': number,
                 'invoice_date': invoice_date,
                 'invoice_place': payload.get('invoice_place') or afc_invoice_default_place(sess),
-                'invoice_type': payload.get('invoice_type') if payload.get('invoice_type') in ('intermediate','final') else afc_invoice_suggest_type(sess),
-                'kairos_engagement_reference': payload.get('kairos_engagement_reference') or afc_invoice_default_kairos_reference(sess, dsf),
+                'invoice_type': invoice_type,
+                'kairos_engagement_reference': afc_invoice_default_kairos_reference(sess, dsf),
             }
             snapshot=build_invoice_snapshot(sess, dsf, invoice_payload, session.get('admin_email') or 'admin')
             dsf['invoice']={

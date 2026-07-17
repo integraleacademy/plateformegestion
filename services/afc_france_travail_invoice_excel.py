@@ -21,7 +21,7 @@ MODULE_LABELS = {
 }
 INVOICE_ROWS = range(33, 38)
 ERROR_MARKERS = ("#REF!", "#VALUE!", "#DIV/0!", "#NAME?", "#N/A")
-MONEY_FORMAT = '# ##0,00 [$€-fr-FR]'
+MONEY_FORMAT = '#,##0.00 [$€-fr-FR]'
 
 
 def dec(value: Any) -> Decimal:
@@ -88,6 +88,26 @@ def write_money(cell, value: Any):
     cell.number_format = MONEY_FORMAT
 
 
+def normalize_dsf_sequence_number(value: Any) -> int:
+    text = str(value or "").strip()
+    match = re.search(r"(\d+)$", text)
+    if not match:
+        raise ValueError(f"Numéro de DSF invalide : {value!r}")
+    return int(match.group(1))
+
+
+def kairos_base_reference(base_reference: Any) -> str:
+    return re.sub(r"_N\d+$", "", str(base_reference or "").strip(), flags=re.IGNORECASE)
+
+
+def build_kairos_dsf_reference(base_reference: Any, dsf_number: Any) -> str:
+    base = kairos_base_reference(base_reference)
+    number = normalize_dsf_sequence_number(dsf_number)
+    if not base:
+        return f"N{number}"
+    return f"{base}_N{number}"
+
+
 def _module_total(dsf_snapshot: dict[str, Any], module: str) -> Decimal:
     totals = dsf_snapshot.get("moduleTotals") or {}
     if module in totals:
@@ -99,7 +119,13 @@ def build_invoice_snapshot(session_data: dict[str, Any], dsf: dict[str, Any], in
     dsf_snapshot = dsf.get("franceTravailExcelSnapshot") or {}
     if not dsf_snapshot:
         raise ValueError("Snapshot DSF France Travail absent : impossible de générer la facture.")
-    rate = dec(dsf_snapshot.get("hourlyRate") or invoice_data.get("hourlyRate"))
+    rate = dec(dsf_snapshot.get("hourlyRate") or dsf_snapshot.get("hourly_rate") or invoice_data.get("hourlyRate"))
+    dsf_sequence_number = normalize_dsf_sequence_number(dsf.get("number") or dsf_snapshot.get("number"))
+    ft = session_data.get("france_travail") or {}
+    base_reference = kairos_base_reference(
+        dsf_snapshot.get("engagement_kairos_base") or ft.get("engagement_kairos") or ft.get("convention") or invoice_data.get("kairos_engagement_reference")
+    )
+    full_reference = dsf_snapshot.get("full_dsf_reference") or build_kairos_dsf_reference(base_reference, dsf_sequence_number)
     modules = []
     for code in MODULE_ORDER:
         hours = _module_total(dsf_snapshot, code)
@@ -114,8 +140,9 @@ def build_invoice_snapshot(session_data: dict[str, Any], dsf: dict[str, Any], in
     dsf_amount = dec(dsf.get("amountTotal") or dsf_snapshot.get("amountTotal") or amount_total)
     snapshot = {
         "invoice_id": f"invoice:{dsf.get('id')}", "dsf_id": dsf.get("id"), "session_id": session_data.get("id"),
-        "invoice_number": str(invoice_data.get("invoice_number") or "").strip(), "dsf_number": str(dsf.get("number") or dsf_snapshot.get("number") or ""),
-        "dsf_reference": str(invoice_data.get("kairos_engagement_reference") or "").strip(), "kairos_engagement_reference": str(invoice_data.get("kairos_engagement_reference") or "").strip(),
+        "invoice_number": str(invoice_data.get("invoice_number") or "").strip(), "dsf_number": str(dsf_sequence_number),
+        "engagement_kairos_base": base_reference, "dsf_sequence_number": dsf_sequence_number, "full_dsf_reference": full_reference,
+        "dsf_reference": full_reference, "kairos_engagement_reference": full_reference,
         "market_number": str(((dsf_snapshot.get("session") or {}).get("france_travail") or {}).get("marche_afc") or ""),
         "invoice_date": str(invoice_data.get("invoice_date") or datetime.now().date().isoformat()), "invoice_place": str(invoice_data.get("invoice_place") or "").strip(),
         "invoice_type": invoice_data.get("invoice_type") or "intermediate", "period_start": dsf_snapshot.get("periodStart"), "period_end": dsf_snapshot.get("periodEnd"),
@@ -127,6 +154,8 @@ def build_invoice_snapshot(session_data: dict[str, Any], dsf: dict[str, Any], in
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "created_by": created_by,
         "organization": (dsf_snapshot.get("session") or {}), "dsf_snapshot": dsf_snapshot,
     }
+    if dec(snapshot["amount_total"]) != amount_total:
+        raise ValueError("Montant numérique différent du montant utilisé pour le libellé en lettres.")
     validate_invoice_against_dsf(snapshot, dsf)
     return snapshot
 
@@ -137,11 +166,12 @@ def validate_invoice_against_dsf(invoice_snapshot: dict[str, Any], dsf: dict[str
 
 
 def populate_invoice_references(ws, snap):
-    ws["H2"] = snap.get("kairos_engagement_reference") or snap.get("dsf_reference") or ""; ws["H2"].number_format = "@"
+    full_ref = snap.get("full_dsf_reference") or snap.get("kairos_engagement_reference") or snap.get("dsf_reference") or ""
+    ws["H2"] = full_ref; ws["H2"].number_format = "@"
     ws["H4"] = snap.get("invoice_number") or ""; ws["H4"].number_format = "@"
     ws["D6"] = f"A {snap.get('invoice_place') or ''}".strip(); ws["H6"] = fmt_date(snap.get("invoice_date"))
     ws["H13"] = snap.get("market_number") or ws["H13"].value
-    ws["D24"] = snap.get("dsf_reference") or f"{snap.get('kairos_engagement_reference','')}_N{snap.get('dsf_number','')}".strip("_")
+    ws["D24"] = full_ref; ws["D24"].number_format = "@"
 
 
 def populate_invoice_period(ws, snap):

@@ -47,6 +47,11 @@ from services.afc_france_travail_attendance import (
     generate_france_travail_workbook,
     safe_filename as ft_safe_filename,
 )
+from services.afc_dsf_france_travail_excel import (
+    dsf_excel_filename,
+    generate_dsf_excel_from_snapshot,
+    page_count_for_snapshot,
+)
 
 
 
@@ -1631,7 +1636,7 @@ def afc_dsf_students(session_data):
         first = (st.get("firstName") or st.get("prenom") or "").strip()
         if not (last or first):
             continue
-        result.append({"id": st.get("id") or st.get("studentId") or f"student-{idx+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}".strip(), "entryDate": st.get("entryDate") or st.get("dateEntree") or st.get("startDate") or ""})
+        result.append({"id": st.get("id") or st.get("studentId") or f"student-{idx+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}".strip(), "entryDate": st.get("entryDate") or st.get("dateEntree") or st.get("startDate") or "", "france_travail_id": str(st.get("france_travail_id") or "")})
     return result
 
 def afc_dsf_module_for_slot(slot):
@@ -1796,6 +1801,84 @@ def afc_dsf_compute(session_data, start_iso, end_iso, modules, excluded_students
     total=round(sum(totals.values()),2)
     if total <= 0: raise ValueError("Aucune heure restante à facturer pour les modules et la période sélectionnés.")
     return {"periodStart":start_iso,"periodEnd":end_iso,"billingUntil":end_iso,"modules":modules,"students":students,"studentCount":len(students),"moduleTotals":{m:round(totals[m],2) for m in modules},"totalHours":total,"amountTotal":str(afc_dsf_amount(total, rate)),"billedSlotKeys":billed_slot_keys,"billedSlots":billed_slots,"hoursPerStudent":{m:round(totals[m]/max(len(students),1),2) for m in modules},"requestedHours":{m:round(totals[m],2) for m in modules},"alreadyBilledHours":{m:0 for m in modules},"hasAlreadyBilled":False,"anomalies":[a for r in state["detail"] for a in r["anomalies"]]}
+
+
+def afc_dsf_session_snapshot(session_data, dsf_result, number, hourly_rate):
+    ft = session_data.get("france_travail") or {}
+    org_name = os.environ.get("ORGANISME_RAISON_SOCIALE", "INTEGRALE SECURITE FORMATIONS")
+    org_address = os.environ.get("ORGANISME_ADRESSE", "54 chemin du Carreou, 83480 PUGET SUR ARGENS")
+    source_students = {st["id"]: st for st in afc_dsf_students(session_data)}
+    students = []
+    missing = []
+    for row in dsf_result.get("students") or []:
+        src = source_students.get(row.get("id"), {})
+        ft_id = src.get("france_travail_id") or ""
+        if not ft_id:
+            missing.append(row.get("displayName") or "")
+        modules = {m: float(row.get("modules", {}).get(m, 0) or 0) for m in AFC_DSF_MODULES}
+        total = round(sum(modules.values()), 2)
+        students.append({
+            "id": row.get("id"),
+            "lastName": row.get("lastName") or src.get("lastName") or "",
+            "firstName": row.get("firstName") or src.get("firstName") or "",
+            "displayName": row.get("displayName") or src.get("displayName") or "",
+            "france_travail_id": ft_id,
+            "modules": modules,
+            "distanceHours": 0,
+            "festeHours": 0,
+            "totalHours": total,
+            "nonBillableHours": 0,
+            "billableHours": total,
+        })
+    module_totals = {m: round(sum(st["modules"].get(m, 0) for st in students), 2) for m in AFC_DSF_MODULES}
+    total_hours = round(sum(st["totalHours"] for st in students), 2)
+    return {
+        "number": str(number),
+        "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "periodStart": dsf_result.get("periodStart"),
+        "periodEnd": dsf_result.get("periodEnd"),
+        "hourlyRate": str(afc_dsf_rate(hourly_rate)),
+        "session": {
+            "id": session_data.get("id"),
+            "name": session_data.get("display_name") or session_data.get("formation") or "",
+            "organisme": org_name,
+            "organisme_adresse": org_address,
+            "convention": str(ft.get("convention") or ""),
+            "intitule": ft.get("intitule") or session_data.get("display_name") or session_data.get("formation") or "",
+            "lieu": session_data.get("salle") or session_data.get("lieu") or org_address,
+            "date_debut": session_data.get("date_debut"),
+            "date_fin": session_data.get("date_fin"),
+            "france_travail": ft,
+        },
+        "students": students,
+        "studentCount": len(students),
+        "moduleTotals": module_totals,
+        "totalHours": total_hours,
+        "missingFranceTravailIds": [m for m in missing if m],
+        "anomalies": dsf_result.get("anomalies") or [],
+    }
+
+def afc_dsf_preview_metadata(session_data, result, number, hourly_rate):
+    snapshot = afc_dsf_session_snapshot(session_data, result, number, hourly_rate)
+    return {
+        "number": str(number),
+        "periodStart": result.get("periodStart"),
+        "periodEnd": result.get("periodEnd"),
+        "studentCount": snapshot["studentCount"],
+        "totalHours": snapshot["totalHours"],
+        "moduleTotals": snapshot["moduleTotals"],
+        "missingFranceTravailIds": snapshot["missingFranceTravailIds"],
+        "excelPageCount": page_count_for_snapshot(snapshot),
+        "message": "Cette DSF est calculée depuis le planning central AFC. Les absences ne sont pas automatiquement déduites.",
+    }
+
+def afc_dsf_validate_number(session_data, number):
+    text = str(number or "").strip()
+    if not text:
+        raise ValueError("Le numéro de DSF est obligatoire.")
+    if any(str(d.get("number")) == text and d.get("status") == AFC_DSF_STATUS_FINALIZED for d in session_data.get("afcDsfs") or []):
+        raise ValueError("Ce numéro de DSF est déjà utilisé pour cette session.")
+    return text
 
 def afc_dsf_summary(session_data, billing_until=None, period_start=None, period_end=None, hourly_rate=None):
     return afc_dsf_build_invoice_state(session_data, billing_until=billing_until, period_start=period_start, period_end=period_end, hourly_rate=hourly_rate)
@@ -6109,6 +6192,7 @@ def session_detail(sid):
         afc_dsf_modules=AFC_DSF_MODULES,
         afc_dsf_money=afc_dsf_money,
         afc_dsf_hours=afc_dsf_fmt_hours,
+        afc_dsf_next_number=afc_dsf_next_number(session) if is_afc_aps_ssiap_session(session) else None,
     )
 
 
@@ -6188,7 +6272,9 @@ def api_afc_dsf_preview(sid):
     payload=request.get_json(silent=True) or {}
     try:
         result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [], payload.get('hourlyRate'))
-        return jsonify({'ok':True,'preview':result,'moduleLabels':{k:v['label'] for k,v in AFC_DSF_MODULES.items()}})
+        number = payload.get('dsfNumber') or afc_dsf_next_number(sess)
+        result['franceTravail'] = afc_dsf_preview_metadata(sess, result, number, payload.get('hourlyRate'))
+        return jsonify({'ok':True,'preview':result,'nextDsfNumber':str(number),'moduleLabels':{k:v['label'] for k,v in AFC_DSF_MODULES.items()}})
     except Exception as exc:
         return jsonify({'ok':False,'error':str(exc)}),400
 
@@ -6199,8 +6285,9 @@ def api_afc_dsf_generate(sid):
     payload=request.get_json(silent=True) or {}
     try:
         result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [], payload.get('hourlyRate'))
-        number=afc_dsf_next_number(sess); dsf_id=uuid.uuid4().hex; filename=f"dsf_afc_{sid}_DSF_{number}.pdf"; path=os.path.join(DSF_DIR, filename)
-        dsf={"id":dsf_id,"number":number,"label":f"DSF {number}","sessionId":sid,"sessionName":sess.get('display_name') or sess.get('formation'),"createdAt":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"createdBy":session.get('admin_email') or 'admin',"status":AFC_DSF_STATUS_FINALIZED,"pdfFilename":filename,**result}
+        number=afc_dsf_validate_number(sess, payload.get('dsfNumber') or afc_dsf_next_number(sess)); dsf_id=uuid.uuid4().hex; filename=f"dsf_afc_{sid}_DSF_{number}.pdf"; path=os.path.join(DSF_DIR, filename)
+        snapshot=afc_dsf_session_snapshot(sess, result, number, payload.get('hourlyRate')) if payload.get('generateFranceTravailExcel', True) else None
+        dsf={"id":dsf_id,"number":number,"label":f"DSF {number}","sessionId":sid,"sessionName":sess.get('display_name') or sess.get('formation'),"createdAt":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"createdBy":session.get('admin_email') or 'admin',"status":AFC_DSF_STATUS_FINALIZED,"pdfFilename":filename,"franceTravailExcelSnapshot":snapshot,**result}
         generate_afc_dsf_pdf(sess, dsf, path)
         if not os.path.exists(path): raise RuntimeError('Génération PDF échouée.')
         sess.setdefault('afcDsfs',[]).append(dsf); save_sessions(data)
@@ -6208,6 +6295,33 @@ def api_afc_dsf_generate(sid):
     except Exception as exc:
         app.logger.exception('Erreur génération DSF AFC')
         return jsonify({'ok':False,'error':str(exc)}),400
+
+
+@app.post('/api/sessions/<sid>/afc-dsf/excel-preview')
+def download_afc_dsf_excel_preview(sid):
+    data=load_sessions(); sess=find_session(data,sid)
+    if not sess or not is_afc_aps_ssiap_session(sess): return jsonify({'ok':False,'error':'Session AFC introuvable'}),404
+    payload=request.get_json(silent=True) or {}
+    try:
+        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [], payload.get('hourlyRate'))
+        number=payload.get('dsfNumber') or afc_dsf_next_number(sess)
+        snapshot=afc_dsf_session_snapshot(sess, result, number, payload.get('hourlyRate'))
+        output=generate_dsf_excel_from_snapshot(snapshot, current_app.root_path)
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=dsf_excel_filename(snapshot))
+    except Exception as exc:
+        app.logger.exception('Erreur brouillon Excel DSF AFC')
+        return jsonify({'ok':False,'error':str(exc)}),400
+
+@app.get('/sessions/<sid>/afc-dsf/<dsf_id>/france-travail.xlsx')
+def download_afc_dsf_excel(sid, dsf_id):
+    sess=find_session(load_sessions(),sid)
+    if not sess or not is_afc_aps_ssiap_session(sess): abort(404)
+    dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
+    if not dsf: abort(404)
+    snapshot=dsf.get('franceTravailExcelSnapshot')
+    if not snapshot: abort(404)
+    output=generate_dsf_excel_from_snapshot(snapshot, current_app.root_path)
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=dsf_excel_filename(snapshot))
 
 @app.route('/sessions/<sid>/afc-dsf/<dsf_id>/pdf')
 def view_afc_dsf_pdf(sid, dsf_id):

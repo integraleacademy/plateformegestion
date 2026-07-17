@@ -232,10 +232,10 @@ def test_afc_dsf_student_detail_uses_grouped_module_headers_and_dynamic_values(m
     assert 'data-testid="afc-dsf-student-detail"' in html
     assert 'afc-dsf-accordion afc-dsf-accordion--detail' in html
     assert 'Lecture par stagiaire, regroupée par module AFC' in html
-    assert 'scope="colgroup">Formation technique (FT)</th>' in html
-    assert 'scope="colgroup">Remise à niveau (RAN)</th>' in html
-    assert 'scope="colgroup">Soutien personnalisé (SP)</th>' in html
-    assert 'scope="colgroup">Préparation à l’après-formation (PAF)</th>' in html
+    assert 'scope="colgroup" title="Formation technique (FT)">FT</th>' in html
+    assert 'scope="colgroup" title="Remise à niveau (RAN)">RAN</th>' in html
+    assert 'scope="colgroup" title="Soutien personnalisé (SP)">SP</th>' in html
+    assert 'scope="colgroup" title="Préparation à l’après-formation (PAF)">PAF</th>' in html
     assert html.count('class="afc-dsf-metric-head afc-dsf-metric-head--ft" scope="col">Prévue</th>') == 1
     assert html.count('scope="col">Facturée</th>') >= 4
     assert html.count('scope="col">Restante</th>') >= 4

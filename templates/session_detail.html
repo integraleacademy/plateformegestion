@@ -1063,7 +1063,7 @@ a.back:hover{ background:#d9a848 !important; }
             <tr class="afc-dsf-module-head-row">
               <th class="afc-dsf-student-head" rowspan="2" scope="col">Stagiaire</th>
               {% for m, meta in afc_dsf_modules.items() %}
-                <th class="afc-dsf-module-head afc-dsf-module-head--{{ module_theme.get(m, 'ft') }}" colspan="3" scope="colgroup">{{ meta.label }}</th>
+                <th class="afc-dsf-module-head afc-dsf-module-head--{{ module_theme.get(m, 'ft') }}" colspan="3" scope="colgroup" title="{{ meta.label }}">{{ m }}</th>
               {% endfor %}
               <th class="afc-dsf-module-head afc-dsf-module-head--total" colspan="3" scope="colgroup">Total</th>
             </tr>

@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import (
     AFC_DSF_STATUS_CANCELLED, AFC_DSF_STATUS_FINALIZED,
-    afc_dsf_compute, afc_dsf_next_number, afc_dsf_summary,
+    afc_dsf_compute, afc_dsf_next_number, afc_dsf_summary, afc_dsf_session_snapshot,
     build_afc_aps_ssiap_planning_data, generate_afc_dsf_pdf,
     is_afc_aps_ssiap_session,
 )
@@ -424,3 +424,57 @@ def test_dsf_france_travail_route_refuses_non_afc(monkeypatch):
             flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
         response = client.post("/api/sessions/aps/afc-dsf/excel-preview", json={})
     assert response.status_code == 404
+
+def test_afc_invoice_excel_snapshot_and_template_intact():
+    import hashlib
+    from openpyxl import load_workbook
+    from services.afc_france_travail_invoice_excel import build_invoice_snapshot, generate_invoice_excel_from_snapshot, amount_to_french_words
+    s = sample_session(); s["france_travail"] = {"convention":"41C32B061177", "engagement_kairos":"41C32B061177", "marche_afc":"51190", "intitule":"Intitulé AFC"}
+    d=s["apsPlanningData"][0]["date"]
+    r=afc_dsf_compute(s,d,d,["RAN"], hourly_rate="12.10")
+    snap=afc_dsf_session_snapshot(s, r, "1", "12.10")
+    dsf={"id":"dsf1","number":"1","status":AFC_DSF_STATUS_FINALIZED,"amountTotal":r["amountTotal"],"modules":["RAN"],"franceTravailExcelSnapshot":snap}
+    template = Path(__file__).resolve().parents[1] / "static/upload/facture.xlsx"
+    before = hashlib.sha256(template.read_bytes()).hexdigest()
+    inv=build_invoice_snapshot(s, dsf, {"invoice_number":"00042","invoice_date":"2026-07-17","invoice_place":"PUGET SUR ARGENS","invoice_type":"intermediate","kairos_engagement_reference":"41C32B061177_N1"}, "tester")
+    wb=load_workbook(generate_invoice_excel_from_snapshot(inv, Path(__file__).resolve().parents[1]), data_only=False)
+    assert hashlib.sha256(template.read_bytes()).hexdigest() == before
+    assert wb.sheetnames == ["FACTURE DSF1"]
+    ws=wb["FACTURE DSF1"]
+    assert ws["H2"].value == "41C32B061177_N1" and ws["H4"].value == "00042"
+    assert ws["D22"].value == "16/11/2026" and ws["G22"].value == "16/11/2026"
+    assert ws["A33"].value == "RAN" and ws["A34"].value is None
+    assert ws["G33"].value == ws["C33"].value and ws["I33"].value == float(inv["amount_total"])
+    assert ws["I38"].value == float(inv["amount_total"]) and ws["C42"].number_format.endswith('[$€-fr-FR]')
+    assert amount_to_french_words("1.50") == "UN EURO ET CINQUANTE CENTIMES"
+    assert not any(isinstance(c.value, str) and '#REF!' in c.value for row in ws.iter_rows() for c in row)
+
+
+def test_afc_invoice_routes_unique_and_historical_download(monkeypatch):
+    import app as application
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    s=sample_session(); s["france_travail"]={"engagement_kairos":"41C32B061177","marche_afc":"51190"}
+    d=s["apsPlanningData"][0]["date"]; r=afc_dsf_compute(s,d,d,["RAN"], hourly_rate="12.10")
+    dsf={"id":"dsf1","number":"1","label":"DSF 1","status":AFC_DSF_STATUS_FINALIZED,"amountTotal":r["amountTotal"],"modules":["RAN"],"franceTravailExcelSnapshot":afc_dsf_session_snapshot(s,r,"1","12.10"), **r}
+    s["afcDsfs"].append(dsf); saved={"sessions":[s],"jurys":[]}
+    monkeypatch.setattr(application,"load_sessions",lambda: saved)
+    monkeypatch.setattr(application,"save_sessions",lambda data: saved.update(data))
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True; flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        assert client.get('/api/sessions/s1/afc-dsf/dsf1/invoice/preview').json['preview']['invoiceType'] in ('intermediate','final')
+        payload={"invoice_number":"INV001","invoice_date":"2026-07-17","invoice_place":"PUGET SUR ARGENS","invoice_type":"intermediate","kairos_engagement_reference":"41C32B061177_N1"}
+        resp=client.post('/api/sessions/s1/afc-dsf/dsf1/invoice', json=payload)
+        assert resp.status_code == 200
+        assert saved['sessions'][0]['afcDsfs'][0]['invoice']['invoice_number'] == 'INV001'
+        assert client.post('/api/sessions/s1/afc-dsf/dsf1/invoice', json=payload).status_code == 400
+        assert client.get('/sessions/s1/afc-dsf/dsf1/invoice.xlsx').status_code == 200
+
+
+def test_afc_invoice_button_visibility(monkeypatch):
+    s=sample_session(); d=s["apsPlanningData"][0]["date"]; r=afc_dsf_compute(s,d,d,["RAN"])
+    s["afcDsfs"].append({"id":"dsf-actions","number":1,"label":"DSF 1","status":AFC_DSF_STATUS_FINALIZED,"franceTravailExcelSnapshot":afc_dsf_session_snapshot(s,r,"1","12.10"),**r})
+    html=render_afc_dsf_page(monkeypatch, s)
+    assert "Générer la facture" in html
+    s_non=sample_session(); s_non["formation"]="APS"; s_non["afcDsfs"]=[s["afcDsfs"][0]]
+    assert "Générer la facture" not in render_afc_dsf_page(monkeypatch, s_non)

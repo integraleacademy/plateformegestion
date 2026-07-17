@@ -89,7 +89,7 @@ def test_empty_day_half_day_support_row_and_totals_are_computed():
     assert ws["C14"].fill.fgColor.rgb in ("00D9D9D9","D9D9D9") and ws["D14"].fill.fgColor.rgb in ("00D9D9D9","D9D9D9")
     # Support slot appears on the second line only.
     assert ws["J15"].fill.fill_type is None
-    assert ws["J14"].fill.fgColor.rgb in ("00D9D9D9","D9D9D9")
+    assert ws["J14"].fill.fill_type is None
     total_row = next(r for r in range(1, ws.max_row+1) if ws.cell(r,1).value == "Total des heures facturables")
     assert ws.cell(total_row,13).value is not None
     assert ws.cell(total_row+1,13).value is None
@@ -119,3 +119,66 @@ def test_generation_route_refuses_non_afc(monkeypatch):
         sess["admin_session_version"] = app_module.ADMIN_SESSION_VERSION
     response = client.get("/api/sessions/aps1/afc-france-travail/generate")
     assert response.status_code == 403
+
+def test_france_travail_groups_successive_morning_slots_without_changing_durations():
+    s = sample_session(2)
+    s["date_debut"] = "2026-11-16"; s["date_fin"] = "2026-11-16"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-11-16"
+    s["apsPlanningData"] = [{"date":"2026-11-16","slots":[slot("08:30","10:00","FT"),slot("10:00","10:30","SP"),slot("10:30","12:30","FT")]}]
+    wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
+    assert ws["C12"].value == "08h30-12h30"
+    assert ws["C13"].value == "FT / S"
+    assert ws["M14"].value == 4
+    assert ws["C15"].value == 0.5
+
+
+def test_france_travail_groups_successive_afternoon_slots():
+    s = sample_session(2)
+    s["date_debut"] = "2026-11-16"; s["date_fin"] = "2026-11-16"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-11-16"
+    s["apsPlanningData"] = [{"date":"2026-11-16","slots":[slot("13:30","14:00","FT"),slot("14:00","15:30","PAF"),slot("15:30","16:30","SP")]}]
+    wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
+    assert ws["D12"].value == "13h30-16h30"
+
+
+def test_france_travail_splits_noon_boundary_into_correct_half_days():
+    s = sample_session(2)
+    s["date_debut"] = "2026-11-16"; s["date_fin"] = "2026-11-16"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-11-16"
+    s["apsPlanningData"] = [{"date":"2026-11-16","slots":[slot("08:30","12:00","FT"),slot("12:00","12:30","SP"),slot("13:30","16:30","FT")]}]
+    wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
+    assert ws["C12"].value == "08h30-12h30"
+    assert ws["D12"].value == "13h30-16h30"
+    assert ws["C15"].value == 0.5
+
+
+def test_france_travail_support_hours_by_student_and_totals():
+    s = sample_session(2)
+    s["date_debut"] = "2026-11-16"; s["date_fin"] = "2026-11-20"
+    s["apsAttendanceStudents"][0]["startDate"] = "2026-11-16"
+    s["apsAttendanceStudents"][1]["startDate"] = "2026-11-16"
+    s["apsPlanningData"] = [{"date":"2026-11-16","slots":[slot("08:30","12:30","FT")]}]
+    for offset, day in enumerate(["2026-11-17", "2026-11-20"]):
+        s["apsPlanningData"].append({"date":day,"slots":[]})
+    sp1 = slot("13:30","15:30","SP"); sp1["studentIds"]=["s0"]
+    sp2 = slot("08:30","10:30","SP"); sp2["studentIds"]=["s0", "s1"]
+    sp3 = slot("13:30","16:30","SP"); sp3["studentIds"]=["s0"]
+    s["apsPlanningData"][1]["slots"]=[sp1]
+    s["apsPlanningData"][2]["slots"]=[sp2, sp3]
+    wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
+    assert ws["F15"].value == 2
+    assert ws["K15"].value == 2
+    assert ws["L15"].value == 3
+    assert ws["M15"].value == 7
+    assert ws["M17"].value == 2
+    assert ws["M14"].value == 11
+
+
+def test_france_travail_support_absence_keeps_cells_blank_and_zero_total():
+    s = sample_session(2)
+    s["date_debut"] = "2026-11-16"; s["date_fin"] = "2026-11-16"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-11-16"
+    s["apsPlanningData"] = [{"date":"2026-11-16","slots":[slot("08:30","12:30","FT")]}]
+    wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
+    assert all(ws.cell(15, c).value is None for c in range(3,13))
+    assert ws["M15"].value == 0

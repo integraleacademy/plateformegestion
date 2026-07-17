@@ -23,7 +23,7 @@ FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", 
 
 @dataclass
 class SlotInfo:
-    date: date; col: int; part: str; start: str; end: str; minutes: int; module: str; trainer: str
+    date: date; col: int; part: str; start: str; end: str; minutes: int; module: str; trainer: str; student_ids: tuple[str, ...] = ()
 
 
 def is_afc_session(session: dict[str, Any]) -> bool:
@@ -97,20 +97,44 @@ def slot_module(slot):
     return AFC_CODE_MAP.get(cat, cat if cat in {"RAN","PAF","E","DIS","S"} else "FT")
 
 def minutes(slot): return int(slot.get("durationMinutes") or round(float(slot.get("duration") or 0) * 60))
-def half(start): return "am" if int(str(start or "00:00")[:2]) < 12 else "pm"
+def time_to_minutes(value):
+    h, m = map(int, str(value or "00:00")[:5].split(":"))
+    return h * 60 + m
+def minutes_to_time(value): return f"{value//60:02d}:{value%60:02d}"
+def half(start): return "am" if time_to_minutes(start) < 13 * 60 else "pm"
 def fmt_slot(s,e): return f"{s.replace(':','h')}-{e.replace(':','h')}"
+def slot_student_ids(slot):
+    ids = slot.get("studentIds") or slot.get("students") or slot.get("traineeIds") or slot.get("stagiaireIds") or []
+    if isinstance(ids, str): ids = [ids]
+    return tuple(str(i) for i in ids if str(i))
+def slot_applies_to_student(slot_info, student):
+    return not slot_info.student_ids or str(student.get("id")) in slot_info.student_ids or str(student.get("index")) in slot_info.student_ids
 def fmt_hours(h): return int(h) if abs(h-int(h))<0.001 else str(round(h,2)).replace('.', ',')
 
 def build_week_schedule(session, week):
     day_to_col = {week["monday"]+timedelta(days=i): cols for i, cols in enumerate(DAY_COLS)}; slots=[]
+    morning_end = 12 * 60 + 30; afternoon_start = 13 * 60 + 30
     for day in session.get("apsPlanningData") or []:
         d=parse_date(day.get("date"))
         if d not in day_to_col: continue
         for sl in day.get("slots") or []:
-            m=minutes(sl)
-            if m<=0: raise ValueError("Créneau AFC incohérent (durée négative ou nulle).")
-            part=half(sl.get("start")); col = day_to_col[d][1 if part=="am" else 2]
-            slots.append(SlotInfo(d,col,part,sl.get("start") or "",sl.get("end") or "",m,slot_module(sl),sl.get("trainer") or sl.get("formateur") or ""))
+            start_min, end_min = time_to_minutes(sl.get("start")), time_to_minutes(sl.get("end"))
+            if end_min <= start_min:
+                m=minutes(sl)
+                if m<=0: raise ValueError("Créneau AFC incohérent (durée négative ou nulle).")
+                end_min = start_min + m
+            pieces=[]
+            if start_min < morning_end and end_min > start_min:
+                pieces.append((start_min, min(end_min, morning_end), "am"))
+            if end_min > afternoon_start:
+                pieces.append((max(start_min, afternoon_start), end_min, "pm"))
+            if not pieces and start_min >= morning_end and end_min <= afternoon_start:
+                pieces.append((start_min, end_min, half(sl.get("start"))))
+            for piece_start, piece_end, part in pieces:
+                m = piece_end - piece_start
+                if m<=0: continue
+                col = day_to_col[d][1 if part=="am" else 2]
+                slots.append(SlotInfo(d,col,part,minutes_to_time(piece_start),minutes_to_time(piece_end),m,slot_module(sl),sl.get("trainer") or sl.get("formateur") or "",slot_student_ids(sl)))
     return slots
 
 def applicable(student, d):
@@ -168,17 +192,20 @@ def populate_week_slots(ws, week, schedule):
     for col in range(3,13):
         ss=[s for s in schedule if s.col==col]
         if ss:
-            ws.cell(12,col).value=" / ".join(dict.fromkeys(fmt_slot(s.start,s.end) for s in ss)); ws.cell(13,col).value=" / ".join(dict.fromkeys(s.module for s in ss)); ws.cell(12,col).fill=copy.copy(WHITE_FILL); ws.cell(13,col).fill=copy.copy(WHITE_FILL)
+            ws.cell(12,col).value=fmt_slot(minutes_to_time(min(time_to_minutes(s.start) for s in ss)), minutes_to_time(max(time_to_minutes(s.end) for s in ss))); ws.cell(13,col).value=" / ".join(dict.fromkeys(s.module for s in ss)); ws.cell(12,col).fill=copy.copy(WHITE_FILL); ws.cell(13,col).fill=copy.copy(WHITE_FILL)
 
 def populate_week_trainees(ws, trainees, schedule):
     totals=[0]*10
     for idx, st in enumerate(trainees,1):
         r=STUDENT_START_ROW+(idx-1)*2; ws.cell(r,1).value=f"{idx} {st['displayName']}"; ws.cell(r,2).value=st.get('france_travail_id') or ""; ws.cell(r,2).number_format='@'; ws.cell(r+1,1).value="Soutien personnalisé"; total=0
         for c in range(3,13):
-            day_slots=[s for s in schedule if s.col==c and applicable(st,s.date)]; classic=sum(s.minutes for s in day_slots if s.module!='S'); support=sum(s.minutes for s in day_slots if s.module=='S'); total+=(classic+support)/60; totals[c-3]+=(classic+support)/60
-            for rr, mins in ((r,classic),(r+1,support)):
-                ws.cell(rr,c).value=None; ws.cell(rr,c).fill=copy.copy(WHITE_FILL if mins else GREY_FILL)
-        ws.cell(r,13).value=fmt_hours(total) if total else None; ws.cell(r+1,13).value=None
+            day_slots=[s for s in schedule if s.col==c and applicable(st,s.date) and slot_applies_to_student(s, st)]; classic=sum(s.minutes for s in day_slots if s.module!='S'); support=sum(s.minutes for s in day_slots if s.module=='S'); total+=(classic+support)/60; totals[c-3]+=(classic+support)/60
+            ws.cell(r,c).value=None; ws.cell(r,c).fill=copy.copy(WHITE_FILL if (classic + support) else GREY_FILL)
+            ws.cell(r+1,c).value=None; ws.cell(r+1,c).fill=copy.copy(WHITE_FILL if support else GREY_FILL)
+            if support:
+                ws.cell(r+1,c).value=support/60; ws.cell(r+1,c).number_format='0,## "h"'
+        support_total=sum((s.minutes/60) for s in schedule if applicable(st,s.date) and slot_applies_to_student(s, st) and s.module=='S')
+        ws.cell(r,13).value=fmt_hours(total) if total else None; ws.cell(r+1,13).value=support_total if support_total else 0; ws.cell(r+1,13).number_format='0,## "h"'
     return totals
 
 def populate_week_totals(ws, total_row, totals):

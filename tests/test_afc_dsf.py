@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -95,6 +96,24 @@ def test_period_without_hours_refused():
     s=sample_session()
     try: afc_dsf_compute(s,"2026-11-21","2026-11-22",["PAF"]); assert False
     except ValueError as e: assert "Aucune heure" in str(e)
+
+
+def test_editable_hourly_rate_recalculates_total_ca_and_coherence():
+    s = sample_session()
+    summary = afc_dsf_summary(s, hourly_rate="12.50")
+
+    assert summary["rate"] == "12.50"
+    assert summary["total"]["amountTotal"] == summary["total"]["amountBilled"] + summary["total"]["amountToInvoice"] + summary["total"]["amountRemaining"]
+    assert summary["total"]["amountTotal"] == summary["total"]["planned"] * Decimal("12.50")
+
+
+def test_compute_uses_custom_hourly_rate_for_dsf_preview():
+    s = sample_session()
+    d = s["apsPlanningData"][0]["date"]
+    result = afc_dsf_compute(s, d, d, ["RAN"], hourly_rate="13.00")
+
+    assert result["totalHours"] == 14
+    assert result["amountTotal"] == "182.00"
 
 def test_pdf_contains_students_labels_logo_and_no_nulls(tmp_path):
     from pypdf import PdfReader

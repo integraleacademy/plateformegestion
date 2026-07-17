@@ -11,6 +11,7 @@ from app import (
     AFC_TECHNICAL_CODES,
     build_afc_aps_ssiap_planning_data,
     afc_aps_ssiap_summary_from_data,
+    calculate_actual_afc_hours,
     afc_nth_working_day,
     is_french_working_day,
 )
@@ -121,8 +122,7 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     for bucket in weekly.values():
         assert bucket["total"] <= 35 * 60
         assert bucket["technical"] <= 30 * 60
-        assert not (bucket["SP"] > 0 and bucket["PAF"] > 0)
-        assert bucket["SP"] + bucket["PAF"] in {0, 5 * 60}
+        assert bucket["SP"] + bucket["PAF"] in {0, 5 * 60, 10 * 60}
         assert bucket["SP"] in {0, 5 * 60}
         assert bucket["PAF"] in {0, 5 * 60}
 
@@ -138,8 +138,55 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
         (2027, 4),
         (2027, 5),
     ]
-    assert [week for week, bucket in support_weeks.items() if bucket["PAF"]] == [(2027, 6)]
+    assert [week for week, bucket in support_weeks.items() if bucket["PAF"]] == [(2027, 2), (2027, 3), (2027, 4), (2027, 6)]
 
+    paf_dates = [day["date"] for day in planning if any(slot["afcCategory"] == "PAF" for slot in day["slots"])]
+    assert paf_dates == ["2027-01-15", "2027-01-22", "2027-01-29", "2027-02-12"]
+    assert len(paf_dates) == 4
+    assert sum(day_minutes("PAF").values()) == 20 * 60
+    assert sum(day_minutes("SP").values()) == 45 * 60
+    assert sum(day_minutes("SSIAP1").values()) == 70 * 60
+    assert not any(day["date"] == "2027-02-15" and any(slot["afcCategory"] == "PAF" for slot in day["slots"]) for day in planning)
+    assert not any(day["date"] > "2027-02-15" for day in planning)
+    assert calculate_actual_afc_hours(planning) == {code: minutes / 60 for code, minutes in AFC_APS_SSIAP_EXPECTED_MINUTES.items()}
+
+
+def test_afc_rejects_old_ssiap_85_paf_5_distribution_even_when_total_is_393():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
+    converted = 0
+    for day in planning:
+        for slot in day["slots"]:
+            if slot["afcCategory"] == "PAF" and day["date"] != "2027-02-12" and converted < 15 * 60:
+                slot["afcCategory"] = "SSIAP1"
+                slot["uv"] = "REV-SSIAP1"
+                slot["sequence"] = "REV-SSIAP1"
+                slot["part"] = "Formation SSIAP 1"
+                slot["title"] = "Révisions générales SSIAP 1"
+                slot["content"] = "Révisions générales et préparation pédagogique SSIAP 1"
+                slot["afcKind"] = "FT"
+                converted += slot["durationMinutes"]
+    actual = calculate_actual_afc_hours(planning)
+    assert sum(actual.values()) == 393
+    assert actual["SSIAP1"] == 85
+    assert actual["PAF"] == 5
+    summary = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))
+    assert any("Formation SSIAP 1 : 85 h planifiées au lieu de 70 h" in error for error in summary["errors"])
+    assert any("Préparation à l’après-formation (PAF) : 5 h planifiées au lieu de 20 h" in error for error in summary["errors"])
+
+
+def test_afc_corrected_distribution_is_accepted_and_recap_matches_actual_hours():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
+    actual = calculate_actual_afc_hours(planning)
+    summary = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))
+    assert summary["errors"] == []
+    assert actual["SSIAP1"] == 70
+    assert actual["EXAM_SSIAP1"] == 7
+    assert actual["PAF"] == 20
+    assert actual["SP"] == 45
+    assert sum(actual.values()) == 393
+    assert {row["uv"]: row["hours"] for row in summary["uv_rows"]} == actual
 
 def test_afc_reuses_detailed_aps_and_ssiap_sequences():
     planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", [(date(2026, 12, 23), date(2027, 1, 4))])

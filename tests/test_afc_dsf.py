@@ -54,10 +54,10 @@ def test_student_entry_date_reduces_only_that_student_hours():
 def test_afc_categories_grouped_and_modules_separated():
     s=sample_session(); all_start=s["date_debut"]; all_end=s["date_fin"]
     res=afc_dsf_compute(s,all_start,all_end,["FT","RAN"])
-    assert res["hoursPerStudent"]["FT"] == 288
+    assert res["hoursPerStudent"]["FT"] == 273
     assert res["hoursPerStudent"]["RAN"] == 55
     assert afc_dsf_compute(s,all_start,all_end,["SP"])["hoursPerStudent"]["SP"] == 45
-    assert afc_dsf_compute(s,all_start,all_end,["PAF"])["hoursPerStudent"]["PAF"] == 5
+    assert afc_dsf_compute(s,all_start,all_end,["PAF"])["hoursPerStudent"]["PAF"] == 20
 
 def test_totals_numbering_double_billing_cancel_and_remaining_snapshot():
     s=sample_session(); d=s["apsPlanningData"][0]["date"]
@@ -173,7 +173,7 @@ def test_afc_dsf_dashboard_contains_five_cards_generate_button_actions_and_dynam
 
     assert html.count('data-testid="afc-dsf-card-') == 5
     assert 'id="openAfcDsfModal"' in html and "Générer une DSF" in html
-    assert "288 h" in html and "Remise à niveau (RAN)" in html
+    assert "273 h" in html and "Remise à niveau (RAN)" in html
     assert "Voir le PDF" in html
     assert "Télécharger" in html
     assert "Supprimer la DSF" in html

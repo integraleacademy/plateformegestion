@@ -6016,14 +6016,14 @@ def download_afc_dsf_pdf(sid, dsf_id):
     if not dsf: abort(404)
     return send_file(os.path.join(DSF_DIR, os.path.basename(dsf.get('pdfFilename',''))), mimetype='application/pdf', as_attachment=True, download_name=dsf.get('pdfFilename'))
 
-@app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/cancel', methods=['POST'])
-def api_afc_dsf_cancel(sid, dsf_id):
+@app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/delete', methods=['POST'])
+def api_afc_dsf_delete(sid, dsf_id):
     data=load_sessions(); sess=find_session(data,sid)
     if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
     dsfs=sess.get('afcDsfs') or []
     dsf=next((d for d in dsfs if d.get('id')==dsf_id),None)
     if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
-    if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'DSF déjà annulée'}),400
+    if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'Seule une DSF finalisée peut être supprimée.'}),400
     pdf_filename=os.path.basename(dsf.get('pdfFilename',''))
     sess['afcDsfs']=[d for d in dsfs if d.get('id')!=dsf_id]
     save_sessions(data)
@@ -6039,6 +6039,10 @@ def api_afc_dsf_cancel(sid, dsf_id):
         flash('DSF supprimée définitivement.', 'success')
         return redirect(url_for('session_detail', sid=sid))
     return jsonify({'ok':True,'deleted':True})
+
+@app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/cancel', methods=['POST'])
+def api_afc_dsf_cancel(sid, dsf_id):
+    return api_afc_dsf_delete(sid, dsf_id)
 
 @app.route("/sessions/<sid>/jury/add", methods=["POST"])
 def add_jury(sid):

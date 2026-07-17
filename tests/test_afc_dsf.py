@@ -107,7 +107,7 @@ def test_pdf_contains_students_labels_logo_and_no_nulls(tmp_path):
     assert all(x not in text for x in ["None","null","undefined"])
 
 
-def test_cancel_dsf_route_deletes_session_entry_and_pdf(monkeypatch, tmp_path):
+def test_delete_dsf_route_deletes_session_entry_and_pdf(monkeypatch, tmp_path):
     import app as application
 
     application.app.config.update(TESTING=True, SECRET_KEY="test")
@@ -133,7 +133,7 @@ def test_cancel_dsf_route_deletes_session_entry_and_pdf(monkeypatch, tmp_path):
         with client.session_transaction() as flask_session:
             flask_session["admin_logged"] = True
             flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
-        response = client.post("/api/sessions/s1/afc-dsf/dsf-to-delete/cancel")
+        response = client.post("/api/sessions/s1/afc-dsf/dsf-to-delete/delete")
 
     assert response.status_code == 200
     assert response.get_json()["deleted"] is True
@@ -176,10 +176,10 @@ def test_afc_dsf_dashboard_contains_five_cards_generate_button_actions_and_dynam
     assert "288 h" in html and "Remise à niveau (RAN)" in html
     assert "Voir le PDF" in html
     assert "Télécharger" in html
-    assert "Annuler la DSF" in html
+    assert "Supprimer la DSF" in html
     assert "/sessions/s1/afc-dsf/dsf-actions/pdf" in html
     assert "/sessions/s1/afc-dsf/dsf-actions/download" in html
-    assert "/api/sessions/s1/afc-dsf/dsf-actions/cancel" in html
+    assert "/api/sessions/s1/afc-dsf/dsf-actions/delete" in html
 
 
 def test_afc_dsf_overbilling_alert_is_conditional(monkeypatch):

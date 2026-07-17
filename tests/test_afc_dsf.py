@@ -300,3 +300,76 @@ def test_afc_dsf_print_statuses_and_overbilling_are_visible(monkeypatch):
     assert " h à facturer" in html
     assert "Dépassement de " in html
     assert "orange : dépassement des heures prévues" in html
+
+
+def test_dsf_france_travail_excel_snapshot_fills_template_and_keeps_original_intact():
+    import hashlib
+    from openpyxl import load_workbook
+    from services.afc_dsf_france_travail_excel import generate_dsf_excel_from_snapshot
+    from app import afc_dsf_session_snapshot
+
+    s = sample_session()
+    s["france_travail"] = {"convention": "041C", "intitule": "Intitulé AFC"}
+    s["apsAttendanceStudents"][0]["france_travail_id"] = "0123A"
+    s["apsAttendanceStudents"][1]["france_travail_id"] = ""
+    d = s["apsPlanningData"][0]["date"]
+    result = afc_dsf_compute(s, d, d, ["RAN"])
+    snapshot = afc_dsf_session_snapshot(s, result, "1", "12.10")
+    template = Path(__file__).resolve().parents[1] / "static/upload/dsf.xlsx"
+    before = hashlib.sha256(template.read_bytes()).hexdigest()
+
+    wb = load_workbook(generate_dsf_excel_from_snapshot(snapshot, Path(__file__).resolve().parents[1]))
+
+    assert hashlib.sha256(template.read_bytes()).hexdigest() == before
+    ws = wb["DSF1"]
+    assert ws["D4"].value == "041C"
+    assert ws["K3"].value == "Intitulé AFC"
+    assert ws["E6"].value == "16/11/2026"
+    assert ws["E7"].value == "16/11/2026"
+    assert ws["I7"].value == "1"
+    assert ws["C10"].value == "DUPONT Jean\n0123A"
+    assert ws["D10"].value == "MARTIN Sophie"
+    assert "nom prénom" not in " ".join(str(ws.cell(10, c).value or "") for c in range(3, 19))
+    assert ws["C15"].value == 7
+    assert ws["D15"].value == 7
+    assert ws["C16"].value == 0 and ws["C17"].value == 0
+    assert ws["C18"].value == 7
+    assert ws["C27"].value == 7
+    assert ws["C28"].value == 0
+    assert ws["C29"].value == 7
+    assert ws["B15"].value == 14
+    assert ws["B29"].value == 14
+    assert ws["E10"].value is None and ws["E15"].value is None
+
+
+def test_dsf_france_travail_excel_splits_after_sixteen_trainees():
+    from openpyxl import load_workbook
+    from services.afc_dsf_france_travail_excel import generate_dsf_excel_from_snapshot
+    from app import afc_dsf_session_snapshot
+
+    s = sample_session()
+    s["apsAttendanceStudents"] = [{"id": f"s{i}", "lastName": f"NOM{i}", "firstName": "Test", "france_travail_id": f"00{i}"} for i in range(17)]
+    d = s["apsPlanningData"][0]["date"]
+    result = afc_dsf_compute(s, d, d, ["RAN"])
+    snapshot = afc_dsf_session_snapshot(s, result, "2", "12.10")
+
+    wb = load_workbook(generate_dsf_excel_from_snapshot(snapshot, Path(__file__).resolve().parents[1]))
+
+    assert wb.sheetnames == ["DSF2 - 1", "DSF2 - 2"]
+    assert wb["DSF2 - 1"]["R10"].value.startswith("NOM15")
+    assert wb["DSF2 - 2"]["C10"].value.startswith("NOM16")
+    assert wb["DSF2 - 2"]["D10"].value is None
+
+
+def test_dsf_france_travail_route_refuses_non_afc(monkeypatch):
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    saved = {"sessions": [{"id": "aps", "formation": "APS", "afcDsfs": []}], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.post("/api/sessions/aps/afc-dsf/excel-preview", json={})
+    assert response.status_code == 404

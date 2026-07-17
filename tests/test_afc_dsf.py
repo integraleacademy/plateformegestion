@@ -343,6 +343,56 @@ def test_dsf_france_travail_excel_snapshot_fills_template_and_keeps_original_int
     assert ws["E10"].value is None and ws["E15"].value is None
 
 
+def test_dsf_france_travail_excel_hour_formats_are_value_specific_and_numeric():
+    from openpyxl import load_workbook
+    from services.afc_dsf_france_travail_excel import generate_dsf_excel_from_snapshot
+
+    snapshot = {
+        "number": "9",
+        "periodStart": "2026-11-16",
+        "periodEnd": "2026-11-27",
+        "session": {
+            "name": "AFC France Travail APS + SSIAP",
+            "date_debut": "2026-11-16",
+            "date_fin": "2026-11-27",
+            "convention": "041C",
+        },
+        "students": [
+            {"lastName": "ENTIER", "firstName": "VingtHuit", "totalHours": 28, "modules": {"FT": 28}},
+            {"lastName": "ZERO", "firstName": "Heure", "totalHours": 0.5, "modules": {"FT": 0.5}},
+            {"lastName": "QUATORZE", "firstName": "DecimalZero", "totalHours": 14.0, "modules": {"FT": 14.0}},
+            {"lastName": "TROIS", "firstName": "Demie", "totalHours": 3.5, "modules": {"FT": 3.5}},
+            {"lastName": "DEUX", "firstName": "Quart", "totalHours": 2.25, "modules": {"FT": 2.25}},
+            {"lastName": "DIXSEPT", "firstName": "Demie", "totalHours": 17.5, "modules": {"FT": 17.5}},
+        ],
+    }
+
+    wb = load_workbook(generate_dsf_excel_from_snapshot(snapshot, Path(__file__).resolve().parents[1]))
+    ws = wb["DSF9"]
+
+    assert ws["C11"].value == 28 and isinstance(ws["C11"].value, int)
+    assert ws["C11"].number_format == "0"
+    assert ws["C12"].value == 0 and isinstance(ws["C12"].value, int)
+    assert ws["C12"].number_format == "0"
+    assert ws["F11"].value == 3.5 and isinstance(ws["F11"].value, float)
+    assert ws["F11"].number_format == "0.##"
+    assert ws["G11"].value == 2.25 and isinstance(ws["G11"].value, float)
+    assert ws["G11"].number_format == "0.##"
+    assert ws["E11"].value == 14 and isinstance(ws["E11"].value, int)
+    assert ws["E11"].number_format == "0"
+    assert ws["I10"].value is None and ws["I11"].value is None and ws["I11"].number_format == "General"
+    assert isinstance(ws["B11"].value, float)
+    assert ws["B11"].value == 65.75
+    assert ws["B11"].number_format == "0.##"
+    assert load_workbook(generate_dsf_excel_from_snapshot(snapshot, Path(__file__).resolve().parents[1]))
+    for row in range(11, 34):
+        for col in range(2, 19):
+            cell = ws.cell(row, col)
+            if isinstance(cell.value, int):
+                assert cell.number_format != "0.##"
+    assert 15 not in [ws.cell(7, col).value for col in range(1, 19)]
+
+
 def test_dsf_france_travail_excel_splits_after_sixteen_trainees():
     from openpyxl import load_workbook
     from services.afc_dsf_france_travail_excel import generate_dsf_excel_from_snapshot

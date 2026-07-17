@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import io
+from decimal import Decimal, InvalidOperation
 import math
 import re
 import unicodedata
@@ -25,7 +26,7 @@ BILLABLE_ROW = 29
 DISTANCE_ROW = 30
 FESTE_ROWS = (31, 32, 33)
 HOUR_ROWS = list(range(11, 34))
-HEADER_CELLS = ["D3", "K3", "D4", "K4", "L5", "O5", "E6", "E7", "I7"]
+HEADER_CELLS = ["D3", "K3", "D4", "K4", "L5", "O5", "E6", "E7", "I7", "B7"]
 
 
 def load_dsf_template(app_root: str | Path):
@@ -57,10 +58,30 @@ def clear_dsf_template_data(ws):
         ws[cell].value = None
     for col in TRAINEE_COLUMNS:
         ws.cell(10, col).value = None
-        for row in HOUR_ROWS:
-            ws.cell(row, col).value = None
     for row in HOUR_ROWS:
-        ws.cell(row, 2).value = None
+        for col in range(2, max(TRAINEE_COLUMNS) + 1):
+            cell = ws.cell(row, col)
+            cell.value = None
+            cell.number_format = "General"
+
+
+def set_hour_value(cell, value):
+    if value is None or value == "":
+        cell.value = None
+        cell.number_format = "General"
+        return
+
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise ValueError(f"Valeur horaire invalide : {value!r}") from exc
+
+    if number == number.to_integral_value():
+        cell.value = int(number)
+        cell.number_format = "0"
+    else:
+        cell.value = float(number)
+        cell.number_format = "0.##"
 
 
 def populate_dsf_header(ws, snapshot: dict[str, Any]):
@@ -105,8 +126,7 @@ def populate_dsf_module_hours(ws, trainees: list[dict[str, Any]]):
             main_row, auth_abs_row, unjust_abs_row, total_row = rows
             hours = _num(modules.get(module))
             for row, value in ((main_row, hours), (auth_abs_row, 0), (unjust_abs_row, 0), (total_row, hours)):
-                ws.cell(row, col).value = value
-                ws.cell(row, col).number_format = "0.##"
+                set_hour_value(ws.cell(row, col), value)
                 row_totals[row] += value
             total_plan += hours
         distance = _num(trainee.get("distanceHours"))
@@ -121,16 +141,14 @@ def populate_dsf_module_hours(ws, trainees: list[dict[str, Any]]):
             FESTE_ROWS[2]: 0,
         }
         for row, value in values.items():
-            ws.cell(row, col).value = value
-            ws.cell(row, col).number_format = "0.##"
+            set_hour_value(ws.cell(row, col), value)
             row_totals[row] += value
     return row_totals
 
 
 def populate_dsf_totals(ws, row_totals: dict[int, float]):
     for row in HOUR_ROWS:
-        ws.cell(row, 2).value = round(row_totals.get(row, 0), 2)
-        ws.cell(row, 2).number_format = "0.##"
+        set_hour_value(ws.cell(row, 2), round(row_totals.get(row, 0), 2))
 
 
 def configure_dsf_print_settings(ws):

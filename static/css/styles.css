@@ -1088,13 +1088,14 @@ a{color:inherit;text-decoration:none}
 .afc-dsf-print-btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(37,99,235,.12);background:#eff6ff;}
 .afc-dsf-print-btn:focus-visible{outline:3px solid rgba(37,99,235,.35);outline-offset:3px;}
 .afc-dsf-table-wrap--detail{max-width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-gutter:stable;}
-.afc-dsf-table--students.contract-table{width:max-content;min-width:1180px;}
-.afc-dsf-table--students .afc-dsf-student-head,.afc-dsf-table--students .afc-dsf-student-cell{min-width:190px;}
-.afc-dsf-table--students .afc-dsf-module-head{padding-left:12px;padding-right:12px;font-size:13px;}
-.afc-dsf-table--students .afc-dsf-metric-head{padding-left:10px;padding-right:10px;}
-.afc-dsf-table--students.contract-table td,.afc-dsf-table--students.contract-table .afc-dsf-student-cell{padding-left:10px;padding-right:10px;}
-.afc-dsf-hour-cell span{min-width:64px;}
-.afc-dsf-hour-cell--remaining span{min-width:72px;}
+.afc-dsf-table--students.contract-table{width:100%;min-width:0;table-layout:fixed;}
+.afc-dsf-table--students .afc-dsf-student-head,.afc-dsf-table--students .afc-dsf-student-cell{min-width:0;width:170px;}
+.afc-dsf-table--students .afc-dsf-module-head{padding-left:8px;padding-right:8px;font-size:12px;white-space:normal;line-height:1.2;}
+.afc-dsf-table--students .afc-dsf-metric-head{padding-left:6px;padding-right:6px;font-size:10px;letter-spacing:.05em;}
+.afc-dsf-table--students.contract-table td,.afc-dsf-table--students.contract-table .afc-dsf-student-cell{padding-left:6px;padding-right:6px;}
+.afc-dsf-hour-cell span{min-width:0;width:100%;max-width:70px;min-height:34px;padding:0 6px;}
+.afc-dsf-hour-cell--remaining span{min-width:0;max-width:78px;}
+@media (max-width:1100px){.afc-dsf-table--students.contract-table{width:max-content;min-width:1180px;table-layout:auto;}.afc-dsf-table--students .afc-dsf-student-head,.afc-dsf-table--students .afc-dsf-student-cell{min-width:170px;width:auto;}.afc-dsf-hour-cell span{min-width:64px;width:auto;max-width:none;}.afc-dsf-hour-cell--remaining span{min-width:72px;max-width:none;}}
 @media print{
   @page{size:A4 landscape;margin:10mm;}
   body *{visibility:hidden!important;}

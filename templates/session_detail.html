@@ -1525,6 +1525,7 @@ a.back:hover{ background:#d9a848 !important; }
 {% if not s.steps %}
 <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
 {% else %}
+{% if s.formation != "AFC_APS_SSIAP" %}
 
 <!-- ======================================================================= -->
 <!--                   TRI PAR DEADLINE POUR TOUS LES MODES                  -->
@@ -1789,6 +1790,7 @@ a.back:hover{ background:#d9a848 !important; }
 </div>
 
 
+{% endif %}
 {% endif %}
 {% endif %}
 </div>

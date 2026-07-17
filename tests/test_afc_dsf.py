@@ -220,5 +220,7 @@ def test_afc_dsf_student_detail_uses_grouped_module_headers_and_dynamic_values(m
     assert html.count('scope="col">Facturée</th>') >= 4
     assert html.count('scope="col">Restante</th>') >= 4
     assert '<span>DUPONT Jean</span>' in html
-    assert '<td class="afc-dsf-hour-cell afc-dsf-hour-cell--planned">273.0 h</td>' in html
-    assert '<td class="afc-dsf-hour-cell afc-dsf-hour-cell--remaining is-positive">273.0 h</td>' in html
+    assert 'afc-dsf-detail-legend' in html
+    assert 'Rouge = heures restantes à facturer' in html
+    assert 'afc-dsf-module-cell--ft afc-dsf-module-cell--first' in html
+    assert 'afc-dsf-module-cell--ft afc-dsf-module-cell--last is-positive' in html

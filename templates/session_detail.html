@@ -1044,6 +1044,10 @@ a.back:hover{ background:#d9a848 !important; }
       <span class="afc-dsf-summary-icon" aria-hidden="true"><svg><use href="#icon-calendar-days"></use></svg></span>
     </summary>
     <div class="afc-dsf-detail-panel">
+      <div class="afc-dsf-detail-legend" aria-label="Légende des heures restantes">
+        <span><i class="afc-dsf-legend-dot afc-dsf-legend-dot--due" aria-hidden="true"></i>Rouge = heures restantes à facturer</span>
+        <span><i class="afc-dsf-legend-dot afc-dsf-legend-dot--settled" aria-hidden="true"></i>Vert = aucune heure restante</span>
+      </div>
       <div class="afc-dsf-table-wrap afc-dsf-table-wrap--detail" data-testid="afc-dsf-student-detail">
         <table class="contract-table afc-dsf-table afc-dsf-table--students">
           <thead>
@@ -1070,13 +1074,13 @@ a.back:hover{ background:#d9a848 !important; }
               <tr>
                 <th class="afc-dsf-student-cell" scope="row"><span>{{ row.student.displayName }}</span></th>
                 {% for m, meta in afc_dsf_modules.items() %}
-                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--planned">{{ row.modules[m].planned }} h</td>
-                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--billed">{{ row.modules[m].billed }} h</td>
-                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--remaining {{ 'is-positive' if row.modules[m].remaining else 'is-neutral' }}">{{ row.modules[m].remaining }} h</td>
+                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--planned afc-dsf-module-cell afc-dsf-module-cell--{{ module_theme.get(m, 'ft') }} afc-dsf-module-cell--first"><span>{{ row.modules[m].planned }} h</span></td>
+                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--billed afc-dsf-module-cell afc-dsf-module-cell--{{ module_theme.get(m, 'ft') }}"><span>{{ row.modules[m].billed }} h</span></td>
+                  <td class="afc-dsf-hour-cell afc-dsf-hour-cell--remaining afc-dsf-module-cell afc-dsf-module-cell--{{ module_theme.get(m, 'ft') }} afc-dsf-module-cell--last {{ 'is-positive' if row.modules[m].remaining else 'is-neutral' }}"><span>{{ row.modules[m].remaining }} h</span></td>
                 {% endfor %}
-                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total">{{ row.plannedTotal }} h</td>
-                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total">{{ row.billedTotal }} h</td>
-                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total afc-dsf-hour-cell--remaining {{ 'is-positive' if row.remainingTotal else 'is-neutral' }}">{{ row.remainingTotal }} h</td>
+                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total"><span>{{ row.plannedTotal }} h</span></td>
+                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total"><span>{{ row.billedTotal }} h</span></td>
+                <td class="afc-dsf-hour-cell afc-dsf-hour-cell--total afc-dsf-hour-cell--remaining {{ 'is-positive' if row.remainingTotal else 'is-neutral' }}"><span>{{ row.remainingTotal }} h</span></td>
               </tr>
             {% endfor %}
           </tbody>

@@ -1,0 +1,1 @@
+export function bindHistoryShortcuts(store){document.addEventListener('keydown',e=>{const mod=e.ctrlKey||e.metaKey;if(!mod||e.key.toLowerCase()!=='z')return;e.preventDefault();if(e.shiftKey)store.redo();else store.undo();});}

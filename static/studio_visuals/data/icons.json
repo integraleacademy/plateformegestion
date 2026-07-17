@@ -1,0 +1,74 @@
+{
+  "icons": [
+    {
+      "id": "security",
+      "category": "security",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "fire",
+      "category": "fire",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "direction",
+      "category": "direction",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "mobility",
+      "category": "mobility",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "training",
+      "category": "training",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "calendar",
+      "category": "calendar",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "finance",
+      "category": "finance",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "location",
+      "category": "location",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "certification",
+      "category": "certification",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "employment",
+      "category": "employment",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "documents",
+      "category": "documents",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "progression",
+      "category": "progression",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "alert",
+      "category": "alert",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    },
+    {
+      "id": "validation",
+      "category": "validation",
+      "svg": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"9\" fill=\"currentColor\" opacity=\".18\"/><path d=\"M7 12h10M12 7v10\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+    }
+  ]
+}

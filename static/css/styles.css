@@ -1039,3 +1039,34 @@ a{color:inherit;text-decoration:none}
 .afc-dsf-hour-cell--remaining.is-neutral{color:#64748b !important;}
 .afc-dsf-hour-cell--total{font-weight:900;color:#0f172a !important;background:#f8fafc;}
 @media (max-width:700px){.afc-dsf-accordion--detail summary{min-height:72px;padding:12px 14px;align-items:flex-start;}.afc-dsf-summary-text strong{font-size:16px;}.afc-dsf-summary-text small{font-size:12px;}.afc-dsf-accordion--detail .afc-dsf-summary-icon{width:34px;height:34px;}.afc-dsf-detail-panel{padding:12px;}.afc-dsf-table-wrap--detail{border-radius:14px;-webkit-overflow-scrolling:touch;}.afc-dsf-table--students.contract-table{min-width:1120px;font-size:12px;}.afc-dsf-table--students .afc-dsf-student-head,.afc-dsf-table--students .afc-dsf-student-cell{min-width:170px;}.afc-dsf-table--students.contract-table td,.afc-dsf-table--students.contract-table .afc-dsf-student-cell{padding:16px 12px;}}
+.afc-dsf-detail-legend{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 12px;color:#475569 !important;font-size:12px;font-weight:800;}
+.afc-dsf-detail-legend span{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:999px;background:#fff;box-shadow:0 6px 14px rgba(15,23,42,.04);}
+.afc-dsf-legend-dot{width:9px;height:9px;border-radius:999px;display:inline-block;box-shadow:0 0 0 3px rgba(15,23,42,.04);}
+.afc-dsf-legend-dot--due{background:#dc2626;}.afc-dsf-legend-dot--settled{background:#059669;}
+.afc-dsf-table--students.contract-table{min-width:1380px;}
+.afc-dsf-table--students.contract-table th,.afc-dsf-table--students.contract-table td{border-right:0;}
+.afc-dsf-table--students.contract-table tbody tr{transition:background .16s ease,box-shadow .16s ease;}
+.afc-dsf-table--students.contract-table tbody tr:hover{box-shadow:inset 0 0 0 999px rgba(248,251,255,.78);}
+.afc-dsf-table--students.contract-table tbody tr:not(:last-child) .afc-dsf-student-cell,.afc-dsf-table--students.contract-table tbody tr:not(:last-child) td{border-bottom:8px solid #fff;}
+.afc-dsf-table--students .afc-dsf-student-head{background:linear-gradient(180deg,#f8fafc,#eef4fb);border-right:1px solid #dbe3ef;}
+.afc-dsf-table--students .afc-dsf-student-cell{background:linear-gradient(180deg,#fff,#f8fafc);border-right:1px solid #dbe3ef;}
+.afc-dsf-table--students .afc-dsf-student-cell span{font-size:15px;letter-spacing:-.01em;}
+.afc-dsf-table--students .afc-dsf-module-head{position:relative;padding:18px 18px 14px;font-size:14px;border-top:2px solid var(--module-color);border-left:2px solid var(--module-color);border-right:2px solid var(--module-color);border-radius:14px 14px 0 0;background:linear-gradient(180deg,var(--module-tint),#fff 88%);box-shadow:inset 0 1px 0 rgba(255,255,255,.8);}
+.afc-dsf-table--students .afc-dsf-module-head::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:999px;background:var(--module-color);box-shadow:0 0 0 4px color-mix(in srgb,var(--module-color) 14%,transparent);vertical-align:middle;}
+.afc-dsf-table--students .afc-dsf-metric-head{padding:12px 16px 14px;font-size:11px;color:#1e293b !important;border-bottom:2px solid var(--module-color);background:linear-gradient(180deg,var(--module-tint),#fff);}
+.afc-dsf-table--students .afc-dsf-metric-head:nth-child(3n+2){border-left:2px solid var(--module-color);}
+.afc-dsf-table--students .afc-dsf-metric-head:nth-child(3n+1){border-right:2px solid var(--module-color);}
+.afc-dsf-module-cell{background:linear-gradient(180deg,var(--module-cell-tint),#fff);box-shadow:inset 0 1px 0 rgba(255,255,255,.84);}
+.afc-dsf-module-cell--ft{--module-cell-color:#2563eb;--module-cell-tint:#f5f9ff;}.afc-dsf-module-cell--ran{--module-cell-color:#7c3aed;--module-cell-tint:#faf7ff;}.afc-dsf-module-cell--sp{--module-cell-color:#059669;--module-cell-tint:#f4fdf8;}.afc-dsf-module-cell--paf{--module-cell-color:#f97316;--module-cell-tint:#fff9f2;}
+.afc-dsf-module-cell--first{border-left:2px solid var(--module-cell-color);}
+.afc-dsf-module-cell--last{border-right:2px solid var(--module-cell-color);}
+.afc-dsf-hour-cell span{display:inline-flex;align-items:center;justify-content:center;min-width:76px;min-height:36px;border-radius:11px;font-weight:900;}
+.afc-dsf-hour-cell--planned span{background:rgba(255,255,255,.72);border:1px solid rgba(148,163,184,.22);color:#1e293b !important;}
+.afc-dsf-hour-cell--billed span{background:rgba(248,250,252,.9);border:1px solid rgba(148,163,184,.22);color:#475569 !important;}
+.afc-dsf-hour-cell--remaining span{min-width:88px;font-size:14px;box-shadow:0 8px 18px rgba(15,23,42,.06);}
+.afc-dsf-hour-cell--remaining.is-positive{color:#dc2626 !important;background:linear-gradient(180deg,#fff5f5,#fff);}
+.afc-dsf-hour-cell--remaining.is-positive span{background:#fee2e2;border:1px solid #fecaca;color:#b91c1c !important;}
+.afc-dsf-hour-cell--remaining.is-neutral{color:#059669 !important;background:linear-gradient(180deg,#f0fdf4,#fff);}
+.afc-dsf-hour-cell--remaining.is-neutral span{background:#dcfce7;border:1px solid #86efac;color:#047857 !important;}
+.afc-dsf-hour-cell--total span{background:#f1f5f9;border:1px solid #cbd5e1;color:#0f172a !important;}
+@media (max-width:700px){.afc-dsf-detail-legend{justify-content:flex-start;}.afc-dsf-detail-legend span{font-size:11px;}.afc-dsf-table--students.contract-table{min-width:1280px;}.afc-dsf-hour-cell span{min-width:68px;}.afc-dsf-hour-cell--remaining span{min-width:78px;}}

@@ -37,3 +37,50 @@ def test_export_dimensions_contract():
     assert EXPORT_DIMENSIONS["hd"] == (2160, 2700)
     assert EXPORT_DIMENSIONS["square"] == (1080, 1080)
     assert EXPORT_DIMENSIONS["story"] == (1080, 1920)
+
+
+def test_studio_sidebar_panels_are_exclusive_and_use_expected_ids():
+    html = (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
+    js = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    css = (ROOT / "static/studio_visuals/css/studio-shell.css").read_text()
+
+    expected_ids = [
+        "models",
+        "content",
+        "branding",
+        "elements",
+        "media",
+        "data",
+        "ai",
+        "history",
+        "validation",
+    ]
+
+    assert "studio-sidebar-panels" in html
+    assert "studio-sidebar-panel" in html
+    assert "studio-sidebar-panel[hidden]{display:none!important}" in css.replace(" ", "")
+    assert "function openStudioSidebarPanel(panelId" in js
+    assert "panel.hidden=!isActive" in js
+    assert "button.setAttribute('aria-selected',String(isActive))" in js
+    assert "function bindLeftNavigation()" in js
+    assert "addEventListener('click'" in js
+    assert "if(tab==='models')" in js
+    assert "Changer totalement de composition" in js
+    assert "Recommandé pour ce contenu" in js
+    assert "data-models-gallery" in js
+
+    for panel_id in expected_ids:
+        assert f"('{panel_id}'" in html
+        assert panel_id in js
+
+    assert "data-studio-panel-content=\"templates\"" not in html
+    assert "data-studio-panel-content=\"brand\"" not in html
+    assert "data-studio-panel-content=\"check\"" not in html
+
+    def visible_panels_after_open(panel_id):
+        return [candidate for candidate in expected_ids if candidate == panel_id]
+
+    for panel_id in expected_ids:
+        visible_panels = visible_panels_after_open(panel_id)
+        assert len(visible_panels) == 1
+        assert visible_panels[0] == panel_id

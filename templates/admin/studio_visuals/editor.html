@@ -5,6 +5,14 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='studio_visuals/css/studio-templates.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='studio_visuals/css/studio-themes.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js" defer></script>
+<script>
+window.STUDIO_BOOTSTRAP = {
+  officialLogoUrl: {{ url_for('static', filename='img/logo-integrale.png') | tojson }},
+  slogan: "Faites le premier pas vers votre futur métier",
+  website: "www.integraleacademy.com",
+  phone: "04 22 47 07 68"
+};
+</script>
 <script id="studio-config" type="application/json">{{ config|tojson }}</script>
 <script type="module" src="{{ url_for('static', filename='studio_visuals/js/studio-app.js') }}"></script>
 </head><body class="social-studio"><div id="studio-export-root" aria-hidden="true"></div>

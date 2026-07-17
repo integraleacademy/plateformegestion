@@ -10696,7 +10696,7 @@ def social_visuals_studio():
             prefill = session_to_social_prefill(source)
     from services.studio_template_service import load_studio_config
     config = load_studio_config(current_app.root_path)
-    config.update({"defaultSlide": prefill, "sourceSessionId": source_session_id, "bootstrap": {"defaultBranding": {"logoUrl": url_for("static", filename="img/integrale-academy-logo.svg"), "slogan": "Faites le premier pas vers votre futur métier"}}})
+    config.update({"defaultSlide": prefill, "sourceSessionId": source_session_id, "bootstrap": {"officialLogoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier", "website": "www.integraleacademy.com", "phone": "04 22 47 07 68", "defaultBranding": {"logoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier"}}})
     return render_template(
         "admin/studio_visuals/editor.html",
         title="Studio visuels réseaux sociaux",

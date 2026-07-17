@@ -1162,6 +1162,44 @@ a.back:hover{ background:#d9a848 !important; }
   {% endif %}
 </section>
 
+  {% if s.formation == "AFC_APS_SSIAP" %}
+  {% set ft_settings = s.france_travail or {} %}
+  <section class="planning-box" id="afc-france-travail-section" data-testid="afc-france-travail-card" style="margin-top:18px;">
+    <div class="planning-header">
+      <div>
+        <h2 style="margin:0;">Feuilles de présence France Travail</h2>
+        <p class="muted" style="margin:6px 0 0;">Générer le classeur hebdomadaire d’émargement destiné à France Travail depuis le planning central AFC.</p>
+      </div>
+      <div class="planning-actions">
+        <button type="button" class="btn small" id="configureAfcFranceTravail">Configurer France Travail</button>
+        <button type="button" class="btn small gold" id="previewAfcFranceTravail">Générer le fichier Excel</button>
+      </div>
+    </div>
+    <div id="afcFranceTravailConfig" class="attendance-students-panel" style="margin-top:14px;display:none;">
+      <h3>Informations France Travail de la session</h3>
+      <div class="a3p-fields">
+        <label>N° marché AFC<input id="ftMarcheAfc" value="{{ ft_settings.marche_afc or '' }}"></label>
+        <label>N° BRS<input id="ftBrs" value="{{ ft_settings.brs or '' }}"></label>
+        <label>N° convention<input id="ftConvention" value="{{ ft_settings.convention or '' }}"></label>
+        <label>N° bon de commande<input id="ftBonCommande" value="{{ ft_settings.bon_commande or '' }}"></label>
+        <label>Type de session<input id="ftTypeSession" value="{{ ft_settings.type_session or '' }}"></label>
+        <label>Intitulé France Travail<input id="ftIntitule" value="{{ ft_settings.intitule or s.display_name or s.formation }}"></label>
+      </div>
+      <p class="muted">Durée hebdomadaire générée automatiquement : <strong>30 heures</strong>.</p>
+      <button type="button" class="btn gold" id="saveAfcFranceTravailSettings">Enregistrer les informations France Travail</button>
+      <h3 style="margin-top:18px;">Identifiants France Travail des stagiaires</h3>
+      <div style="overflow:auto;"><table class="contract-table"><thead><tr><th>Stagiaire</th><th>Identifiant France Travail</th></tr></thead><tbody>
+        {% for student in (s.apsAttendanceStudents or []) %}
+        <tr><td>{{ student.lastName }} {{ student.firstName }}</td><td><input class="ft-student-id" data-student-id="{{ student.id or ('student-' ~ loop.index) }}" data-student-index="{{ loop.index0 }}" value="{{ student.france_travail_id or '' }}" style="width:100%;padding:8px;"></td></tr>
+        {% else %}<tr><td colspan="2" class="muted">Aucun stagiaire enregistré.</td></tr>{% endfor %}
+      </tbody></table></div>
+      <button type="button" class="btn gold" id="saveAfcFranceTravailIds" style="margin-top:10px;">Enregistrer les identifiants</button>
+    </div>
+    <div id="afcFranceTravailPreview" class="flash warning" style="display:none;margin-top:14px;"></div>
+  </section>
+  {% endif %}
+
+
 <div class="modal" id="apsAttendanceModal" aria-hidden="true"><div class="modal-content" style="max-width:900px;max-height:90vh;overflow:auto;">
   <div class="modal-header"><div><h3 style="margin:0;">Gérer la liste des stagiaires</h3><p class="muted">Importez un PDF, ajoutez un stagiaire manuellement ou supprimez une ligne avant d’enregistrer.</p></div><button class="modal-close" type="button" id="closeApsAttendanceModal" data-modal-close aria-label="Fermer">×</button></div>
   <form id="apsAttendanceImportForm" style="margin-top:14px;">
@@ -2203,6 +2241,15 @@ async function resetApsAttendance(deleteStudents){
 }
 document.getElementById("resetApsAttendancePdf")?.addEventListener("click", () => resetApsAttendance(false));
 document.getElementById("resetApsAttendanceAll")?.addEventListener("click", () => resetApsAttendance(true));
+
+// Feuilles de présence France Travail AFC
+const afcFtConfig = document.getElementById("afcFranceTravailConfig");
+document.getElementById("configureAfcFranceTravail")?.addEventListener("click", () => { if(afcFtConfig) afcFtConfig.style.display = afcFtConfig.style.display === "none" ? "block" : "none"; });
+function afcFtSettingsPayload(){ return {marche_afc:document.getElementById("ftMarcheAfc")?.value||"", brs:document.getElementById("ftBrs")?.value||"", convention:document.getElementById("ftConvention")?.value||"", bon_commande:document.getElementById("ftBonCommande")?.value||"", type_session:document.getElementById("ftTypeSession")?.value||"", intitule:document.getElementById("ftIntitule")?.value||""}; }
+document.getElementById("saveAfcFranceTravailSettings")?.addEventListener("click", async()=>{ try{ const r=await fetch(`/api/sessions/{{ s.id }}/afc-france-travail/settings`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(afcFtSettingsPayload())}); const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||"Enregistrement impossible."); showPlanningToast("Informations France Travail enregistrées.","success"); }catch(e){ showPlanningToast(e.message,"error"); }});
+document.getElementById("saveAfcFranceTravailIds")?.addEventListener("click", async()=>{ const ids={}; document.querySelectorAll(".ft-student-id").forEach(i=>{ ids[i.dataset.studentId||i.dataset.studentIndex]=i.value; ids[i.dataset.studentIndex]=i.value; }); try{ const r=await fetch(`/api/sessions/{{ s.id }}/afc-france-travail/ids`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})}); const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||"Enregistrement impossible."); showPlanningToast("Identifiants France Travail enregistrés.","success"); }catch(e){ showPlanningToast(e.message,"error"); }});
+document.getElementById("previewAfcFranceTravail")?.addEventListener("click", async()=>{ const box=document.getElementById("afcFranceTravailPreview"); try{ const r=await fetch(`/api/sessions/{{ s.id }}/afc-france-travail/preview`); const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||"Prévisualisation impossible."); const p=j.preview; box.style.display="block"; box.className=(p.missingIdCount||p.missingSettings.length)?"flash warning":"flash success"; box.innerHTML=`<h3>Prévisualisation France Travail</h3><p><strong>${p.sessionName||"Session"}</strong><br>Dates : ${p.dateStart||""} au ${p.dateEnd||""}<br>Semaines : ${p.weekCount} (${p.sheetNames.join(", ")})<br>Stagiaires : ${p.studentCount}<br>Formateurs détectés : ${p.trainerCount}<br>Total prévisionnel : ${p.totalPlannedHours} h-stagiaires</p><p>Marché : ${p.settings.marche_afc||"—"} · BRS : ${p.settings.brs||"—"} · Convention : ${p.settings.convention||"—"} · Bon de commande : ${p.settings.bon_commande||"—"} · Type : ${p.settings.type_session||"—"} · Intitulé : ${p.settings.intitule||"—"}</p>${p.missingSettings.length?`<p><strong>Informations manquantes :</strong> ${p.missingSettings.join(", ")}</p>`:""}${p.missingIdCount?`<p><strong>${p.missingIdCount} stagiaire(s) sans identifiant France Travail :</strong> ${p.missingIds.join(", ")}</p>`:""}<div class="planning-actions"><button type="button" class="btn" id="backAfcFtConfig">Retour à la configuration</button><button type="button" class="btn gold" id="downloadAfcFtExcel">Générer le fichier Excel</button></div>`; document.getElementById("backAfcFtConfig").onclick=()=>{ if(afcFtConfig) afcFtConfig.style.display="block"; }; document.getElementById("downloadAfcFtExcel").onclick=()=>{ window.location.href=`/api/sessions/{{ s.id }}/afc-france-travail/generate`; }; }catch(e){ box.style.display="block"; box.className="flash error"; box.textContent=e.message; }});
+
 // Contrats formateurs APS
 const apsContractModal = document.getElementById("apsContractModal");
 const openApsContractModal = document.getElementById("openApsContractModal");

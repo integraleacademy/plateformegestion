@@ -29,7 +29,7 @@ import threading
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    abort, flash, send_file, send_from_directory, session, Response, jsonify
+    abort, flash, send_file, send_from_directory, session, Response, jsonify, current_app
 )
 from werkzeug.utils import secure_filename
 
@@ -38,6 +38,15 @@ from yousign_service import YousignClient, YousignError, detect_yousign_environm
 from prospecting import prospecting_bp
 from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
 from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
+
+from services.afc_france_travail_attendance import (
+    is_afc_session as ft_is_afc_session,
+    update_afc_france_travail_settings,
+    save_france_travail_ids,
+    preview as preview_france_travail_attendance,
+    generate_france_travail_workbook,
+    safe_filename as ft_safe_filename,
+)
 
 
 
@@ -7167,6 +7176,59 @@ def save_aps_attendance_students(sid):
     save_sessions(data)
     return jsonify({"ok": True, "students": students})
 
+
+
+
+@app.post("/api/sessions/<sid>/afc-france-travail/settings")
+def save_afc_france_travail_settings_route(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
+    settings = update_afc_france_travail_settings(session_data, request.get_json(silent=True) or {})
+    session_data["afcFranceTravailUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_sessions(data)
+    return jsonify({"ok": True, "settings": settings})
+
+@app.post("/api/sessions/<sid>/afc-france-travail/ids")
+def save_afc_france_travail_ids_route(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
+    payload = request.get_json(silent=True) or {}
+    students = save_france_travail_ids(session_data, payload.get("ids") or {})
+    session_data["afcFranceTravailIdsUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_sessions(data)
+    return jsonify({"ok": True, "students": students})
+
+@app.get("/api/sessions/<sid>/afc-france-travail/preview")
+def preview_afc_france_travail_attendance_route(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
+    try:
+        return jsonify({"ok": True, "preview": preview_france_travail_attendance(session_data)})
+    except FileNotFoundError as exc:
+        app.logger.error("Modèle France Travail absent session=%s error=%s", sid, exc)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    except Exception as exc:
+        app.logger.exception("Prévisualisation France Travail impossible session=%s", sid)
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+@app.route("/api/sessions/<sid>/afc-france-travail/generate", methods=["GET", "POST"])
+def generate_afc_france_travail_attendance_route(sid):
+    data = load_sessions(); session_data = find_session(data, sid)
+    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
+    try:
+        output = generate_france_travail_workbook(session_data, current_app.root_path)
+        filename = ft_safe_filename(session_data.get("display_name") or session_data.get("formation") or sid)
+        return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=filename)
+    except FileNotFoundError as exc:
+        app.logger.error("Modèle France Travail absent session=%s path=%s", sid, exc)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    except Exception as exc:
+        app.logger.exception("Génération France Travail impossible session=%s", sid)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 @app.post("/api/sessions/<sid>/aps-attendance/generate")
 def generate_aps_attendance_sheets(sid):

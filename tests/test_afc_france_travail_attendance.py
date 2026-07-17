@@ -89,7 +89,7 @@ def test_empty_day_half_day_support_row_and_totals_are_computed():
     assert ws["C14"].fill.fgColor.rgb in ("00D9D9D9","D9D9D9") and ws["D14"].fill.fgColor.rgb in ("00D9D9D9","D9D9D9")
     # Support slot appears on the second line only.
     assert ws["J15"].fill.fill_type is None
-    assert ws["J14"].fill.fill_type is None
+    assert ws["J14"].fill.fgColor.rgb in ("00D9D9D9","D9D9D9")
     total_row = next(r for r in range(1, ws.max_row+1) if ws.cell(r,1).value == "Total des heures facturables")
     assert ws.cell(total_row,13).value is not None
     assert ws.cell(total_row+1,13).value is None
@@ -128,7 +128,8 @@ def test_france_travail_groups_successive_morning_slots_without_changing_duratio
     wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
     assert ws["C12"].value == "08h30-12h30"
     assert ws["C13"].value == "FT / S"
-    assert ws["M14"].value == 4
+    assert ws["M14"].value == "3,5"
+    assert ws["M15"].value == 0.5
     assert ws["C15"].value == 0.5
 
 
@@ -171,7 +172,7 @@ def test_france_travail_support_hours_by_student_and_totals():
     assert ws["L15"].value == 3
     assert ws["M15"].value == 7
     assert ws["M17"].value == 2
-    assert ws["M14"].value == 11
+    assert ws["M14"].value == 4
 
 
 def test_france_travail_support_absence_keeps_cells_blank_and_zero_total():
@@ -182,3 +183,64 @@ def test_france_travail_support_absence_keeps_cells_blank_and_zero_total():
     wb=load_workbook(generate_france_travail_workbook(s, ROOT)); ws=wb.active
     assert all(ws.cell(15, c).value is None for c in range(3,13))
     assert ws["M15"].value == 0
+
+
+def two_student_week_with_sp_session():
+    s = sample_session(2)
+    s["date_debut"] = "2026-12-14"; s["date_fin"] = "2026-12-18"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-12-14"
+    days = []
+    for day in ["2026-12-14", "2026-12-15", "2026-12-16", "2026-12-17"]:
+        days.append({"date": day, "slots": [slot("08:30", "12:30", "FT"), slot("13:30", "16:30", "FT")]})
+    days.append({"date": "2026-12-18", "slots": [slot("08:30", "10:30", "FT"), slot("10:30", "12:30", "SP"), slot("13:30", "16:30", "SP")]})
+    s["apsPlanningData"] = days
+    return s
+
+
+def test_france_travail_main_and_sp_totals_are_split_for_ft_and_sp_week():
+    wb = load_workbook(generate_france_travail_workbook(two_student_week_with_sp_session(), ROOT)); ws = wb["1412 au 1812"]
+    assert ws["M14"].value == 30
+    assert ws["M15"].value == 5
+    assert ws["M16"].value == 30
+    assert ws["M17"].value == 5
+    assert ws["M19"].value == 70
+
+
+def test_france_travail_student_without_sp_keeps_main_total_only():
+    s = sample_session(2)
+    s["date_debut"] = "2026-12-14"; s["date_fin"] = "2026-12-18"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-12-14"
+    s["apsPlanningData"] = [{"date": day, "slots": [slot("08:30", "12:30", "FT"), slot("13:30", "15:30", "FT")]} for day in ["2026-12-14", "2026-12-15", "2026-12-16", "2026-12-17", "2026-12-18"]]
+    wb = load_workbook(generate_france_travail_workbook(s, ROOT)); ws = wb.active
+    assert ws["M14"].value == 30
+    assert ws["M15"].value == 0
+    assert ws["M19"].value == 60
+
+
+def test_france_travail_multiple_modules_keep_sp_out_of_main_total():
+    s = sample_session(2)
+    s["date_debut"] = "2026-12-14"; s["date_fin"] = "2026-12-18"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-12-14"
+    s["apsPlanningData"] = [
+        {"date":"2026-12-14","slots":[slot("08:30","12:30","FT"), slot("13:30","16:30","FT")]},
+        {"date":"2026-12-15","slots":[slot("08:30","12:30","FT"), slot("13:30","16:30","FT")]},
+        {"date":"2026-12-16","slots":[slot("08:30","12:30","FT"), slot("13:30","16:30","RAN")]},
+        {"date":"2026-12-17","slots":[slot("08:30","10:30","FT"), slot("10:30","12:30","RAN"), slot("13:30","16:30","PAF")]},
+        {"date":"2026-12-18","slots":[slot("08:30","10:30","SP")]},
+    ]
+    wb = load_workbook(generate_france_travail_workbook(s, ROOT)); ws = wb.active
+    assert ws["M14"].value == 28
+    assert ws["M15"].value == 2
+    assert ws["M19"].value == 60
+
+
+def test_france_travail_same_visual_slot_ft_and_sp_never_counts_six_hours():
+    s = sample_session(2)
+    s["date_debut"] = "2026-12-14"; s["date_fin"] = "2026-12-14"
+    for st in s["apsAttendanceStudents"]: st["startDate"] = "2026-12-14"
+    s["apsPlanningData"] = [{"date":"2026-12-14","slots":[slot("08:30","10:30","FT"), slot("10:30","12:30","SP")]}]
+    wb = load_workbook(generate_france_travail_workbook(s, ROOT)); ws = wb.active
+    assert ws["C13"].value == "FT / S"
+    assert ws["M14"].value == 2
+    assert ws["M15"].value == 2
+    assert ws["M19"].value == 8

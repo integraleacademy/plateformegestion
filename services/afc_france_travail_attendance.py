@@ -197,15 +197,15 @@ def populate_week_slots(ws, week, schedule):
 def populate_week_trainees(ws, trainees, schedule):
     totals=[0]*10
     for idx, st in enumerate(trainees,1):
-        r=STUDENT_START_ROW+(idx-1)*2; ws.cell(r,1).value=f"{idx} {st['displayName']}"; ws.cell(r,2).value=st.get('france_travail_id') or ""; ws.cell(r,2).number_format='@'; ws.cell(r+1,1).value="Soutien personnalisé"; total=0
+        r=STUDENT_START_ROW+(idx-1)*2; ws.cell(r,1).value=f"{idx} {st['displayName']}"; ws.cell(r,2).value=st.get('france_travail_id') or ""; ws.cell(r,2).number_format='@'; ws.cell(r+1,1).value="Soutien personnalisé"; main_hours=0; sp_hours=0; total_hours=0
         for c in range(3,13):
-            day_slots=[s for s in schedule if s.col==c and applicable(st,s.date) and slot_applies_to_student(s, st)]; classic=sum(s.minutes for s in day_slots if s.module!='S'); support=sum(s.minutes for s in day_slots if s.module=='S'); total+=(classic+support)/60; totals[c-3]+=(classic+support)/60
-            ws.cell(r,c).value=None; ws.cell(r,c).fill=copy.copy(WHITE_FILL if (classic + support) else GREY_FILL)
+            day_slots=[s for s in schedule if s.col==c and applicable(st,s.date) and slot_applies_to_student(s, st)]; classic=sum(s.minutes for s in day_slots if s.module!='S'); support=sum(s.minutes for s in day_slots if s.module=='S')
+            main_hours+=classic/60; sp_hours+=support/60; total_hours+=(classic+support)/60; totals[c-3]+=(classic+support)/60
+            ws.cell(r,c).value=None; ws.cell(r,c).fill=copy.copy(WHITE_FILL if classic else GREY_FILL)
             ws.cell(r+1,c).value=None; ws.cell(r+1,c).fill=copy.copy(WHITE_FILL if support else GREY_FILL)
             if support:
                 ws.cell(r+1,c).value=support/60; ws.cell(r+1,c).number_format='0,## "h"'
-        support_total=sum((s.minutes/60) for s in schedule if applicable(st,s.date) and slot_applies_to_student(s, st) and s.module=='S')
-        ws.cell(r,13).value=fmt_hours(total) if total else None; ws.cell(r+1,13).value=support_total if support_total else 0; ws.cell(r+1,13).number_format='0,## "h"'
+        ws.cell(r,13).value=fmt_hours(main_hours) if main_hours else None; ws.cell(r+1,13).value=sp_hours if sp_hours else 0; ws.cell(r+1,13).number_format='0,## "h"'
     return totals
 
 def populate_week_totals(ws, total_row, totals):

@@ -465,6 +465,41 @@ def to_datetime(value):
             return datetime.now()
 app.jinja_env.filters['datetime'] = to_datetime
 
+
+def session_modality_date_range(session_data, modality):
+    """Return the first and last planning dates for a session modality."""
+    if not session_data:
+        return None
+
+    wanted = (modality or "").strip().lower()
+    dates = []
+    for planning_key in ("apsPlanningData", "a3pPlanningData"):
+        for day in session_data.get(planning_key) or []:
+            day_date = day.get("date")
+            if not day_date:
+                continue
+            for slot in day.get("slots") or []:
+                slot_modality = (slot.get("modality") or "presentiel").strip().lower()
+                if slot_modality == wanted:
+                    dates.append(day_date)
+                    break
+
+    if not dates:
+        return None
+    dates = sorted(dates)
+    return {"start": dates[0], "end": dates[-1]}
+
+
+def format_date_range(start, end=None):
+    if not start:
+        return "—"
+    if not end or end == start:
+        return format_date(start)
+    return f"{format_date(start)} au {format_date(end)}"
+
+app.jinja_env.globals['session_modality_date_range'] = session_modality_date_range
+app.jinja_env.globals['format_date_range'] = format_date_range
+
 # --- Helper utilisable dans Jinja ---
 def get_status_label(step_index, session):
     """Renvoie un dict {status, deadline} lisible dans Jinja"""

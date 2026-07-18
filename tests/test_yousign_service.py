@@ -141,6 +141,52 @@ def test_aps_trainer_contract_pdf_omits_yousign_anchor_in_trainer_signature(tmp_
     assert "s2|signature" not in text
 
 
+def test_aps_trainer_contract_pdf_uses_planning_room_address(tmp_path):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    import app
+
+    output = tmp_path / "contrat_aps_paris.pdf"
+    session_data = {
+        "formation": "APS",
+        "display_name": "Session APS Paris",
+        "date_debut": "2026-01-05",
+        "date_fin": "2026-01-09",
+        "date_exam": "2026-01-10",
+        "apsPlanningMode": "presentiel",
+    }
+    contract = {
+        "trainerName": "Jean Dupont",
+        "trainerEmail": "jean@example.com",
+        "trainerPhone": "0600000000",
+        "status": "Formateur indépendant",
+        "siret": "12345678900010",
+        "address": "1 rue Test",
+        "calculatedHours": 7,
+        "calculatedDays": 1,
+        "billedDays": 1,
+        "dailyRate": 300,
+        "totalHT": 300,
+        "totalTTC": 300,
+        "interventions": [{
+            "date": "2026-01-05",
+            "dateLabel": "05/01/2026",
+            "start": "09:00",
+            "end": "17:00",
+            "hours": 7,
+            "module": "UV1",
+            "modality": "Présentiel",
+            "room": "Intégrale Academy Paris – 12 rue de Paris – 75001 PARIS",
+        }],
+    }
+
+    app.generate_aps_trainer_contract_pdf(session_data, contract, str(output))
+
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
+    assert "12 rue de Paris" in text
+    assert "75001 PARIS" in text
+
+
 def test_aps_trainer_yousign_send_creates_manual_signature_field_before_activation():
     import inspect
     import app

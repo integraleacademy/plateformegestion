@@ -3133,6 +3133,21 @@ def aps_detect_trainers(planning_data):
     })
 
 
+def aps_trainer_contract_location_label(interventions, default_location="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"):
+    locations = []
+    seen = set()
+    for row in interventions or []:
+        location = str((row or {}).get("room") or "").strip()
+        if not location or location == "—":
+            continue
+        normalized = " ".join(location.lower().split())
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        locations.append(location)
+    return " / ".join(locations) if locations else default_location
+
+
 def aps_trainer_interventions(planning_data, trainer_name):
     interventions = []
     total_hours = 0.0
@@ -3207,7 +3222,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     modality_label = "Mixte : e-learning et présentiel" if is_mixed else "Présentiel"
     interventions = contract.get("interventions") or []
     modules = sorted({(row.get("module") or "Module non renseigné").strip() for row in interventions if (row.get("module") or "").strip()})
-    room_label = "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"
+    room_label = aps_trainer_contract_location_label(interventions)
     has_elearning = is_mixed or any((row.get("modality") or "").lower().find("learning") >= 0 for row in interventions)
     total_ht = float(contract.get("totalHT") or 0)
     tva_label = f"TVA {float(contract.get('vatRate') or 20):g}%" if contract.get("vatEnabled") else (contract.get("vatMention") or "TVA non applicable / franchise de TVA si applicable")
@@ -3387,7 +3402,8 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         half_day = "Matin" if hour < 12 else "Après-midi"
         modality = r.get("modality") or "Présentiel"
         trace = "Traçabilité e-learning" if "learning" in modality.lower() else ""
-        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(room_label, "Cell"), p(trace, "Cell")])
+        row_room_label = aps_trainer_contract_location_label([r], room_label)
+        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(row_room_label, "Cell"), p(trace, "Cell")])
     table = Table(planning_rows, colWidths=[24*mm, 22*mm, 22*mm, 15*mm, 88*mm, 55*mm, 33*mm], repeatRows=1, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#3b3026")), ("GRID", (0,0), (-1,-1), 0.22, colors.HexColor("#cbd5e1")), ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#fafafa")]), ("LEFTPADDING", (0,0), (-1,-1), 2.5), ("RIGHTPADDING", (0,0), (-1,-1), 2.5), ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3)]))
     story += [table, NextPageTemplate("contrat"), PageBreak(), section("Annexe 2 : Récapitulatif financier"), kv_table([("Total heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52*mm, 124*mm])]

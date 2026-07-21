@@ -166,6 +166,40 @@ def test_api_regenerates_pdf_for_an_incomplete_rescheduled_plan(monkeypatch, tmp
     assert (tmp_path / "planning_aps_session_aps-incomplete-pdf.pdf").exists()
 
 
+def test_view_pdf_accepts_a_manually_reordered_elearning_plan(monkeypatch, tmp_path):
+    """Viewing a manually changed APS plan must not reapply generator ordering."""
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    elearning = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "elearning")
+    presentiel = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "presentiel")
+    session = {
+        "id": "aps-manual-order", "formation": "APS", "date_debut": "2026-09-01",
+        "date_fin": "2026-09-03", "date_exam": "2026-09-04",
+        "apsPlanningMode": "elearning_presentiel",
+        "apsPlanningData": [
+            {"date": "2026-09-01", "slots": [slot(
+                presentiel["uv"], presentiel["title"], pedagogicalKey=presentiel["key"],
+            )]},
+            {"date": "2026-09-02", "slots": [slot(
+                elearning["uv"], elearning["title"], modality="elearning", pedagogicalKey=elearning["key"],
+            )]},
+        ],
+    }
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "save_sessions", lambda value: None)
+    monkeypatch.setattr(app, "PLANNING_DIR", str(tmp_path))
+
+    with app.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
+        response = client.get("/sessions/aps-manual-order/planning/view")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/pdf"
+    assert (tmp_path / "planning_aps_session_aps-manual-order.pdf").exists()
+
+
 def test_insert_four_hours_of_uv1_from_empty_slot_persists_and_leaves_three_hours(monkeypatch):
     """Regression: an empty 08:30-12:30 slot must accept a partial UV1 insertion."""
     app.app.config.update(TESTING=True, SECRET_KEY="test")

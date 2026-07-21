@@ -4421,7 +4421,17 @@ def refresh_aps_planning_pdf_file(session_data, sid):
             temp_path,
             planning_data=planning_data,
             planning_mode=planning_mode,
-            document_profile={"validate":"ssiap1"} if is_ssiap1_session(session_data) else None,
+            # A plan edited in the APS editor may intentionally depart from
+            # the automatic e-learning/presentiel sequence.  It was already
+            # checked on save for real scheduling issues (times, overlaps,
+            # lunch break and known course content), so refreshing its PDF
+            # must use the same rescheduling validation rather than reject a
+            # deliberate manual modification with the generator rules.
+            document_profile=(
+                {"validate": "ssiap1"}
+                if is_ssiap1_session(session_data)
+                else {"validate": "rescheduling"}
+            ),
         )
         os.replace(temp_path, output_path)
         session_data["planning_pdf"] = filename

@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pathlib import Path
 
 import app
 
@@ -38,6 +39,28 @@ def test_rescheduling_rejects_overplanning_overlaps_and_unknown_content():
     unknown = [{"date": "2026-09-01", "slots": [slot("UV99", "Inconnu")]}]
     errors, _, _ = app.validate_aps_rescheduling_data(unknown)
     assert any("inconnu" in error for error in errors)
+
+
+def test_elearning_curriculum_keeps_remaining_courses_separate_from_presentiel():
+    elearning = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "elearning")
+    presentiel = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "presentiel")
+    plan = [{"date": "2026-09-01", "slots": [{
+        "start": "08:30", "end": "12:00", "duration": 3.5, "durationMinutes": 210,
+        "uv": elearning["uv"], "title": elearning["title"], "part": elearning["part"],
+        "modality": "elearning", "pedagogicalKey": elearning["key"],
+    }]}]
+
+    errors, _, curriculum = app.validate_aps_rescheduling_data(plan, "elearning_presentiel")
+    assert errors == []
+    assert next(row for row in curriculum["contents"] if row["key"] == elearning["key"])["remainingMinutes"] == elearning["expectedMinutes"] - 210
+    assert next(row for row in curriculum["contents"] if row["key"] == presentiel["key"])["remainingMinutes"] == presentiel["expectedMinutes"]
+
+
+def test_editor_allows_selecting_slot_modality_and_filters_courses_by_it():
+    editor = Path("templates/aps_planning_editor.html").read_text(encoding="utf-8")
+    assert 'onchange="setEmptySlotModality' in editor
+    assert 'value="elearning"' in editor
+    assert "x.modality===s.modality" in editor
 
 
 def test_api_persists_incomplete_old_plan_and_returns_remaining_curriculum(monkeypatch):

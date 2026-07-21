@@ -133,6 +133,60 @@ def test_api_recalculates_persists_times_and_reports_daily_availability(monkeypa
     assert refreshed["apsPlanningData"][0]["slots"][0]["end"] == "11:30"
 
 
+def test_insert_four_hours_of_uv1_from_empty_slot_persists_and_leaves_three_hours(monkeypatch):
+    """Regression: an empty 08:30-12:30 slot must accept a partial UV1 insertion."""
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    uv1 = next(item for item in app.aps_expected_content() if item["key"] == "UV1")
+    session = {
+        "id": "aps-insert-four-hours", "formation": "APS", "apsPlanningMode": "full_presentiel",
+        # One prior 7-hour insertion means UV1 has exactly seven hours left.
+        "apsPlanningData": [
+            {"date": "2026-09-01", "slots": [
+                slot("UV1", uv1["title"], "08:30", "12:30", 240, pedagogicalKey="UV1"),
+                slot("UV1", uv1["title"], "13:30", "16:30", 180, pedagogicalKey="UV1"),
+            ]},
+            {"date": "2026-09-02", "slots": [slot("", "", "08:30", "12:30", 240, isEmpty=True)]},
+        ],
+    }
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "save_sessions", lambda value: None)
+    inserted_plan = deepcopy(session["apsPlanningData"])
+    inserted_plan[1]["slots"][0] = slot("UV1", uv1["title"], "08:30", "12:30", 240, pedagogicalKey="UV1")
+
+    with app.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
+        response = client.put("/api/sessions/aps-insert-four-hours/aps-planning", json={"planningData": inserted_plan})
+        assert response.status_code == 200
+        payload = response.get_json()
+        saved_slot = payload["planningData"][1]["slots"][0]
+        assert saved_slot["uv"] == "UV1"
+        assert saved_slot["start"] == "08:30"
+        assert saved_slot["end"] == "12:30"
+        assert saved_slot["durationMinutes"] == 240
+        assert next(item for item in payload["curriculum"]["contents"] if item["key"] == "UV1")["remainingMinutes"] == 180
+        refreshed = client.get("/api/sessions/aps-insert-four-hours/aps-planning").get_json()
+
+    assert refreshed["apsPlanningData"][1]["slots"][0]["uv"] == "UV1"
+    assert next(item for item in refreshed["curriculum"]["contents"] if item["key"] == "UV1")["remainingMinutes"] == 180
+
+
+def test_editor_delegates_dynamic_course_insert_clicks_and_includes_request_data():
+    editor = Path("templates/aps_planning_editor.html").read_text(encoding="utf-8")
+    assert 'type="button" class="course-choice" data-action="insert-course"' in editor
+    assert "document.addEventListener('click',async event" in editor
+    assert "data-session-id=" in editor
+    assert "data-planning-date=" in editor
+    assert "data-start-time=" in editor
+    assert "data-end-time=" in editor
+    assert "data-max-duration=" in editor
+    assert "method:'PUT'" in editor
+    assert "Insertion…" in editor
+    assert "Impossible d’insérer ce cours" in editor
+
+
 def test_api_rejects_overlaps_daily_capacity_and_lunch_crossing(monkeypatch):
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     session = {"id": "aps-guardrails", "formation": "APS", "apsPlanningMode": "full_presentiel",

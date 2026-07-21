@@ -2524,7 +2524,46 @@ def aps_curriculum_summary(planning_data, planning_mode="full_presentiel"):
     return {"contents": rows, "expectedMinutes": expected, "plannedMinutes": planned, "remainingMinutes": expected - planned}
 
 
-def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel"):
+def aps_daily_capacity_minutes(session_data):
+    """Return the configured APS daily teaching capacity (seven hours by default)."""
+    value = session_data.get("apsDailyCapacityMinutes", session_data.get("dailyCapacityMinutes", APS_MAX_DAILY_MINUTES))
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return APS_MAX_DAILY_MINUTES
+
+
+def aps_lunch_break(session_data):
+    """Return the session lunch break, defaulting to 12:30–13:30."""
+    return (session_data.get("apsLunchStart") or "12:30", session_data.get("apsLunchEnd") or "13:30")
+
+
+def normalize_aps_slot_durations(planning_data):
+    """Make duration fields server-derived from persisted start/end times."""
+    for day in planning_data or []:
+        for slot in day.get("slots", []):
+            try:
+                start = datetime.strptime(slot.get("start") or "", "%H:%M")
+                end = datetime.strptime(slot.get("end") or "", "%H:%M")
+                minutes = int((end - start).total_seconds() // 60)
+                if minutes > 0:
+                    slot["durationMinutes"] = minutes
+                    slot["duration"] = round(minutes / 60, 2)
+            except (TypeError, ValueError):
+                # The validator returns the user-facing invalid-time message.
+                continue
+    return planning_data
+
+
+def aps_day_availability(planning_data, session_data):
+    capacity = aps_daily_capacity_minutes(session_data)
+    return [{"date": day.get("date"), "capacityMinutes": capacity,
+             "plannedMinutes": sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if not slot.get("isEmpty")),
+             "availableMinutes": capacity - sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if not slot.get("isEmpty"))}
+            for day in planning_data or []]
+
+
+def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel", daily_capacity_minutes=APS_MAX_DAILY_MINUTES, lunch_break=("12:30", "13:30")):
     """Validate an editable APS plan while allowing curriculum gaps."""
     summary = aps_summary_from_data(planning_data)
     errors = list(summary["errors"])
@@ -2532,6 +2571,7 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
     expected = {item["key"]: item for item in aps_expected_content(planning_mode)}
     for day in planning_data or []:
         intervals = []
+        day_minutes = 0
         for slot in day.get("slots", []):
             try:
                 start = datetime.strptime(slot.get("start") or "", "%H:%M")
@@ -2541,10 +2581,18 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
                 if any(start < old_end and end > old_start for old_start, old_end in intervals):
                     errors.append(f"Deux cours se chevauchent le {day.get('date')}.")
                 intervals.append((start, end))
+                lunch_start = datetime.strptime(lunch_break[0], "%H:%M")
+                lunch_end = datetime.strptime(lunch_break[1], "%H:%M")
+                if start < lunch_end and end > lunch_start:
+                    errors.append(f"Le créneau {day.get('date')} {slot.get('start')}-{slot.get('end')} chevauche la pause déjeuner ({lunch_break[0]}-{lunch_break[1]}). Créez un cours le matin et un autre l’après-midi.")
             except (TypeError, ValueError):
                 pass
             if not slot.get("isEmpty") and aps_content_key_for_slot(slot, planning_mode) not in expected:
                 errors.append(f"Contenu pédagogique inconnu: {slot.get('title') or slot.get('uv') or 'sans libellé'}.")
+            if not slot.get("isEmpty"):
+                day_minutes += int(slot.get("durationMinutes") or 0)
+        if day_minutes > daily_capacity_minutes:
+            errors.append(f"La journée {day.get('date')} dépasse sa capacité de {format_duration_from_minutes(daily_capacity_minutes)}.")
     for item in curriculum["contents"]:
         if item["plannedMinutes"] > item["expectedMinutes"]:
             errors.append(f"{item['title']} dépasse le volume pédagogique obligatoire ({format_duration_from_minutes(item['expectedMinutes'])}).")
@@ -8027,6 +8075,8 @@ def get_aps_planning_api(sid):
         "apsPlanningData": planning_data,
         "summary": summary,
         "curriculum": curriculum,
+        "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [],
+        "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None,
         "pdfUrl": url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None,
         "needsRegeneration": bool(session_data.get("planning_pdf") and not planning_data),
     })
@@ -8049,6 +8099,10 @@ def update_aps_planning_api(sid):
     planning_data = payload.get("planningData")
     if not isinstance(planning_data, list):
         return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
+    if formation == "APS":
+        # Never trust a duration sent by the browser: persist the duration
+        # calculated from the two editable time fields.
+        planning_data = normalize_aps_slot_durations(planning_data)
     planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
     if exam_iso and not is_ssiap1_session(session_data) and any(day.get("date") == exam_iso for day in planning_data):
@@ -8065,7 +8119,11 @@ def update_aps_planning_api(sid):
     else:
         # A rescheduled plan can be intentionally incomplete.  Completion is a
         # reporting state, not a prerequisite for saving a deletion/insertion.
-        errors, summary, curriculum = validate_aps_rescheduling_data(planning_data, planning_mode)
+        errors, summary, curriculum = validate_aps_rescheduling_data(
+            planning_data, planning_mode,
+            daily_capacity_minutes=aps_daily_capacity_minutes(session_data),
+            lunch_break=aps_lunch_break(session_data),
+        )
     if errors:
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400
     session_data["apsPlanningData"] = planning_data
@@ -8091,7 +8149,7 @@ def update_aps_planning_api(sid):
         session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF régénéré")
         pdf_url = url_for("view_planning_pdf", sid=sid)
     save_sessions(data)
-    return jsonify({"ok": True, "pdfUrl": pdf_url, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "modifiedAt": session_data.get("planning_modified_at")})
+    return jsonify({"ok": True, "pdfUrl": pdf_url, "planningData": planning_data, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [], "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None, "modifiedAt": session_data.get("planning_modified_at")})
 
 
 @app.delete("/api/sessions/<sid>/aps-planning")

@@ -6,7 +6,7 @@
   <title>{{ title }}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/faviconpg.png') }}">
 
-  <!-- ✅ Feuille de style principale -->
+  <!-- Feuille de style principale -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,175 +15,55 @@
   <script defer src="{{ url_for('static', filename='js/clock.js') }}"></script>
 
   <style>
-    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);} }
-
-    .notif {
-      margin-top: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 6px 10px;
-      border-radius: 10px;
-      text-align: center;
-      transition: all 0.3s ease;
+    :root { --dashboard-ink: #172033; --dashboard-muted: #64748b; --dashboard-brand: #e8ae2f; --dashboard-brand-deep: #bf7b13; --dashboard-surface: #ffffff; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 6% -6%, rgba(250, 205, 92, .24), transparent 29rem), #f5f7fb;
     }
-
-    /* ✅ Carte CNAPS élargie sur 3 colonnes */
-.recent-acceptes.card{
-  grid-column: 2 / span 3;  /* démarre en colonne 2, occupe 3 colonnes */
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-    .grid { align-items: stretch; }   /* force les lignes à s'aligner */
-.card { height: 100%; }           /* chaque carte remplit sa cellule */
-
-
-
-.app-logo {
-  width: 70px;                /* un peu plus large */
-  height: 70px;
-  object-fit: contain;
-  display: block;
-  margin: 10px auto 12px;
-  transition: transform 0.2s ease;
-  padding: 6px;               /* équilibre visuel */
-  background: #fff;           /* fond neutre */
-  border-radius: 12px;        /* coins doux */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-}
-.card:hover .app-logo {
-  transform: scale(1.08);
-}
-
-
-
-    .notif.ok {background: rgba(39, 174, 96, 0.1); color: #1e8449;}
-    .notif.wait {background: rgba(241, 196, 15, 0.15); color: #b9770e; animation: pulse 2s infinite;}
-    .notif.error {background: rgba(231, 76, 60, 0.15); color: #c0392b;}
-    .notif.alert {background: rgba(231, 76, 60, 0.1); color: #c0392b; font-weight: 700; animation: pulse 1.5s infinite;}
-    .notif.empty {background: rgba(149,165,166,0.15); color:#7f8c8d;}
-
-    /* ✅ Encadré dossiers acceptés */
-    .recent-acceptes {
-      background: #fff;
-      border-radius: 12px;
-      padding: 14px 18px;
-      box-shadow: 0 6px 16px rgba(0,0,0,.08);
-      border: 1px solid rgba(0,0,0,.06);
-      
-    }
-    .recent-acceptes h3 {
-      margin: 0 0 8px;
-      color: #1e8449;
-      font-size: 16px;
-      font-weight: 700;
-    }
-    .recent-acceptes ul {
-      list-style: none;
-      margin: 0;
+    .topbar {
       padding: 0;
-      line-height: 1.6;
+      background: rgba(15, 23, 42, .98);
+      border-bottom: 1px solid rgba(255,255,255,.09);
+      box-shadow: 0 8px 28px rgba(15, 23, 42, .16);
     }
-    .recent-acceptes li::before {
-      content: "• ";
-      color: #27ae60;
-      font-weight: bold;
-    }
-    .recent-acceptes.none {
-      opacity: .8;
-      color: #555;
-    }
-
-    @media (max-width: 1200px){
-  .recent-acceptes.card{ grid-column: 1 / -1; }
-}
-
-    /* === Tooltip sur les tuiles formateurs === */
-#notif-formateurs {
-  position: relative;
-}
-
-#notif-formateurs:hover::after {
-  content: attr(data-tooltip);
-  white-space: pre;
-  position: absolute;
-  left: 50%;
-  top: 110%;
-  transform: translateX(-50%);
-  background: #fff;
-  color: #333;
-  padding: 10px 14px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  font-size: 13px;
-  z-index: 999;
-  width: max-content;
-  max-width: 260px;
-  line-height: 1.4;
-}
-
-
-    .dashboard-shell {
-      width: 100%;
-      max-width: none;
-      margin: 0;
-      padding-inline: clamp(16px, 2.8vw, 40px);
-    }
-
-    .dashboard-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: clamp(20px, 2vw, 32px);
-      align-items: start;
-      width: 100%;
-    }
-
-
-    .main-content {
-      min-width: 0;
-      width: 100%;
-    }
-
-    .main-content .grid {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      width: 100%;
-    }
-
-    .prospecting-card {
-      position: relative;
-      overflow: hidden;
-      border-color: rgba(176, 128, 28, .42);
-      background: linear-gradient(145deg, #fffdf7 0%, #f8efd8 100%);
-    }
-
-    .prospecting-card::after {
-      content: "NOUVEAU";
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      padding: 4px 7px;
-      border-radius: 999px;
-      background: #171717;
-      color: #f4c45a;
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: .1em;
-    }
-
-    .prospecting-card .notif {
-      background: #171717;
-      color: #f4c45a;
-    }
-
-
-    @media (max-width: 980px){
-      .dashboard-layout {
-        grid-template-columns: 1fr;
-      }
-    }
-
+    .dashboard-topbar-inner { width: min(1560px, calc(100% - 48px)); min-height: 88px; margin: 0 auto; display: flex; align-items: center; }
+    .brand { gap: 13px; }
+    .logo { width: 52px; height: 52px; padding: 5px; border-radius: 14px; object-fit: contain; background: #fff; box-shadow: 0 8px 18px rgba(0, 0, 0, .25); }
+    .brand h1 { font-size: clamp(19px, 2.1vw, 25px); letter-spacing: -.035em; }
+    .brand h1 span { color: #f6c653; }
+    .clock { margin-top: 4px; color: #aeb9cb; font-size: 12px; font-weight: 600; }
+    .dashboard-shell { width: min(1560px, calc(100% - 48px)); max-width: none; margin: 0 auto; padding: 34px 0 18px; }
+    .dashboard-layout, .main-content { width: 100%; }
+    .dashboard-intro { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 0 24px; }
+    .dashboard-eyebrow { margin: 0 0 7px; color: var(--dashboard-brand-deep); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .dashboard-intro h2 { margin: 0; color: var(--dashboard-ink); font-size: clamp(25px, 3vw, 35px); line-height: 1.1; letter-spacing: -.045em; }
+    .dashboard-intro p { max-width: 490px; margin: 0; color: var(--dashboard-muted); font-size: 14px; line-height: 1.55; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); gap: 16px; align-items: stretch; }
+    .card { position: relative; min-height: 212px; padding: 18px; overflow: hidden; border: 1px solid #e6eaf0; border-radius: 20px; background: var(--dashboard-surface); box-shadow: 0 5px 15px rgba(15, 23, 42, .045); text-align: left; align-items: flex-start; gap: 11px; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .card::before { content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 2px; background: linear-gradient(90deg, transparent, rgba(232,174,47,.76), transparent); opacity: 0; transition: opacity .2s ease; }
+    .card:hover { transform: translateY(-5px); border-color: rgba(232,174,47,.5); box-shadow: 0 18px 35px rgba(15, 23, 42, .11); }
+    .card:hover::before { opacity: 1; }
+    .app-icon { display: grid; width: 46px; height: 46px; place-items: center; padding: 9px; border: 1px solid #e8edf4; border-radius: 14px; background: #f8fafc; box-shadow: 0 3px 8px rgba(15, 23, 42, .05); object-fit: contain; }
+    .title { color: var(--dashboard-ink); font-size: 15px; font-weight: 750; line-height: 1.25; }
+    .desc { min-height: 40px; color: var(--dashboard-muted); font-size: 12px; line-height: 1.45; opacity: 1; }
+    .notif { width: 100%; margin-top: auto; padding: 8px 10px; border: 0; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.25; text-align: left; }
+    .notif::before { display: inline-block; width: 7px; height: 7px; margin: 0 7px 1px 1px; border-radius: 50%; background: currentColor; content: ''; }
+    .notif.ok { background: #eaf8ef; color: #16834a; }
+    .notif.wait { background: #fff6df; color: #aa6703; animation: none; }
+    .notif.error, .notif.alert { background: #fff0ef; color: #d34d48; animation: none; }
+    .notif.empty { background: #f1f5f9; color: #718096; }
+    #notif-formateurs { position: relative; }
+    #notif-formateurs[data-tooltip]:hover::after { position: absolute; z-index: 20; bottom: calc(100% + 10px); left: 0; width: min(300px, 70vw); padding: 10px 12px; border-radius: 10px; background: #172033; box-shadow: 0 12px 24px rgba(15, 23, 42, .18); color: #fff; content: attr(data-tooltip); font-size: 11px; font-weight: 600; line-height: 1.5; white-space: pre-line; }
+    .prospecting-card { border-color: rgba(211, 154, 28, .45); background: linear-gradient(145deg, #fffdf8, #fff5dc); }
+    .prospecting-card::after { content: 'NOUVEAU'; position: absolute; top: 16px; right: 16px; padding: 4px 7px; border-radius: 999px; background: #1e293b; color: #f7c94c; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+    .prospecting-card .notif { background: #1e293b; color: #f8cb54; }
+    .recent-acceptes.card { grid-column: span 2; min-height: 212px; padding: 20px 22px; background: linear-gradient(145deg, #ffffff, #f4fbf6); }
+    .recent-acceptes h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #167343; font-size: 14px; }
+    .recent-acceptes h3::before { width: 10px; height: 10px; border-radius: 50%; background: #22a560; box-shadow: 0 0 0 5px rgba(34,165,96,.12); content: ''; }
+    .recent-acceptes ul { margin: 0; padding: 0; list-style: none; line-height: 1.65; color: #334155; font-size: 12px; }
+    .recent-acceptes li::before { color: #20a35c; content: '• '; font-weight: 900; }
+    .footer { padding: 22px 24px 32px; color: #8390a5; font-size: 12px; }
+    @media (max-width: 720px) { .dashboard-topbar-inner, .dashboard-shell { width: min(100% - 28px, 1560px); } .dashboard-topbar-inner { min-height: 76px; } .logo { width: 43px; height: 43px; } .dashboard-intro { display: block; } .dashboard-intro p { margin-top: 12px; } .grid { grid-template-columns: 1fr; } .recent-acceptes.card { grid-column: auto; } }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
@@ -205,134 +85,141 @@
   <main class="container dashboard-shell">
     <div class="dashboard-layout">
       <section class="main-content">
+        <div class="dashboard-intro">
+          <div>
+            <p class="dashboard-eyebrow">Espace opérations</p>
+            <h2>Vos outils, au même endroit.</h2>
+          </div>
+          <p>Accédez à vos applications métiers et visualisez les actions qui demandent votre attention.</p>
+        </div>
 <div class="grid">
   <a class="card prospecting-card" href="{{ url_for('prospecting.admin_prospects') }}">
-    <div class="emoji">🎯</div>
+    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=plateformegestion.onrender.com&sz=128" alt="" aria-hidden="true">
     <div class="title">Prospection sécurité</div>
     <div class="desc">Détecter et suivre les nouveaux centres de formation sécurité</div>
     <div class="notif">Scanner les prospects</div>
   </a>
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
-    <div class="emoji">🛟</div>
+    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=assistance-alw9.onrender.com&sz=128" alt="" aria-hidden="true">
     <div class="title">Assistance</div>
     <div class="desc">Gestion des tickets</div>
-    <div id="notif-assistance" class="notif empty">🛟 Chargement...</div>
+    <div id="notif-assistance" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
-    <div class="emoji">📤</div>
+    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=cnapsv3.onrender.com&sz=128" alt="" aria-hidden="true">
     <div class="title">Dépôt dossiers CNAPS</div>
     <div class="desc">Nouveau dossier</div>
-    <div id="notif-cnaps" class="notif empty">📩 Chargement...</div>
+    <div id="notif-cnaps" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
-    <div class="emoji">👮‍♂️</div>
+    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=cnapsv3.onrender.com&sz=128" alt="" aria-hidden="true">
     <div class="title">Suivi des demandes CNAPS</div>
     <div class="desc">Demande à faire • Documents à contrôler • Compte à créer</div>
-    <div id="notif-suivi" class="notif empty">👮‍♂️ Chargement...</div>
+    <div id="notif-suivi" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" id="card-stagiaires" href="https://gestionstagiaires-r5no.onrender.com/admin/sessions" target="_blank" rel="noopener">
-    <div class="emoji">🎓</div>
+    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=gestionstagiaires-r5no.onrender.com&sz=128" alt="" aria-hidden="true">
     <div class="title">Gestion des dossiers stagiaires</div>
     <div class="desc">Inscriptions & pièces justificatives </div>
-    <div id="notif-stagiaires" class="notif empty">🎓 Chargement...</div>
+    <div id="notif-stagiaires" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://inscriptionsbts.onrender.com/admin" target="_blank" rel="noopener">
-  <div class="emoji">🏫</div>
+  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=inscriptionsbts.onrender.com&sz=128" alt="" aria-hidden="true">
   <div class="title">Gestion des inscriptions BTS</div>
   <div class="desc">Pré-inscriptions à traiter</div>
-  <div id="notif-bts" class="notif empty">🏫 Chargement...</div>
+  <div id="notif-bts" class="notif empty">Chargement...</div>
 </a>
 
   <a class="card" href="https://bts-wpfy.onrender.com/admin" target="_blank" rel="noopener">
-    <div class="emoji">📝</div>
+    <img class="app-icon" src="{{ url_for('static', filename='img/faviconapprentissage.png') }}" alt="" aria-hidden="true">
     <div class="title">Contrats d'apprentissage</div>
     <div class="desc">Suivi des dossiers</div>
-    <div id="notif-contrats" class="notif empty">📝 Chargement...</div>
+    <div id="notif-contrats" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin-devis" target="_blank" rel="noopener">
-  <div class="emoji">🧾</div>
+  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=assistance-alw9.onrender.com&sz=128" alt="" aria-hidden="true">
   <div class="title">Demandes de devis</div>
   <div class="desc">Devis détaillés & financement</div>
-  <div id="notif-devis" class="notif empty">🧾 Chargement...</div>
+  <div id="notif-devis" class="notif empty">Chargement...</div>
 </a>
 
   <a class="card" href="https://factures-jx8r.onrender.com/admin" target="_blank" rel="noopener">
-  <div class="emoji">📄</div>
+  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=factures-jx8r.onrender.com&sz=128" alt="" aria-hidden="true">
   <div class="title">Gestion des factures</div>
   <div class="desc">Factures déposées & suivi paiement</div>
-  <div id="notif-factures" class="notif empty">📄 Chargement...</div>
+  <div id="notif-factures" class="notif empty">Chargement...</div>
 </a>
 
 
   <a class="card" href="{{ url_for('dotations_home') }}" target="_blank" rel="noopener">
-    <div class="emoji">🎁</div>
+    <img class="app-icon" src="{{ url_for('static', filename='img/faviconpg.png') }}" alt="" aria-hidden="true">
     <div class="title">Gestion des dotations</div>
     <div class="desc">iPad & badge café</div>
-    <div id="notif-dotations" class="notif empty">🎁 Chargement...</div>
+    <div id="notif-dotations" class="notif empty">Chargement...</div>
   </a>
 
    <a class="card" href="{{ url_for('sessions_home') }}" target="_blank" rel="noopener">
-    <div class="emoji">📅</div>
+    <img class="app-icon" src="{{ url_for('static', filename='img/favicongsessions.png') }}" alt="" aria-hidden="true">
     <div class="title">Gestion des sessions</div>
     <div class="desc">Suivi des échéances</div>
-    <div id="notif-sessions" class="notif empty">📅 Chargement...</div>
+    <div id="notif-sessions" class="notif empty">Chargement...</div>
   </a>
 
 <a class="card" href="{{ url_for('formateurs_home') }}" target="_blank" rel="noopener">
-  <div class="emoji">👨‍🏫</div>
+  <img class="app-icon" src="{{ url_for('static', filename='img/faviconformateurs.png') }}" alt="" aria-hidden="true">
   <div class="title">Contrôle formateurs</div>
   <div class="desc">Dossiers & conformité</div>
-  <div id="notif-formateurs" class="notif empty">👨‍🏫 Chargement...</div>
+  <div id="notif-formateurs" class="notif empty">Chargement...</div>
 </a>
 
 <a class="card" href="{{ url_for('distributeur_home') }}" target="_blank" rel="noopener">
-  <div class="emoji">🥤</div>
+  <img class="app-icon" src="{{ url_for('static', filename='img/onoff.png') }}" alt="" aria-hidden="true">
   <div class="title">Gestion des distributeurs</div>
   <div class="desc">Produits & réassort</div>
-  <div class="notif empty">🥤 Ouvrir</div>
+  <div class="notif empty">Ouvrir</div>
 </a>
 
 <a class="card" href="{{ url_for('planning_home') }}" rel="noopener">
-  <div class="emoji">🗓️</div>
+  <img class="app-icon" src="{{ url_for('static', filename='img/favicongsessions.png') }}" alt="" aria-hidden="true">
   <div class="title">Gestion des salles et planification</div>
   <div class="desc">Formations, affectation auto des salles, conflits</div>
-  <div class="notif empty">🗓️ Ouvrir</div>
+  <div class="notif empty">Ouvrir</div>
 </a>
 
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin_hebergement" target="_blank" rel="noopener">
-  <div class="emoji">🛏️</div>
+  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=assistance-alw9.onrender.com&sz=128" alt="" aria-hidden="true">
   <div class="title">Gestion hébergement</div>
   <div class="desc">Réservations & paiements</div>
-  <div id="notif-hebergement" class="notif empty">🛏️ Chargement...</div>
+  <div id="notif-hebergement" class="notif empty">Chargement...</div>
 </a>
 
 
 <a class="card" href="{{ url_for('social_visuals_studio') }}" target="_blank" rel="noopener">
-  <div class="emoji">🎨</div>
+  <img class="app-icon" src="{{ url_for('static', filename='img/faviconstudio.png') }}" alt="" aria-hidden="true">
   <div class="title">Studio visuels</div>
   <div class="desc">Posts réseaux sociaux, carrousels, export PNG HD</div>
-  <div class="notif ok">✨ Créer un post</div>
+  <div class="notif ok">Créer un post</div>
 </a>
 
   <a class="card" href="{{ url_for('price_adaptator') }}" target="_blank" rel="noopener">
-  <div class="emoji">💶</div>
+  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=plateformegestion.onrender.com&sz=128" alt="" aria-hidden="true">
   <div class="title">Price adaptator</div>
   <div class="desc">Prospects & tarifs dernière minute</div>
-  <div class="notif empty">💶 Ouvrir</div>
+  <div class="notif empty">Ouvrir</div>
 </a>
 
 
-  <!-- ✅ Bloc CNAPS acceptés intégré à côté -->
+  <!-- Bloc CNAPS acceptés intégré à côté -->
   <div class="card recent-acceptes" id="recent-acceptes">
 
-    <h3>✅ Derniers dossiers CNAPS acceptés </h3>
+    <h3>Derniers dossiers CNAPS acceptés</h3>
     <div id="liste-acceptes">Chargement...</div>
   </div>
 </div> <!-- ← fermeture de la grille -->
@@ -347,7 +234,7 @@
 
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
-    // ✅ Bloc CNAPS Acceptés (7 jours)
+    // Bloc CNAPS Acceptés (7 jours)
     async function updateRecentAcceptes() {
       const box = document.getElementById("liste-acceptes");
       try {
@@ -377,14 +264,14 @@
         const c = d.a_traiter || 0;
         if (c > 0) {
           box.className = "notif wait";
-          box.innerHTML = `🛟 ${c} demande${c>1?"s":""} assistance à traiter`;
+          box.innerHTML = `${c} demande${c>1?"s":""} assistance à traiter`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande assistance en attente";
+          box.innerHTML = "Aucune demande assistance en attente";
         }
       } catch {
         box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Assistance";
+        box.innerHTML = "Erreur Assistance";
       }
     }
 
@@ -401,22 +288,22 @@ async function updateDotations() {
     const nr = d.non_restituees || 0;
     const rstu = d.restituees || 0;
 
-    let message = `🎁 ${a} à distribuer, ${nr} non restituée${nr>1?'s':''}, ${rstu} restituée${rstu>1?'s':''}`;
+    let message = `${a} à distribuer, ${nr} non restituée${nr>1?'s':''}, ${rstu} restituée${rstu>1?'s':''}`;
 
     if (nr > 0) {
-      box.className = "notif alert"; // 🔴 rouge (urgences)
+      box.className = "notif alert"; // rouge (urgences)
     } else if (a > 0) {
-      box.className = "notif wait"; // 🟠 orange (à distribuer)
+      box.className = "notif wait"; // orange (à distribuer)
     } else {
-      box.className = "notif ok"; // 🟢 vert (tout rendu)
-      message = "✅ Tout est OK";
+      box.className = "notif ok"; // vert (tout rendu)
+      message = "Tout est OK";
     }
 
     box.innerHTML = message;
 
   } catch {
     box.className = "notif error";
-    box.innerHTML = "🔒 Erreur Dotations";
+    box.innerHTML = "Erreur Dotations";
   }
 }
 
@@ -583,18 +470,18 @@ async function updateDotations() {
         if (!hasDetails) {
           box.className = instruction > 0 ? "notif wait" : "notif alert";
           box.innerHTML = instruction > 0
-            ? `📩 ${instruction} dossier${instruction>1?"s":""} en instruction (détail CNAPS indisponible)`
-            : "⚠️ Détail CNAPS indisponible sur data.json";
+            ? `${instruction} dossier${instruction>1?"s":""} en instruction (détail CNAPS indisponible)`
+            : "Détail CNAPS indisponible sur data.json";
         } else if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📩 ${total} nouveau${total>1?"x":""} dossier${total>1?"s":""}`;
+          box.innerHTML = `${total} nouveau${total>1?"x":""} dossier${total>1?"s":""}`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun nouveau dossier";
+          box.innerHTML = "Aucun nouveau dossier";
         }
       } catch {
         box.className = "notif error";
-        box.innerHTML = "🔒 Erreur CNAPS";
+        box.innerHTML = "Erreur CNAPS";
       }
     }
 
@@ -617,18 +504,18 @@ async function updateDotations() {
         if (!hasDetails) {
           box.className = total > 0 ? "notif wait" : "notif alert";
           box.innerHTML = total > 0
-            ? `👮‍♂️ ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} à créer`
-            : "⚠️ Compteurs CNAPS indisponibles sur data.json";
+            ? `${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${comptesACreer} compte${comptesACreer>1?"s":""} à créer`
+            : "Compteurs CNAPS indisponibles sur data.json";
         } else if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `👮‍♂️ ${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${comptesACreer} compte${comptesACreer>1?"s":""} à créer`;
+          box.innerHTML = `${demandesAFaire} demande${demandesAFaire>1?"s":""} à faire • ${documentsAControler} document${documentsAControler>1?"s":""} à contrôler • ${comptesACreer} compte${comptesACreer>1?"s":""} à créer`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucune demande à faire, aucun document à contrôler et aucun compte à créer";
+          box.innerHTML = "Aucune demande à faire, aucun document à contrôler et aucun compte à créer";
         }
       } catch {
         box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Suivi CNAPS";
+        box.innerHTML = "Erreur Suivi CNAPS";
       }
     }
 
@@ -638,7 +525,7 @@ async function updateStagiaires() {
   const box  = document.getElementById("notif-stagiaires");
   const card = document.getElementById("card-stagiaires");
 
-  // 🔒 lien fixe vers la liste des sessions
+  // lien fixe vers la liste des sessions
   if (card) card.href = "https://gestionstagiaires-r5no.onrender.com/admin/sessions";
 
   try {
@@ -655,15 +542,15 @@ async function updateStagiaires() {
 
     if (docsCount > 0) {
       box.className = "notif wait";
-      box.innerHTML = `📄 ${docsCount} document${docsCount > 1 ? "s" : ""} à contrôler`;
+      box.innerHTML = `${docsCount} document${docsCount > 1 ? "s" : ""} à contrôler`;
     } else {
       box.className = "notif ok";
-      box.innerHTML = "✅ Aucun document à contrôler";
+      box.innerHTML = "Aucun document à contrôler";
     }
 
   } catch {
     box.className = "notif alert";
-    box.innerHTML = "⚠️ Données dossiers stagiaires indisponibles";
+    box.innerHTML = "Données dossiers stagiaires indisponibles";
   }
 }
 
@@ -675,19 +562,19 @@ async function updateBTS() {
     if (!r.ok) throw 0;
     const d = await r.json();
 
-    // 👉 selon le format de ton data.json côté site BTS
+    // selon le format de ton data.json côté site BTS
     const a_traiter = d.a_traiter || d.en_attente || 0;
 
     if (a_traiter > 0) {
       box.className = "notif wait";
-      box.innerHTML = `🏫 ${a_traiter} pré-inscription${a_traiter>1?"s":""} à traiter`;
+      box.innerHTML = `${a_traiter} pré-inscription${a_traiter>1?"s":""} à traiter`;
     } else {
       box.className = "notif ok";
-      box.innerHTML = "✅ Aucune pré-inscription en attente";
+      box.innerHTML = "Aucune pré-inscription en attente";
     }
   } catch {
     box.className = "notif error";
-    box.innerHTML = "🔒 Erreur Inscriptions BTS";
+    box.innerHTML = "Erreur Inscriptions BTS";
   }
 }
 
@@ -703,14 +590,14 @@ async function updateBTS() {
         const total = (s.a_traiter||0)+(s.signature_en_cours||0)+(s.saisi_entreprise||0);
         if (total > 0) {
           box.className = "notif wait";
-          box.innerHTML = `📝 ${s.a_traiter||0} à traiter, ${s.signature_en_cours||0} en signature, ${s.saisi_entreprise||0} en saisie`;
+          box.innerHTML = `${s.a_traiter||0} à traiter, ${s.signature_en_cours||0} en signature, ${s.saisi_entreprise||0} en saisie`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Aucun contrat en attente";
+          box.innerHTML = "Aucun contrat en attente";
         }
       } catch {
         box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Contrats";
+        box.innerHTML = "Erreur Contrats";
       }
     }
 
@@ -724,14 +611,14 @@ async function updateBTS() {
         const retards = (d.retards_steps ?? d.retards ?? 0);
         if (retards > 0) {
           box.className = "notif alert";
-          box.innerHTML = `⚠️ ${retards} étape${retards>1?"s":""} en retard`;
+          box.innerHTML = `${retards} étape${retards>1?"s":""} en retard`;
         } else {
           box.className = "notif ok";
-          box.innerHTML = "✅ Dans les temps";
+          box.innerHTML = "Dans les temps";
         }
       } catch {
         box.className = "notif error";
-        box.innerHTML = "🔒 Erreur Sessions";
+        box.innerHTML = "Erreur Sessions";
       }
     }
 
@@ -749,29 +636,29 @@ async function updateHebergement() {
     const payes = d.payes || 0;
     const non_payes = d.non_payes || 0;
 
-    // 🟢 Aucun hébergement
+    // Aucun hébergement
     if (total === 0) {
       box.className = "notif ok";
-      box.innerHTML = "✅ Aucune réservation";
+      box.innerHTML = "Aucune réservation";
       return;
     }
 
-    // 🔴 Si il y a au moins 1 non payé
+    // Si il y a au moins 1 non payé
     if (non_payes > 0) {
       box.className = "notif alert";
       box.innerHTML =
-        `🛏️ ${non_payes} non payée${non_payes>1?"s":""} — ${payes} payée${payes>1?"s":""}`;
+        `${non_payes} non payée${non_payes>1?"s":""} — ${payes} payée${payes>1?"s":""}`;
       return;
     }
 
-    // 🟢 Tout est payé
+    // Tout est payé
     box.className = "notif ok";
     box.innerHTML =
-      `🛏️ ${payes} payée${payes>1?"s":""} — 0 non payée`;
+      `${payes} payée${payes>1?"s":""} — 0 non payée`;
 
   } catch {
     box.className = "notif error";
-    box.innerHTML = "🔒 Erreur hébergement";
+    box.innerHTML = "Erreur hébergement";
   }
 }
 
@@ -791,31 +678,31 @@ async function updateFormateurs() {
     const listNC = d.liste_non_conformes || [];
     const listAC = d.liste_a_controler || [];
 
-    // ✅ Rien à signaler
+    // Rien à signaler
     if (nNC === 0 && nAC === 0) {
       box.className = "notif ok";
-      box.innerHTML = "✅ Tous les formateurs sont conformes";
+      box.innerHTML = "Tous les formateurs sont conformes";
       box.removeAttribute("data-tooltip");
       return;
     }
 
-    // ✅ Message compact (priorité aux non conformes)
+    // Message compact (priorité aux non conformes)
     if (nNC > 0) {
       box.className = "notif alert";
-      box.innerHTML = `⚠️ ${nNC} non-conformité${nNC>1?"s":""} — 📌 ${nAC} à contrôler`;
+      box.innerHTML = `${nNC} non-conformité${nNC>1?"s":""} — ${nAC} à contrôler`;
     } else {
       box.className = "notif wait";
-      box.innerHTML = `📌 ${nAC} doc${nAC>1?"s":""} à contrôler`;
+      box.innerHTML = `${nAC} doc${nAC>1?"s":""} à contrôler`;
     }
 
-    // ✅ Tooltip combiné
+    // Tooltip combiné
     let tooltip = "";
     if (listNC.length) {
-      tooltip += "⚠️ Non conformes :\n" + listNC.map(nom => `• ${nom}`).join("\n");
+      tooltip += "Non conformes :\n" + listNC.map(nom => `• ${nom}`).join("\n");
     }
     if (listAC.length) {
       if (tooltip) tooltip += "\n\n";
-      tooltip += "📌 À contrôler :\n" + listAC.map(nom => `• ${nom}`).join("\n");
+      tooltip += "À contrôler :\n" + listAC.map(nom => `• ${nom}`).join("\n");
     }
 
     if (tooltip) box.setAttribute("data-tooltip", tooltip);
@@ -823,7 +710,7 @@ async function updateFormateurs() {
 
   } catch {
     box.className = "notif error";
-    box.innerHTML = "🔒 Erreur Formateurs";
+    box.innerHTML = "Erreur Formateurs";
     box.removeAttribute("data-tooltip");
   }
 }
@@ -843,15 +730,15 @@ async function updateDevis() {
 
     if (n > 0) {
       box.className = "notif wait";
-      box.innerHTML = `🧾 ${n} devis à envoyer`;
+      box.innerHTML = `${n} devis à envoyer`;
     } else {
       box.className = "notif ok";
-      box.innerHTML = "✅ Aucun devis en attente";
+      box.innerHTML = "Aucun devis en attente";
     }
 
   } catch {
     box.className = "notif error";
-    box.innerHTML = "🔒 Erreur devis";
+    box.innerHTML = "Erreur devis";
   }
 }
 
@@ -869,15 +756,15 @@ async function updateFactures() {
 
     if (n > 0) {
       box.className = "notif wait";
-      box.innerHTML = `📄 ${n} facture${n>1?"s":""} déposée${n>1?"s":""}`;
+      box.innerHTML = `${n} facture${n>1?"s":""} déposée${n>1?"s":""}`;
     } else {
       box.className = "notif ok";
-      box.innerHTML = "✅ Aucune facture déposée";
+      box.innerHTML = "Aucune facture déposée";
     }
 
   } catch {
     box.className = "notif error";
-    box.innerHTML = "🔒 Erreur factures";
+    box.innerHTML = "Erreur factures";
   }
 }
 

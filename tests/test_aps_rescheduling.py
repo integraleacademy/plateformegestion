@@ -264,3 +264,34 @@ def test_api_rejects_overlaps_daily_capacity_and_lunch_crossing(monkeypatch):
         assert any("chevauchent" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": overlap}).get_json()["errors"])
         assert any("dépasse sa capacité" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": capacity}).get_json()["errors"])
         assert any("pause déjeuner" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": lunch}).get_json()["errors"])
+
+
+def test_capacity_error_is_structured_and_describes_real_slot_times(monkeypatch):
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    session = {"id": "aps-capacity-details", "formation": "APS", "apsPlanningMode": "full_presentiel",
+               "apsDailyCapacityMinutes": 420,
+               "apsPlanningData": [{"date": "2026-08-12", "slots": [slot("UV1", "Gestion des premiers secours", "08:30", "12:30", 1), slot("UV2", "Cadre juridique", "13:30", "17:30", 1)]}]}
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "save_sessions", lambda value: None)
+    with app.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
+        response = client.put("/api/sessions/aps-capacity-details/aps-planning", json={"planningData": session["apsPlanningData"]})
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["capacityViolations"] == [{
+        "date": "2026-08-12", "capacityMinutes": 420, "plannedMinutes": 480, "excessMinutes": 60,
+        "slots": [{"start": "08:30", "end": "12:30", "durationMinutes": 240}, {"start": "13:30", "end": "17:30", "durationMinutes": 240}],
+    }]
+    assert "contient 8 h de formation, soit un dépassement de 1 h" in payload["errors"][0]
+
+
+def test_editor_shows_loaded_capacity_alert_and_scroll_link():
+    editor = Path("templates/aps_planning_editor.html").read_text(encoding="utf-8")
+    assert "Le planning contient ${problems.length} journée" in editor
+    assert "Voir la journée concernée" in editor
+    assert "scrollToDay" in editor
+    assert "Dépassement de ${hours(-a.available)}" in editor
+    assert "capacityViolations" in editor

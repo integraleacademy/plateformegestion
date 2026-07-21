@@ -90,3 +90,45 @@ def test_api_persists_incomplete_old_plan_and_returns_remaining_curriculum(monke
         refreshed = client.get("/api/sessions/aps-reschedule/aps-planning").get_json()
     assert refreshed["apsPlanningData"][0]["slots"][0]["isEmpty"] is True
     assert refreshed["curriculum"]["remainingMinutes"] == refreshed["curriculum"]["expectedMinutes"]
+
+
+def test_api_recalculates_persists_times_and_reports_daily_availability(monkeypatch):
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    session = {"id": "aps-times", "formation": "APS", "apsPlanningMode": "full_presentiel", "apsDailyCapacityMinutes": 420,
+               "apsPlanningData": [{"date": "2026-09-01", "slots": [slot("UV4", "Stratégique")]}]}
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "save_sessions", lambda value: None)
+    changed = deepcopy(session["apsPlanningData"])
+    changed[0]["slots"][0].update({"start": "09:00", "end": "11:30", "durationMinutes": 999, "duration": 99})
+    with app.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
+        response = client.put("/api/sessions/aps-times/aps-planning", json={"planningData": changed})
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["planningData"][0]["slots"][0]["durationMinutes"] == 150
+        assert payload["dayAvailability"] == [{"date": "2026-09-01", "capacityMinutes": 420, "plannedMinutes": 150, "availableMinutes": 270}]
+        refreshed = client.get("/api/sessions/aps-times/aps-planning").get_json()
+    assert refreshed["apsPlanningData"][0]["slots"][0]["start"] == "09:00"
+    assert refreshed["apsPlanningData"][0]["slots"][0]["end"] == "11:30"
+
+
+def test_api_rejects_overlaps_daily_capacity_and_lunch_crossing(monkeypatch):
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    session = {"id": "aps-guardrails", "formation": "APS", "apsPlanningMode": "full_presentiel",
+               "apsPlanningData": [{"date": "2026-09-01", "slots": [slot("UV4", "Stratégique")]}]}
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "save_sessions", lambda value: None)
+    overlap = [{"date": "2026-09-01", "slots": [slot("UV4", "A", "08:30", "12:00"), slot("UV5", "B", "11:30", "12:30")]}]
+    capacity = [{"date": "2026-09-01", "slots": [slot("UV4", "A", "08:30", "12:00"), slot("UV5", "B", "13:30", "17:00"), slot("UV6", "C", "17:00", "17:30")]}]
+    lunch = [{"date": "2026-09-01", "slots": [slot("UV4", "A", "08:30", "13:30")]}]
+    with app.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
+        assert any("chevauchent" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": overlap}).get_json()["errors"])
+        assert any("dépasse sa capacité" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": capacity}).get_json()["errors"])
+        assert any("pause déjeuner" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": lunch}).get_json()["errors"])

@@ -2624,10 +2624,14 @@ def validate_aps_elearning_presentiel_rules(planning_data, summary=None):
     last_elearning_day = None
     first_presentiel = None
     for day in planning_data or []:
-        day_modalities = {(slot.get("modality") or "presentiel") for slot in day.get("slots", [])}
+        # Empty slots are placeholders for future rescheduling.  Their selected
+        # modality is only used by the editor to filter the course picker; it
+        # must not make an otherwise valid e-learning day look mixed.
+        scheduled_slots = [slot for slot in day.get("slots", []) if not slot.get("isEmpty")]
+        day_modalities = {(slot.get("modality") or "presentiel") for slot in scheduled_slots}
         if len(day_modalities) > 1:
             errors.append(f"La journée {day.get('date')} mélange e-learning et présentiel.")
-        for slot in day.get("slots", []):
+        for slot in scheduled_slots:
             modality = slot.get("modality") or "presentiel"
             if modality == "presentiel":
                 seen_presentiel = True

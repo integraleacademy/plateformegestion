@@ -63,6 +63,16 @@ def test_editor_allows_selecting_slot_modality_and_filters_courses_by_it():
     assert "x.modality===s.modality" in editor
 
 
+def test_editor_prioritizes_remaining_aps_hours_and_incomplete_contents():
+    editor = Path("templates/aps_planning_editor.html").read_text(encoding="utf-8")
+    assert 'id="planningAlert"' in editor
+    assert "Planning incomplet" in editor
+    assert "Voir les contenus à insérer" in editor
+    assert "incompleteOnly=true" in editor
+    assert "remaining-badge" in editor
+    assert "metric-remaining" in editor
+
+
 def test_api_persists_incomplete_old_plan_and_returns_remaining_curriculum(monkeypatch):
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     session = {"id": "aps-reschedule", "formation": "APS", "apsPlanningMode": "full_presentiel", "apsPlanningData": [{"date": "2026-09-01", "slots": [slot("UV4", "Stratégique")]}]}

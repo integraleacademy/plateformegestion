@@ -133,6 +133,39 @@ def test_api_recalculates_persists_times_and_reports_daily_availability(monkeypa
     assert refreshed["apsPlanningData"][0]["slots"][0]["end"] == "11:30"
 
 
+def test_api_regenerates_pdf_for_an_incomplete_rescheduled_plan(monkeypatch, tmp_path):
+    """A work-in-progress APS plan remains exportable from the editor."""
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    uv1 = next(item for item in app.aps_expected_content() if item["key"] == "UV1")
+    session = {
+        "id": "aps-incomplete-pdf", "formation": "APS", "date_debut": "2026-09-01",
+        "date_fin": "2026-09-02", "date_exam": "2026-09-03",
+        "apsPlanningMode": "full_presentiel", "planning_pdf": "old.pdf",
+        "apsPlanningData": [{"date": "2026-09-01", "slots": [
+            slot("UV1", uv1["title"], "08:30", "12:30", 240, pedagogicalKey="UV1"),
+        ]}],
+    }
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "save_sessions", lambda value: None)
+    monkeypatch.setattr(app, "PLANNING_DIR", str(tmp_path))
+
+    with app.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
+        response = client.put(
+            "/api/sessions/aps-incomplete-pdf/aps-planning",
+            json={"planningData": deepcopy(session["apsPlanningData"]), "regeneratePdf": True},
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    assert payload["pdfUrl"] == "/sessions/aps-incomplete-pdf/planning/view"
+    assert (tmp_path / "planning_aps_session_aps-incomplete-pdf.pdf").exists()
+
+
 def test_insert_four_hours_of_uv1_from_empty_slot_persists_and_leaves_three_hours(monkeypatch):
     """Regression: an empty 08:30-12:30 slot must accept a partial UV1 insertion."""
     app.app.config.update(TESTING=True, SECRET_KEY="test")

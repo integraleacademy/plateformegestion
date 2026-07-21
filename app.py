@@ -2887,6 +2887,13 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     elif document_profile.get("validate") == "afc_aps_ssiap":
         summary = document_profile.get("summary") or afc_aps_ssiap_summary_from_data(planning_data)
         errors = list(summary.get("errors") or [])
+    elif document_profile.get("validate") == "rescheduling":
+        # The editor deliberately permits an incomplete plan while a course is
+        # being moved.  Its API has already checked the editable constraints
+        # (times, overlaps and lunch break), so rendering must not reapply the
+        # "exactly 175h" rule and turn a save-and-regenerate into a 500.
+        errors, _, _ = validate_aps_rescheduling_data(planning_data, planning_mode)
+        summary = document_profile.get("summary") or aps_summary_from_data(planning_data)
     else:
         errors, summary = validate_aps_planning_data(planning_data, planning_mode)
     if document_profile.get("validate") not in {"ssiap1", "afc_aps_ssiap"} and any(day.get("date") == exam_iso for day in planning_data or []):
@@ -8223,15 +8230,25 @@ def update_aps_planning_api(sid):
         filename = f"planning_{'afc_aps_ssiap' if is_afc else ('desp' if is_desp else ('ssiap1' if is_ssiap1 else 'aps'))}_session_{sid}.pdf"
         output_path = os.path.join(PLANNING_DIR, filename)
         temp_path = f"{output_path}.tmp"
-        profile = ({"validate": "afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"} if is_afc else ({"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"} if is_ssiap1_session(session_data) else ({"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else None)))
-        result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode, document_profile=profile)
-        if os.path.exists(output_path):
-            archive = os.path.join(PLANNING_DIR, f"planning_{'ssiap1' if is_ssiap1_session(session_data) else ('desp' if is_desp else 'aps')}_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
-            try:
-                os.replace(output_path, archive)
-            except OSError:
-                pass
-        os.replace(temp_path, output_path)
+        profile = ({"validate": "afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"} if is_afc else ({"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"} if is_ssiap1_session(session_data) else ({"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else {"validate": "rescheduling", "summary": summary})))
+        try:
+            result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode, document_profile=profile)
+            if os.path.exists(output_path):
+                archive = os.path.join(PLANNING_DIR, f"planning_{'ssiap1' if is_ssiap1_session(session_data) else ('desp' if is_desp else 'aps')}_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
+                try:
+                    os.replace(output_path, archive)
+                except OSError:
+                    pass
+            os.replace(temp_path, output_path)
+        except (OSError, RuntimeError, ValueError) as exc:
+            app.logger.exception("Régénération du PDF planning impossible session=%s", sid)
+            return jsonify({"ok": False, "error": f"Impossible de régénérer le PDF : {exc}"}), 400
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
         session_data["planning_pdf"] = filename
         session_data["apsPlanningSummary"] = result["summary"]
         session_data["apsPlanningMode"] = planning_mode

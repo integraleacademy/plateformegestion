@@ -77,6 +77,8 @@ def test_editor_allows_selecting_slot_modality_and_filters_courses_by_it():
     assert "x.modality===s.modality" in editor
     assert "slots.splice(si,1,inserted" in editor
     assert "isEmpty:true" in editor
+    assert "function insertableMinutes(day,slot)" in editor
+    assert "a.planned===0&&available<=0" in editor
 
 
 def test_editor_prioritizes_remaining_aps_hours_and_incomplete_contents():

@@ -173,10 +173,12 @@ def test_insert_four_hours_of_uv1_from_empty_slot_persists_and_leaves_three_hour
     assert next(item for item in refreshed["curriculum"]["contents"] if item["key"] == "UV1")["remainingMinutes"] == 180
 
 
-def test_session_f867ab33_inserts_uv1_despite_overlapping_legacy_empty_slots(monkeypatch):
-    """The production-session regression: empty placeholders cannot block UV1."""
+def test_session_f867ab33_inserts_uv1_despite_over_capacity_legacy_day(monkeypatch):
+    """A 7-hour overrun on 2026-08-12 cannot block a 2026-07-21 insertion."""
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     uv1 = next(item for item in app.aps_expected_content() if item["key"] == "UV1")
+    uv2 = next(item for item in app.aps_expected_content() if item["key"] == "UV2")
+    uv3 = next(item for item in app.aps_expected_content() if item["key"] == "UV3")
     session = {
         "id": "f867ab33", "formation": "APS", "apsPlanningMode": "full_presentiel",
         "apsDailyCapacityMinutes": 420,
@@ -191,6 +193,10 @@ def test_session_f867ab33_inserts_uv1_despite_overlapping_legacy_empty_slots(mon
                 # Old, overlapping placeholders must stay stored but ignored.
                 slot("", "", "09:00", "10:00", 60, isEmpty=True),
                 slot("", "", "09:30", "11:00", 90, isEmpty=True),
+            ]},
+            {"date": "2026-08-12", "slots": [
+                slot("UV2", uv2["title"], "08:30", "12:30", 240, pedagogicalKey="UV2"),
+                slot("UV3", uv3["title"], "13:30", "17:30", 240, pedagogicalKey="UV3"),
             ]},
         ],
     }
@@ -211,6 +217,11 @@ def test_session_f867ab33_inserts_uv1_despite_overlapping_legacy_empty_slots(mon
         )
         assert response.status_code == 200
         payload = response.get_json()
+        assert payload["warnings"] == [{
+            "date": "2026-08-12", "plannedMinutes": 480, "capacityMinutes": 420,
+            "excessMinutes": 60,
+            "message": "La journée 2026-08-12 dépasse la durée indicative de 7h.",
+        }]
         assert payload["dayAvailability"][1] == {
             "date": "2026-07-21", "capacityMinutes": 420,
             "plannedMinutes": 240, "availableMinutes": 180,
@@ -247,7 +258,7 @@ def test_editor_delegates_dynamic_course_insert_clicks_and_includes_request_data
     assert "const scheduledSlots=(day.slots||[]).filter(slot=>!slot.isEmpty)" in editor
 
 
-def test_api_rejects_overlaps_daily_capacity_and_lunch_crossing(monkeypatch):
+def test_api_rejects_overlaps_and_lunch_crossing_but_not_daily_capacity(monkeypatch):
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     session = {"id": "aps-guardrails", "formation": "APS", "apsPlanningMode": "full_presentiel",
                "apsPlanningData": [{"date": "2026-09-01", "slots": [slot("UV4", "Stratégique")]}]}
@@ -255,18 +266,21 @@ def test_api_rejects_overlaps_daily_capacity_and_lunch_crossing(monkeypatch):
     monkeypatch.setattr(app, "load_sessions", lambda: data)
     monkeypatch.setattr(app, "save_sessions", lambda value: None)
     overlap = [{"date": "2026-09-01", "slots": [slot("UV4", "A", "08:30", "12:00"), slot("UV5", "B", "11:30", "12:30")]}]
-    capacity = [{"date": "2026-09-01", "slots": [slot("UV4", "A", "08:30", "12:00"), slot("UV5", "B", "13:30", "17:00"), slot("UV6", "C", "17:00", "17:30")]}]
+    titles = {item["key"]: item["title"] for item in app.aps_expected_content()}
+    capacity = [{"date": "2026-09-01", "slots": [slot("UV4", titles["UV4"], "08:30", "12:00"), slot("UV5", titles["UV5"], "13:30", "17:00"), slot("UV6", titles["UV6"], "17:00", "17:30")]}]
     lunch = [{"date": "2026-09-01", "slots": [slot("UV4", "A", "08:30", "13:30")]}]
     with app.app.test_client() as client:
         with client.session_transaction() as flask_session:
             flask_session["admin_logged"] = True
             flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
         assert any("chevauchent" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": overlap}).get_json()["errors"])
-        assert any("dépasse sa capacité" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": capacity}).get_json()["errors"])
+        capacity_response = client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": capacity})
+        assert capacity_response.status_code == 200
+        assert capacity_response.get_json()["warnings"][0]["excessMinutes"] == 30
         assert any("pause déjeuner" in message for message in client.put("/api/sessions/aps-guardrails/aps-planning", json={"planningData": lunch}).get_json()["errors"])
 
 
-def test_capacity_error_is_structured_and_describes_real_slot_times(monkeypatch):
+def test_capacity_warning_is_structured_and_describes_real_slot_times(monkeypatch):
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     session = {"id": "aps-capacity-details", "formation": "APS", "apsPlanningMode": "full_presentiel",
                "apsDailyCapacityMinutes": 420,
@@ -279,13 +293,17 @@ def test_capacity_error_is_structured_and_describes_real_slot_times(monkeypatch)
             flask_session["admin_logged"] = True
             flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
         response = client.put("/api/sessions/aps-capacity-details/aps-planning", json={"planningData": session["apsPlanningData"]})
-    assert response.status_code == 400
+    assert response.status_code == 200
     payload = response.get_json()
     assert payload["capacityViolations"] == [{
         "date": "2026-08-12", "capacityMinutes": 420, "plannedMinutes": 480, "excessMinutes": 60,
         "slots": [{"start": "08:30", "end": "12:30", "durationMinutes": 240}, {"start": "13:30", "end": "17:30", "durationMinutes": 240}],
     }]
-    assert "contient 8 h de formation, soit un dépassement de 1 h" in payload["errors"][0]
+    assert payload["warnings"] == [{
+        "date": "2026-08-12", "plannedMinutes": 480, "capacityMinutes": 420,
+        "excessMinutes": 60,
+        "message": "La journée 2026-08-12 dépasse la durée indicative de 7h.",
+    }]
 
 
 def test_editor_shows_loaded_capacity_alert_and_scroll_link():
@@ -295,3 +313,5 @@ def test_editor_shows_loaded_capacity_alert_and_scroll_link():
     assert "scrollToDay" in editor
     assert "Dépassement de ${hours(-a.available)}" in editor
     assert "capacityViolations" in editor
+    assert "Vous pouvez continuer à modifier et enregistrer le planning" in editor
+    assert "plannedMinutes>dailyCapacityMinutes)errors.push" not in editor

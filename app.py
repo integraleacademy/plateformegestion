@@ -2446,7 +2446,7 @@ def aps_summary_from_data(planning_data):
             # A vacant slot is deliberately kept in the calendar so that its
             # date, duration and time range remain available for rescheduling.
             # It is not pedagogical content and must not count toward APS hours.
-            if slot.get("isEmpty"):
+            if not is_countable_planning_slot(slot):
                 continue
             slot_count += 1
             uv = (slot.get("uv") or "").strip().upper()
@@ -2508,7 +2508,7 @@ def aps_curriculum_summary(planning_data, planning_mode="full_presentiel"):
     by_key = {item["key"]: dict(item, plannedMinutes=0) for item in contents}
     for day in planning_data or []:
         for slot in day.get("slots", []):
-            if slot.get("isEmpty"):
+            if not is_countable_planning_slot(slot):
                 continue
             key = aps_content_key_for_slot(slot, planning_mode)
             if key in by_key:
@@ -2555,11 +2555,38 @@ def normalize_aps_slot_durations(planning_data):
     return planning_data
 
 
+_INVALID_PLANNING_LABELS = {"", "none", "null", "undefined"}
+
+
+def is_countable_planning_slot(slot):
+    """Return whether a slot represents an actual labelled course.
+
+    Some legacy planning records contain a timed row with ``uv`` and ``title``
+    serialised as ``None``.  It is a placeholder, not training content, and
+    must never be rendered or included in hours.
+    """
+    if not isinstance(slot, dict) or slot.get("isEmpty"):
+        return False
+    return all(str(slot.get(key) or "").strip().lower() not in _INVALID_PLANNING_LABELS
+               for key in ("uv", "title"))
+
+
+def visible_planning_data(planning_data, include_empty=False):
+    """Copy a planning while removing invalid placeholder slots and empty days."""
+    visible_days = []
+    for day in planning_data or []:
+        slots = [slot for slot in day.get("slots", [])
+                 if is_countable_planning_slot(slot) or (include_empty and slot.get("isEmpty"))]
+        if slots:
+            visible_days.append({**day, "slots": slots})
+    return visible_days
+
+
 def aps_day_availability(planning_data, session_data):
     capacity = aps_daily_capacity_minutes(session_data)
     return [{"date": day.get("date"), "capacityMinutes": capacity,
-             "plannedMinutes": sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if not slot.get("isEmpty")),
-             "availableMinutes": capacity - sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if not slot.get("isEmpty"))}
+             "plannedMinutes": sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if is_countable_planning_slot(slot)),
+             "availableMinutes": capacity - sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if is_countable_planning_slot(slot))}
             for day in planning_data or []]
 
 
@@ -2875,6 +2902,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         raise ValueError("Impossible de générer le planning : la date de fin de formation doit être antérieure à la date d’examen.")
     if planning_data is None:
         planning_data, _, _ = (build_ssiap1_planning_data(start_dt.date(), formateur, salle, end_date=latest_training_date, exam_iso=exam_iso, exam_payload=ssiap1_exam_payload(session_data), excluded_dates=ssiap1_excluded_dates_from_payload(session_data)) if document_profile.get("validate") == "ssiap1" else build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id")))
+    # Do not let legacy placeholder rows (for example ``None — None``) leak
+    # into a generated planning or inflate its daily totals.
+    planning_data = visible_planning_data(planning_data)
     if document_profile.get("validate") == "desp":
         summary = document_profile.get("summary") or desp_summary_from_planning(planning_data)
         errors = list(summary.get("errors") or [])
@@ -2926,7 +2956,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     for source_day in planning_data or []:
         if document_profile.get("validate") == "ssiap1" and source_day.get("exam"):
             continue
-        logical_day_totals[source_day.get("date")] = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in source_day.get("slots", []))
+        logical_day_totals[source_day.get("date")] = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in source_day.get("slots", []) if is_countable_planning_slot(slot))
 
     def period_title(part):
         if document_profile.get("validate") == "ssiap1":
@@ -8160,7 +8190,7 @@ def get_aps_planning_api(sid):
     is_afc = normalize_training_code(session_data) == "AFC_APS_SSIAP" if session_data else False
     if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    planning_data = session_data.get("apsPlanningData") or []
+    planning_data = visible_planning_data(session_data.get("apsPlanningData") or [], include_empty=True)
     if formation == "APS":
         # This is intentionally performed from persisted data (including empty
         # placeholders) so a support investigation can see the exact legacy
@@ -8201,6 +8231,9 @@ def update_aps_planning_api(sid):
     planning_data = payload.get("planningData")
     if not isinstance(planning_data, list):
         return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
+    # Discard malformed legacy placeholders submitted by older clients while
+    # retaining intentional APS availability slots (``isEmpty``).
+    planning_data = visible_planning_data(planning_data, include_empty=True)
     if formation == "APS":
         # Never trust a duration sent by the browser: persist the duration
         # calculated from the two editable time fields.

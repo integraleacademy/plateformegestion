@@ -201,11 +201,16 @@ def desp_summary_from_planning(planning):
         if not is_desp_training_day(d, allow_saturday=True): errors.append(f"La journée du {day.get('date')} est un jour non travaillé.")
         day_minutes=0
         for slot in day.get("slots", []):
+            # A legacy placeholder can have its labels serialised as ``None``.
+            # It is not a DESP sequence and must not affect displayed totals.
+            if slot.get("isEmpty") or any(str(slot.get(key) or "").strip().lower() in {"", "none", "null", "undefined"} for key in ("uv", "title")):
+                continue
             modality=slot.get("modality") or "presentiel"
             if modality == "presentiel": seen_presentiel=True
             if modality == "elearning" and seen_presentiel: errors.append("Une séquence distancielle est positionnée après le début du présentiel.")
             mins=int(slot.get("durationMinutes") or 0); day_minutes += mins; minute_totals[modality]=minute_totals.get(modality,0)+mins; total_minutes += mins
-        max_daily_minutes = DESP_PRESENTIEL_MAX_DAILY_MINUTES if any((slot.get("modality") or "presentiel") == "presentiel" for slot in day.get("slots", [])) else DESP_ELEARNING_MAX_DAILY_MINUTES
+        countable_slots = [slot for slot in day.get("slots", []) if not slot.get("isEmpty") and all(str(slot.get(key) or "").strip().lower() not in {"", "none", "null", "undefined"} for key in ("uv", "title"))]
+        max_daily_minutes = DESP_PRESENTIEL_MAX_DAILY_MINUTES if any((slot.get("modality") or "presentiel") == "presentiel" for slot in countable_slots) else DESP_ELEARNING_MAX_DAILY_MINUTES
         if day_minutes > max_daily_minutes: errors.append(f"La journée du {day.get('date')} dépasse {max_daily_minutes//60}h de formation ({day_minutes//60}h).")
     totals={k: round(v/60,2) for k,v in minute_totals.items()}
     total=round(total_minutes/60,2)
@@ -213,4 +218,5 @@ def desp_summary_from_planning(planning):
     if minute_totals["presentiel"] != DESP_PRESENTIEL_HOURS*60: errors.append(f"Le total présentiel doit être exactement de 70h (actuel: {totals['presentiel']:g}h).")
     if total_minutes != DESP_TOTAL_HOURS*60: errors.append(f"Le total DESP doit être exactement de 244h (actuel: {total:g}h).")
     rows = desp_summary_rows()
-    return {"total_hours": total, "uv_totals": {row["uv"]: row["hours"] for row in rows}, "uv_rows": rows, "modality_totals": totals, "errors": errors, "warnings": warnings, "days_count": len(planning or []), "slots_count": sum(len(d.get('slots', [])) for d in planning or [])}
+    slots_count = sum(1 for day in planning or [] for slot in day.get("slots", []) if not slot.get("isEmpty") and all(str(slot.get(key) or "").strip().lower() not in {"", "none", "null", "undefined"} for key in ("uv", "title")))
+    return {"total_hours": total, "uv_totals": {row["uv"]: row["hours"] for row in rows}, "uv_rows": rows, "modality_totals": totals, "errors": errors, "warnings": warnings, "days_count": len(planning or []), "slots_count": slots_count}

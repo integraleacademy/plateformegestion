@@ -97,6 +97,27 @@ def test_desp_totals_are_preserved():
     assert not summary["errors"]
 
 
+def test_desp_placeholder_none_slots_are_not_rendered_or_counted(tmp_path):
+    pypdf = pytest.importorskip("pypdf")
+    planning = _planning()
+    planning[0]["slots"].append({
+        "start": "15:30", "end": "16:30", "duration": 1,
+        "durationMinutes": 60, "uv": None, "title": None,
+        "part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 174h", "modality": "elearning",
+    })
+
+    summary = desp_summary_from_planning(planning)
+    assert summary["total_hours"] == DESP_TOTAL_HOURS
+    assert summary["slots_count"] == sum(len(day["slots"]) for day in _planning())
+
+    output = tmp_path / "planning_without_none.pdf"
+    generate_aps_planning_pdf(_session(), "BRUANT Christophe", str(output), planning_data=planning,
+                              planning_mode="desp", document_profile={"validate": "desp", "summary": summary})
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
+    assert "None — None" not in text
+    assert "Total journée : 7 h" in text
+
+
 def _attendance_text(tmp_path, planning=None):
     pytest.importorskip("reportlab")
     pypdf = pytest.importorskip("pypdf")

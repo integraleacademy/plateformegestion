@@ -2592,6 +2592,15 @@ def aps_capacity_violations(planning_data, daily_capacity_minutes=APS_MAX_DAILY_
     return violations
 
 
+def aps_capacity_warnings(planning_data, daily_capacity_minutes=APS_MAX_DAILY_MINUTES):
+    """Return non-blocking daily-capacity warnings for the APS editor."""
+    return [{
+        "date": violation["date"], "plannedMinutes": violation["plannedMinutes"],
+        "capacityMinutes": violation["capacityMinutes"], "excessMinutes": violation["excessMinutes"],
+        "message": f"La journée {violation['date']} dépasse la durée indicative de {format_duration_from_minutes(violation['capacityMinutes'])}.",
+    } for violation in aps_capacity_violations(planning_data, daily_capacity_minutes)]
+
+
 def aps_capacity_violation_message(violation):
     """Format a capacity violation for the editor while retaining its JSON form."""
     def human(minutes):
@@ -2622,14 +2631,16 @@ def log_aps_planning_diagnostics(session_data):
 
 
 def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel", daily_capacity_minutes=APS_MAX_DAILY_MINUTES, lunch_break=("12:30", "13:30")):
-    """Validate an editable APS plan while allowing curriculum gaps."""
+    """Validate an editable APS plan while allowing curriculum gaps.
+
+    Daily capacity overruns are warnings, never validation errors.
+    """
     summary = aps_summary_from_data(planning_data)
     errors = list(summary["errors"])
     curriculum = aps_curriculum_summary(planning_data, planning_mode)
     expected = {item["key"]: item for item in aps_expected_content(planning_mode)}
     for day in planning_data or []:
         intervals = []
-        day_minutes = 0
         # Empty slots are retained as rescheduling placeholders, not courses.
         # They must therefore have no bearing on timetable, curriculum, or
         # capacity validation until an insertion turns them into a real slot.
@@ -2655,17 +2666,10 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
                 continue
             if aps_content_key_for_slot(slot, planning_mode) not in expected:
                 errors.append(f"Contenu pédagogique inconnu: {slot.get('title') or slot.get('uv') or 'sans libellé'}.")
-            day_minutes += int(slot.get("durationMinutes") or 0)
-        if day_minutes > daily_capacity_minutes:
-            # Keep the textual error useful for callers that do not yet read
-            # the structured API field below.
-            violation = next((item for item in aps_capacity_violations([day], daily_capacity_minutes)
-                              if item["date"] == day.get("date")), None)
-            if violation:
-                errors.append(aps_capacity_violation_message(violation))
     for item in curriculum["contents"]:
         if item["plannedMinutes"] > item["expectedMinutes"]:
             errors.append(f"{item['title']} dépasse le volume pédagogique obligatoire ({format_duration_from_minutes(item['expectedMinutes'])}).")
+    summary["warnings"] = aps_capacity_warnings(planning_data, daily_capacity_minutes)
     return errors, summary, curriculum
 
 def validate_aps_planning_data(planning_data, planning_mode="full_presentiel"):
@@ -8157,6 +8161,7 @@ def get_aps_planning_api(sid):
         "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [],
         "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None,
         "capacityViolations": aps_capacity_violations(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [],
+        "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [],
         "pdfUrl": url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None,
         "needsRegeneration": bool(session_data.get("planning_pdf") and not planning_data),
     })
@@ -8233,7 +8238,7 @@ def update_aps_planning_api(sid):
         session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF régénéré")
         pdf_url = url_for("view_planning_pdf", sid=sid)
     save_sessions(data)
-    return jsonify({"ok": True, "pdfUrl": pdf_url, "planningData": planning_data, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [], "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None, "capacityViolations": capacity_violations, "modifiedAt": session_data.get("planning_modified_at")})
+    return jsonify({"ok": True, "pdfUrl": pdf_url, "planningData": planning_data, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [], "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None, "capacityViolations": capacity_violations, "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [], "modifiedAt": session_data.get("planning_modified_at")})
 
 
 @app.delete("/api/sessions/<sid>/aps-planning")

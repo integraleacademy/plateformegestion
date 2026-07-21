@@ -2572,12 +2572,19 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
     for day in planning_data or []:
         intervals = []
         day_minutes = 0
-        for slot in day.get("slots", []):
+        # Empty slots are retained as rescheduling placeholders, not courses.
+        # They must therefore have no bearing on timetable, curriculum, or
+        # capacity validation until an insertion turns them into a real slot.
+        scheduled_slots = [
+            slot for slot in day.get("slots", []) if not slot.get("isEmpty")
+        ]
+        for slot in scheduled_slots:
             try:
                 start = datetime.strptime(slot.get("start") or "", "%H:%M")
                 end = datetime.strptime(slot.get("end") or "", "%H:%M")
                 if end <= start:
                     errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
+                    continue
                 if any(start < old_end and end > old_start for old_start, old_end in intervals):
                     errors.append(f"Deux cours se chevauchent le {day.get('date')}.")
                 intervals.append((start, end))
@@ -2586,11 +2593,11 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
                 if start < lunch_end and end > lunch_start:
                     errors.append(f"Le créneau {day.get('date')} {slot.get('start')}-{slot.get('end')} chevauche la pause déjeuner ({lunch_break[0]}-{lunch_break[1]}). Créez un cours le matin et un autre l’après-midi.")
             except (TypeError, ValueError):
-                pass
-            if not slot.get("isEmpty") and aps_content_key_for_slot(slot, planning_mode) not in expected:
+                errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
+                continue
+            if aps_content_key_for_slot(slot, planning_mode) not in expected:
                 errors.append(f"Contenu pédagogique inconnu: {slot.get('title') or slot.get('uv') or 'sans libellé'}.")
-            if not slot.get("isEmpty"):
-                day_minutes += int(slot.get("durationMinutes") or 0)
+            day_minutes += int(slot.get("durationMinutes") or 0)
         if day_minutes > daily_capacity_minutes:
             errors.append(f"La journée {day.get('date')} dépasse sa capacité de {format_duration_from_minutes(daily_capacity_minutes)}.")
     for item in curriculum["contents"]:

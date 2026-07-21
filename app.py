@@ -2433,6 +2433,7 @@ def aps_summary_from_data(planning_data):
     uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
     total = 0.0
     modality_totals = {"elearning": 0.0, "presentiel": 0.0}
+    detailed_rows = {}
     slot_count = 0
     errors = []
     previous = None
@@ -2468,12 +2469,31 @@ def aps_summary_from_data(planning_data):
             modality = (slot.get("modality") or "presentiel").strip()
             if modality in modality_totals:
                 modality_totals[modality] = round(modality_totals[modality] + duration, 2)
+            # In a mixed course, the same UV can be taught partly online and
+            # partly in person. Keep those deliveries separate for the PDF
+            # recap instead of collapsing them into the generic APS UV list.
+            if modality in {"elearning", "presentiel"}:
+                title = (slot.get("title") or APS_UV_LABELS.get(uv, "")).strip()
+                key = (modality, uv, title)
+                row = detailed_rows.setdefault(key, {
+                    "uv": uv,
+                    "label": title,
+                    "title": title,
+                    "hours": 0.0,
+                    "modality": modality,
+                })
+                row["hours"] = round(row["hours"] + duration, 2)
             if uv not in uv_totals:
                 errors.append(f"UV inconnue: {uv}")
             else:
                 uv_totals[uv] = round(uv_totals[uv] + duration, 2)
             total = round(total + duration, 2)
-    rows = [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
+    has_mixed_modalities = modality_totals["elearning"] > 0 and modality_totals["presentiel"] > 0
+    rows = (
+        list(detailed_rows.values())
+        if has_mixed_modalities
+        else [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected, "modality": "presentiel"} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
+    )
     return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "modality_totals": modality_totals, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
 
 
@@ -3202,15 +3222,19 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             y -= 96
         c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synthèse des heures")
         y -= 18
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. AFC France Travail APS + SSIAP" if document_profile.get("validate") == "afc_aps_ssiap" else "A. SST")
-        y -= 14
         c.setFont("Helvetica", 9)
         if document_profile.get("validate") == "afc_aps_ssiap":
+            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. AFC France Travail APS + SSIAP")
+            y -= 14
+            c.setFont("Helvetica", 9)
             for code in AFC_APS_SSIAP_SUMMARY_ORDER:
                 c.setFillColor(colors.HexColor(AFC_CATEGORY_COLORS[code])); c.rect(margin, y - 7, 8, 8, fill=1, stroke=0)
                 c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 12, y, f"{AFC_APS_SSIAP_LABELS[code]} : {format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace('h', ' h')}"); y -= 13
             c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "TOTAL : 393 h"); y -= 20
         elif document_profile.get("validate") == "ssiap1":
+            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. SST")
+            y -= 14
+            c.setFont("Helvetica", 9)
             c.drawString(margin, y, f"12/10/2026 : 7 h • 13/10/2026 : 7 h • Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Formation réglementaire SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
             c.drawString(margin, y, f"du {format_date(modality_ranges.get('presentiel', {}).get('start'))} au {format_date(modality_ranges.get('presentiel', {}).get('end'))} — total : {summary['total_hours']:g} h"); y -= 14
@@ -3275,7 +3299,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
 
     def compute_summary_page_count():
         count = 1
-        y = height - 122 - (130 if document_profile.get("validate") == "ssiap1" else 0) - 18 - 14
+        y = height - 122 - (130 if document_profile.get("validate") == "ssiap1" else 0) - 18
+        if document_profile.get("validate") in {"afc_aps_ssiap", "ssiap1"}:
+            y -= 14
         if modality_ranges.get("elearning"):
             y -= 13
         if modality_ranges.get("presentiel"):

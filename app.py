@@ -2443,6 +2443,11 @@ def aps_summary_from_data(planning_data):
         except Exception:
             errors.append(f"Date invalide: {day_date}")
         for slot in day.get("slots", []):
+            # A vacant slot is deliberately kept in the calendar so that its
+            # date, duration and time range remain available for rescheduling.
+            # It is not pedagogical content and must not count toward APS hours.
+            if slot.get("isEmpty"):
+                continue
             slot_count += 1
             uv = (slot.get("uv") or "").strip().upper()
             duration_minutes = int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60))))
@@ -2470,6 +2475,80 @@ def aps_summary_from_data(planning_data):
             total = round(total + duration, 2)
     rows = [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
     return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "modality_totals": modality_totals, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
+
+
+def aps_expected_content(planning_mode="full_presentiel"):
+    """Return the canonical APS curriculum, independently from a session plan.
+
+    This is intentionally derived from the programme constants, never from a
+    deletion log.  Older plans without ``pedagogicalKey`` remain supported via
+    the matching fallback in :func:`aps_content_key_for_slot`.
+    """
+    if planning_mode == "elearning_presentiel":
+        contents = {}
+        for item in APS_ELEARNING_PRESENTIEL_MODULES:
+            key = "|".join((item["uv"], item["title"], item["modality"]))
+            row = contents.setdefault(key, {"key": key, "uv": item["uv"], "title": item["title"], "part": item["part"], "modality": item["modality"], "expectedMinutes": 0, "color": "#6d28d9" if item["modality"] == "elearning" else "#0d9488"})
+            row["expectedMinutes"] += int(item["durationMinutes"])
+        return list(contents.values())
+    return [{"key": uv, "uv": uv, "title": APS_UV_LABELS[uv], "part": "Programme APS", "modality": "presentiel", "expectedMinutes": int(hours * 60), "color": "#0d9488"} for uv, hours in APS_EXPECTED_UV_TOTALS.items()]
+
+
+def aps_content_key_for_slot(slot, planning_mode="full_presentiel"):
+    if slot.get("pedagogicalKey"):
+        return str(slot["pedagogicalKey"])
+    uv = (slot.get("uv") or "").strip().upper()
+    if planning_mode == "elearning_presentiel":
+        return "|".join((uv, (slot.get("title") or "").strip(), (slot.get("modality") or "presentiel").strip()))
+    return uv
+
+
+def aps_curriculum_summary(planning_data, planning_mode="full_presentiel"):
+    contents = aps_expected_content(planning_mode)
+    by_key = {item["key"]: dict(item, plannedMinutes=0) for item in contents}
+    for day in planning_data or []:
+        for slot in day.get("slots", []):
+            if slot.get("isEmpty"):
+                continue
+            key = aps_content_key_for_slot(slot, planning_mode)
+            if key in by_key:
+                by_key[key]["plannedMinutes"] += int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0) * 60)))
+    rows = []
+    for item in by_key.values():
+        item["plannedMinutes"] = int(item["plannedMinutes"])
+        item["remainingMinutes"] = item["expectedMinutes"] - item["plannedMinutes"]
+        item["status"] = "complete" if item["remainingMinutes"] == 0 else ("missing" if item["plannedMinutes"] == 0 else "partial")
+        rows.append(item)
+    expected = sum(row["expectedMinutes"] for row in rows)
+    planned = sum(max(0, row["plannedMinutes"]) for row in rows)
+    return {"contents": rows, "expectedMinutes": expected, "plannedMinutes": planned, "remainingMinutes": expected - planned}
+
+
+def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel"):
+    """Validate an editable APS plan while allowing curriculum gaps."""
+    summary = aps_summary_from_data(planning_data)
+    errors = list(summary["errors"])
+    curriculum = aps_curriculum_summary(planning_data, planning_mode)
+    expected = {item["key"]: item for item in aps_expected_content(planning_mode)}
+    for day in planning_data or []:
+        intervals = []
+        for slot in day.get("slots", []):
+            try:
+                start = datetime.strptime(slot.get("start") or "", "%H:%M")
+                end = datetime.strptime(slot.get("end") or "", "%H:%M")
+                if end <= start:
+                    errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
+                if any(start < old_end and end > old_start for old_start, old_end in intervals):
+                    errors.append(f"Deux cours se chevauchent le {day.get('date')}.")
+                intervals.append((start, end))
+            except (TypeError, ValueError):
+                pass
+            if not slot.get("isEmpty") and aps_content_key_for_slot(slot, planning_mode) not in expected:
+                errors.append(f"Contenu pédagogique inconnu: {slot.get('title') or slot.get('uv') or 'sans libellé'}.")
+    for item in curriculum["contents"]:
+        if item["plannedMinutes"] > item["expectedMinutes"]:
+            errors.append(f"{item['title']} dépasse le volume pédagogique obligatoire ({format_duration_from_minutes(item['expectedMinutes'])}).")
+    return errors, summary, curriculum
 
 def validate_aps_planning_data(planning_data, planning_mode="full_presentiel"):
     summary = aps_summary_from_data(planning_data)
@@ -7939,12 +8018,15 @@ def get_aps_planning_api(sid):
     if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = session_data.get("apsPlanningData") or []
+    planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
     summary = ssiap1_summary_from_data(planning_data) if is_ssiap1_session(session_data) and planning_data else (desp_summary_from_planning(planning_data) if is_desp and planning_data else (aps_summary_from_data(planning_data) if planning_data else None))
+    curriculum = aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None
     return jsonify({
         "ok": True,
         "session": session_data,
         "apsPlanningData": planning_data,
         "summary": summary,
+        "curriculum": curriculum,
         "pdfUrl": url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None,
         "needsRegeneration": bool(session_data.get("planning_pdf") and not planning_data),
     })
@@ -7958,13 +8040,14 @@ def update_aps_planning_api(sid):
     formation = (session_data.get("formation") or "").upper()
     is_desp = formation in {"DESP", "DIRIGEANT"}
     is_ssiap1 = is_ssiap1_session(session_data)
-    if formation != "APS" and not is_desp and not is_ssiap1:
+    is_afc = normalize_training_code(session_data) == "AFC_APS_SSIAP"
+    if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     if not session_data.get("apsPlanningData") and not session_data.get("planning_pdf"):
         return jsonify({"ok": False, "error": "Aucun planning APS n'existe encore."}), 400
     payload = request.get_json(silent=True) or {}
     planning_data = payload.get("planningData")
-    if not isinstance(planning_data, list) or not planning_data:
+    if not isinstance(planning_data, list):
         return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
     planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
@@ -7980,7 +8063,9 @@ def update_aps_planning_api(sid):
         summary = desp_summary_from_planning(planning_data)
         errors = list(summary.get("errors") or [])
     else:
-        errors, summary = validate_aps_planning_data(planning_data, planning_mode)
+        # A rescheduled plan can be intentionally incomplete.  Completion is a
+        # reporting state, not a prerequisite for saving a deletion/insertion.
+        errors, summary, curriculum = validate_aps_rescheduling_data(planning_data, planning_mode)
     if errors:
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400
     session_data["apsPlanningData"] = planning_data
@@ -8006,7 +8091,7 @@ def update_aps_planning_api(sid):
         session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF régénéré")
         pdf_url = url_for("view_planning_pdf", sid=sid)
     save_sessions(data)
-    return jsonify({"ok": True, "pdfUrl": pdf_url, "summary": session_data.get("apsPlanningSummary"), "modifiedAt": session_data.get("planning_modified_at")})
+    return jsonify({"ok": True, "pdfUrl": pdf_url, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "modifiedAt": session_data.get("planning_modified_at")})
 
 
 @app.delete("/api/sessions/<sid>/aps-planning")

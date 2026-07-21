@@ -43,7 +43,8 @@
     .card::before { content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 2px; background: linear-gradient(90deg, transparent, rgba(232,174,47,.76), transparent); opacity: 0; transition: opacity .2s ease; }
     .card:hover { transform: translateY(-5px); border-color: rgba(232,174,47,.5); box-shadow: 0 18px 35px rgba(15, 23, 42, .11); }
     .card:hover::before { opacity: 1; }
-    .app-icon { display: grid; width: 46px; height: 46px; place-items: center; padding: 9px; border: 1px solid #e8edf4; border-radius: 14px; background: #f8fafc; box-shadow: 0 3px 8px rgba(15, 23, 42, .05); object-fit: contain; }
+    .app-icon { display: grid; width: 68px; height: 68px; place-items: center; box-sizing: border-box; margin: 0 auto 2px; padding: 10px; border: 1px solid #e8edf4; border-radius: 18px; background: #f8fafc; box-shadow: 0 4px 10px rgba(15, 23, 42, .06); object-fit: contain; }
+    .app-icon--emoji { padding: 0; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 38px; line-height: 1; }
     .title { color: var(--dashboard-ink); font-size: 15px; font-weight: 750; line-height: 1.25; }
     .desc { min-height: 40px; color: var(--dashboard-muted); font-size: 12px; line-height: 1.45; opacity: 1; }
     .notif { width: 100%; margin-top: auto; padding: 8px 10px; border: 0; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.25; text-align: left; }
@@ -94,42 +95,42 @@
         </div>
 <div class="grid">
   <a class="card prospecting-card" href="{{ url_for('prospecting.admin_prospects') }}">
-    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=plateformegestion.onrender.com&sz=128" alt="" aria-hidden="true">
+    <span class="app-icon app-icon--emoji" aria-hidden="true">🔎</span>
     <div class="title">Prospection sécurité</div>
     <div class="desc">Détecter et suivre les nouveaux centres de formation sécurité</div>
     <div class="notif">Scanner les prospects</div>
   </a>
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin" target="_blank" rel="noopener">
-    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=assistance-alw9.onrender.com&sz=128" alt="" aria-hidden="true">
+    <span class="app-icon app-icon--emoji" aria-hidden="true">🛟</span>
     <div class="title">Assistance</div>
     <div class="desc">Gestion des tickets</div>
     <div id="notif-assistance" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
-    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=cnapsv3.onrender.com&sz=128" alt="" aria-hidden="true">
+    <span class="app-icon app-icon--emoji" aria-hidden="true">📥</span>
     <div class="title">Dépôt dossiers CNAPS</div>
     <div class="desc">Nouveau dossier</div>
     <div id="notif-cnaps" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
-    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=cnapsv3.onrender.com&sz=128" alt="" aria-hidden="true">
+    <span class="app-icon app-icon--emoji" aria-hidden="true">🔍</span>
     <div class="title">Suivi des demandes CNAPS</div>
     <div class="desc">Demande à faire • Documents à contrôler • Compte à créer</div>
     <div id="notif-suivi" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" id="card-stagiaires" href="https://gestionstagiaires-r5no.onrender.com/admin/sessions" target="_blank" rel="noopener">
-    <img class="app-icon" src="https://www.google.com/s2/favicons?domain=gestionstagiaires-r5no.onrender.com&sz=128" alt="" aria-hidden="true">
+    <span class="app-icon app-icon--emoji" aria-hidden="true">🎓</span>
     <div class="title">Gestion des dossiers stagiaires</div>
     <div class="desc">Inscriptions & pièces justificatives </div>
     <div id="notif-stagiaires" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://inscriptionsbts.onrender.com/admin" target="_blank" rel="noopener">
-  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=inscriptionsbts.onrender.com&sz=128" alt="" aria-hidden="true">
+  <span class="app-icon app-icon--emoji" aria-hidden="true">📝</span>
   <div class="title">Gestion des inscriptions BTS</div>
   <div class="desc">Pré-inscriptions à traiter</div>
   <div id="notif-bts" class="notif empty">Chargement...</div>
@@ -143,14 +144,14 @@
   </a>
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin-devis" target="_blank" rel="noopener">
-  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=assistance-alw9.onrender.com&sz=128" alt="" aria-hidden="true">
+  <span class="app-icon app-icon--emoji" aria-hidden="true">📋</span>
   <div class="title">Demandes de devis</div>
   <div class="desc">Devis détaillés & financement</div>
   <div id="notif-devis" class="notif empty">Chargement...</div>
 </a>
 
   <a class="card" href="https://factures-jx8r.onrender.com/admin" target="_blank" rel="noopener">
-  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=factures-jx8r.onrender.com&sz=128" alt="" aria-hidden="true">
+  <span class="app-icon app-icon--emoji" aria-hidden="true">🧾</span>
   <div class="title">Gestion des factures</div>
   <div class="desc">Factures déposées & suivi paiement</div>
   <div id="notif-factures" class="notif empty">Chargement...</div>
@@ -194,7 +195,7 @@
 
 
   <a class="card" href="https://assistance-alw9.onrender.com/admin_hebergement" target="_blank" rel="noopener">
-  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=assistance-alw9.onrender.com&sz=128" alt="" aria-hidden="true">
+  <span class="app-icon app-icon--emoji" aria-hidden="true">🛏️</span>
   <div class="title">Gestion hébergement</div>
   <div class="desc">Réservations & paiements</div>
   <div id="notif-hebergement" class="notif empty">Chargement...</div>
@@ -209,7 +210,7 @@
 </a>
 
   <a class="card" href="{{ url_for('price_adaptator') }}" target="_blank" rel="noopener">
-  <img class="app-icon" src="https://www.google.com/s2/favicons?domain=plateformegestion.onrender.com&sz=128" alt="" aria-hidden="true">
+  <span class="app-icon app-icon--emoji" aria-hidden="true">💶</span>
   <div class="title">Price adaptator</div>
   <div class="desc">Prospects & tarifs dernière minute</div>
   <div class="notif empty">Ouvrir</div>

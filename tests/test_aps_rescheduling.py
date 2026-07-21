@@ -56,11 +56,27 @@ def test_elearning_curriculum_keeps_remaining_courses_separate_from_presentiel()
     assert next(row for row in curriculum["contents"] if row["key"] == presentiel["key"])["remainingMinutes"] == presentiel["expectedMinutes"]
 
 
+def test_elearning_slot_can_be_saved_with_an_empty_slot_of_another_modality():
+    elearning = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "elearning")
+    plan = [{"date": "2026-09-01", "slots": [
+        {"start": "08:30", "end": "09:30", "duration": 1, "durationMinutes": 60,
+         "uv": elearning["uv"], "title": elearning["title"], "part": elearning["part"],
+         "modality": "elearning", "pedagogicalKey": elearning["key"]},
+        slot("", "", "13:30", "16:30", minutes=180, isEmpty=True),
+    ]}]
+
+    errors, _, _ = app.validate_aps_rescheduling_data(plan, "elearning_presentiel")
+
+    assert errors == []
+
+
 def test_editor_allows_selecting_slot_modality_and_filters_courses_by_it():
     editor = Path("templates/aps_planning_editor.html").read_text(encoding="utf-8")
     assert 'onchange="setEmptySlotModality' in editor
     assert 'value="elearning"' in editor
     assert "x.modality===s.modality" in editor
+    assert "slots.splice(si,1,inserted" in editor
+    assert "isEmpty:true" in editor
 
 
 def test_editor_prioritizes_remaining_aps_hours_and_incomplete_contents():

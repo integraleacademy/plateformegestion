@@ -39,7 +39,7 @@
     .dashboard-intro h2 { margin: 0; color: var(--dashboard-ink); font-size: clamp(25px, 3vw, 35px); line-height: 1.1; letter-spacing: -.045em; }
     .dashboard-intro p { max-width: 490px; margin: 0; color: var(--dashboard-muted); font-size: 14px; line-height: 1.55; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); gap: 16px; align-items: stretch; }
-    .card { position: relative; min-height: 212px; padding: 18px; overflow: hidden; border: 1px solid #e6eaf0; border-radius: 20px; background: var(--dashboard-surface); box-shadow: 0 5px 15px rgba(15, 23, 42, .045); text-align: left; align-items: flex-start; gap: 11px; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .card { position: relative; min-height: 212px; padding: 18px; overflow: hidden; border: 1px solid #e6eaf0; border-radius: 20px; background: var(--dashboard-surface); box-shadow: 0 5px 15px rgba(15, 23, 42, .045); text-align: center; align-items: center; gap: 11px; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
     .card::before { content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 2px; background: linear-gradient(90deg, transparent, rgba(232,174,47,.76), transparent); opacity: 0; transition: opacity .2s ease; }
     .card:hover { transform: translateY(-5px); border-color: rgba(232,174,47,.5); box-shadow: 0 18px 35px rgba(15, 23, 42, .11); }
     .card:hover::before { opacity: 1; }
@@ -47,7 +47,7 @@
     .app-icon--emoji { padding: 0; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 38px; line-height: 1; }
     .title { color: var(--dashboard-ink); font-size: 15px; font-weight: 750; line-height: 1.25; }
     .desc { min-height: 40px; color: var(--dashboard-muted); font-size: 12px; line-height: 1.45; opacity: 1; }
-    .notif { width: 100%; margin-top: auto; padding: 8px 10px; border: 0; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.25; text-align: left; }
+    .notif { width: 100%; margin-top: auto; padding: 8px 10px; border: 0; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.25; text-align: center; }
     .notif::before { display: inline-block; width: 7px; height: 7px; margin: 0 7px 1px 1px; border-radius: 50%; background: currentColor; content: ''; }
     .notif.ok { background: #eaf8ef; color: #16834a; }
     .notif.wait { background: #fff6df; color: #aa6703; animation: none; }
@@ -59,9 +59,9 @@
     .prospecting-card::after { content: 'NOUVEAU'; position: absolute; top: 16px; right: 16px; padding: 4px 7px; border-radius: 999px; background: #1e293b; color: #f7c94c; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
     .prospecting-card .notif { background: #1e293b; color: #f8cb54; }
     .recent-acceptes.card { grid-column: span 2; min-height: 212px; padding: 20px 22px; background: linear-gradient(145deg, #ffffff, #f4fbf6); }
-    .recent-acceptes h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #167343; font-size: 14px; }
+    .recent-acceptes h3 { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 10px; color: #167343; font-size: 14px; }
     .recent-acceptes h3::before { width: 10px; height: 10px; border-radius: 50%; background: #22a560; box-shadow: 0 0 0 5px rgba(34,165,96,.12); content: ''; }
-    .recent-acceptes ul { margin: 0; padding: 0; list-style: none; line-height: 1.65; color: #334155; font-size: 12px; }
+    .recent-acceptes ul { margin: 0; padding: 0; list-style: none; line-height: 1.65; color: #334155; font-size: 12px; text-align: center; }
     .recent-acceptes li::before { color: #20a35c; content: '• '; font-weight: 900; }
     .footer { padding: 22px 24px 32px; color: #8390a5; font-size: 12px; }
     @media (max-width: 720px) { .dashboard-topbar-inner, .dashboard-shell { width: min(100% - 28px, 1560px); } .dashboard-topbar-inner { min-height: 76px; } .logo { width: 43px; height: 43px; } .dashboard-intro { display: block; } .dashboard-intro p { margin-top: 12px; } .grid { grid-template-columns: 1fr; } .recent-acceptes.card { grid-column: auto; } }
@@ -116,21 +116,21 @@
   </a>
 
   <a class="card" href="https://cnapsv3.onrender.com/a-traiter" target="_blank" rel="noopener">
-    <span class="app-icon app-icon--emoji" aria-hidden="true">🔍</span>
+    <img class="app-icon" src="{{ url_for('static', filename='img/faviconcnaps.png') }}" alt="" aria-hidden="true">
     <div class="title">Suivi des demandes CNAPS</div>
     <div class="desc">Demande à faire • Documents à contrôler • Compte à créer</div>
     <div id="notif-suivi" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" id="card-stagiaires" href="https://gestionstagiaires-r5no.onrender.com/admin/sessions" target="_blank" rel="noopener">
-    <span class="app-icon app-icon--emoji" aria-hidden="true">🎓</span>
+    <img class="app-icon" src="{{ url_for('static', filename='img/icone.png') }}" alt="" aria-hidden="true">
     <div class="title">Gestion des dossiers stagiaires</div>
     <div class="desc">Inscriptions & pièces justificatives </div>
     <div id="notif-stagiaires" class="notif empty">Chargement...</div>
   </a>
 
   <a class="card" href="https://inscriptionsbts.onrender.com/admin" target="_blank" rel="noopener">
-  <span class="app-icon app-icon--emoji" aria-hidden="true">📝</span>
+  <img class="app-icon" src="{{ url_for('static', filename='img/faviconbts.png') }}" alt="" aria-hidden="true">
   <div class="title">Gestion des inscriptions BTS</div>
   <div class="desc">Pré-inscriptions à traiter</div>
   <div id="notif-bts" class="notif empty">Chargement...</div>
@@ -187,7 +187,7 @@
 </a>
 
 <a class="card" href="{{ url_for('planning_home') }}" rel="noopener">
-  <img class="app-icon" src="{{ url_for('static', filename='img/favicongsessions.png') }}" alt="" aria-hidden="true">
+  <span class="app-icon app-icon--emoji" aria-hidden="true">🏫</span>
   <div class="title">Gestion des salles et planification</div>
   <div class="desc">Formations, affectation auto des salles, conflits</div>
   <div class="notif empty">Ouvrir</div>

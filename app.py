@@ -3436,6 +3436,9 @@ def aps_detect_trainers(planning_data):
     })
 
 
+TRAINER_CONTRACT_INTERVENTION_LOCATION = "Intégrale Sécurité Formations 54 chemin du Carreou 83480 PUGET SUR ARGENS"
+
+
 def aps_trainer_contract_location_label(interventions, default_location="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS"):
     locations = []
     seen = set()
@@ -3449,6 +3452,14 @@ def aps_trainer_contract_location_label(interventions, default_location="Intégr
         seen.add(normalized)
         locations.append(location)
     return " / ".join(locations) if locations else default_location
+
+
+def trainer_contract_intervention_location(session_data, interventions):
+    """Return the contractual intervention location for the supported trainings."""
+    formation = str((session_data or {}).get("formation") or "").strip().upper()
+    if formation in {"APS", "SSIAP", "SSIAP1", "A3P"}:
+        return TRAINER_CONTRACT_INTERVENTION_LOCATION
+    return aps_trainer_contract_location_label(interventions)
 
 
 def aps_trainer_interventions(planning_data, trainer_name):
@@ -3527,7 +3538,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     modality_label = "Présentiel"
     interventions = contract.get("interventions") or []
     modules = sorted({(row.get("module") or "Module non renseigné").strip() for row in interventions if (row.get("module") or "").strip()})
-    room_label = aps_trainer_contract_location_label(interventions)
+    room_label = trainer_contract_intervention_location(session_data, interventions)
     total_ht = float(contract.get("totalHT") or 0)
     tva_label = f"TVA {float(contract.get('vatRate') or 20):g}%" if contract.get("vatEnabled") else (contract.get("vatMention") or "TVA non applicable / franchise de TVA si applicable")
 
@@ -3707,7 +3718,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         except Exception:
             hour = 12
         half_day = "Matin" if hour < 12 else "Après-midi"
-        row_room_label = aps_trainer_contract_location_label([r], room_label)
+        row_room_label = trainer_contract_intervention_location(session_data, [r])
         planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(row_room_label, "Cell"), p("", "Cell")])
     table = Table(planning_rows, colWidths=[24*mm, 22*mm, 22*mm, 15*mm, 88*mm, 55*mm, 33*mm], repeatRows=1, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#3b3026")), ("GRID", (0,0), (-1,-1), 0.22, colors.HexColor("#cbd5e1")), ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#fafafa")]), ("LEFTPADDING", (0,0), (-1,-1), 2.5), ("RIGHTPADDING", (0,0), (-1,-1), 2.5), ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3)]))

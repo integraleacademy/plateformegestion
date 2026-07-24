@@ -4968,7 +4968,9 @@ def ensure_jury_defaults(session):
     session.setdefault("jurys", [])
     session.setdefault("jury_notification_status", "to_notify")
     for jury in session["jurys"]:
-        jury.setdefault("id", str(uuid.uuid4())[:8])
+        # URL path parameters are strings.  Normalize legacy numeric ids here so
+        # that a jury rendered in the page can also be found by POST handlers.
+        jury["id"] = str(jury.get("id") or str(uuid.uuid4())[:8])
         jury.setdefault("status", "pending")
         jury.setdefault("token", str(uuid.uuid4()))
         jury.setdefault("notified_at", None)
@@ -4977,7 +4979,7 @@ def ensure_jury_defaults(session):
 def ensure_global_jury_defaults(data):
     data.setdefault("jurys", [])
     for jury in data["jurys"]:
-        jury.setdefault("id", str(uuid.uuid4())[:8])
+        jury["id"] = str(jury.get("id") or str(uuid.uuid4())[:8])
         jury.setdefault("nom", "")
         jury.setdefault("prenom", "")
         jury.setdefault("email", "")

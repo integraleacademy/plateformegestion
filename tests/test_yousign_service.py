@@ -141,7 +141,7 @@ def test_aps_trainer_contract_pdf_omits_yousign_anchor_in_trainer_signature(tmp_
     assert "s2|signature" not in text
 
 
-def test_aps_trainer_contract_pdf_uses_planning_room_address(tmp_path):
+def test_aps_trainer_contract_pdf_uses_the_required_intervention_address(tmp_path):
     pytest.importorskip("reportlab")
     pypdf = pytest.importorskip("pypdf")
     import app
@@ -183,8 +183,21 @@ def test_aps_trainer_contract_pdf_uses_planning_room_address(tmp_path):
     app.generate_aps_trainer_contract_pdf(session_data, contract, str(output))
 
     text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
-    assert "12 rue de Paris" in text
-    assert "75001 PARIS" in text
+    assert app.TRAINER_CONTRACT_INTERVENTION_LOCATION in text
+    assert "12 rue de Paris" not in text
+    assert "75001 PARIS" not in text
+
+
+@pytest.mark.parametrize("formation", ["APS", "SSIAP", "SSIAP1", "A3P"])
+def test_supported_trainer_contracts_use_the_required_intervention_address(formation):
+    import app
+
+    location = app.trainer_contract_intervention_location(
+        {"formation": formation},
+        [{"room": "Adresse de planning à ne pas utiliser"}],
+    )
+
+    assert location == app.TRAINER_CONTRACT_INTERVENTION_LOCATION
 
 
 def test_aps_trainer_contract_pdf_uses_session_start_for_contract_date_and_omits_generation_and_elearning_terms(tmp_path):

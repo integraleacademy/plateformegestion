@@ -187,6 +187,50 @@ def test_aps_trainer_contract_pdf_uses_planning_room_address(tmp_path):
     assert "75001 PARIS" in text
 
 
+def test_aps_trainer_contract_pdf_uses_session_start_for_contract_date_and_omits_generation_and_elearning_terms(tmp_path):
+    pytest.importorskip("reportlab")
+    pypdf = pytest.importorskip("pypdf")
+    import app
+
+    output = tmp_path / "contrat_aps_contractual_date.pdf"
+    session_data = {
+        "formation": "APS",
+        "display_name": "APS juillet 2026",
+        "date_debut": "2026-07-08",
+        "date_fin": "2026-07-16",
+        "apsPlanningMode": "elearning_presentiel",
+    }
+    contract = {
+        "trainerName": "Jean Dupont", "calculatedHours": 7, "calculatedDays": 1,
+        "billedDays": 1, "dailyRate": 300, "totalHT": 300, "totalTTC": 300,
+        "interventions": [{"date": "2026-07-10", "dateLabel": "10/07/2026", "start": "09:00", "end": "17:00", "hours": 7, "module": "UV1", "modality": "Présentiel"}],
+    }
+
+    app.generate_aps_trainer_contract_pdf(session_data, contract, str(output))
+
+    text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
+    assert "Fait à Puget-sur-Argens, le 01/07/2026." in text
+    assert "APS — APS juillet 2026" in text
+    assert "Document contractuel établi à partir des informations de la session et du planning validé." in text
+    assert "8. Annulation, report et modification des interventions" in text
+    assert text.count("quinze jours calendaires") >= 3
+    assert "accord écrit" in text
+    for forbidden in ("généré le", "e-learning", "elearning", "à distance", "connexion"):
+        assert forbidden not in text.lower()
+
+
+def test_aps_trainer_contract_pdf_requires_a_valid_official_session_start_date(tmp_path):
+    pytest.importorskip("reportlab")
+    import app
+
+    with pytest.raises(ValueError, match="date officielle de début de session est absente ou invalide"):
+        app.generate_aps_trainer_contract_pdf(
+            {"formation": "APS", "date_debut": "invalide"},
+            {"trainerName": "Jean Dupont"},
+            str(tmp_path / "contrat_invalide.pdf"),
+        )
+
+
 def test_aps_trainer_yousign_send_creates_manual_signature_field_before_activation():
     import inspect
     import app

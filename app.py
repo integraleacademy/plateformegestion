@@ -3513,20 +3513,21 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     width, height = A4
     landscape_width, landscape_height = landscape(A4)
     logo_path = aps_pdf_logo_path()
-    generated_dt = datetime.now()
-    generated = generated_dt.strftime("%d/%m/%Y")
-    generated_full = generated_dt.strftime("%d/%m/%Y à %H:%M")
+    # La date du contrat est contractuellement fixée à J-7 du début officiel
+    # de session, indépendamment de la date de création ou de régénération PDF.
+    session_start = parse_date(session_data.get("date_debut"))
+    if not session_start:
+        raise ValueError("Impossible de générer le contrat : la date officielle de début de session est absente ou invalide.")
+    contract_date = (session_start - timedelta(days=7)).strftime("%d/%m/%Y")
     formation_name = session_data.get("formation") or "APS"
     session_name = session_data.get("display_name") or session_data.get("name") or formation_name
     start_date = format_date(session_data.get("date_debut"))
     end_date = format_date(session_data.get("date_fin"))
     exam_date = format_date(session_data.get("date_exam"))
-    is_mixed = session_data.get("apsPlanningMode") == "elearning_presentiel"
-    modality_label = "Mixte : e-learning et présentiel" if is_mixed else "Présentiel"
+    modality_label = "Présentiel"
     interventions = contract.get("interventions") or []
     modules = sorted({(row.get("module") or "Module non renseigné").strip() for row in interventions if (row.get("module") or "").strip()})
     room_label = aps_trainer_contract_location_label(interventions)
-    has_elearning = is_mixed or any((row.get("modality") or "").lower().find("learning") >= 0 for row in interventions)
     total_ht = float(contract.get("totalHT") or 0)
     tva_label = f"TVA {float(contract.get('vatRate') or 20):g}%" if contract.get("vatEnabled") else (contract.get("vatMention") or "TVA non applicable / franchise de TVA si applicable")
 
@@ -3552,7 +3553,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         canvas.setFillColor(colors.HexColor("#111827")); canvas.setFont("Helvetica-Bold", 9.5)
         canvas.drawString(doc.leftMargin + 29 * mm, page_height - 10 * mm, "CONTRAT D’INTERVENTION FORMATEUR")
         canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 7.2)
-        canvas.drawString(doc.leftMargin + 29 * mm, page_height - 15 * mm, f"{formation_name} — {session_name} — généré le {generated_full}")
+        canvas.drawString(doc.leftMargin + 29 * mm, page_height - 15 * mm, f"{formation_name} — {session_name}")
         canvas.setStrokeColor(colors.HexColor("#d1d5db")); canvas.line(doc.leftMargin, page_height - 20 * mm, page_width - doc.rightMargin, page_height - 20 * mm)
         canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 8)
         canvas.drawCentredString(page_width / 2, 8 * mm, f"Page {document.page}")
@@ -3641,7 +3642,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     ]
     cover_grid = Table(cover_cards, colWidths=[(width - 40 * mm) / 2, (width - 40 * mm) / 2], rowHeights=[46 * mm, 46 * mm, 46 * mm], hAlign="CENTER")
     cover_grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
-    story += [cover_grid, Spacer(1, 5), p("Document contractuel généré automatiquement à partir des informations de session et du planning validé.", "Subtle"), NextPageTemplate("contrat"), PageBreak()]
+    story += [cover_grid, Spacer(1, 5), p("Document contractuel établi à partir des informations de la session et du planning validé.", "Subtle"), NextPageTemplate("contrat"), PageBreak()]
 
     story += [section("1. Nature juridique du contrat et indépendance du prestataire"),
         p("Le présent contrat est un contrat de prestation de services et, le cas échéant, de sous-traitance pédagogique. Le formateur intervient exclusivement en qualité de prestataire indépendant : aucune clause, consigne opérationnelle ou modalité de suivi ne peut être interprétée comme créant un lien de subordination juridique avec Intégrale Academy."),
@@ -3663,15 +3664,18 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     story += [section("6. Traçabilité pédagogique et qualité"),
         p("Les émargements, plannings journaliers, évaluations, observations, justificatifs et preuves de suivi constituent des éléments essentiels de preuve de la réalisation de la formation. Ils conditionnent la conformité Qualiopi, la relation avec les financeurs, la conformité réglementaire et la capacité d’Intégrale Academy à justifier la réalité de l’action."),
         p("Tous les documents doivent être sincères, complets, lisibles, cohérents avec les horaires réellement effectués et remis dans les délais fixés. Le planning journalier doit être signé par demi-journée. Toute anomalie, omission, rature non justifiée ou incohérence doit être signalée et corrigée sans délai."),
-        bullet(["l’absence, l’incomplétude ou l’incohérence d’un document peut entraîner la suspension de la validation des heures et du paiement correspondant jusqu’à régularisation ;", "en modalité e-learning ou mixte, le formateur contribue à la conservation des preuves de connexions, accompagnements, évaluations, échanges pédagogiques, relances et suivis individualisés ;", "le formateur coopère à la démarche d’amélioration continue et fournit les éléments nécessaires aux audits, contrôles qualité et demandes des financeurs."])]
-    if has_elearning:
-        story += [section("Note — Modalités e-learning"), p("Lorsque des séquences e-learning sont associées à la session, le formateur respecte les modalités de suivi prévues par Intégrale Academy et contribue à documenter l’accompagnement pédagogique réalisé à distance."), bullet(["conserver ou transmettre les preuves de suivi, de connexion, d’évaluation et d’échanges pédagogiques ;", "alerter le centre en cas d’inactivité, d’absence de progression ou de difficulté technique d’un stagiaire ;", "ne valider aucun suivi qui ne serait pas réellement effectué ou traçable."])]
+        bullet(["l’absence, l’incomplétude ou l’incohérence d’un document peut entraîner la suspension de la validation des heures et du paiement correspondant jusqu’à régularisation ;", "le formateur coopère à la démarche d’amélioration continue et fournit les éléments nécessaires aux audits, contrôles qualité et demandes des financeurs."])]
     story += [section("7. Rémunération et facturation"), kv_table([("Nombre total d’heures formation", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Heures examen séparées", f"{float(contract.get('examTrainerHours') or 0):g} h" if contract.get("trainerAttendsExam") else "Non incluses"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Nombre de jours calculés", f"{float(contract.get('calculatedDays') or 0):g}"), ("Nombre de jours facturés retenus", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52 * mm, 124 * mm]),
         p("Seules les heures effectivement réalisées, justifiées par les documents attendus et validées par Intégrale Academy ouvrent droit à rémunération. La facture du formateur doit être conforme aux informations contractuelles, aux règles fiscales applicables et aux heures validées."),
         bullet(["aucun paiement automatique n’est dû en cas d’absence, de retard, d’annulation, de prestation non réalisée ou de document manquant ;", "en cas de réalisation partielle, Intégrale Academy peut proratiser le montant dû selon les heures ou demi-journées réellement effectuées et validées ;", "les frais de déplacement, repas, hébergement, stationnement ou toute indemnité complémentaire ne sont pas inclus sauf accord écrit préalable ;", "le formateur reste seul responsable de ses charges, cotisations, impôts, déclarations et obligations comptables."])]
-    story += [section("8. Annulation, report, absence"),
-        p("Le formateur informe immédiatement Intégrale Academy par écrit de toute difficulté susceptible d’affecter sa présence, sa ponctualité ou la continuité pédagogique. Il doit respecter un délai de prévenance raisonnable et proposer, lorsque cela est possible, les éléments permettant au centre d’organiser une solution compatible avec les exigences réglementaires et pédagogiques."),
-        bullet(["une absence injustifiée, un retard significatif ou une annulation tardive peut constituer un manquement grave si la session est désorganisée ;", "Intégrale Academy peut reporter, modifier ou annuler une intervention pour des raisons pédagogiques, administratives, réglementaires, commerciales, organisationnelles ou liées au nombre de stagiaires ;", "les heures non réalisées ne sont pas dues et aucune indemnité n’est acquise sans validation écrite préalable ;", "en cas de désorganisation de la session ou de risque de non-conformité, le contrat peut être résilié dans les conditions prévues ci-après."])]
+    story += [section("8. Annulation, report et modification des interventions"),
+        p("Le formateur informe Intégrale Academy par écrit de toute difficulté susceptible d’affecter sa présence, sa ponctualité ou la continuité pédagogique. Sauf cas de force majeure ou événement imprévisible dûment justifié, toute demande d’annulation, de report ou de modification émanant du formateur doit être adressée à Intégrale Academy au moins quinze jours calendaires avant la date de l’intervention concernée."),
+        p("Intégrale Academy s’engage également à informer le formateur par écrit de toute annulation, de tout report ou de toute modification d’une intervention au moins quinze jours calendaires avant la date concernée."),
+        p("Toute modification portant notamment sur les dates, les horaires, le lieu d’intervention, le volume horaire ou les modules confiés et notifiée moins de quinze jours calendaires avant l’intervention doit recueillir l’accord écrit de l’autre partie."),
+        p("En l’absence d’accord écrit, le refus d’une modification tardive par le formateur ne peut être considéré comme une faute, une absence injustifiée ou un manquement contractuel."),
+        p("Le délai de prévenance de quinze jours calendaires peut toutefois être réduit en cas de force majeure, de décision d’une autorité administrative, de modification réglementaire urgente, d’indisponibilité imprévisible des locaux, de problème de sécurité ou de tout événement extérieur, imprévisible et indépendant de la volonté de la partie concernée. Dans ce cas, l’autre partie doit être informée par écrit dans les meilleurs délais et les parties recherchent de bonne foi une solution de remplacement ou une nouvelle date d’intervention."),
+        p("Une absence injustifiée, un retard significatif ou une annulation tardive imputable au formateur peut constituer un manquement contractuel lorsqu’elle entraîne une désorganisation de la session ou un risque de non-conformité réglementaire."),
+        p("Seules les interventions effectivement réalisées et validées ouvrent droit à facturation, sauf engagement écrit contraire conclu entre les parties.")]
     social = ["garantit être régulièrement immatriculé et autorisé à exercer son activité ;", "fournit sur demande son SIRET, assurance RC Pro, attestation de vigilance le cas échéant, NDA si applicable, justificatifs de compétences, diplômes, habilitations et tout document administratif utile ;", "informe immédiatement Intégrale Academy de tout changement de statut, radiation, suspension, interdiction d’exercer, défaut d’assurance ou perte d’habilitation ;", "garantit Intégrale Academy contre tout recours, redressement, sanction ou réclamation lié au travail dissimulé, à un défaut de déclaration, à un défaut d’assurance ou à un manquement réglementaire du formateur."]
     if total_ht >= 5000:
         social.append("Compte tenu du montant de la prestation, le formateur devra fournir une attestation de vigilance URSSAF de moins de six mois.")
@@ -3703,19 +3707,17 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         except Exception:
             hour = 12
         half_day = "Matin" if hour < 12 else "Après-midi"
-        modality = r.get("modality") or "Présentiel"
-        trace = "Traçabilité e-learning" if "learning" in modality.lower() else ""
         row_room_label = aps_trainer_contract_location_label([r], room_label)
-        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(row_room_label, "Cell"), p(trace, "Cell")])
+        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(row_room_label, "Cell"), p("", "Cell")])
     table = Table(planning_rows, colWidths=[24*mm, 22*mm, 22*mm, 15*mm, 88*mm, 55*mm, 33*mm], repeatRows=1, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#3b3026")), ("GRID", (0,0), (-1,-1), 0.22, colors.HexColor("#cbd5e1")), ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#fafafa")]), ("LEFTPADDING", (0,0), (-1,-1), 2.5), ("RIGHTPADDING", (0,0), (-1,-1), 2.5), ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3)]))
     story += [table, NextPageTemplate("contrat"), PageBreak(), section("Annexe 2 : Récapitulatif financier"), kv_table([("Total heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} — {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52*mm, 124*mm])]
     story += [KeepTogether([section("Annexe 3 : Engagement qualité et traçabilité pédagogique"),
         p("Le formateur confirme que la qualité de l’animation et la traçabilité pédagogique constituent des obligations essentielles du contrat. Il s’engage à respecter le référentiel applicable, le programme validé, les objectifs pédagogiques, les modalités d’évaluation et les procédures qualité d’Intégrale Academy."),
-        bullet(["faire compléter et contrôler les émargements à chaque demi-journée ;", "signer le planning journalier par demi-journée et signaler immédiatement toute incohérence ;", "remonter sans délai les absences, retards, incidents, difficultés stagiaires, problèmes matériels ou situations de sécurité ;", "remettre en fin de journée, ou dans le délai fixé par le centre, les feuilles d’émargement, observations, évaluations, justificatifs et documents demandés ;", "conserver ou transmettre les preuves e-learning lorsque la session comporte un suivi à distance : connexions, accompagnements, évaluations et échanges pédagogiques ;", "participer à la démarche Qualiopi, aux contrôles financeurs, audits internes, actions correctives et demandes de preuves ;", "garantir une animation professionnelle, adaptée au public, respectueuse des stagiaires et conforme à l’image d’Intégrale Academy ;", "préserver la confidentialité des données stagiaires, supports, documents internes et informations commerciales."])
+        bullet(["faire compléter et contrôler les émargements à chaque demi-journée ;", "signer le planning journalier par demi-journée et signaler immédiatement toute incohérence ;", "remonter sans délai les absences, retards, incidents, difficultés stagiaires, problèmes matériels ou situations de sécurité ;", "remettre en fin de journée, ou dans le délai fixé par le centre, les feuilles d’émargement, observations, évaluations, justificatifs et documents demandés ;", "participer à la démarche Qualiopi, aux contrôles financeurs, audits internes, actions correctives et demandes de preuves ;", "garantir une animation professionnelle, adaptée au public, respectueuse des stagiaires et conforme à l’image d’Intégrale Academy ;", "préserver la confidentialité des données stagiaires, supports, documents internes et informations commerciales."])
     ])]
 
-    story += [PageBreak(), p(f"Fait à Puget-sur-Argens, le {generated}.", "Body"), p("Chaque partie reconnaît avoir pris connaissance du présent contrat, de ses annexes éventuelles et en accepter l’ensemble des conditions.", "Body"), Spacer(1, 5)]
+    story += [PageBreak(), p(f"Fait à Puget-sur-Argens, le {contract_date}.", "Body"), p("Chaque partie reconnaît avoir pris connaissance du présent contrat, de ses annexes éventuelles et en accepter l’ensemble des conditions.", "Body"), Spacer(1, 5)]
     signature_image = find_center_image("signature", "sign")
     stamp_image = find_center_image("tampon", "cachet", "stamp")
 
@@ -7416,6 +7418,8 @@ def generate_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
+    if not parse_date(session_data.get("date_debut")):
+        return jsonify({"ok": False, "error": "Impossible de générer le contrat : la date officielle de début de session est absente ou invalide."}), 400
     planning_data = session_data.get("apsPlanningData") or []
     if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
     payload = request.get_json(silent=True) or {}; trainers = payload.get("trainers") or []

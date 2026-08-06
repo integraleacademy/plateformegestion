@@ -11231,6 +11231,31 @@ def social_visuals_studio():
         config=config,
     )
 
+
+@app.get("/admin/studio-visuels/prototypes")
+def social_visuals_prototypes():
+    """Galerie de validation isolée du Studio et de ses modèles actifs."""
+    # Les PNG sont construits localement afin de ne pas faire transiter de
+    # fichiers binaires par la revue de code. L'import est idempotent pour la
+    # durée de vie du processus et les fichiers restent servis normalement.
+    from services import studio_prototype_assets  # noqa: F401
+
+    prototypes = [
+        ("01", "Photo plein écran", "01-photo-plein-ecran.png", "Portrait immersif, voile sombre et lecture verticale."),
+        ("02", "Éditorial photo à gauche", "02-editorial-photo-gauche.png", "Image latérale et informations structurées à droite."),
+        ("03", "Typographique", "03-typographique.png", "Affiche claire sans photo, portée par une typographie forte."),
+        ("04", "Diagonale", "04-diagonale.png", "Découpe oblique verte pour une composition dynamique."),
+        ("05", "Cartes d’informations", "05-cartes-informations.png", "Données distribuées en cartes lisibles et modulaires."),
+        ("06", "Sombre premium", "06-sombre-premium.png", "Univers profond, détails dorés et hiérarchie sobre."),
+        ("07", "Grand chiffre", "07-grand-chiffre.png", "Composition lumineuse dominée par la durée de 328 heures."),
+        ("08", "Photo centrale", "08-photo-centrale.png", "Visuel central encadré par des bandeaux d’informations."),
+    ]
+    return render_template(
+        "admin/studio_visuals/prototypes.html",
+        title="Prototypes A3P — Studio visuels",
+        prototypes=prototypes,
+    )
+
 @app.get("/admin/social-posts")
 def social_posts_alias():
     return redirect(url_for("social_visuals_studio", **request.args))

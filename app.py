@@ -11215,6 +11215,7 @@ from social_visuals import (
 )
 
 @app.get("/admin/studio-visuels")
+@login_required
 def social_visuals_studio():
     prefill = dict(DEFAULT_SLIDE)
     source_session_id = request.args.get("session_id") or ""
@@ -11224,12 +11225,96 @@ def social_visuals_studio():
             prefill = session_to_social_prefill(source)
     from services.studio_template_service import load_studio_config
     config = load_studio_config(current_app.root_path)
-    config.update({"defaultSlide": prefill, "sourceSessionId": source_session_id, "bootstrap": {"officialLogoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier", "website": "www.integraleacademy.com", "phone": "04 22 47 07 68", "defaultBranding": {"logoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier"}}})
+    csrf_token = session.setdefault("studio_csrf_token", secrets.token_urlsafe(32))
+    config.update({"defaultSlide": prefill, "sourceSessionId": source_session_id, "bootstrap": {"csrfToken": csrf_token, "officialLogoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier", "website": "www.integraleacademy.com", "phone": "04 22 47 07 68", "defaultBranding": {"logoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier"}}})
     return render_template(
         "admin/studio_visuals/editor.html",
         title="Studio visuels réseaux sociaux",
         config=config,
     )
+
+
+# Studio V2: isolated, object-based JSON API.  Kept next to app registration to
+# avoid changing the platform's application factory-less bootstrap.
+from services.studio_v2_service import StudioError, StudioStorage
+
+def _studio_storage():
+    return StudioStorage(os.environ.get("STUDIO_STORAGE_DIR", os.path.join(DATA_DIR, "studio_visuels")))
+
+def _studio_json_error(error):
+    logger.warning("Studio V2 request failed: %s", error)
+    return jsonify({"ok": False, "error": {"code": "studio_error", "message": str(error)}}), getattr(error, "status", 400)
+
+def _studio_csrf_required():
+    expected = session.get("studio_csrf_token")
+    supplied = request.headers.get("X-CSRF-Token")
+    if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+        raise StudioError("Jeton CSRF manquant ou invalide.", 403)
+
+@app.get("/api/admin/studio-visuels/templates")
+@login_required
+def studio_v2_templates():
+    from services.studio_template_service import load_studio_config
+    templates = load_studio_config(current_app.root_path)["templates"]
+    return jsonify({"ok": True, "templates": templates})
+
+@app.get("/api/admin/studio-visuels/templates/<template_id>")
+@login_required
+def studio_v2_template(template_id):
+    from services.studio_template_service import load_studio_config
+    template = next((row for row in load_studio_config(current_app.root_path)["templates"] if row.get("id") == template_id), None)
+    return jsonify({"ok": True, "template": template}) if template else _studio_json_error(StudioError("Modèle introuvable.", 404))
+
+@app.route("/api/admin/studio-visuels/projects", methods=["GET", "POST"])
+@login_required
+def studio_v2_projects():
+    try:
+        storage = _studio_storage()
+        if request.method == "GET": return jsonify({"ok": True, "projects": storage.list_projects()})
+        _studio_csrf_required()
+        return jsonify({"ok": True, "project": storage.create_project(request.get_json(silent=True) or {}, session.get("admin_email"))}), 201
+    except StudioError as error: return _studio_json_error(error)
+
+@app.route("/api/admin/studio-visuels/projects/<project_id>", methods=["GET", "PATCH", "DELETE"])
+@login_required
+def studio_v2_project(project_id):
+    try:
+        storage = _studio_storage()
+        if request.method == "GET": return jsonify({"ok": True, "project": storage.get_project(project_id)})
+        _studio_csrf_required()
+        if request.method == "DELETE": storage.delete_project(project_id); return jsonify({"ok": True})
+        return jsonify({"ok": True, "project": storage.update_project(project_id, request.get_json(silent=True) or {})})
+    except StudioError as error: return _studio_json_error(error)
+
+@app.post("/api/admin/studio-visuels/projects/<project_id>/duplicate")
+@login_required
+def studio_v2_project_duplicate(project_id):
+    try:
+        _studio_csrf_required()
+        return jsonify({"ok": True, "project": _studio_storage().duplicate_project(project_id, session.get("admin_email"))}), 201
+    except StudioError as error: return _studio_json_error(error)
+
+@app.route("/api/admin/studio-visuels/assets", methods=["GET", "POST"])
+@login_required
+def studio_v2_assets():
+    try:
+        storage = _studio_storage()
+        if request.method == "GET": return jsonify({"ok": True, "assets": storage.list_assets()})
+        _studio_csrf_required(); uploaded = request.files.get("file")
+        if not uploaded: raise StudioError("Aucun fichier reçu.")
+        asset = storage.save_asset(uploaded.stream, uploaded.filename, lambda aid, kind: url_for("studio_v2_asset", asset_id=aid, thumbnail="1" if kind == "thumbnail" else None))
+        return jsonify({"ok": True, "asset": asset}), 201
+    except StudioError as error: return _studio_json_error(error)
+
+@app.route("/api/admin/studio-visuels/assets/<asset_id>", methods=["GET", "DELETE"])
+@login_required
+def studio_v2_asset(asset_id):
+    try:
+        storage = _studio_storage()
+        if request.method == "DELETE": _studio_csrf_required(); storage.delete_asset(asset_id); return jsonify({"ok": True})
+        path = storage.asset_file(asset_id, request.args.get("thumbnail") == "1")
+        return send_file(path, conditional=True, max_age=86400)
+    except StudioError as error: return _studio_json_error(error)
 
 @app.get("/admin/social-posts")
 def social_posts_alias():

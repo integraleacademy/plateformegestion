@@ -22,3 +22,5 @@
 .studio-visuels-page .giant_places_left .mk-soldout{padding-top:190px;padding-bottom:150px;grid-template-columns:.7fr 1.3fr}
 .studio-visuels-page [data-fit-warning]:after{content:attr(data-fit-warning);position:absolute;left:0;top:100%;margin-top:8px;background:#b91c1c;color:#fff;font:700 15px/1.2 sans-serif;padding:7px 10px;border-radius:6px;letter-spacing:0;z-index:1002}
 .studio-visuels-page .social-studio-render-export [data-fit-warning]:after{display:none!important}
+.studio-visuels-page .studio-brand-logo[data-studio-element-id]{position:absolute;touch-action:none}
+.studio-visuels-page .studio-brand-logo{pointer-events:auto}

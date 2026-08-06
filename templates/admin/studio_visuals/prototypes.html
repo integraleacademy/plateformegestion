@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/faviconstudio.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='studio/prototypes/a3p/prototypes.css') }}">
+</head>
+<body>
+  <header class="prototype-header">
+    <div>
+      <p class="eyebrow">ADMIN · STUDIO VISUELS · ZONE DE VALIDATION</p>
+      <h1>8 prototypes A3P</h1>
+      <p>Propositions carrées 1080 × 1080, isolées des templates de production.</p>
+    </div>
+    <a class="back-link" href="{{ url_for('social_visuals_studio') }}">← Retour au Studio</a>
+  </header>
+
+  <main class="prototype-grid" aria-label="Propositions visuelles A3P">
+    {% for number, name, filename, explanation in prototypes %}
+    <article class="prototype-card">
+      <div class="prototype-card__heading">
+        <span class="prototype-number">{{ number }}</span>
+        <div><h2>{{ name }}</h2><p>{{ explanation }}</p></div>
+      </div>
+      <a class="prototype-preview" href="{{ url_for('static', filename='studio/prototypes/a3p/' ~ filename) }}" target="_blank" rel="noopener" aria-label="Voir en grand : {{ name }}">
+        <img src="{{ url_for('static', filename='studio/prototypes/a3p/' ~ filename) }}" width="1080" height="1080" loading="lazy" alt="Prototype {{ number }} — {{ name }}">
+      </a>
+      <div class="prototype-actions">
+        <a href="{{ url_for('static', filename='studio/prototypes/a3p/' ~ filename) }}" target="_blank" rel="noopener">Voir en grand</a>
+        <a class="download" href="{{ url_for('static', filename='studio/prototypes/a3p/' ~ filename) }}" download="{{ filename }}">Télécharger le PNG</a>
+      </div>
+    </article>
+    {% endfor %}
+  </main>
+</body>
+</html>

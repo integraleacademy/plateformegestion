@@ -39,28 +39,43 @@ def test_export_dimensions_contract():
     assert EXPORT_DIMENSIONS["story"] == (1080, 1920)
 
 
-def test_studio_v2_uses_exclusive_object_editor_panels():
+def test_studio_sidebar_panels_are_exclusive_and_use_expected_ids():
     html = (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
-    js = (ROOT / "static/studio/app.js").read_text()
-    css = (ROOT / "static/studio/studio.css").read_text()
+    js = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    css = (ROOT / "static/studio_visuals/css/studio-shell.css").read_text()
 
     expected_ids = [
-        "templates",
-        "photos",
-        "texts",
+        "models",
+        "content",
+        "branding",
         "elements",
-        "background",
-        "brand",
-        "assistant",
+        "media",
+        "data",
+        "ai",
+        "history",
+        "validation",
     ]
 
-    assert "data-content" in html
-    assert "[hidden]{display:none!important}" in css.replace(" ", "")
-    assert "x.hidden=x.dataset.content!==b.dataset.panel" in js
-    assert "createCanvas" in js and "History" in js
+    assert "studio-sidebar-panels" in html
+    assert "studio-sidebar-panel" in html
+    assert "studio-sidebar-panel[hidden]{display:none!important}" in css.replace(" ", "")
+    assert "function openStudioSidebarPanel(panelId" in js
+    assert "panel.hidden=!isActive" in js
+    assert "button.setAttribute('aria-selected',String(isActive))" in js
+    assert "function bindLeftNavigation()" in js
+    assert "addEventListener('click'" in js
+    assert "if(tab==='models')" in js
+    assert "Changer totalement de composition" in js
+    assert "Recommandé pour ce contenu" in js
+    assert "data-models-gallery" in js
 
     for panel_id in expected_ids:
-        assert f"data-content=\"{panel_id}\"" in html
+        assert f"('{panel_id}'" in html
+        assert panel_id in js
+
+    assert "data-studio-panel-content=\"templates\"" not in html
+    assert "data-studio-panel-content=\"brand\"" not in html
+    assert "data-studio-panel-content=\"check\"" not in html
 
     def visible_panels_after_open(panel_id):
         return [candidate for candidate in expected_ids if candidate == panel_id]

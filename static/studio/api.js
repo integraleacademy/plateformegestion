@@ -1,3 +1,0 @@
-const config=JSON.parse(document.querySelector('#studio-config').textContent);
-export const bootstrap=config.bootstrap;
-export async function api(path,options={}){const headers=new Headers(options.headers||{});if(options.method&&!['GET','HEAD'].includes(options.method))headers.set('X-CSRF-Token',bootstrap.csrfToken);if(options.body&&!(options.body instanceof FormData))headers.set('Content-Type','application/json');const response=await fetch(path,{...options,headers});if(response.redirected||response.status===401)throw new Error('Votre session a expiré.');const body=await response.json();if(!response.ok)throw new Error(body.error?.message||'Une erreur Studio est survenue.');return body}

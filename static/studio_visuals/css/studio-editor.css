@@ -1,1 +1,24 @@
 /* Reserved for editor-only extensions; scoped intentionally. */
+
+/* DOM editing layer: deliberately scoped to the existing Studio. */
+.studio-visuels-page [data-studio-element-id]{position:relative;touch-action:none}
+.studio-visuels-page [data-studio-element-id].studio-selected{outline:3px solid #2563eb;outline-offset:4px}
+.studio-visuels-page .studio-selection-toolbar{position:absolute;z-index:1000;display:flex;gap:5px;align-items:center;background:#111827;color:#fff;padding:7px;border-radius:9px;box-shadow:0 8px 24px #0004;transform-origin:top left}
+.studio-visuels-page .studio-selection-toolbar button{border:0;background:#374151;color:#fff;border-radius:5px;padding:5px 7px;cursor:pointer}
+.studio-visuels-page .studio-resize-handle{position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border:3px solid #fff;border-radius:50%;background:#2563eb;cursor:nwse-resize;z-index:1001}
+.studio-visuels-page .studio-photo-frame{position:absolute;margin:0;overflow:hidden;background:#e5e7eb;touch-action:none}
+.studio-visuels-page .studio-photo-frame img{width:100%;height:100%;display:block;transform-origin:center}
+.studio-visuels-page .studio-photo-frame figcaption{position:absolute;left:8px;top:8px;background:#111c;color:#fff;padding:5px 8px;border-radius:5px}
+.studio-visuels-page .studio-photo-slot{height:190px;margin-bottom:18px;border:2px dashed color-mix(in srgb,var(--theme-primary) 45%,transparent);border-radius:22px;display:grid;place-items:center;overflow:hidden}
+.studio-visuels-page .studio-photo-slot img{width:100%;height:100%;object-fit:cover}
+.studio-visuels-page .studio-snap-guide{position:absolute;z-index:999;background:#ec4899;pointer-events:none}
+.studio-visuels-page .studio-snap-guide.is-v{top:0;bottom:0;width:2px}.studio-visuels-page .studio-snap-guide.is-h{left:0;right:0;height:2px}
+.studio-visuels-page .social-studio-render-export [data-editor-only],.studio-visuels-page .social-studio-render-export .studio-selection-toolbar,.studio-visuels-page .social-studio-render-export .studio-resize-handle{display:none!important}
+.studio-visuels-page .tpl-before-after .before-after{padding-top:190px;padding-bottom:105px;gap:28px;align-items:stretch}
+.studio-visuels-page .tpl-before-after .before-after h1{top:165px;max-height:150px;font-size:58px}
+.studio-visuels-page .tpl-before-after .before-after section{min-height:520px;padding:28px 34px;align-self:end}
+.studio-visuels-page .tpl-calendar .calendar{padding-top:165px;grid-template-columns:1.25fr .75fr;align-content:start;gap:42px}
+.studio-visuels-page .tpl-calendar .calgrid span{min-height:78px}.studio-visuels-page .tpl-calendar .calendar aside{display:grid;gap:20px}
+.studio-visuels-page .giant_places_left .mk-soldout{padding-top:190px;padding-bottom:150px;grid-template-columns:.7fr 1.3fr}
+.studio-visuels-page [data-fit-warning]:after{content:attr(data-fit-warning);position:absolute;left:0;top:100%;margin-top:8px;background:#b91c1c;color:#fff;font:700 15px/1.2 sans-serif;padding:7px 10px;border-radius:6px;letter-spacing:0;z-index:1002}
+.studio-visuels-page .social-studio-render-export [data-fit-warning]:after{display:none!important}

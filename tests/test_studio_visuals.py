@@ -84,3 +84,30 @@ def test_studio_sidebar_panels_are_exclusive_and_use_expected_ids():
         visible_panels = visible_panels_after_open(panel_id)
         assert len(visible_panels) == 1
         assert visible_panels[0] == panel_id
+
+
+def test_dom_editing_layer_is_scoped_and_backward_compatible():
+    app_js = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    store_js = (ROOT / "static/studio_visuals/js/studio-store.js").read_text()
+    renderer_js = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    css = (ROOT / "static/studio_visuals/css/studio-editor.css").read_text()
+
+    assert "studio-visuels-page" in (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
+    assert all(selector.startswith(".studio-visuels-page") or selector.startswith("/*") or not selector
+               for selector in (line.strip() for line in css.splitlines()[-25:])
+               if selector.startswith("."))
+    for optional_field in ("layoutOverrides", "customElements", "customPhotos"):
+        assert f"{optional_field}:s.{optional_field}||" in store_js
+    assert "canvasScale()" in app_js
+    assert "(e.clientX-d.startX)/d.scale" in app_js
+    assert "Déplacement précis" in app_js
+    assert "Photo ajoutée" in app_js
+    assert "data-studio-element-id" in renderer_js
+    assert "renderMode==='preview'" in renderer_js
+
+
+def test_photo_upload_reuses_persistent_studio_endpoint():
+    source = (ROOT / "app.py").read_text()
+    assert '@app.post("/api/admin/studio/media")' in source
+    assert 'os.path.join(DATA_DIR, "studio_media")' in source
+    assert '{".png", ".svg", ".webp", ".jpg", ".jpeg"}' in source

@@ -111,3 +111,25 @@ def test_photo_upload_reuses_persistent_studio_endpoint():
     assert '@app.post("/api/admin/studio/media")' in source
     assert 'os.path.join(DATA_DIR, "studio_media")' in source
     assert '{".png", ".svg", ".webp", ".jpg", ".jpeg"}' in source
+
+
+def test_targeted_studio_brand_geometry_and_real_validation_contract():
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    validation = (ROOT / "static/studio_visuals/js/studio-validation.js").read_text()
+    themes = json.loads((ROOT / "static/studio_visuals/data/themes.json").read_text())
+    assert 'data-studio-element-id="brand-logo"' in renderer
+    assert 'data-studio-element-id="brand-slogan"' in renderer
+    assert "id='main-title'" in renderer
+    assert 'draggable="false"' in renderer
+    assert "getFormationTheme(project.formation" in renderer
+    for field in ("Position X", "Position Y", "Largeur", "Hauteur", "Rotation", "Opacité", "Ordre du calque", "Verrouillé", "Réinitialiser la position"):
+        assert field in app
+    assert "getBoundingClientRect()" in validation
+    assert "scrollWidth>el.clientWidth" in validation
+    assert "Le logo chevauche le titre" in validation
+    assert themes["DIRIGEANT"]["primary"] == "#E16B16"
+    assert themes["A3P"]["primary"] == "#16834B"
+    assert themes["APS"]["primary"] == "#0057D8"
+    assert themes["SSIAP"]["primary"] == "#D71920"
+    assert themes["VTC"]["primary"] == "#722ED1"

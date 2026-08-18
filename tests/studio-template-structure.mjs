@@ -5,6 +5,7 @@ class MiniNode{constructor(tag){this.tagName=tag;this.dataset={};this.style={set
 global.document={createElement:t=>new MiniNode(t)};
 const {renderSlide,buildTemplateRegistry,getTemplateStructureFingerprint,recommendTemplates}=await import('../static/studio_visuals/js/studio-renderer.js');
 const data=JSON.parse(readFileSync('static/studio_visuals/data/templates.json','utf8'));
+const themes=JSON.parse(readFileSync('static/studio_visuals/data/themes.json','utf8'));
 const ready=data.templates.filter(t=>t.status==='ready');
 assert.ok(ready.length >= 60);
 assert.ok(new Set(ready.map(t=>t.renderer)).size >= 24);
@@ -14,5 +15,8 @@ const registry=buildTemplateRegistry(ready);
 const fingerprints=new Map();
 for(const t of ready){const slide={templateId:t.id,content,options:{showSafeMargins:false}};const node=renderSlide(project,slide,'export',{templates:ready,templateRegistry:registry,themes:{A3P:{}}});assert.equal(node.dataset.renderedTemplateId,t.id);assert.equal(node.dataset.templateFamily,t.family);assert.equal(node.dataset.studioFormat,'1080x1080');assert.equal(node.dataset.canvasWidth,'1080');assert.equal(node.dataset.canvasHeight,'1080');assert.ok(node.querySelector('img[alt="Intégrale Academy"]'), `${t.id} logo`);assert.ok(node.textContent.includes('Faites le premier pas vers votre futur métier'), `${t.id} slogan`);assert.ok(node.innerHTML.includes('data-region="brand"'),`${t.id} brand region`);assert.ok(node.innerHTML.includes('data-region="footer"'),`${t.id} footer region`);assert.ok(node.innerHTML.includes('data-fit='),`${t.id} fitted text`);const fp=getTemplateStructureFingerprint(node);assert.ok(fp.length>15, `${t.id} fingerprint`);fingerprints.set(t.id,fp)}
 for(const a of ready.slice(0,24)){for(const b of ready.slice(0,24)){if(a.family!==b.family)assert.notEqual(fingerprints.get(a.id),fingerprints.get(b.id), `${a.id} vs ${b.id}`)}}
+const formats={instagram_square:{width:1080,height:1080},instagram_portrait:{width:1080,height:1350},instagram_story:{width:1080,height:1920},linkedin_landscape:{width:1200,height:627}};
+let combinations=0;
+for(const [formation,theme] of Object.entries(themes)){for(const [id,dims] of Object.entries(formats)){for(const template of ready){const themedProject={...project,formation,format:{id,...dims}};const slide={templateId:template.id,content,options:{showSafeMargins:false}};const node=renderSlide(themedProject,slide,'export',{templates:ready,templateRegistry:registry,themes});assert.equal(node.dataset.formation,formation);assert.equal(node.dataset.studioFormat,id);assert.equal(node.style['--formation-primary'],theme.primary);assert.equal(node.style['--formation-secondary'],theme.secondary);assert.equal(node.style['--formation-dark'],theme.surfaceDark);assert.ok(node.innerHTML.includes(`class="sv-brand__formation">${formation}</span>`),`${formation} badge`);combinations++}}}
 assert.deepEqual(recommendTemplates({...content,examDate:'04/11/2026'}).slice(0,2),['session_calendar','session_ticket']);
-console.log('24 renderers ready, fingerprints distinct across families');
+console.log(`24 renderers ready, fingerprints distinct, ${combinations} formation/format/template combinations rendered`);

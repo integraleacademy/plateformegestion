@@ -12,6 +12,10 @@ function isVisible(element){
   return cs.display!=='none'&&cs.visibility!=='hidden'&&Number(cs.opacity)!==0&&r.width>0&&r.height>0;
 }
 
+function isTextClipped(element){
+  return element.scrollWidth>element.clientWidth+1||element.scrollHeight>element.clientHeight+1;
+}
+
 export function isOutsideCanvas(element,canvas){
   const e=element.getBoundingClientRect(),c=canvas.getBoundingClientRect(),t=1;
   return e.left<c.left-t||e.top<c.top-t||e.right>c.right+t||e.bottom>c.bottom+t;
@@ -55,6 +59,11 @@ export function validateStudioSlide(slideNode,options={}){
     if(width&&width<100)blockingErrors.push({message:'Logo trop petit',element:logo});
   }
   if(!canvas.textContent.includes('Faites le premier pas vers votre futur métier'))blockingErrors.push({message:'Slogan obligatoire absent.',element:canvas});
+  if(!canvas.querySelector('.sv-brand__formation'))blockingErrors.push({message:'Repère couleur de la formation absent.',element:canvas});
+
+  for(const element of canvas.querySelectorAll('.sv-brand__slogan,.sv-brand__formation,.sv-footer__place,.sv-footer__site,.sv-footer__phone,.sv-footer__cta')){
+    if(isVisible(element)&&isTextClipped(element))blockingErrors.push({message:`Le texte « ${element.dataset.elementName||element.textContent.trim()||'identité'} » est coupé.`,element});
+  }
 
   const monitored=[...new Set([
     ...canvas.querySelectorAll('[data-exportable="true"]'),
@@ -87,6 +96,7 @@ export function validateStudioSlide(slideNode,options={}){
     {message:`Dimensions : ${w} × ${h}`},
     {message:'Logo chargé et taille correcte'},
     {message:'Slogan présent'},
+    {message:`Couleur ${canvas.dataset.formation||'formation'} appliquée`},
     {message:'Blocs contenus dans le canevas'},
     {message:'Zones logo, contenu et pied de page séparées'}
   );

@@ -23,6 +23,8 @@ def test_themes_cover_required_formations_and_tokens():
     for theme in cfg["themes"].values():
         assert tokens <= set(theme)
         assert len(theme["variants"]) >= 8
+    assert len({theme["primary"] for theme in cfg["themes"].values()}) == len(cfg["themes"])
+    assert len({theme["surfaceDark"] for theme in cfg["themes"].values()}) == len(cfg["themes"])
 
 
 def test_ai_generation_does_not_emit_internal_editor_metadata():
@@ -147,11 +149,7 @@ def test_templates_use_the_integrale_web_identity_system():
     official_tokens = {
         "#F6F0E4",  # Academy cream
         "#FFFDF8",  # Academy / Group surface
-        "#F2BB31",  # Academy gold
-        "#F4C45A",  # Group gold
-        "#081626",  # Academy navy
         "#020611",  # Group night
-        "#0D2036",  # Group panel
     }
     for token in official_tokens:
         assert token.upper() in styles.upper()
@@ -165,4 +163,32 @@ def test_templates_use_the_integrale_web_identity_system():
     assert "font-weight:950" in styles
     assert "el.dataset.formation=project.formation" in renderer
     assert "--formation-primary" in renderer
-    assert "--theme-background','#F6F0E4'" in renderer
+    assert "--formation-secondary" in renderer
+    assert "--formation-dark" in renderer
+    assert "theme.background||'#FFF8E1'" in renderer
+
+
+def test_template_chrome_cannot_silently_clip_and_keeps_formation_identity():
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    store = (ROOT / "static/studio_visuals/js/studio-store.js").read_text()
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    fitting = (ROOT / "static/studio_visuals/js/studio-text-fit.js").read_text()
+    validation = (ROOT / "static/studio_visuals/js/studio-validation.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-templates.css").read_text()
+
+    assert 'class="sv-brand__formation"' in renderer
+    assert 'data-fit="badge"' in renderer
+    assert "replace(/^www\\./i,'')" in renderer
+    assert "Math.min(200" in renderer
+    assert "Math.min(200" in store
+    assert 'max="200"' in app
+    assert "a==='autoFix'" in app
+    assert "export function fitLayoutFrame" in fitting
+    assert "main.dataset.layoutScale" in fitting
+    assert "kind==='badge'" in fitting
+    assert "function isTextClipped" in validation
+    assert ".sv-footer__site,.sv-footer__phone" in validation
+    assert "Geometry and formation identity correction" in styles
+    assert ".studio-v2 .poster-center:after{display:none!important}" in styles
+    assert "white-space:nowrap" in styles
+    assert "grid-template-columns:minmax(190px,.82fr) minmax(305px,1.2fr) max-content" in styles

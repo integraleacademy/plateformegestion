@@ -8,11 +8,19 @@ from social_visuals import generate_content_from_topic
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_template_catalog_has_15_families_and_60_variants():
+def test_template_catalog_has_15_families_110_variants_and_50_new_designs():
     cfg = load_studio_config(ROOT)
     assert len(cfg["families"]) >= 15
-    assert len(cfg["templates"]) >= 60
+    assert len(cfg["templates"]) >= 110
     assert all(t["family"] and t["renderer"] for t in cfg["templates"])
+    new_templates = [template for template in cfg["templates"] if template.get("isNew")]
+    assert len(new_templates) == 50
+    assert len({template["id"] for template in new_templates}) == 50
+    assert len({template["previewStyle"] for template in new_templates}) == 50
+    assert len({template["brandLayout"] for template in new_templates}) >= 10
+    assert all(template["name"].startswith("NEW") for template in new_templates)
+    assert all(template["renderer"] == "renderNewTemplate" for template in new_templates)
+    assert all(len(template["supportedFormats"]) == 4 for template in new_templates)
 
 
 def test_themes_cover_required_formations_and_tokens():
@@ -25,6 +33,11 @@ def test_themes_cover_required_formations_and_tokens():
         assert len(theme["variants"]) >= 8
     assert len({theme["primary"] for theme in cfg["themes"].values()}) == len(cfg["themes"])
     assert len({theme["surfaceDark"] for theme in cfg["themes"].values()}) == len(cfg["themes"])
+    assert cfg["themes"]["APS"]["primary"] == "#0057D8"
+    assert cfg["themes"]["A3P"]["primary"] == "#087A55"
+    assert cfg["themes"]["VTC"]["primary"] == "#6D28D9"
+    assert cfg["themes"]["DIRIGEANT"]["primary"] == "#D96900"
+    assert cfg["themes"]["SSIAP"]["primary"] == "#D71920"
 
 
 def test_ai_generation_does_not_emit_internal_editor_metadata():
@@ -179,9 +192,9 @@ def test_template_chrome_cannot_silently_clip_and_keeps_formation_identity():
     assert 'class="sv-brand__formation"' in renderer
     assert 'data-fit="badge"' in renderer
     assert "replace(/^www\\./i,'')" in renderer
-    assert "Math.min(200" in renderer
-    assert "Math.min(200" in store
-    assert 'max="200"' in app
+    assert "Math.min(320" in renderer
+    assert "Math.min(320" in store
+    assert 'max="320"' in app
     assert "a==='autoFix'" in app
     assert "export function fitLayoutFrame" in fitting
     assert "main.dataset.layoutScale" in fitting
@@ -192,3 +205,45 @@ def test_template_chrome_cannot_silently_clip_and_keeps_formation_identity():
     assert ".studio-v2 .poster-center:after{display:none!important}" in styles
     assert "white-space:nowrap" in styles
     assert "grid-template-columns:minmax(190px,.82fr) minmax(305px,1.2fr) max-content" in styles
+
+
+def test_every_rendered_element_can_be_selected_moved_resized_and_styled():
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    store = (ROOT / "static/studio_visuals/js/studio-store.js").read_text()
+    editor = (ROOT / "static/studio_visuals/js/studio-element-editor.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-new-templates.css").read_text()
+
+    assert "decorateEditableElements(el,slide,{renderMode})" in renderer
+    assert "elementOverrides" in store
+    assert "data-studio-element-id" in editor
+    assert "dataset.studioTextEditable" in app
+    assert 'data-element-prop="scale"' in app
+    assert 'data-element-prop="fontSize"' in app
+    assert 'data-element-prop="rotation"' in app
+    assert 'data-element-prop="opacity"' in app
+    assert "function nudgeSelectedElement" in app
+    assert "function handlePointerMove" in app
+    assert "studio-element-resize" in styles
+    assert "studio-selected" in styles
+    fitting = (ROOT / "static/studio_visuals/js/studio-text-fit.js").read_text()
+    assert "studioManualFont!=='true'" in fitting
+    assert "studioManualLayout!=='true'" in fitting
+
+
+def test_new_templates_have_their_own_renderer_and_site_inspired_visual_system():
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    bodies = (ROOT / "static/studio_visuals/js/studio-new-templates.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-new-templates.css").read_text()
+
+    assert "function renderNewTemplate(ctx)" in renderer
+    assert "renderNewTemplateBody(ctx)" in renderer
+    assert bodies.count("new_") >= 100
+    assert "'mark','new-highlight'" in bodies
+    assert "new-phone-mockup" in bodies
+    assert "new-question-hook" in bodies
+    assert "Shared visual language from the two Intégrale websites" in styles
+    assert ".brand-top-left" in styles
+    assert ".brand-bottom-right" in styles
+    assert ".new-manifesto" in styles
+    assert ".new-future" in styles

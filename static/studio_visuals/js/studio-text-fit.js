@@ -84,9 +84,9 @@ export function fitLayoutFrame(root){
 export async function fitSlide(root){
   const canvas=root.matches?.('.social-studio-slide')?root:root.querySelector?.('.social-studio-slide')||root;
   await waitForStudioFonts();
-  const jobs=[...root.querySelectorAll('[data-fit]')].map(element=>fitText({element,...fitOptions(element,canvas)}));
+  const jobs=[...root.querySelectorAll('[data-fit]')].filter(element=>element.dataset.studioManualFont!=='true').map(element=>fitText({element,...fitOptions(element,canvas)}));
   const results=await Promise.all(jobs);
   await new Promise(resolve=>(globalThis.requestAnimationFrame||setTimeout)(resolve));
-  fitLayoutFrame(root);
+  if(canvas.dataset.studioManualLayout!=='true')fitLayoutFrame(root);
   return results;
 }

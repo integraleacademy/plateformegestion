@@ -2,21 +2,22 @@ import json
 from pathlib import Path
 
 from services.studio_export_service import EXPORT_DIMENSIONS
+from services.studio_ai_service import transform_design_from_prompt
 from services.studio_template_service import load_studio_config
 from social_visuals import generate_content_from_topic
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_template_catalog_has_15_families_110_variants_and_50_new_designs():
+def test_template_catalog_has_15_families_115_variants_and_55_new_designs():
     cfg = load_studio_config(ROOT)
     assert len(cfg["families"]) >= 15
-    assert len(cfg["templates"]) >= 110
+    assert len(cfg["templates"]) >= 115
     assert all(t["family"] and t["renderer"] for t in cfg["templates"])
     new_templates = [template for template in cfg["templates"] if template.get("isNew")]
-    assert len(new_templates) == 50
-    assert len({template["id"] for template in new_templates}) == 50
-    assert len({template["previewStyle"] for template in new_templates}) == 50
+    assert len(new_templates) == 55
+    assert len({template["id"] for template in new_templates}) == 55
+    assert len({template["previewStyle"] for template in new_templates}) == 55
     assert len({template["brandLayout"] for template in new_templates}) >= 10
     assert all(template["name"].startswith("NEW") for template in new_templates)
     assert all(template["renderer"] == "renderNewTemplate" for template in new_templates)
@@ -25,7 +26,7 @@ def test_template_catalog_has_15_families_110_variants_and_50_new_designs():
 
 def test_themes_cover_required_formations_and_tokens():
     cfg = load_studio_config(ROOT)
-    required = {"A3P", "APS", "SSIAP", "DIRIGEANT", "VTC"}
+    required = {"A3P", "APS", "SSIAP", "DIRIGEANT", "VTC", "OR"}
     assert required <= set(cfg["themes"])
     tokens = {"primary", "secondary", "accent", "background", "backgroundAlt", "surface", "surfaceDark", "text", "textMuted", "border", "shadow", "danger", "success"}
     for theme in cfg["themes"].values():
@@ -38,6 +39,23 @@ def test_themes_cover_required_formations_and_tokens():
     assert cfg["themes"]["VTC"]["primary"] == "#6D28D9"
     assert cfg["themes"]["DIRIGEANT"]["primary"] == "#D96900"
     assert cfg["themes"]["SSIAP"]["primary"] == "#D71920"
+    assert cfg["themes"]["OR"]["primary"] == "#B87900"
+
+
+def test_natural_language_art_direction_supports_halloween_and_gold():
+    halloween = transform_design_from_prompt(
+        "C'est bientôt Halloween, transforme le template en thème Halloween",
+        formation="A3P",
+        template_id="new_giant_a3p",
+    )
+    assert halloween["id"] == "halloween"
+    assert halloween["decorations"] == ["🎃", "👻", "🕸️"]
+    assert halloween["templateId"] == "new_giant_a3p"
+    assert halloween["palette"]["background"] == "#160A22"
+
+    gold = transform_design_from_prompt("Un rendu or, premium et institutionnel", formation="OR")
+    assert gold["id"] == "or-premium"
+    assert gold["palette"]["primary"] == "#B87900"
 
 
 def test_ai_generation_does_not_emit_internal_editor_metadata():
@@ -306,3 +324,65 @@ def test_new_template_validation_checks_internal_content_clipping():
     assert "sort de sa zone de composition" in validation
     assert ".new-calendar-strip footer .new-date" in styles
     assert ".new-calendar-strip footer .new-location" in styles
+
+
+def test_studio_creation_tools_cover_networks_guides_ai_and_assets():
+    html = (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    store = (ROOT / "static/studio_visuals/js/studio-store.js").read_text()
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-new-templates.css").read_text()
+    source = (ROOT / "app.py").read_text()
+
+    assert "Instagram · Facebook" in html
+    assert "Stories / Reels / TikTok" in html
+    assert "LinkedIn / Facebook" in html
+    assert 'id="formatNetworkHint"' in html
+    assert 'id="aiDesignPrompt"' in html
+    assert 'data-action="applyAiDesign"' in html
+    assert 'id="visualInput"' in app
+    assert "data-add-emoji" in app
+    assert "data-add-icon" in app
+    assert "function importVisual" in app
+    assert "function snapElementMove" in app
+    assert "ALIGNMENT_SNAP_DISTANCE" in app
+    assert "studio-alignment-guide--x" in styles
+    assert "studio-canvas-ruler--top" in styles
+    assert "type:'emoji'" in app
+    assert "type:'image'" in app
+    assert "studio-added-image" in renderer
+    assert "networks:'Instagram · Facebook'" in store
+    assert 'OR:{id:\'OR\'' in store
+    assert '/api/admin/studio/ai-transform' in source
+
+
+def test_giant_letter_campaigns_cover_every_requested_training_universe():
+    cfg = load_studio_config(ROOT)
+    bodies = (ROOT / "static/studio_visuals/js/studio-new-templates.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-new-templates.css").read_text()
+    expected = {
+        "new_giant_a3p": ("A3P", "A3P"),
+        "new_giant_aps": ("APS", "APS"),
+        "new_giant_desp": ("DIRIGEANT", "DESP"),
+        "new_giant_ssiap": ("SSIAP", "SSIAP"),
+        "new_giant_vtc": ("VTC", "VTC"),
+    }
+    templates = {template["id"]: template for template in cfg["templates"]}
+    for template_id, (formation, letters) in expected.items():
+        assert templates[template_id]["formationPreset"] == formation
+        assert templates[template_id]["giantLetters"] == letters
+        assert template_id in bodies
+        assert template_id.replace("_", "-") in styles
+
+
+def test_export_reflows_text_before_rejecting_a_layout():
+    exporter = (ROOT / "static/studio_visuals/js/studio-exporter.js").read_text()
+    validation = (ROOT / "static/studio_visuals/js/studio-validation.js").read_text()
+    fitting = (ROOT / "static/studio_visuals/js/studio-text-fit.js").read_text()
+
+    assert exporter.count("await fitSlide(exportNode)") >= 2
+    assert "await waitForStableLayout(exportNode)" in exporter
+    assert "const tolerance=3" in validation
+    assert "range.getBoundingClientRect()" in validation
+    assert "kind==='metric'" in fitting
+    assert "kind==='meta'" in fitting

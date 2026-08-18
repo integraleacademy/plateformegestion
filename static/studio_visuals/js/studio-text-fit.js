@@ -33,12 +33,12 @@ export async function fitText({element,minFontSize,maxFontSize,maxLines,maxHeigh
     const mid=Math.floor((lo+hi)/2);
     element.style.fontSize=mid+'px';
     const lines=renderedLineCount(element,mid,lineHeight);
-    const widthOk=element.scrollWidth<=element.clientWidth+1;
-    const heightOk=element.scrollHeight<=maxHeight+1;
+    const widthOk=element.scrollWidth<=element.clientWidth+3;
+    const heightOk=element.scrollHeight<=maxHeight+3;
     if(widthOk&&heightOk&&lines<=maxLines){best=mid;lo=mid+1}else hi=mid-1;
   }
   element.style.fontSize=best+'px';
-  const bad=element.scrollWidth>element.clientWidth+1||element.scrollHeight>maxHeight+1||renderedLineCount(element,best,lineHeight)>maxLines;
+  const bad=element.scrollWidth>element.clientWidth+3||element.scrollHeight>maxHeight+3||renderedLineCount(element,best,lineHeight)>maxLines;
   if(bad)element.dataset.fitWarning='Texte trop long : réduisez-le.';
   return !bad;
 }
@@ -54,6 +54,8 @@ function fitOptions(element,canvas){
   }
   if(kind==='title')return {minFontSize:36,maxFontSize:96,maxLines:4,maxHeight:Math.min(330,Math.max(150,parentHeight*.48)),lineHeight:.96};
   if(kind==='cta')return {minFontSize:18,maxFontSize:30,maxLines:2,maxHeight:84,lineHeight:1.12};
+  if(kind==='metric')return {minFontSize:28,maxFontSize:118,maxLines:2,maxHeight:Math.min(220,Math.max(88,parentHeight*.32)),lineHeight:.9};
+  if(kind==='meta')return {minFontSize:15,maxFontSize:42,maxLines:3,maxHeight:Math.min(150,Math.max(72,parentHeight*.24)),lineHeight:1.05};
   return {minFontSize:18,maxFontSize:32,maxLines:6,maxHeight:Math.min(250,Math.max(100,parentHeight*.42)),lineHeight:1.2};
 }
 

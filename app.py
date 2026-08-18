@@ -1,10159 +1,403 @@
-import os
-import json
-import uuid
-from decimal import Decimal, ROUND_HALF_UP
-import base64
-import time
-import tempfile
-import zipfile
-import hashlib
-import hmac
-import importlib.util
-import smtplib
-import urllib.parse
-import urllib.request
-import urllib.error
-import re
-import shutil
-import subprocess
-import secrets
-from io import BytesIO
-from datetime import datetime, timedelta, date, time as dt_time
-from functools import wraps
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-import logging
-import math
-import threading
-
-from flask import (
-    Flask, render_template, request, redirect, url_for,
-    abort, flash, send_file, send_from_directory, session, Response, jsonify, current_app
-)
-from werkzeug.utils import secure_filename
-
-from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
-
-from prospecting import prospecting_bp
-from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
-from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
-
-from services.afc_france_travail_attendance import (
-    is_afc_session as ft_is_afc_session,
-    update_afc_france_travail_settings,
-    save_france_travail_ids,
-    preview as preview_france_travail_attendance,
-    generate_france_travail_workbook,
-    safe_filename as ft_safe_filename,
-)
-from services.afc_dsf_france_travail_excel import (
-    dsf_excel_filename,
-    generate_dsf_excel_from_snapshot,
-    page_count_for_snapshot,
-)
-from services.afc_france_travail_invoice_excel import (
-    build_full_kairos_reference,
-    build_invoice_snapshot,
-    generate_invoice_excel_from_snapshot,
-    invoice_excel_filename,
-    normalize_kairos_base_reference,
-    normalize_dsf_sequence_number,
-    validate_invoice_against_dsf,
-)
-
-
-
-# --- üîß Forcer le fuseau horaire fran√ßais ---
-os.environ['TZ'] = 'Europe/Paris'
-import time
-time.tzset()
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-
-app = Flask(__name__)
-_invoice_creation_lock = threading.Lock()
-app.register_blueprint(prospecting_bp)
-app.secret_key = os.environ.get("SECRET_KEY", "change-me")
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.environ.get("DATA_DIR", "/mnt/data")
-os.makedirs(DATA_DIR, exist_ok=True)
-SHORTCUTS_DATA_DIR = os.path.join(DATA_DIR, "shortcuts")
-SHORTCUTS_FILE = os.path.join(SHORTCUTS_DATA_DIR, "shortcuts.json")
-SHORTCUT_UPLOAD_DIR = os.path.join(SHORTCUTS_DATA_DIR, "images")
-LEGACY_SHORTCUTS_FILE = os.path.join(BASE_DIR, "data", "shortcuts.json")
-LEGACY_SHORTCUT_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads", "shortcuts")
-ALLOWED_SHORTCUT_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-
-logger = logging.getLogger("jury-notify")
-
-yousign_startup_diagnostic = yousign_config_diagnostics()
-logging.getLogger("yousign").info(
-    "Yousign configuration detected environment=%s base_url=%s api_key=%s workspace_id_present=%s",
-    yousign_startup_diagnostic["environment"],
-    yousign_startup_diagnostic["base_url"],
-    yousign_startup_diagnostic["api_key"],
-    yousign_startup_diagnostic["workspace_id_present"],
-)
-
-from datetime import timedelta
-
-IS_RENDER = os.environ.get("RENDER", "").lower() == "true"
-
-# ‚úÖ Cookies de session uniquement : l‚Äôutilisateur doit se reconnecter
-# √† chaque nouvelle ouverture du navigateur / nouvelle session.
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=IS_RENDER,   # ‚úÖ Secure seulement sur Render
-)
-
-
-
-ADMIN_USER = os.environ.get("ADMIN_USER")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-ADMIN_SESSION_VERSION = os.environ.get("ADMIN_SESSION_VERSION", "2026-07-10-force-relogin-v2")
-
-def shortcut_image_url(filename):
-    return url_for("shortcut_image", filename=filename)
-
-
-def normalize_shortcut_image(shortcut):
-    image = shortcut.get("image") or ""
-    filename = os.path.basename(urllib.parse.urlparse(image).path)
-    if filename:
-        shortcut["image"] = shortcut_image_url(filename)
-    return shortcut
-
-
-def migrate_legacy_shortcuts_storage():
-    migrated = False
-
-    if os.path.exists(LEGACY_SHORTCUT_UPLOAD_DIR):
-        for entry in os.scandir(LEGACY_SHORTCUT_UPLOAD_DIR):
-            if not entry.is_file():
-                continue
-
-            destination = os.path.join(SHORTCUT_UPLOAD_DIR, entry.name)
-            if os.path.exists(destination):
-                continue
-
-            with open(entry.path, "rb") as source_file, open(destination, "wb") as destination_file:
-                destination_file.write(source_file.read())
-            migrated = True
-
-    if os.path.exists(LEGACY_SHORTCUTS_FILE):
-        try:
-            with open(LEGACY_SHORTCUTS_FILE, "r", encoding="utf-8") as f:
-                legacy_shortcuts = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            legacy_shortcuts = []
-
-        if isinstance(legacy_shortcuts, list):
-            normalized_shortcuts = []
-            for shortcut in legacy_shortcuts:
-                if not isinstance(shortcut, dict):
-                    continue
-                normalized_shortcuts.append(normalize_shortcut_image(shortcut))
-
-            if normalized_shortcuts:
-                with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
-                    json.dump(normalized_shortcuts, f, ensure_ascii=False, indent=2)
-                migrated = True
-
-    return migrated
-
-
-def ensure_shortcuts_storage():
-    os.makedirs(SHORTCUTS_DATA_DIR, exist_ok=True)
-    os.makedirs(SHORTCUT_UPLOAD_DIR, exist_ok=True)
-    if not os.path.exists(SHORTCUTS_FILE):
-        if not migrate_legacy_shortcuts_storage():
-            with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
-                json.dump([], f, ensure_ascii=False, indent=2)
-
-
-def load_shortcuts():
-    ensure_shortcuts_storage()
-    try:
-        with open(SHORTCUTS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            shortcuts = data if isinstance(data, list) else []
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
-
-    updated = False
-    for shortcut in shortcuts:
-        if not isinstance(shortcut, dict):
-            continue
-        if not shortcut.get("id"):
-            shortcut["id"] = uuid.uuid4().hex
-            updated = True
-        existing_image = shortcut.get("image")
-        normalize_shortcut_image(shortcut)
-        if shortcut.get("image") != existing_image:
-            updated = True
-
-    if updated:
-        save_shortcuts(shortcuts)
-
-    return shortcuts
-
-
-def save_shortcuts(shortcuts):
-    ensure_shortcuts_storage()
-    with open(SHORTCUTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(shortcuts, f, ensure_ascii=False, indent=2)
-
-
-def allowed_shortcut_image(filename):
-    if "." not in filename:
-        return False
-    return filename.rsplit(".", 1)[1].lower() in ALLOWED_SHORTCUT_IMAGE_EXTENSIONS
-
-
-STAGIAIRES_DOCS_TO_CONTROL_URL = os.environ.get(
-    "STAGIAIRES_DOCS_TO_CONTROL_URL",
-    "https://gestionstagiaires-r5no.onrender.com/docs_to_control.json",
-)
-STAGIAIRES_DOCS_RETRY_SECONDS = 60
-_stagiaires_docs_cache = {"payload": None, "retry_after": 0.0}
-_stagiaires_docs_cache_lock = threading.Lock()
-
-
-def stagiaires_docs_request_headers():
-    headers = {
-        "Accept": "application/json",
-        "User-Agent": "plateformegestion/1.0 (+https://plateformegestion.onrender.com)",
-    }
-    token = (os.environ.get("STAGIAIRES_DOCS_TO_CONTROL_TOKEN") or "").strip()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-        headers["X-API-Key"] = token
-    return headers
-
-
-def fetch_json_url(url, timeout=10, headers=None):
-    request_obj = urllib.request.Request(
-        url,
-        headers=headers or {
-            "Accept": "application/json",
-            "User-Agent": "plateformegestion/1.0 (+https://plateformegestion.onrender.com)",
-        },
-    )
-    with urllib.request.urlopen(request_obj, timeout=timeout) as response:
-        charset = response.headers.get_content_charset() or "utf-8"
-        body = response.read().decode(charset)
-        return json.loads(body)
-
-
-def count_pending_stagiaires_documents(payload):
-    if not isinstance(payload, dict):
-        return 0
-
-    for key in ("pending_count", "docs_to_control", "documents_to_control", "total", "count"):
-        value = payload.get(key)
-        if isinstance(value, (int, float)):
-            return max(int(value), 0)
-        if isinstance(value, str) and value.strip().isdigit():
-            return int(value.strip())
-
-    items = payload.get("items")
-    if not isinstance(items, list):
-        return 0
-
-    total = 0
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        pending_count = item.get("pending_count", 0)
-        try:
-            total += max(int(pending_count), 0)
-        except (TypeError, ValueError):
-            continue
-    return total
-
-
-def stagiaires_docs_response(payload, stale=False):
-    return {
-        "ok": True,
-        "stale": stale,
-        "pending_count": count_pending_stagiaires_documents(payload),
-        "items": payload.get("items", []),
-    }
-
-
-GLOBAL_DEFAULT_ZOOM_STYLE = """
-<style id="global-default-zoom">
-  html {
-    zoom: 80%;
-  }
-
-  @supports not (zoom: 1) {
-    body {
-      transform: scale(0.8);
-      transform-origin: top left;
-      width: 125%;
-      min-height: 125vh;
-    }
-  }
-</style>
-"""
-
-
-@app.after_request
-def apply_global_default_zoom(response):
-    if response.mimetype != "text/html" or response.direct_passthrough:
-        return response
-
-    html = response.get_data(as_text=True)
-    if "global-default-zoom" in html:
-        return response
-
-    head_end = html.lower().find("</head>")
-    if head_end == -1:
-        return response
-
-    html = f"{html[:head_end]}{GLOBAL_DEFAULT_ZOOM_STYLE}{html[head_end:]}"
-    response.set_data(html)
-    response.content_length = len(response.get_data())
-    return response
-
-
-# ------------------------------------------------------------
-# üîê AUTHENTIFICATION ADMIN
-# ------------------------------------------------------------
-
-def is_admin_session_valid():
-    return (
-        session.get("admin_logged")
-        and session.get("admin_session_version") == ADMIN_SESSION_VERSION
-    )
-
-
-def require_fresh_admin_session(next_path):
-    if is_admin_session_valid():
-        return None
-
-    session.clear()
-    return redirect(url_for("login", next=next_path))
-
-
-def login_required(f):
-    @wraps(f)
-    def wrapped(*args, **kwargs):
-
-        # ‚úÖ Autoriser le lien formateur public avec token
-        if request.path.startswith("/formateurs/") and "/upload" in request.path:
-            return f(*args, **kwargs)
-
-        # üîê V√©rification session admin
-        redirect_response = require_fresh_admin_session(request.path)
-        if redirect_response:
-            return redirect_response
-
-        return f(*args, **kwargs)
-    return wrapped
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        password = request.form.get("password", "").strip()
-
-        if email == ADMIN_USER and password == ADMIN_PASSWORD:
-            session.clear()
-            session.permanent = False       # ‚úÖ session navigateur : pas de connexion persistante
-            session["admin_logged"] = True
-            session["admin_email"] = email
-            session["admin_session_version"] = ADMIN_SESSION_VERSION
-            return redirect(request.args.get("next") or url_for("index"))
-
-
-        flash("Identifiant ou mot de passe incorrect.", "error")
-
-    return render_template("login.html")
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-@app.before_request
-def protect_all_routes():
-    path = request.path
-
-    # ‚úÖ autoriser page login / logout
-    if path.startswith("/login") or path.startswith("/logout"):
-        return None
-
-    # ‚úÖ autoriser les fichiers statiques (css/js/images)
-    if path.startswith("/static/"):
-        return None
-
-    # ‚úÖ autoriser les webhooks (Salesforce, etc.)
-    if path.startswith("/webhooks/"):
-        return None
-
-    # ‚úÖ autoriser lien public formateur (upload avec token)
-    if path.startswith("/formateurs/") and "/upload" in path:
-        return None
-
-    # ‚úÖ autoriser r√©ponses jury (lien email)
-    if path.startswith("/jury-response/"):
-        return None
-
-    # ‚úÖ autoriser lien public A3P formateur
-    if path.startswith("/public/a3p-planning/") or path.startswith("/api/public/a3p-planning/"):
-        return None
-
-    # ‚úÖ autoriser acc√®s pr√©fecture (auth basic g√©r√©e dans la route)
-    if path.startswith("/prefecture/"):
-        return None
-
-    # ‚úÖ autoriser les routes cron (Render Cron)
-    if path.startswith("/cron-"):
-        return None
-
-    # ‚úÖ autoriser routes publiques utiles (dashboard / tests)
-    if path in ("/healthz", "/data.json", "/dotations_data.json", "/formateurs_data.json", "/tz-test"):
-        return None
-
-    # üîê tout le reste n√©cessite une session admin fra√Æche.
-    # Les sessions cr√©√©es avant ADMIN_SESSION_VERSION sont ainsi d√©connect√©es.
-    return require_fresh_admin_session(path)
-
-
-@app.get("/api/yousign/health")
-def yousign_health():
-    diagnostic = test_yousign_connection()
-    status = int(diagnostic.get("status") or (200 if diagnostic.get("ok") else 502))
-    http_status = 200 if status == 200 else status if status in {401, 403} else 502
-    return jsonify(diagnostic), http_status
-
-
-# --- Filtres Jinja ---
-def format_date(value):
-    try:
-        dt = datetime.strptime(value, "%Y-%m-%d")
-        return dt.strftime("%d/%m/%Y")
-    except Exception:
-        return value
-app.jinja_env.filters['datefr'] = format_date
-
-def format_datetime_fr(value):
-    if not value:
-        return value
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d"):
-        try:
-            dt = datetime.strptime(str(value), fmt)
-            return dt.strftime("%d/%m/%Y %H:%M") if "H" in fmt else dt.strftime("%d/%m/%Y")
-        except Exception:
-            continue
-    return value
-app.jinja_env.filters['datetimefr'] = format_datetime_fr
-
-def to_datetime(value):
-    try:
-        return datetime.strptime(value, "%Y-%m-%d")
-    except Exception:
-        try:
-            return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-        except Exception:
-            return datetime.now()
-app.jinja_env.filters['datetime'] = to_datetime
-
-
-def session_modality_date_range(session_data, modality):
-    """Return the first and last planning dates for a session modality."""
-    if not session_data:
-        return None
-
-    wanted = (modality or "").strip().lower()
-    dates = []
-    for planning_key in ("apsPlanningData", "a3pPlanningData"):
-        for day in session_data.get(planning_key) or []:
-            day_date = day.get("date")
-            if not day_date:
-                continue
-            for slot in day.get("slots") or []:
-                slot_modality = (slot.get("modality") or "presentiel").strip().lower()
-                if slot_modality == wanted:
-                    dates.append(day_date)
-                    break
-
-    if not dates:
-        return None
-    dates = sorted(dates)
-    return {"start": dates[0], "end": dates[-1]}
-
-
-def format_date_range(start, end=None):
-    if not start:
-        return "‚Äî"
-    if not end or end == start:
-        return format_date(start)
-    return f"{format_date(start)} au {format_date(end)}"
-
-app.jinja_env.globals['session_modality_date_range'] = session_modality_date_range
-app.jinja_env.globals['format_date_range'] = format_date_range
-
-# --- Helper utilisable dans Jinja ---
-def get_status_label(step_index, session):
-    """Renvoie un dict {status, deadline} lisible dans Jinja"""
-    status, dl = status_for_step(step_index, session)
-    return {"status": status, "deadline": dl}
-
-app.jinja_env.globals['get_status_label'] = get_status_label
-
-
-# --- Persistance ---
-SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
-PRICE_ADAPTATOR_FILE = os.path.join(DATA_DIR, "price_adaptator.json")
-
-PRICE_ADAPTATOR_DEFAULT_DISCOUNT = 30
-PRICE_ADAPTATOR_FOLLOWUP_DAYS = 21
-PRICE_ADAPTATOR_FORMATION_PRICES = {
-    "APS": 1650,
-    "A3P": 4200,
-    "Dirigeant": 4300,
-}
-PRICE_ADAPTATOR_FORMATION_LABELS = {
-    "APS": "Agent de pr√©vention et de s√©curit√© (APS)",
-    "A3P": "Agent de protection physique des personnes (A3P)",
-    "Dirigeant": "Dirigeant d'entreprise de s√©curit√© priv√©e (DESP)",
-}
-PRICE_ADAPTATOR_ALLOWED_FORMATIONS = {
-    "APS": "APS",
-    "A3P": "A3P",
-    "DIRIGEANT": "Dirigeant",
-}
-
-# -----------------------
-# üìÖ Planning PDF (par session)
-# -----------------------
-PLANNING_DIR = os.path.join(DATA_DIR, "plannings")
-os.makedirs(PLANNING_DIR, exist_ok=True)
-CONVOCATION_DIR = os.path.join(DATA_DIR, "convocations")
-os.makedirs(CONVOCATION_DIR, exist_ok=True)
-APS_CONTRACT_DIR = os.path.join(DATA_DIR, "aps_trainer_contracts")
-os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
-APS_CONTRACT_SIGNED_DIR = os.path.join(APS_CONTRACT_DIR, "_signed_yousign")
-os.makedirs(APS_CONTRACT_SIGNED_DIR, exist_ok=True)
-YOUSIGN_TRAINER_SIGNATURE_TAG = "{{s1|signature|160|60}}"
-APS_ATTENDANCE_DIR = os.path.join(DATA_DIR, "aps_attendance_sheets")
-os.makedirs(APS_ATTENDANCE_DIR, exist_ok=True)
-A3P_DOC_DIR = os.path.join(DATA_DIR, "a3p_documents")
-os.makedirs(A3P_DOC_DIR, exist_ok=True)
-APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "templates_word", "convocationaps.docx")
-
-APS_TOTAL_HOURS = 175
-APS_TOTAL_MINUTES = APS_TOTAL_HOURS * 60
-APS_ELEARNING_HOURS = 62
-APS_ELEARNING_MINUTES = APS_ELEARNING_HOURS * 60
-APS_PRESENTIEL_HOURS = APS_TOTAL_HOURS - APS_ELEARNING_HOURS
-APS_PRESENTIEL_MINUTES = APS_PRESENTIEL_HOURS * 60
-APS_MAX_DAILY_MINUTES = 7 * 60
-APS_EXTENDED_DAILY_MINUTES = 8 * 60
-
-SSIAP1_TOTAL_HOURS = 67
-SSIAP1_TOTAL_MINUTES = SSIAP1_TOTAL_HOURS * 60
-SSIAP1_SEQUENCE_TOTALS = {
-    "P1-S1": 4, "P1-S2": 2,
-    "P2-S1": 2.5, "P2-S2": 2, "P2-S3": 2, "P2-S4": 2, "P2-S5": 1.5, "P2-S6": 4, "P2-S7": 2, "P2-S8": 1,
-    "P3-S1": 1, "P3-S2": 2, "P3-S3": 2, "P3-S4": 1, "P3-S5": 3,
-    "P4-S1": 1, "P4-S2": 1, "P4-S3": 2.5, "P4-S4": 4, "P4-S5": 4, "P4-S6": 4, "P4-S7": 1.5,
-    "P5-S1": 10, "P5-S2": 7,
-}
-SSIAP1_PART_TOTALS = {"1re partie": 6, "2e partie": 17, "3e partie": 9, "4e partie": 18, "5e partie": 17}
-SSIAP1_SEQUENCE_LABELS = {
-    "P1-S1": "LE FEU", "P1-S2": "COMPORTEMENT AU FEU",
-    "P2-S1": "PRINCIPES DE CLASSEMENT DES √âTABLISSEMENTS", "P2-S2": "FONDAMENTAUX ET PRINCIPES G√âN√âRAUX DE S√âCURIT√â INCENDIE", "P2-S3": "DESSERTE DES B√ÇTIMENTS", "P2-S4": "CLOISONNEMENT D‚ÄôISOLATION DES RISQUES", "P2-S5": "√âVACUATION DU PUBLIC ET DES OCCUPANTS", "P2-S6": "D√âSENFUMAGE", "P2-S7": "√âCLAIRAGE DE S√âCURIT√â", "P2-S8": "PR√âSENTATION DES DIFF√âRENTS MOYENS DE SECOURS",
-    "P3-S1": "INSTALLATIONS √âLECTRIQUES", "P3-S2": "ASCENSEURS ET NACELLES", "P3-S3": "INSTALLATIONS FIXES D‚ÄôEXTINCTION AUTOMATIQUE", "P3-S4": "COLONNES S√àCHES ET HUMIDES", "P3-S5": "SYST√àME DE S√âCURIT√â INCENDIE",
-    "P4-S1": "LE SERVICE DE S√âCURIT√â", "P4-S2": "PR√âSENTATION DES CONSIGNES DE S√âCURIT√â ET MAIN COURANTE", "P4-S3": "POSTE DE S√âCURIT√â", "P4-S4": "RONDES DE S√âCURIT√â ET SURVEILLANCE DES TRAVAUX", "P4-S5": "MISE EN ≈íUVRE DES MOYENS D‚ÄôEXTINCTION", "P4-S6": "APPEL ET R√âCEPTION DES SERVICES PUBLICS DE SECOURS", "P4-S7": "SENSIBILISATION DES OCCUPANTS",
-    "P5-S1": "VISITES APPLICATIVES", "P5-S2": "MISES EN SITUATION D‚ÄôINTERVENTION",
-}
-SSIAP1_PART_LABELS = {"P1": "1re partie ‚Äî LE FEU ET SES CONS√âQUENCES", "P2": "2e partie ‚Äî S√âCURIT√â INCENDIE", "P3": "3e partie ‚Äî INSTALLATIONS TECHNIQUES", "P4": "4e partie ‚Äî R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", "P5": "5e partie ‚Äî CONCR√âTISATION DES ACQUIS"}
-SSIAP1_CONFIG = {"code": "SSIAP1", "durationHours": SSIAP1_TOTAL_HOURS, "sequenceTotals": SSIAP1_SEQUENCE_TOTALS, "partTotals": SSIAP1_PART_TOTALS, "examRequired": True, "examInPlanning": True, "examAttendance": True, "contract": True, "yousign": True}
-
-SSIAP1_AGREMENT_LINE = "Agr√©ment SSIAP n¬∞8323 d√©livr√© par la Pr√©fecture du Var en date du 29/05/2026"
-
-SSIAP1_SST_TOTAL_HOURS = 14
-SSIAP1_REVISION_HOURS = 3
-SSIAP1_PRESENCE_TOTAL_HOURS = SSIAP1_SST_TOTAL_HOURS + SSIAP1_TOTAL_HOURS + SSIAP1_REVISION_HOURS
-SSIAP1_SST_PART = "FORMATION SAUVETEUR SECOURISTE DU TRAVAIL ‚Äî SST ‚Äî 14 h"
-SSIAP1_REVISION_PART = "R√âVISIONS G√âN√âRALES ET PR√âPARATION √Ä L‚ÄôEXAMEN SSIAP 1 ‚Äî 3 h"
-SSIAP1_SST_DAYS = [
-    {"code": "SST-J1", "title": "SST ‚Äî JOURN√âE 1", "items": ["Pr√©sentation de la formation et du r√¥le du SST", "Pr√©vention des risques professionnels", "Protection adapt√©e face √† une situation d‚Äôaccident", "Examen de la victime", "Transmission de l‚Äôalerte", "Premiers apprentissages des gestes de secours"]},
-    {"code": "SST-J2", "title": "SST ‚Äî JOURN√âE 2", "items": ["Secours adapt√©s aux diff√©rentes situations", "Mises en situation pratiques", "Cas concrets", "Pr√©vention dans l‚Äôentreprise", "√âvaluations certificatives SST"]},
-]
-SSIAP1_REVISION_ITEMS = ["R√©vision des principales notions r√©glementaires", "R√©vision du r√¥le et des missions de l‚Äôagent SSIAP 1", "Exploitation du SSI", "R√©vision des conduites √† tenir", "Pr√©paration aux √©preuves √©crites et pratiques", "Questions-r√©ponses avant l‚Äôexamen"]
-
-def _ssiap1_detail(code, part_number, part_title, sequence_number, sequence_title, total_minutes, content_minutes, content_items, application_minutes=0, application_items=None):
-    return {
-        "code": code,
-        "part_number": part_number,
-        "part_title": part_title,
-        "sequence_number": sequence_number,
-        "sequence_title": sequence_title,
-        "total_duration_minutes": total_minutes,
-        "content_duration_minutes": content_minutes,
-        "content_items": content_items,
-        "application_duration_minutes": application_minutes,
-        "application_items": application_items or [],
-    }
-
-SSIAP1_SEQUENCE_DETAILS = [
-    _ssiap1_detail("P1-S1", 1, "LE FEU ET SES CONS√âQUENCES", 1, "LE FEU", 240, 120, ["Th√©orie du feu : triangle du feu, classes de feux et causes", "La fum√©e et ses dangers", "Propagation du feu : conduction, convection, rayonnement et projection", "Conduite √† tenir face √† un local enfum√© sans mise en danger pour l‚Äôintervenant"], 120, ["Exercice de sortie d‚Äôun local enfum√© par des fum√©es odorantes, froides et non toxiques"]),
-    _ssiap1_detail("P1-S2", 1, "LE FEU ET SES CONS√âQUENCES", 2, "COMPORTEMENT AU FEU", 120, 120, ["Principe de la r√©sistance au feu des √©l√©ments de construction", "Principe de la r√©action au feu des mat√©riaux d‚Äôam√©nagement", "Crit√®res de classement de ces comportements"]),
-    _ssiap1_detail("P2-S1", 2, "S√âCURIT√â INCENDIE", 1, "PRINCIPES DE CLASSEMENT DES √âTABLISSEMENTS", 150, 120, ["D√©finition d‚Äôun ERP", "D√©finition du public", "Diff√©rents types d‚Äô√©tablissements", "Cat√©gories selon l‚Äôeffectif", "D√©finition du seuil de la 5e cat√©gorie", "M√©thode de d√©termination de l‚Äôeffectif", "D√©finition et classification d‚Äôun IGH"], 30, ["Exercices simples de classement d‚Äô√©tablissements"]),
-    _ssiap1_detail("P2-S2", 2, "S√âCURIT√â INCENDIE", 2, "FONDAMENTAUX ET PRINCIPES G√âN√âRAUX DE S√âCURIT√â INCENDIE", 120, 120, ["Fondamentaux de s√©curit√© : √©vacuation des occupants, accessibilit√© et mise en service des moyens de secours", "Principes g√©n√©raux : implantation, desserte, isolement, mat√©riaux, cloisonnement, am√©nagement, d√©gagement, d√©senfumage, √©clairage de s√©curit√© et moyens de secours"]),
-    _ssiap1_detail("P2-S3", 2, "S√âCURIT√â INCENDIE", 3, "DESSERTE DES B√ÇTIMENTS", 120, 90, ["Desserte et voiries", "Voies engins", "Voies √©chelles", "Espaces libres", "Baies accessibles"], 30, ["Rep√©rage de dessertes et baies accessibles sur plans"]),
-    _ssiap1_detail("P2-S4", 2, "S√âCURIT√â INCENDIE", 4, "CLOISONNEMENT D‚ÄôISOLATION DES RISQUES", 120, 120, ["Cloisonnement traditionnel", "Secteurs", "Compartiments", "Locaux √† risques", "Recoupement des vides"]),
-    _ssiap1_detail("P2-S5", 2, "S√âCURIT√â INCENDIE", 5, "√âVACUATION DU PUBLIC ET DES OCCUPANTS", 90, 90, ["D√©finition du d√©gagement", "Notion d‚Äôunit√© de passage", "Balisage des d√©gagements", "Man≈ìuvre et d√©verrouillage des issues", "Espace d‚Äôattente s√©curis√© et √©vacuation diff√©r√©e"]),
-    _ssiap1_detail("P2-S6", 2, "S√âCURIT√â INCENDIE", 6, "D√âSENFUMAGE", 240, 120, ["Objectifs du d√©senfumage", "D√©senfumage des d√©gagements", "D√©senfumage des locaux", "D√©clenchement manuel", "Entretien et v√©rification", "Remise en position d‚Äôattente des dispositifs"], 120, ["R√©armement d‚Äôun volet, d‚Äôun clapet ou d‚Äôun exutoire"]),
-    _ssiap1_detail("P2-S7", 2, "S√âCURIT√â INCENDIE", 7, "√âCLAIRAGE DE S√âCURIT√â", 120, 90, ["D√©finition de l‚Äô√©clairage de s√©curit√©", "√âclairage d‚Äô√©vacuation", "√âclairage d‚Äôambiance ou anti-panique", "Blocs autonomes et sources centrales", "Maintenance et v√©rifications"], 30, ["Identification des diff√©rents blocs d‚Äô√©clairage et v√©rification simple"]),
-    _ssiap1_detail("P2-S8", 2, "S√âCURIT√â INCENDIE", 8, "PR√âSENTATION DES DIFF√âRENTS MOYENS DE SECOURS", 60, 60, ["Moyens d‚Äôextinction", "Dispositions visant √† faciliter l‚Äôaction des sapeurs-pompiers", "Service de s√©curit√© incendie", "Syst√®me de s√©curit√© incendie", "Syst√®me d‚Äôalerte"]),
-    _ssiap1_detail("P3-S1", 3, "INSTALLATIONS TECHNIQUES", 1, "INSTALLATIONS √âLECTRIQUES", 60, 60, ["Impact des installations √©lectriques sur la s√©curit√©", "Maintien de l‚Äôalimentation des installations de s√©curit√©", "√âclairage normal, de remplacement et de s√©curit√©", "Notions de sources de s√©curit√©"]),
-    _ssiap1_detail("P3-S2", 3, "INSTALLATIONS TECHNIQUES", 2, "ASCENSEURS ET NACELLES", 120, 90, ["Ascenseurs et monte-charge", "Dispositifs de s√©curit√©", "Conduite √† tenir en cas de personne bloqu√©e", "Nacelles et √©quipements assimil√©s"], 30, ["Proc√©dure de d√©gagement et consignes d‚Äôexploitation"]),
-    _ssiap1_detail("P3-S3", 3, "INSTALLATIONS TECHNIQUES", 3, "INSTALLATIONS FIXES D‚ÄôEXTINCTION AUTOMATIQUE", 120, 90, ["Principes de fonctionnement", "Diff√©rents types d‚Äôinstallations fixes", "Poste de contr√¥le", "Alarme et report d‚Äôinformation", "Entretien et v√©rifications"], 30, ["Lecture d‚Äôun poste de contr√¥le et identification des organes principaux"]),
-    _ssiap1_detail("P3-S4", 3, "INSTALLATIONS TECHNIQUES", 4, "COLONNES S√àCHES ET HUMIDES", 60, 60, ["Colonnes s√®ches", "Colonnes en charge ou humides", "Emplacements et signalisation", "Alimentation et utilisation par les services de secours", "V√©rifications"]),
-    _ssiap1_detail("P3-S5", 3, "INSTALLATIONS TECHNIQUES", 5, "SYST√àME DE S√âCURIT√â INCENDIE", 180, 120, ["D√©finition du SSI", "Cat√©gories de SSI", "Syst√®me de d√©tection incendie", "Centralisateur de mise en s√©curit√© incendie", "Dispositifs actionn√©s de s√©curit√©", "Unit√© de gestion d‚Äôalarme"], 60, ["Exploitation d‚Äôun SSI de cat√©gorie A et lecture des informations au poste de s√©curit√©"]),
-    _ssiap1_detail("P4-S1", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 1, "LE SERVICE DE S√âCURIT√â", 60, 60, ["R√¥le et missions du service de s√©curit√© incendie", "Composition du service", "Qualification des personnels", "Missions g√©n√©rales et particuli√®res"]),
-    _ssiap1_detail("P4-S2", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 2, "PR√âSENTATION DES CONSIGNES DE S√âCURIT√â ET MAIN COURANTE", 60, 60, ["Consignes g√©n√©rales", "Consignes particuli√®res", "Main courante et enregistrements", "Transmission des informations", "R√©daction d‚Äôune main courante √† partir d‚Äôun √©v√©nement simple"]),
-    _ssiap1_detail("P4-S3", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 3, "POSTE DE S√âCURIT√â", 150, 90, ["Organisation du poste de s√©curit√©", "Documents pr√©sents au poste", "R√©ception et traitement des alarmes", "Moyens de communication", "Gestion des cl√©s et moyens d‚Äôacc√®s"], 60, ["Exploitation du poste de s√©curit√© et traitement d‚Äôune alarme"]),
-    _ssiap1_detail("P4-S4", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 4, "RONDES DE S√âCURIT√â ET SURVEILLANCE DES TRAVAUX", 240, 120, ["Objectifs de la ronde", "Itin√©raires et points de contr√¥le", "Anomalies et mesures conservatoires", "Permis de feu", "Surveillance des travaux par points chauds"], 120, ["Ronde avec r√©solution d‚Äôanomalies et contr√¥le d‚Äôun permis de feu"]),
-    _ssiap1_detail("P4-S5", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 5, "MISE EN ≈íUVRE DES MOYENS D‚ÄôEXTINCTION", 240, 60, ["Diff√©rents moyens d‚Äôextinction", "Agents extincteurs", "R√®gles de s√©curit√© lors de l‚Äôattaque d‚Äôun feu"], 180, ["Extinction de feux r√©els ou simul√©s au moyen d‚Äôextincteurs adapt√©s", "Mise en ≈ìuvre d‚Äôun robinet d‚Äôincendie arm√©"]),
-    _ssiap1_detail("P4-S6", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 6, "APPEL ET R√âCEPTION DES SERVICES PUBLICS DE SECOURS", 240, 90, ["Diff√©rents moyens d‚Äôalerte", "Message d‚Äôalerte", "Accueil et guidage des secours", "Mise √† disposition des informations utiles"], 150, ["Exercices d‚Äôappel des secours", "Mise en situation d‚Äôaccueil et de guidage des secours"]),
-    _ssiap1_detail("P4-S7", 4, "R√îLE ET MISSIONS DES AGENTS DE S√âCURIT√â INCENDIE", 7, "SENSIBILISATION DES OCCUPANTS", 90, 60, ["Information des occupants", "Actions de pr√©vention", "Conduite √† tenir en cas d‚Äôalarme", "Adaptation du message au public"], 30, ["Pr√©sentation orale d‚Äôune consigne de s√©curit√© √† des occupants"]),
-    _ssiap1_detail("P5-S1", 5, "CONCR√âTISATION DES ACQUIS", 1, "VISITES APPLICATIVES", 600, 0, [], 600, ["Visite applicative d‚Äôau moins deux √©tablissements recevant du public", "Identification des risques et des dispositions de s√©curit√©", "Rep√©rage des d√©gagements, d√©senfumage, SSI et moyens de secours", "Lecture de plans et documents de s√©curit√©"]),
-    _ssiap1_detail("P5-S2", 5, "CONCR√âTISATION DES ACQUIS", 2, "MISES EN SITUATION D‚ÄôINTERVENTION", 420, 0, [], 420, ["Mises en situation d‚Äôintervention sur d√©part de feu", "Application des consignes et lev√©e de doute", "Gestion d‚Äôune √©vacuation", "Alerte, accueil et guidage des secours", "Exploitation du SSI et de la main courante"]),
-]
-SSIAP1_SEQUENCE_DETAIL_BY_CODE = {item["code"]: item for item in SSIAP1_SEQUENCE_DETAILS}
-
-APS_EXPECTED_UV_TOTALS = {
-    "UV1": 14,
-    "UV2": 22,
-    "UV3": 14,
-    "UV4": 7,
-    "UV5": 7,
-    "UV6": 7,
-    "UV7": 13,
-    "UV8": 45,
-    "UV9": 7,
-    "UV10": 7,
-    "UV11": 11,
-    "UV12": 7,
-    "UV13": 7,
-    "UV14": 7,
-}
-
-APS_UV_LABELS = {
-    "UV1": "Secouriste Sauveteur du Travail (SST)",
-    "UV2": "Environnement juridique de la s√©curit√© priv√©e",
-    "UV3": "Gestion des conflits",
-    "UV4": "Strat√©gique",
-    "UV5": "Pr√©vention des risques incendie",
-    "UV6": "Appr√©hension au cours de l‚Äôexercice",
-    "UV7": "Risques terroristes",
-    "UV8": "Professionnel",
-    "UV9": "Palpation de s√©curit√© et inspection visuelle des bagages",
-    "UV10": "Surveillance par moyens √©lectroniques",
-    "UV11": "Gestion des risques",
-    "UV12": "√âv√©nementiel sp√©cifique",
-    "UV13": "Gestion des situations conflictuelles d√©grad√©es",
-    "UV14": "Industriel sp√©cifique",
-}
-
-APS_LEGAL_LINES = [
-    "ORGANISME DE FORMATION CERTIFI√â QUALIOPI",
-    "La certification qualit√© a √©t√© d√©livr√©e au titre de la ou des cat√©gories d‚Äôactions suivantes : actions de formation, actions de formation par apprentissage.",
-    "Autorisation d'exercice CNAPS n¬∞FOR-083-2027-02-08-20200755135",
-    "Agr√©ment ADEF APS : 8320032701 - Agr√©ment ADEF A3P : 8320111201",
-]
-
-APS_MODULES = [
-    ("UV2 ENVIRONNEMENT JURIDIQUE DE LA S√âCURIT√â PRIV√âE", 22),
-    ("UV8 PROFESSIONNEL", 6),
-    ("UV14 INDUSTRIEL SP√âCIFIQUE", 7),
-    ("UV1 SECOURISTE SAUVETEUR DU TRAVAIL (SST)", 14),
-    ("UV7 RISQUES TERRORISTES", 13),
-    ("UV8 PROFESSIONNEL", 1),
-    ("UV9 PALPATION DE S√âCURIT√â ET INSPECTION VISUELLE DES BAGAGES", 7),
-    ("UV3 GESTION DES CONFLITS", 14),
-    ("UV4 STRAT√âGIQUE", 7),
-    ("UV6 APPR√âHENSION AU COURS DE L‚ÄôEXERCICE", 7),
-    ("UV5 PR√âVENTION DES RISQUES INCENDIE", 7),
-    ("UV10 SURVEILLANCE PAR MOYENS √âLECTRONIQUES", 7),
-    ("UV12 √âV√âNEMENTIEL SP√âCIFIQUE", 7),
-    ("UV11 GESTION DES RISQUES", 11),
-    ("UV8 PROFESSIONNEL", 31),
-    ("UV13 GESTION DES SITUATIONS CONFLICTUELLES D√âGRAD√âES", 7),
-    ("UV8 PROFESSIONNEL", 7),
-]
-
-
-APS_ELEARNING_PRESENTIEL_MODULES = [
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV2", "title": "Environnement juridique de la s√©curit√© priv√©e", "durationMinutes": 17 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV3", "title": "Gestion des risques et situations conflictuelles", "durationMinutes": 5 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV4", "title": "Transmission des consignes et informations", "durationMinutes": 5 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV2", "title": "Environnement juridique de la s√©curit√© priv√©e", "durationMinutes": 3 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV11", "title": "Gestion des risques / connaissances des vecteurs d‚Äôincendie", "durationMinutes": 9 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV7", "title": "Pr√©vention des risques terroristes", "durationMinutes": 6 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV1", "title": "Secourir", "durationMinutes": 1 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV10", "title": "Connaissance de l‚Äôoutil informatique / transmission", "durationMinutes": 2 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV8", "title": "Surveillance et gardiennage", "durationMinutes": 7 * 60},
-    {"part": "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL ‚Äî 62h", "modality": "elearning", "uv": "UV12", "title": "√âv√©nementiel", "durationMinutes": 7 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV1", "title": "Gestion des premiers secours", "durationMinutes": 14 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV2", "title": "Environnement juridique de la s√©curit√© priv√©e", "durationMinutes": 2 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV5", "title": "Gestion des risques / connaissances des vecteurs d‚Äôincendie", "durationMinutes": 16 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV7", "title": "Pr√©vention des risques terroristes", "durationMinutes": 270},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV1", "title": "Secourir", "durationMinutes": 90},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV3", "title": "Gestion des risques et des situations conflictuelles", "durationMinutes": 9 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV13", "title": "Gestion des risques de situations conflictuelles d√©grad√©es", "durationMinutes": 7 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV8", "title": "Surveillance et gardiennage", "durationMinutes": 45 * 60},
-    {"part": "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE ‚Äî 113h", "modality": "presentiel", "uv": "UV12", "title": "√âv√©nementiel", "durationMinutes": 14 * 60},
-]
-
-APS_RECAP_ROWS = [
-    ("UV1", "Secouriste Sauveteur du Travail (SST)"),
-    ("UV2", "Environnement juridique de la s√©curit√© priv√©e"),
-    ("UV3", "Gestion des conflits"),
-    ("UV4", "Strat√©gique"),
-    ("UV5", "Pr√©vention des risques incendie"),
-    ("UV6", "Appr√©hension au cours de l‚Äôexercice"),
-    ("UV7", "Risques terroristes"),
-    ("UV8", "Professionnel"),
-    ("UV9", "Palpation de s√©curit√© et inspection visuelle des bagages"),
-    ("UV10", "Surveillance par moyens √©lectroniques"),
-    ("UV11", "Gestion des risques"),
-    ("UV12", "√âv√©nementiel sp√©cifique"),
-    ("UV13", "Gestion des situations conflictuelles d√©grad√©es"),
-    ("UV14", "Industriel sp√©cifique"),
-]
-
-def easter_date(year):
-    """Retourne la date du dimanche de P√¢ques (algorithme de Meeus/Jones/Butcher)."""
-    a = year % 19
-    b = year // 100
-    c = year % 100
-    d = b // 4
-    e = b % 4
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i = c // 4
-    k = c % 4
-    l = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * l) // 451
-    month = (h + l - 7 * m + 114) // 31
-    day = ((h + l - 7 * m + 114) % 31) + 1
-    return date(year, month, day)
-
-def french_holidays(year):
-    easter = easter_date(year)
-    return {
-        easter + timedelta(days=1),
-        date(year, 5, 1),
-        date(year, 5, 8),
-        easter + timedelta(days=39),
-        easter + timedelta(days=50),
-        date(year, 7, 14),
-        date(year, 8, 15),
-        date(year, 11, 1),
-        date(year, 11, 11),
-        date(year, 12, 25),
-    }
-
-def is_french_working_day(day):
-    return day.weekday() < 5 and day not in french_holidays(day.year)
-
-def aps_local_date_iso(value):
-    """Return a YYYY-MM-DD string without timezone conversion."""
-    if not value:
-        return ""
-    if isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d")
-    if isinstance(value, date):
-        return value.isoformat()
-    text = str(value).strip()
-    parsed = parse_date(text)
-    return parsed.strftime("%Y-%m-%d") if parsed else text[:10]
-
-def is_aps_training_day(day, exam_iso=""):
-    return is_french_working_day(day) and day.isoformat() != exam_iso
-
-def next_aps_training_day(day, exam_iso=""):
-    day += timedelta(days=1)
-    while not is_aps_training_day(day, exam_iso):
-        day += timedelta(days=1)
-    return day
-
-def add_hours_to_time(start_time, hours):
-    base = datetime.combine(date.today(), start_time)
-    return (base + timedelta(hours=hours)).time()
-
-def add_minutes_to_time(start_time, minutes):
-    base = datetime.combine(date.today(), start_time)
-    return (base + timedelta(minutes=minutes)).time()
-
-def next_french_working_day(day):
-    day += timedelta(days=1)
-    while not is_french_working_day(day):
-        day += timedelta(days=1)
-    return day
-
-def format_duration_from_minutes(minutes):
-    hours = minutes // 60
-    rest = minutes % 60
-    return f"{hours:g}h" if rest == 0 else f"{hours:g}h{rest:02d}"
-
-def is_ssiap1_exam_part(part):
-    return (part or "").strip().upper() == "EXAMEN SSIAP 1"
-
-def aps_working_days_between(start_date, end_date, exam_iso=""):
-    if not start_date or not end_date or start_date > end_date:
-        return []
-    days = []
-    current = start_date
-    while current <= end_date:
-        if is_aps_training_day(current, exam_iso):
-            days.append(current)
-        current += timedelta(days=1)
-    return days
-
-def aps_impossible_period_message(start_date, end_date, available_minutes, required_minutes, extended_minutes=None):
-    if extended_minutes is not None:
-        return (
-            "Impossible de g√©n√©rer le planning : "
-            f"{available_minutes / 60:g} heures disponibles √† 7h/jour "
-            f"({extended_minutes / 60:g} heures maximum √† 8h/jour) entre le {format_date(start_date)} "
-            f"et le {format_date(end_date)}, mais {required_minutes / 60:g} heures n√©cessaires."
-        )
-    return (
-        "Impossible de g√©n√©rer le planning : "
-        f"{available_minutes / 60:g} heures disponibles entre le {format_date(start_date)} "
-        f"et le {format_date(end_date)}, mais {required_minutes / 60:g} heures n√©cessaires."
-    )
-
-def log_aps_generation_diagnostics(session_id=None, planning_mode="full_presentiel", start_date=None, end_date=None, exam_iso="", available_days=0, available_minutes=0, elearning_minutes=0, presentiel_minutes=0, total_minutes=0, extended_minutes=None, elongated_days=0, day_distribution=None, level="error"):
-    logger = app.logger.error if level == "error" else app.logger.info
-    logger(
-        "Diagnostic planning APS session_id=%s planning_mode=%s start_date=%s end_date=%s exam_iso=%s heures_necessaires=%s jours_disponibles=%s capacite_7h=%s capacite_8h=%s heures_elearning=%s heures_presentiel=%s total_heures_attendu=%s journees_allongees=%s repartition_heures_par_jour=%s",
-        session_id,
-        planning_mode,
-        start_date.isoformat() if hasattr(start_date, "isoformat") else start_date,
-        end_date.isoformat() if hasattr(end_date, "isoformat") else end_date,
-        exam_iso,
-        presentiel_minutes / 60 if planning_mode == "elearning_presentiel" else total_minutes / 60,
-        available_days,
-        available_minutes / 60,
-        (extended_minutes if extended_minutes is not None else available_minutes) / 60,
-        elearning_minutes / 60,
-        presentiel_minutes / 60,
-        total_minutes / 60,
-        elongated_days,
-        day_distribution or [],
-    )
-
-def build_aps_planning(start_date, end_date=None, exam_iso=""):
-    modules = [{"name": name, "hours": float(hours), "remaining": float(hours)} for name, hours in APS_MODULES]
-    module_idx = 0
-    days = []
-    totals = {}
-    total_hours = 0.0
-    current_day = start_date
-
-    while round(total_hours, 2) < APS_TOTAL_HOURS:
-        if end_date and current_day > end_date:
-            raise ValueError("La p√©riode disponible avant l‚Äôexamen ne permet pas de placer toutes les heures de formation APS. Merci d‚Äôavancer la date de d√©but ou de reculer la date d‚Äôexamen.")
-        if not is_aps_training_day(current_day, exam_iso):
-            current_day += timedelta(days=1)
-            continue
-
-        day_blocks = []
-        for slot_start, slot_hours in ((dt_time(8, 30), 4.0), (dt_time(13, 30), 3.0)):
-            cursor = slot_start
-            remaining_slot = slot_hours
-            while remaining_slot > 0 and module_idx < len(modules):
-                module = modules[module_idx]
-                duration = min(remaining_slot, module["remaining"])
-                end_time = add_hours_to_time(cursor, duration)
-                day_blocks.append({
-                    "uv": module["name"],
-                    "start": cursor,
-                    "end": end_time,
-                    "hours": duration,
-                })
-                module["remaining"] = round(module["remaining"] - duration, 2)
-                remaining_slot = round(remaining_slot - duration, 2)
-                total_hours = round(total_hours + duration, 2)
-                totals[module["name"]] = round(totals.get(module["name"], 0) + duration, 2)
-                cursor = end_time
-                if module["remaining"] == 0:
-                    module_idx += 1
-                if round(total_hours, 2) == APS_TOTAL_HOURS:
-                    break
-            if round(total_hours, 2) == APS_TOTAL_HOURS:
-                break
-        if day_blocks:
-            days.append({"date": current_day, "blocks": day_blocks})
-        current_day += timedelta(days=1)
-
-    return days, totals, total_hours
-
-
-def normalize_formation_code(value):
-    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
-
-
-UNSUPPORTED_TRAINING_TYPE_MESSAGE = "Impossible de g√©n√©rer le document : le type de formation de cette session n‚Äôest pas reconnu."
-TRAINING_CODE_ALIASES = {
-    "AFCAPSSSIAP": "AFC_APS_SSIAP",
-    "AFCAPSSSIAP1": "AFC_APS_SSIAP",
-    "AFCCFRANCETRAVAILAPSSSIAP": "AFC_APS_SSIAP",
-    "AFC_APS_SSIAP": "AFC_APS_SSIAP",
-    "APS": "APS",
-    "A3P": "A3P",
-    "SSIAP": "SSIAP1",
-    "SSIAP1": "SSIAP1",
-    "DIRIGEANT": "DESP",
-    "DESP": "DESP",
-}
-
-
-def normalize_training_code(session_data):
-    """Return the stable business training code, never inferred from display title."""
-    session_data = session_data or {}
-    for key in ("training_code", "formation_type", "program_code", "formation"):
-        raw = session_data.get(key)
-        if raw in (None, ""):
-            continue
-        code = normalize_formation_code(raw)
-        if code in TRAINING_CODE_ALIASES:
-            return TRAINING_CODE_ALIASES[code]
-        raise ValueError(UNSUPPORTED_TRAINING_TYPE_MESSAGE)
-    raise ValueError(UNSUPPORTED_TRAINING_TYPE_MESSAGE)
-
-
-def is_ssiap1_session(session_data):
-    try:
-        return normalize_training_code(session_data) == "SSIAP1"
-    except ValueError:
-        return False
-
-
-def select_training_builder(session_data, builders):
-    code = normalize_training_code(session_data)
-    builder = builders.get(code)
-    if builder is None:
-        raise ValueError(UNSUPPORTED_TRAINING_TYPE_MESSAGE)
-    return code, builder
-
-
-
-def build_aps_session_planning(session_data, payload=None):
-    payload = payload or {}
-    mode = (payload.get("planningMode") or session_data.get("apsPlanningMode") or "").strip()
-    if mode not in {"full_presentiel", "elearning_presentiel"}:
-        raise ValueError("Le type de planning APS est obligatoire.")
-    start_dt = parse_date(session_data.get("date_debut"))
-    end_dt = parse_date(session_data.get("date_fin"))
-    if not start_dt:
-        raise ValueError("La date de d√©but de session est obligatoire.")
-    formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
-    room = (payload.get("room") or session_data.get("salle") or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS").strip()
-    return build_aps_planning_data(start_dt.date(), formateur, room, mode, end_date=end_dt.date() if end_dt else None, exam_iso=aps_local_date_iso(session_data.get("date_exam")), session_id=session_data.get("id"))[0]
-
-
-def build_ssiap_planning(session_data, payload=None):
-    payload = payload or {}
-    formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
-    room = (payload.get("room") or session_data.get("salle") or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS").strip()
-    exam = ssiap1_exam_payload(session_data, payload)
-    end_dt = parse_date(session_data.get("date_fin"))
-    return build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam, excluded_dates=ssiap1_excluded_dates_from_payload(session_data, payload))[0]
-
-
-def build_desp_planning(session_data, payload=None):
-    payload = payload or {}
-    elearning_start = parse_date(payload.get("despElearningStart") or session_data.get("despElearningStart") or session_data.get("date_debut"))
-    elearning_end = parse_date(payload.get("despElearningEnd") or session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
-    presentiel_start = parse_date(payload.get("despPresentielStart") or session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
-    presentiel_end = parse_date(payload.get("despPresentielEnd") or session_data.get("despPresentielEnd") or session_data.get("date_fin"))
-    if not all([elearning_start, elearning_end, presentiel_start, presentiel_end]):
-        raise ValueError("Les dates de d√©but/fin distanciel et d√©but/fin pr√©sentiel DESP sont obligatoires.")
-    return generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), payload.get("trainer") or payload.get("formateur") or "", payload.get("room") or session_data.get("salle") or "", exam_iso=aps_local_date_iso(session_data.get("date_exam")), allow_saturday=bool(payload.get("allowSaturday") or session_data.get("despAllowSaturday")))
-
-
-def build_a3p_planning(session_data, payload=None):
-    return session_data.get("a3pPlanningData") or generateA3pSchedule(session_data.get("a3pPlanningConfig") or {})
-
-
-def build_aps_presence_days(session_data):
-    return _aps_presentiel_days(session_data.get("apsPlanningData"), session_data.get("apsPlanningMode") or "full_presentiel")
-
-
-def build_a3p_presence_days(session_data):
-    _, converted = _a3p_session_for_shared_docs(session_data)
-    return _aps_presentiel_days(converted, "full_presentiel")
-
-
-def build_ssiap_presence_days(session_data):
-    days = []
-    for day in session_data.get("apsPlanningData") or []:
-        slots = [slot for slot in day.get("slots", []) if is_in_person_slot(slot) or _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"sst", "revision"}]
-        if slots:
-            copied = dict(day); copied["slots"] = slots; days.append(copied)
-    return days
-
-
-def build_desp_presence_days(session_data):
-    return _aps_presentiel_days(session_data.get("apsPlanningData"), "desp")
-
-
-PLANNING_BUILDERS = {"APS": build_aps_session_planning, "A3P": build_a3p_planning, "SSIAP1": build_ssiap_planning, "DESP": build_desp_planning}
-PRESENCE_BUILDERS = {"APS": build_aps_presence_days, "A3P": build_a3p_presence_days, "SSIAP1": build_ssiap_presence_days, "DESP": build_desp_presence_days}
-
-def ssiap1_exam_payload(session_data, payload=None):
-    payload = payload or {}
-    exam_date = aps_local_date_iso(payload.get("examDate") or session_data.get("exam_date") or session_data.get("date_exam"))
-    exam_start = (payload.get("examStartTime") or session_data.get("exam_start_time") or session_data.get("ssiapExamStartTime") or "08:30").strip()
-    exam_end = (payload.get("examEndTime") or session_data.get("exam_end_time") or session_data.get("ssiapExamEndTime") or "16:30").strip()
-    exam_room = (payload.get("examRoom") or session_data.get("exam_room") or session_data.get("ssiapExamRoom") or session_data.get("salle") or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS").strip()
-    if not exam_date:
-        raise ValueError("La date d'examen SSIAP 1 est obligatoire.")
-    try:
-        start_dt = datetime.strptime(f"{exam_date} {exam_start}", "%Y-%m-%d %H:%M")
-        end_dt = datetime.strptime(f"{exam_date} {exam_end}", "%Y-%m-%d %H:%M")
-    except Exception as exc:
-        raise ValueError("Les horaires d'examen SSIAP 1 sont obligatoires au format HH:MM.") from exc
-    if end_dt <= start_dt:
-        raise ValueError("L'heure de fin d'examen SSIAP 1 doit √™tre apr√®s l'heure de d√©but.")
-    return {"date": exam_date, "start": exam_start, "end": exam_end, "room": exam_room, "durationMinutes": int((end_dt - start_dt).total_seconds() // 60), "sstTrainer": (payload.get("sstTrainer") or session_data.get("ssiapSstTrainer") or "").strip(), "ssiapTrainer": (payload.get("ssiapTrainer") or payload.get("trainer") or payload.get("formateur") or session_data.get("ssiapTrainer") or "").strip(), "revisionTrainer": (payload.get("revisionTrainer") or session_data.get("ssiapRevisionTrainer") or "").strip(), "examTrainer": (payload.get("examTrainer") or session_data.get("ssiapExamTrainer") or "").strip()}
-
-def _ssiap1_required_training_days():
-    full_days, remainder = divmod(SSIAP1_TOTAL_MINUTES, APS_MAX_DAILY_MINUTES)
-    return full_days + (1 if remainder else 0)
-
-def _ssiap1_role_trainer(exam_payload, role, fallback=""):
-    return (exam_payload or {}).get(role) or fallback or ""
-
-def _ssiap1_next_training_days(start_date, count, exam_iso=""):
-    days = []
-    current = start_date
-    while len(days) < count:
-        if is_aps_training_day(current, exam_iso):
-            days.append(current)
-        current += timedelta(days=1)
-    return days
-
-def _ssiap1_day_slot(date_value, start, minutes, *, uv, part, title, items, trainer, room, modality, content=None):
-    end = add_minutes_to_time(start, minutes)
-    return {
-        "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"),
-        "duration": round(minutes / 60, 2), "durationMinutes": minutes,
-        "uv": uv, "part": part, "sequence": uv, "title": title, "content": content or title,
-        "subpartItems": list(items or []), "subpartDisplayItems": list(items or []),
-        "room": room, "trainer": trainer, "modality": modality,
-    }
-
-def ssiap1_excluded_dates_from_payload(session_data, payload=None):
-    payload = payload or {}
-    raw_values = []
-    for source in (session_data or {}, payload):
-        for key in (
-            "ssiapExcludedDates",
-            "ssiap_excluded_dates",
-            "ssiapNonTrainingDays",
-            "nonTrainingDays",
-            "excludedDates",
-            "excluded_dates",
-        ):
-            value = source.get(key) if isinstance(source, dict) else None
-            if value:
-                raw_values.append(value)
-    excluded = set()
-    for value in raw_values:
-        items = value if isinstance(value, (list, tuple, set)) else re.split(r"[,;\n\s]+", str(value))
-        for item in items:
-            iso = aps_local_date_iso(item)
-            if iso:
-                excluded.add(iso)
-    return excluded
-
-def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam_iso="", exam_payload=None, excluded_dates=None):
-    exam_payload = exam_payload or {}
-    excluded_dates = {aps_local_date_iso(value) for value in (excluded_dates or []) if aps_local_date_iso(value)}
-    if end_date is None:
-        raise ValueError("La date de fin de formation SSIAP 1 est obligatoire.")
-    sst_trainer = _ssiap1_role_trainer(exam_payload, "sstTrainer", formateur)
-    ssiap_trainer = _ssiap1_role_trainer(exam_payload, "ssiapTrainer", formateur)
-    revision_trainer = _ssiap1_role_trainer(exam_payload, "revisionTrainer", ssiap_trainer)
-    exam_trainer = _ssiap1_role_trainer(exam_payload, "examTrainer", ssiap_trainer)
-
-    all_days = [day for day in aps_working_days_between(start_date, end_date, exam_iso) if day.isoformat() not in excluded_dates]
-    required_total_days = 2 + _ssiap1_required_training_days()
-    if len(all_days) < required_total_days:
-        raise ValueError(aps_impossible_period_message(start_date, end_date, len(all_days) * APS_MAX_DAILY_MINUTES, (SSIAP1_PRESENCE_TOTAL_HOURS * 60)))
-    session_days = all_days[:required_total_days]
-    if session_days[0] != start_date or session_days[1] != start_date + timedelta(days=1):
-        # Keep the rule generic but explicit: SST occupies the first two working days.
-        pass
-    sst_days = session_days[:2]
-    training_days = session_days[2:]
-    if training_days[0] != start_date + timedelta(days=2):
-        raise ValueError("La formation SSIAP 1 doit commencer le troisi√®me jour ouvr√© de la session, apr√®s les 14h SST.")
-    if training_days[-1] != end_date:
-        raise ValueError(f"La derni√®re journ√©e SSIAP 1 doit √™tre le {end_date.strftime('%d/%m/%Y')} afin d'y placer les 4 derni√®res heures et les r√©visions.")
-
-    planning, totals, occurrence_counts, total_occurrences = [], {}, {}, {}
-    for idx, day in enumerate(sst_days):
-        detail = SSIAP1_SST_DAYS[idx]
-        slots = [
-            _ssiap1_day_slot(day, dt_time(8, 30), 240, uv=detail["code"], part=SSIAP1_SST_PART, title=detail["title"], items=detail["items"][:3], trainer=sst_trainer, room=salle, modality="sst"),
-            _ssiap1_day_slot(day, dt_time(13, 30), 180, uv=detail["code"], part=SSIAP1_SST_PART, title=detail["title"], items=detail["items"][3:], trainer=sst_trainer, room=salle, modality="sst"),
-        ]
-        planning.append({"date": day.isoformat(), "dayLabel": aps_day_label(day), "category": "sst", "slots": slots})
-
-    modules = []
-    for detail in SSIAP1_SEQUENCE_DETAILS:
-        part_label = f"{detail['part_number']}{'re' if detail['part_number'] == 1 else 'e'} partie ‚Äî {detail['part_title']}"
-        for kind, duration_key, items_key, label in (("content", "content_duration_minutes", "content_items", "CONTENU"), ("application", "application_duration_minutes", "application_items", "APPLICATION")):
-            duration = int(detail.get(duration_key) or 0)
-            if duration <= 0:
-                continue
-            modules.append({**detail, "part": part_label, "subpart_type": kind, "subpart_label": label, "subpart_duration_minutes": duration, "subpart_items": list(detail.get(items_key) or []), "remainingMinutes": duration, "offsetMinutes": 0})
-
-    module_idx = 0; total_minutes = 0
-    for current_day in training_days:
-        slots = []
-        day_capacity = min(APS_MAX_DAILY_MINUTES, SSIAP1_TOTAL_MINUTES - total_minutes)
-        slot_definitions = [(dt_time(8, 30), min(240, day_capacity))]
-        if day_capacity > 240:
-            slot_definitions.append((dt_time(13, 30), day_capacity - 240))
-        for slot_start, slot_minutes in slot_definitions:
-            if slot_minutes <= 0:
-                continue
-            cursor = slot_start; remaining_slot = slot_minutes
-            while remaining_slot > 0 and module_idx < len(modules):
-                module = modules[module_idx]
-                duration_minutes = min(remaining_slot, module["remainingMinutes"])
-                end_time = add_minutes_to_time(cursor, duration_minutes)
-                code = module["code"]
-                occurrence_counts[(code, module["subpart_type"])] = occurrence_counts.get((code, module["subpart_type"]), 0) + 1
-                total_occurrences[(code, module["subpart_type"])] = total_occurrences.get((code, module["subpart_type"]), 0) + 1
-                slots.append({
-                    "start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"),
-                    "duration": round(duration_minutes/60, 2), "durationMinutes": duration_minutes,
-                    "uv": code, "part": module["part"], "sequence": code,
-                    "partNumber": module["part_number"], "partTitle": module["part_title"],
-                    "sequenceNumber": module["sequence_number"], "sequenceTitle": module["sequence_title"],
-                    "title": module["sequence_title"], "content": module["sequence_title"],
-                    "totalSequenceDurationMinutes": module["total_duration_minutes"],
-                    "subpartType": module["subpart_type"], "subpartLabel": module["subpart_label"],
-                    "subpartDurationMinutes": module["subpart_duration_minutes"],
-                    "subpartItems": module["subpart_items"], "subpartOffsetMinutes": module["offsetMinutes"],
-                    "splitIndex": occurrence_counts[(code, module["subpart_type"])],
-                    "room": salle, "trainer": ssiap_trainer, "modality": "presentiel"})
-                module["remainingMinutes"] -= duration_minutes; module["offsetMinutes"] += duration_minutes
-                remaining_slot -= duration_minutes; total_minutes += duration_minutes; totals[code] = totals.get(code, 0) + duration_minutes; cursor = end_time
-                if module["remainingMinutes"] == 0: module_idx += 1
-                if total_minutes == SSIAP1_TOTAL_MINUTES: break
-            if total_minutes == SSIAP1_TOTAL_MINUTES: break
-        if current_day == training_days[-1]:
-            slots.append(_ssiap1_day_slot(current_day, dt_time(13, 30), SSIAP1_REVISION_HOURS * 60, uv="REV-EXAM", part=SSIAP1_REVISION_PART, title="R√âVISIONS G√âN√âRALES ET PR√âPARATION √Ä L‚ÄôEXAMEN SSIAP 1", items=SSIAP1_REVISION_ITEMS, trainer=revision_trainer, room=salle, modality="revision"))
-        if slots:
-            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "category": "ssiap1", "slots": slots})
-
-    counts = {}
-    for day in planning:
-        for slot in day.get("slots", []):
-            if not slot.get("partNumber"):
-                continue
-            key = (slot.get("sequence"), slot.get("subpartType")); counts[key] = counts.get(key, 0) + 1
-            total_for_key = total_occurrences.get(key, 1)
-            slot["splitLabel"] = "" if total_for_key == 1 else ("d√©but" if counts[key] == 1 else "suite")
-            items = list(slot.get("subpartItems") or [])
-            if total_for_key > 1:
-                total_minutes_for_subpart = max(1, int(slot.get("subpartDurationMinutes") or 0))
-                start_offset = int(slot.get("subpartOffsetMinutes") or 0); end_offset = start_offset + int(slot.get("durationMinutes") or 0)
-                selected = []
-                for idx, item in enumerate(items):
-                    item_midpoint = ((idx + 0.5) * total_minutes_for_subpart) / max(1, len(items))
-                    is_last_chunk = counts[key] == total_for_key
-                    if item_midpoint >= start_offset and (item_midpoint < end_offset or is_last_chunk): selected.append(item)
-                if not selected and counts[key] > 1: selected = ["Poursuite et approfondissement du contenu commenc√© lors du cr√©neau pr√©c√©dent"]
-                slot["subpartDisplayItems"] = selected
-                slot["subpartProgressLabel"] = f"{slot.get('subpartLabel', 'Sous-partie').capitalize()} : cr√©neau {counts[key]} sur {total_for_key} ‚Äî total {format_duration_from_minutes(total_minutes_for_subpart)}"
-            else:
-                slot["subpartDisplayItems"] = items
-
-    exam_date = exam_payload.get("date") or exam_iso
-    last_training = datetime.strptime(planning[-1]["date"], "%Y-%m-%d").date() if planning else None
-    exam_date_obj = datetime.strptime(exam_date, "%Y-%m-%d").date() if exam_date else None
-    if not exam_date_obj or (last_training and exam_date_obj <= last_training): raise ValueError("L'examen SSIAP 1 doit √™tre plac√© apr√®s la fin des 67 heures de formation.")
-    planning.append({"date": exam_date, "dayLabel": aps_day_label(exam_date_obj), "exam": True, "category": "exam", "slots": [{"start": exam_payload.get("start", "08:30"), "end": exam_payload.get("end", "16:30"), "duration": round((exam_payload.get("durationMinutes") or 0)/60, 2), "durationMinutes": exam_payload.get("durationMinutes") or 0, "uv": "EXAMEN", "part": "EXAMEN SSIAP 1", "sequence": "EXAMEN", "title": "EXAMEN SSIAP 1", "content": "√âpreuves d'examen SSIAP 1", "room": exam_payload.get("room") or salle, "trainer": exam_trainer, "modality": "exam"}]})
-    return planning, {k: round(v/60, 2) for k, v in totals.items()}, round(total_minutes/60, 2)
-
-def ssiap1_summary_from_data(planning_data):
-    totals = {k: 0 for k in SSIAP1_SEQUENCE_TOTALS}
-    part_totals = {k: 0 for k in SSIAP1_PART_TOTALS}
-    errors = []
-    order = list(SSIAP1_SEQUENCE_TOTALS)
-    seen_order = []
-    total = 0
-    sst_minutes = 0
-    revision_minutes = 0
-    exam = None
-    exam_dates = []
-    previous = None
-    ssiap_day_minutes = {}
-    presence_day_minutes = {}
-    sst_day_minutes = {}
-    revision_day_minutes = {}
-    for day in planning_data or []:
-        day_date = day.get("date")
-        for slot in day.get("slots", []):
-            minutes = int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60))))
-            modality = (slot.get("modality") or "").strip().lower()
-            if modality in {"exam", "examen"} or slot.get("uv") == "EXAMEN":
-                exam = {"date": day_date, "start": slot.get("start"), "end": slot.get("end"), "room": slot.get("room"), "durationMinutes": minutes}
-                exam_dates.append(day_date)
-                continue
-            try:
-                start_dt = datetime.strptime(f"{day_date} {slot.get('start')}", "%Y-%m-%d %H:%M")
-                end_dt = datetime.strptime(f"{day_date} {slot.get('end')}", "%Y-%m-%d %H:%M")
-                if int((end_dt-start_dt).total_seconds()//60) != minutes: errors.append(f"Dur√©e incoh√©rente le {day_date} {slot.get('start')}-{slot.get('end')}.")
-                if start_dt.minute not in {0,30} or end_dt.minute not in {0,30}: errors.append(f"Horaire irr√©gulier le {day_date} {slot.get('start')}-{slot.get('end')}.")
-                if previous and start_dt < previous: errors.append(f"Ordre chronologique incoh√©rent le {day_date} {slot.get('start')}.")
-                previous = end_dt
-            except Exception: errors.append(f"Horaire invalide le {day_date}: {slot.get('start')}-{slot.get('end')}.")
-            presence_day_minutes[day_date] = presence_day_minutes.get(day_date, 0) + minutes
-            if modality == "sst":
-                sst_minutes += minutes
-                sst_day_minutes[day_date] = sst_day_minutes.get(day_date, 0) + minutes
-                continue
-            if modality == "revision":
-                revision_minutes += minutes
-                revision_day_minutes[day_date] = revision_day_minutes.get(day_date, 0) + minutes
-                continue
-            code = slot.get("sequence") or slot.get("uv")
-            if code not in totals:
-                errors.append(f"S√©quence SSIAP 1 inconnue: {code}"); continue
-            ssiap_day_minutes[day_date] = ssiap_day_minutes.get(day_date, 0) + minutes
-            totals[code] += round(minutes/60, 2); total += round(minutes/60, 2)
-            part_totals[SSIAP1_PART_LABELS[code.split('-')[0]].split(' ‚Äî ')[0]] += round(minutes/60, 2)
-            if not seen_order or seen_order[-1] != code: seen_order.append(code)
-    if sst_minutes != SSIAP1_SST_TOTAL_HOURS * 60: errors.append(f"Le total SST doit √™tre exactement de 14h (actuel: {sst_minutes/60:g}h).")
-    if sorted(sst_day_minutes.values()) != [APS_MAX_DAILY_MINUTES, APS_MAX_DAILY_MINUTES]: errors.append("Le SST doit comporter exactement deux journ√©es de 7h.")
-    if round(total, 2) != SSIAP1_TOTAL_HOURS: errors.append(f"Le total formation SSIAP 1 doit √™tre exactement de 67h (actuel: {total:g}h).")
-    day_values = list(ssiap_day_minutes.values())
-    if len(day_values) != _ssiap1_required_training_days(): errors.append(f"La formation SSIAP 1 doit comporter exactement {_ssiap1_required_training_days()} journ√©es de formation (actuel: {len(day_values)}).")
-    full_days = [m for m in day_values if m == APS_MAX_DAILY_MINUTES]
-    partial_days = [m for m in day_values if m != APS_MAX_DAILY_MINUTES]
-    if len(full_days) != 9: errors.append(f"La formation SSIAP 1 doit comporter exactement 9 journ√©es compl√®tes de 7h (actuel: {len(full_days)}).")
-    if partial_days != [240]: errors.append("La derni√®re journ√©e SSIAP 1 doit √™tre la seule journ√©e partielle r√©glementaire et durer exactement 4h.")
-    if revision_minutes != SSIAP1_REVISION_HOURS * 60: errors.append(f"Les r√©visions compl√©mentaires doivent totaliser exactement 3h (actuel: {revision_minutes/60:g}h).")
-    if revision_day_minutes and list(revision_day_minutes.values()) != [SSIAP1_REVISION_HOURS * 60]: errors.append("Les r√©visions SSIAP 1 doivent √™tre plac√©es en un bloc de 3h.")
-    if presence_day_minutes.get(max(presence_day_minutes or {"":0})) != APS_MAX_DAILY_MINUTES: errors.append("La derni√®re journ√©e de pr√©sence avant examen doit totaliser 7h.")
-    for d in presence_day_minutes:
-        parsed = parse_date(d)
-        if not parsed or not is_french_working_day(parsed.date()): errors.append(f"Aucun cr√©neau SSIAP 1/SST/r√©vision ne doit √™tre plac√© le week-end ou un jour f√©ri√©: {d}.")
-    if any(d in ssiap_day_minutes for d in sst_day_minutes): errors.append("Aucune s√©quence SSIAP 1 ne doit √™tre plac√©e pendant les journ√©es SST.")
-    if exam and exam.get("date") in presence_day_minutes: errors.append("La date d‚Äôexamen SSIAP 1 ne doit pas contenir de cr√©neau de formation.")
-    for part, expected in SSIAP1_PART_TOTALS.items():
-        if round(part_totals.get(part, 0), 2) != expected: errors.append(f"{part} doit totaliser {expected}h (actuel: {part_totals.get(part, 0):g}h).")
-    for code, expected in SSIAP1_SEQUENCE_TOTALS.items():
-        if round(totals.get(code, 0), 2) != expected: errors.append(f"{code} ‚Äî {SSIAP1_SEQUENCE_LABELS[code]} doit totaliser {expected:g}h (actuel: {totals.get(code, 0):g}h).")
-    if seen_order != order: errors.append("Les 24 s√©quences SSIAP 1 doivent √™tre pr√©sentes et dans l'ordre r√©glementaire.")
-    if not exam: errors.append("L'examen SSIAP 1 doit √™tre pr√©sent dans le planning.")
-    return {"total_hours": round(total, 2), "sst_hours": round(sst_minutes/60, 2), "revision_hours": round(revision_minutes/60, 2), "presence_total_hours": round((sst_minutes + int(total*60) + revision_minutes)/60, 2), "uv_totals": totals, "part_totals": part_totals, "uv_rows": [{"uv": c, "label": SSIAP1_SEQUENCE_LABELS[c], "title": SSIAP1_SEQUENCE_LABELS[c], "hours": totals[c], "expected": SSIAP1_SEQUENCE_TOTALS[c], "modality": "presentiel"} for c in order], "modality_totals": {"sst": round(sst_minutes/60, 2), "presentiel": round(total, 2), "revision": round(revision_minutes/60, 2)}, "daily_totals": {d: round(m/60, 2) for d, m in presence_day_minutes.items()}, "ssiap_daily_totals": {d: round(m/60, 2) for d, m in ssiap_day_minutes.items()}, "exam": exam, "errors": errors}
-
-def find_center_image(*keywords):
-    normalized_keywords = tuple((keyword or "").lower() for keyword in keywords)
-    explicit_assets = (
-        os.path.join(BASE_DIR, "templates", "signature"),
-        os.path.join(BASE_DIR, "templates", "signature.png"),
-        os.path.join(BASE_DIR, "templates", "Tampon.png"),
-        os.path.join(BASE_DIR, "templates", "tampon.png"),
-    )
-    for asset_path in explicit_assets:
-        name = os.path.basename(asset_path).lower()
-        if os.path.isfile(asset_path) and any(keyword in name for keyword in normalized_keywords):
-            return asset_path
-
-    image_dir = os.path.join(BASE_DIR, "static", "img")
-    if not os.path.isdir(image_dir):
-        return None
-    for entry in os.scandir(image_dir):
-        if not entry.is_file():
-            continue
-        name = entry.name.lower()
-        extension = name.rsplit(".", 1)[-1] if "." in name else ""
-        if any(keyword in name for keyword in normalized_keywords) and extension in {"png", "jpg", "jpeg"}:
-            return entry.path
-    return None
-
-def wrap_text_lines(text, max_width, font="Helvetica", size=9):
-    from reportlab.pdfbase.pdfmetrics import stringWidth
-    words = str(text or "").split()
-    lines = []
-    current = ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if stringWidth(candidate, font, size) <= max_width:
-            current = candidate
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    return lines
-
-def draw_wrapped_text(canvas, text, x, y, max_width, font="Helvetica", size=9, leading=11):
-    from reportlab.pdfbase.pdfmetrics import stringWidth
-    words = text.split()
-    lines = []
-    current = ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if stringWidth(candidate, font, size) <= max_width:
-            current = candidate
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    canvas.setFont(font, size)
-    for line in lines:
-        canvas.drawString(x, y, line)
-        y -= leading
-    return y
-
-
-def split_uv_title(module_name):
-    parts = (module_name or "").split(" ", 1)
-    uv = parts[0].strip() if parts else ""
-    title = parts[1].strip() if len(parts) > 1 else APS_UV_LABELS.get(uv, module_name)
-    return uv, title
-
-def aps_day_label(day_date):
-    weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-    months = ["Janvier", "F√©vrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Ao√ªt", "Septembre", "Octobre", "Novembre", "D√©cembre"]
-    return f"{weekdays[day_date.weekday()]} {day_date.day} {months[day_date.month - 1]} {day_date.year}"
-
-def aps_blocks_to_planning_data(days, formateur, salle, planning_mode="full_presentiel"):
-    planning = []
-    elearning_remaining = 62.0 if planning_mode == "elearning_presentiel" else 0.0
-    for day in days:
-        day_date = day["date"]
-        slots = []
-        for block in day.get("blocks", []):
-            uv, title = split_uv_title(block.get("uv"))
-            duration = float(block.get("hours", 0))
-            modality = "presentiel"
-            if elearning_remaining > 0:
-                modality = "elearning"
-                elearning_remaining = round(elearning_remaining - duration, 2)
-            slots.append({
-                "start": block["start"].strftime("%H:%M"),
-                "end": block["end"].strftime("%H:%M"),
-                "duration": duration,
-                "uv": uv,
-                "title": title,
-                "room": "" if modality == "elearning" else (salle or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS"),
-                "trainer": "" if modality == "elearning" else (formateur or ""),
-                "modality": modality,
-            })
-        planning.append({"date": day_date.isoformat(), "dayLabel": aps_day_label(day_date), "slots": slots})
-    return planning
-
-def generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=None, exam_iso=""):
-    days, totals, total_hours = build_aps_planning(start_date, end_date=end_date, exam_iso=exam_iso)
-    return aps_blocks_to_planning_data(days, formateur, salle, "full_presentiel"), totals, total_hours
-
-def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=None, exam_iso="", session_id=None):
-    sequence = [dict(item, remainingMinutes=int(item["durationMinutes"])) for item in APS_ELEARNING_PRESENTIEL_MODULES]
-    expected_elearning = sum(item["durationMinutes"] for item in sequence if item["modality"] == "elearning")
-    expected_presentiel = sum(item["durationMinutes"] for item in sequence if item["modality"] == "presentiel")
-    if expected_elearning != APS_ELEARNING_MINUTES or expected_presentiel != APS_PRESENTIEL_MINUTES:
-        raise ValueError("Configuration APS incoh√©rente : la r√©partition e-learning / pr√©sentiel ne correspond pas au total attendu.")
-
-    idx = 0
-    current_day = start_date
-    planning = []
-    totals = {}
-
-    # 1) Les 62h e-learning sont plac√©es au d√©but de session, sans salle ni formateur.
-    while idx < len(sequence) and sequence[idx]["modality"] == "elearning":
-        if end_date and current_day > end_date:
-            available_days = aps_working_days_between(start_date, end_date, exam_iso)
-            log_aps_generation_diagnostics(session_id, "elearning_presentiel", start_date, end_date, exam_iso, len(available_days), len(available_days) * APS_MAX_DAILY_MINUTES, APS_ELEARNING_MINUTES, APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES)
-            raise ValueError(aps_impossible_period_message(start_date, end_date, len(available_days) * APS_MAX_DAILY_MINUTES, APS_TOTAL_MINUTES))
-        if not is_aps_training_day(current_day, exam_iso):
-            current_day += timedelta(days=1)
-            continue
-        slots = []
-        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
-            cursor = slot_start
-            remaining_slot = slot_minutes
-            while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == "elearning":
-                module = sequence[idx]
-                duration_minutes = min(remaining_slot, module["remainingMinutes"])
-                end_time = add_minutes_to_time(cursor, duration_minutes)
-                slots.append({
-                    "start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"),
-                    "duration": round(duration_minutes / 60, 2), "durationMinutes": duration_minutes,
-                    "uv": module["uv"], "title": module["title"], "part": module["part"],
-                    "room": "", "trainer": "", "modality": "elearning",
-                })
-                module["remainingMinutes"] -= duration_minutes
-                remaining_slot -= duration_minutes
-                cursor = end_time
-                totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
-                if module["remainingMinutes"] == 0:
-                    idx += 1
-            if idx >= len(sequence) or sequence[idx]["modality"] != "elearning":
-                break
-        if slots:
-            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
-        current_day += timedelta(days=1)
-
-    # 2) Le pr√©sentiel d√©marre apr√®s l'e-learning et doit tenir jusqu'√† la fin r√©elle de formation.
-    presentiel_start = current_day
-    while not is_aps_training_day(presentiel_start, exam_iso):
-        presentiel_start += timedelta(days=1)
-    presentiel_end = end_date
-    if not presentiel_end:
-        presentiel_end = presentiel_start + timedelta(days=60)
-    presentiel_days = aps_working_days_between(presentiel_start, presentiel_end, exam_iso)
-    standard_presentiel_minutes = len(presentiel_days) * APS_MAX_DAILY_MINUTES
-    extended_presentiel_minutes = len(presentiel_days) * APS_EXTENDED_DAILY_MINUTES
-    if APS_PRESENTIEL_MINUTES > extended_presentiel_minutes:
-        log_aps_generation_diagnostics(
-            session_id, "elearning_presentiel", start_date, presentiel_end, exam_iso,
-            len(presentiel_days), standard_presentiel_minutes, APS_ELEARNING_MINUTES,
-            APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES, extended_presentiel_minutes,
-        )
-        raise ValueError(aps_impossible_period_message(presentiel_start, presentiel_end, standard_presentiel_minutes, APS_PRESENTIEL_MINUTES, extended_presentiel_minutes))
-
-    # Capacit√© journali√®re r√©elle : 7h par d√©faut, puis jusqu'√† 8h seulement si la
-    # p√©riode pr√©sentielle est trop courte √† 7h/jour. Le d√©passement est pos√© en
-    # priorit√© sur les derniers jours afin de garder un maximum de journ√©es √† 7h.
-    day_capacities = {day: APS_MAX_DAILY_MINUTES for day in presentiel_days}
-    missing_minutes = max(0, APS_PRESENTIEL_MINUTES - standard_presentiel_minutes)
-    for day in reversed(presentiel_days):
-        if missing_minutes <= 0:
-            break
-        extra = min(APS_EXTENDED_DAILY_MINUTES - APS_MAX_DAILY_MINUTES, missing_minutes)
-        day_capacities[day] += extra
-        missing_minutes -= extra
-    elongated_days = sum(1 for minutes in day_capacities.values() if minutes > APS_MAX_DAILY_MINUTES)
-    log_aps_generation_diagnostics(
-        session_id, "elearning_presentiel", presentiel_start, presentiel_end, exam_iso,
-        len(presentiel_days), standard_presentiel_minutes, APS_ELEARNING_MINUTES,
-        APS_PRESENTIEL_MINUTES, APS_TOTAL_MINUTES, extended_presentiel_minutes, elongated_days,
-        [(day.isoformat(), day_capacities[day] / 60) for day in presentiel_days], level="info",
-    )
-
-    # Si la plage pr√©sentielle est plus large que n√©cessaire, on conserve des journ√©es de formation
-    # au d√©but et √† la fin pour terminer explicitement √† date_fin_session.
-    final_day_distribution = []
-    for current_day in presentiel_days:
-        if idx >= len(sequence):
-            break
-        days_after = [d for d in presentiel_days if d > current_day]
-        remaining_presentiel = sum(item["remainingMinutes"] for item in sequence[idx:] if item["modality"] == "presentiel")
-        future_capacity = sum(day_capacities[d] for d in days_after)
-        min_today = max(0, remaining_presentiel - future_capacity)
-        is_last_training_day = current_day == presentiel_days[-1]
-        if is_last_training_day:
-            daily_limit = min(remaining_presentiel, day_capacities[current_day])
-        else:
-            # R√©partition souple : le pr√©sentiel commence d√®s le prochain jour ouvr√©,
-            # tout en gardant assez d'heures √† placer pour finir sur date_fin_session.
-            average_today = ((remaining_presentiel + len(days_after)) // (len(days_after) + 1) + 59) // 60 * 60
-            daily_limit = min(day_capacities[current_day], max(min_today, min(average_today, remaining_presentiel)))
-        if daily_limit <= 0:
-            continue
-        slots = []
-        for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180), (dt_time(16, 30), 60)):
-            cursor = slot_start
-            remaining_slot = min(slot_minutes, daily_limit - sum(s["durationMinutes"] for s in slots))
-            while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == "presentiel":
-                module = sequence[idx]
-                duration_minutes = min(remaining_slot, module["remainingMinutes"])
-                end_time = add_minutes_to_time(cursor, duration_minutes)
-                slots.append({
-                    "start": cursor.strftime("%H:%M"), "end": end_time.strftime("%H:%M"),
-                    "duration": round(duration_minutes / 60, 2), "durationMinutes": duration_minutes,
-                    "uv": module["uv"], "title": module["title"], "part": module["part"],
-                    "room": salle or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS", "trainer": formateur or "", "modality": "presentiel",
-                })
-                module["remainingMinutes"] -= duration_minutes
-                remaining_slot -= duration_minutes
-                cursor = end_time
-                totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
-                if module["remainingMinutes"] == 0:
-                    idx += 1
-            if idx >= len(sequence) or sequence[idx]["modality"] != "presentiel":
-                break
-        if slots:
-            day_minutes = sum(slot["durationMinutes"] for slot in slots)
-            final_day_distribution.append((current_day.isoformat(), day_minutes / 60))
-            planning.append({"date": current_day.isoformat(), "dayLabel": aps_day_label(current_day), "slots": slots})
-
-    app.logger.info(
-        "Planning APS e-learning + pr√©sentiel g√©n√©r√© session_id=%s heures_necessaires=%s jours_disponibles=%s capacite_7h=%s capacite_8h=%s journees_allongees=%s repartition_finale_heures_par_jour=%s",
-        session_id, APS_PRESENTIEL_MINUTES / 60, len(presentiel_days), standard_presentiel_minutes / 60,
-        extended_presentiel_minutes / 60, sum(1 for _, hours in final_day_distribution if hours > 7), final_day_distribution,
-    )
-    total_hours = sum(slot["durationMinutes"] for day in planning for slot in day["slots"]) / 60
-    return planning, {k: round(v / 60, 2) for k, v in totals.items()}, total_hours
-
-
-def _a3p_contract_days(planning_data):
-    return len([d for d in planning_data or [] if d.get("slots")])
-
-def _assert_a3p_pdf_text_safe(*parts):
-    text = "\n".join(str(p or "") for p in parts)
-    forbidden = [term for term in A3P_FORBIDDEN_TERMS if term in text]
-    if forbidden:
-        raise ValueError("Document A3P invalide: mentions interdites d√©tect√©es (" + ", ".join(forbidden) + ").")
-
-def _a3p_slot_to_aps_slot(slot):
-    minutes = int(slot.get("durationMinutes") or (_minutes_from_hhmm(slot.get("end")) - _minutes_from_hhmm(slot.get("start"))))
-    return {"start": slot.get("start") or "", "end": slot.get("end") or "", "duration": round(minutes / 60, 2), "durationMinutes": minutes, "uv": slot.get("code") or slot.get("uv") or "", "title": slot.get("title") or "", "trainer": (slot.get("trainer") or "").strip(), "room": (slot.get("room") or "").strip(), "modality": "presentiel"}
-
-def _a3p_full_day_label(iso_date):
-    parsed = parse_date(iso_date)
-    if not parsed:
-        return iso_date or "‚Äî"
-    day_date = parsed.date()
-    weekday = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"][day_date.weekday()]
-    return f"{weekday} {day_date.strftime('%d/%m/%Y')}"
-
-
-def _a3p_planning_as_aps_data(planning):
-    converted = []
-    for day in planning or []:
-        converted.append({"date": day.get("date"), "dayLabel": _a3p_full_day_label(day.get("date")), "slots": [_a3p_slot_to_aps_slot(slot) for slot in day.get("slots", [])]})
-    return converted
-
-def _a3p_document_profile(summary=None, planning=None):
-    summary = summary or {}
-    module_totals = summary.get("moduleTotals") or {}
-    rows = [{"uv": m["code"], "label": m["title"], "hours": module_totals.get(m["code"], m["hours"]), "expected": m["hours"]} for m in A3P_MODULES]
-    total = summary.get("totalHours", A3P_TOTAL_HOURS)
-    return {"validate": "a3p", "source_planning": planning or [], "short_label": "A3P", "planning_title": "PLANNING DE FORMATION A3P", "subtitle": f"Agent de protection physique des personnes ‚Äî {A3P_TOTAL_HOURS} heures hors examen", "modality_line": f"Modalit√© : 100% pr√©sentiel ‚Ä¢ Pr√©sentiel : {A3P_TOTAL_HOURS}h ‚Ä¢ Examen s√©par√©", "summary": {"total_hours": total, "uv_totals": module_totals, "uv_rows": rows, "modality_totals": {"presentiel": total}, "days_count": len(planning or []), "slots_count": sum(len(d.get("slots", [])) for d in planning or []), "errors": []}}
-
-def _a3p_session_for_shared_docs(session_data):
-    planning = session_data.get("a3pPlanningData") or []
-    converted = _a3p_planning_as_aps_data(planning)
-    fallback_trainer = (session_data.get("a3pTrainerName") or "").strip()
-    fallback_room = (session_data.get("a3pRoom") or session_data.get("salle") or session_data.get("room") or "").strip()
-    for day in converted:
-        for slot in day.get("slots", []):
-            if fallback_trainer and not slot.get("trainer"):
-                slot["trainer"] = fallback_trainer
-            if fallback_room and not slot.get("room"):
-                slot["room"] = fallback_room
-    copied = dict(session_data)
-    copied.update({"formation": "A3P", "apsPlanningMode": "full_presentiel", "apsPlanningData": converted, "apsAttendanceStudents": session_data.get("a3pAttendanceStudents") or session_data.get("apsAttendanceStudents") or [], "salle": session_data.get("a3pRoom") or session_data.get("salle") or session_data.get("room") or ""})
-    return copied, converted
-
-def generate_a3p_planning_pdf(session_data, output_path):
-    planning = session_data.get("a3pPlanningData") or []
-    errors, summary = validate_a3p_planning(planning, session_data.get("date_exam"))
-    if errors:
-        raise ValueError(" ".join(errors))
-    _assert_a3p_pdf_text_safe(session_data.get("a3pTrainerName"), session_data.get("a3pRoom"))
-    shared_session, converted = _a3p_session_for_shared_docs(session_data)
-    return generate_aps_planning_pdf(shared_session, session_data.get("a3pTrainerName") or "", output_path, planning_data=converted, planning_mode="full_presentiel", document_profile=_a3p_document_profile(summary, planning))
-
-def generate_a3p_attendance_pdf(session_data, output_path):
-    planning = session_data.get("a3pPlanningData") or []
-    errors, _summary = validate_a3p_planning(planning, session_data.get("date_exam"))
-    if errors:
-        raise ValueError(" ".join(errors))
-    shared_session, _converted = _a3p_session_for_shared_docs(session_data)
-    return generate_attendance_pdf_common(shared_session, output_path, training_type="A3P", subtitle="TFP Agent de Protection Physique des Personnes (A3P)")
-
-def _a3p_trainer_contract_data(session_data, contract):
-    shared_session, converted = _a3p_session_for_shared_docs(session_data)
-    trainer_name = session_data.get("a3pTrainerName") or contract.get("trainerName") or ""
-    contract = merge_formateur_contract_defaults(contract, find_formateur_by_identity(name=trainer_name, email=contract.get("trainerEmail") or contract.get("email") or contract.get("trainerEmail")))
-    interventions = aps_trainer_interventions(converted, trainer_name)
-    daily = float(contract.get("dailyRate") or 0)
-    billed_days = float(contract.get("billedDays") or interventions["calendarDays"] or _a3p_contract_days(session_data.get("a3pPlanningData") or []))
-    total_ht = round(daily * billed_days, 2)
-    vat_enabled = bool(contract.get("vatEnabled"))
-    vat_rate = float(contract.get("vatRate") or 20)
-    vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0
-    payload = merge_formateur_contract_defaults(contract, find_formateur_by_identity(name=trainer_name, email=contract.get("trainerEmail") or contract.get("email") or contract.get("trainerEmail")))
-    payload.update({"trainerName": trainer_name, "interventions": interventions["interventions"], "calculatedHours": interventions["totalHours"], "calculatedDays": interventions["calculatedDays"], "billedDays": billed_days, "dailyRate": daily, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": round(total_ht + vat_amount, 2)})
-    return shared_session, payload
-
-def generate_a3p_trainer_contract_pdf(session_data, contract, output_path):
-    errors, _summary = validate_a3p_planning(session_data.get("a3pPlanningData") or [], session_data.get("date_exam"))
-    if errors:
-        raise ValueError(" ".join(errors))
-    shared_session, payload = _a3p_trainer_contract_data(session_data, contract or {})
-    return generate_aps_trainer_contract_pdf(shared_session, payload, output_path)
-
-def generate_a3p_simple_pdf(session_data, output_path, kind="planning", contract=None):
-    if kind == "planning":
-        return generate_a3p_planning_pdf(session_data, output_path)
-    if kind == "attendance":
-        return generate_a3p_attendance_pdf(session_data, output_path)
-    if kind == "contract":
-        return generate_a3p_trainer_contract_pdf(session_data, contract or {}, output_path)
-    raise ValueError("Type de document A3P invalide.")
-
-def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_presentiel", end_date=None, exam_iso="", session_id=None):
-    if planning_mode == "elearning_presentiel":
-        return generateApsElearningPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso, session_id=session_id)
-    return generateApsFullPresentielPlanning(start_date, formateur, salle, end_date=end_date, exam_iso=exam_iso)
-
-
-AFC_APS_SSIAP_LABEL = "AFC France Travail APS + SSIAP"
-AFC_APS_SSIAP_TOTAL_HOURS = 393
-AFC_APS_SSIAP_TECHNICAL_HOURS = 273
-AFC_APS_SSIAP_EXPECTED_MINUTES = {
-    "RAN": 55 * 60,
-    "ACCUEIL": 210,
-    "APS": 175 * 60,
-    "EXAM_APS": 7 * 60,
-    "H0B0": 7 * 60,
-    "SSIAP1": 70 * 60,
-    "EXAM_SSIAP1": 7 * 60,
-    "BILAN": 210,
-    "SP": 45 * 60,
-    "PAF": 20 * 60,
-}
-AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"]
-AFC_APS_SSIAP_LABELS = {
-    "RAN": "Remise √† niveau (RAN)",
-    "ACCUEIL": "Accueil",
-    "APS": "Formation Agent de pr√©vention et de s√©curit√© (APS)",
-    "SP": "Soutien personnalis√© (SP)",
-    "EXAM_APS": "Examen Agent de pr√©vention et de s√©curit√© (APS)",
-    "H0B0": "Habilitation √©lectrique H0B0",
-    "SSIAP1": "Formation SSIAP 1",
-    "EXAM_SSIAP1": "Examen SSIAP 1",
-    "BILAN": "Bilan de formation",
-    "PAF": "Pr√©paration √† l‚Äôapr√®s-formation (PAF)",
-}
-AFC_DAY_SEGMENTS = ((8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30))
-AFC_TECHNICAL_CODES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
-AFC_ACCOMPANIMENT_CODES = {"SP", "PAF"}
-AFC_CATEGORY_COLORS = {
-    "RAN": "#bfdbfe",
-    "ACCUEIL": "#5eead4",
-    "APS": "#1d4ed8",
-    "EXAM_APS": "#581c87",
-    "H0B0": "#fde047",
-    "SSIAP1": "#fb923c",
-    "EXAM_SSIAP1": "#dc2626",
-    "SP": "#d8b4fe",
-    "PAF": "#86efac",
-    "BILAN": "#374151",
-}
-
-
-DSF_DIR = os.path.join(DATA_DIR, "afc_dsf")
-os.makedirs(DSF_DIR, exist_ok=True)
-AFC_DSF_STATUS_FINALIZED = "Finalis√©e"
-AFC_DSF_STATUS_CANCELLED = "Annul√©e"
-AFC_DSF_MODULES = {
-    "RAN": {"label": "Remise √† niveau (RAN)", "theoreticalHours": 55, "colors": ["#38bdf8", "#e0f2fe"]},
-    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 273, "colors": ["#1e3a8a", "#dbeafe"]},
-    "SP": {"label": "Soutien personnalis√© (SP)", "theoreticalHours": 45, "colors": ["#a855f7", "#f3e8ff"]},
-    "PAF": {"label": "Pr√©paration √† l‚Äôapr√®s-formation (PAF)", "theoreticalHours": 20, "colors": ["#22c55e", "#dcfce7"]},
-}
-AFC_DSF_FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
-
-AFC_DSF_DEFAULT_HOURLY_RATE = Decimal(os.environ.get("AFC_DSF_HOURLY_RATE", "12.10"))
-
-def afc_dsf_decimal(value):
-    return Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-def afc_dsf_money(value):
-    amount = afc_dsf_decimal(value)
-    text = f"{amount:,.2f}".replace(",", " ").replace(".", ",")
-    return f"{text} ‚Ç¨"
-
-def afc_dsf_rate(value=None):
-    try:
-        rate = Decimal(str(value if value not in (None, "") else AFC_DSF_DEFAULT_HOURLY_RATE).replace(",", "."))
-    except Exception as exc:
-        raise ValueError("Tarif horaire invalide.") from exc
-    if rate < 0:
-        raise ValueError("Le tarif horaire ne peut pas √™tre n√©gatif.")
-    return rate.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-def afc_dsf_amount(hours, rate=None):
-    return (afc_dsf_decimal(hours) * afc_dsf_rate(rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-def afc_dsf_fmt_hours(value):
-    d = afc_dsf_decimal(value)
-    return f"{int(d)}" if d == d.to_integral() else str(d).replace(".", ",")
-
-def is_afc_aps_ssiap_session(session_data):
-    try:
-        return normalize_training_code(session_data) == "AFC_APS_SSIAP"
-    except ValueError:
-        return False
-
-def afc_dsf_students(session_data):
-    students = session_data.get("apsAttendanceStudents") or []
-    result = []
-    for idx, st in enumerate(students):
-        last = (st.get("lastName") or st.get("nom") or "").strip()
-        first = (st.get("firstName") or st.get("prenom") or "").strip()
-        if not (last or first):
-            continue
-        result.append({"id": st.get("id") or st.get("studentId") or f"student-{idx+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}".strip(), "entryDate": st.get("entryDate") or st.get("dateEntree") or st.get("startDate") or "", "france_travail_id": str(st.get("france_travail_id") or "")})
-    return result
-
-def afc_dsf_module_for_slot(slot):
-    category = slot.get("afcCategory") or slot.get("category") or slot.get("uv")
-    kind = slot.get("afcKind")
-    if kind == "FT" or category in AFC_DSF_FT_CATEGORIES:
-        return "FT"
-    if category in {"RAN", "SP", "PAF"}:
-        return category
-    return None
-
-def afc_dsf_slot_key(session_id, student_id, day, slot, module):
-    return "|".join([str(session_id), str(student_id), day.get("date", ""), slot.get("start", ""), slot.get("end", ""), module])
-
-def afc_dsf_planned_slots(session_data, start_iso=None, end_iso=None, modules=None):
-    modules = set(modules or AFC_DSF_MODULES)
-    slots = []
-    for day in session_data.get("apsPlanningData") or []:
-        d = day.get("date")
-        if start_iso and d < start_iso: continue
-        if end_iso and d > end_iso: continue
-        for slot in day.get("slots") or []:
-            module = afc_dsf_module_for_slot(slot)
-            if module not in modules: continue
-            minutes = int(slot.get("durationMinutes") or round(float(slot.get("duration") or 0) * 60))
-            if minutes <= 0: continue
-            slots.append({"date": d, "start": slot.get("start"), "end": slot.get("end"), "module": module, "minutes": minutes, "title": slot.get("title") or slot.get("content") or slot.get("uv"), "afcCategory": slot.get("afcCategory")})
-    return slots
-
-def afc_dsf_finalized(dsfs):
-    return [d for d in dsfs or [] if d.get("status") == AFC_DSF_STATUS_FINALIZED]
-
-def afc_dsf_billed_keys(dsfs):
-    keys = set()
-    for dsf in afc_dsf_finalized(dsfs):
-        for key in dsf.get("billedSlotKeys") or []:
-            keys.add(key)
-    return keys
-
-def afc_dsf_next_number(session_data):
-    return max([int(d.get("number") or 0) for d in session_data.get("afcDsfs") or []] or [0]) + 1
-
-def afc_dsf_effective_start(period_start, student):
-    entry = (student.get("entryDate") or "").strip()
-    if entry and re.match(r"^\d{4}-\d{2}-\d{2}$", entry):
-        return max(period_start, entry)
-    return period_start
-
-def afc_dsf_billed_hours_by_student(session_data):
-    students = afc_dsf_students(session_data)
-    billed = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
-    billed_keys = set()
-    for dsf in afc_dsf_finalized(session_data.get("afcDsfs") or []):
-        for key in dsf.get("billedSlotKeys") or []:
-            billed_keys.add(key)
-        for row in dsf.get("students") or []:
-            sid = row.get("id")
-            if sid not in billed:
-                continue
-            for m, h in (row.get("modules") or {}).items():
-                if m in billed[sid]:
-                    billed[sid][m] += afc_dsf_decimal(h)
-    return billed, billed_keys
-
-def afc_dsf_build_invoice_state(session_data, billing_until=None, period_start=None, period_end=None, hourly_rate=None):
-    if not is_afc_aps_ssiap_session(session_data):
-        raise ValueError("Session AFC France Travail APS + SSIAP requise.")
-    today = datetime.now().date().isoformat()
-    cutoff = billing_until or period_end or today
-    period_end = period_end or cutoff
-    if period_start and period_start > period_end:
-        raise ValueError("La date de d√©but ne peut pas √™tre post√©rieure √† la date de fin.")
-    rate = afc_dsf_rate(hourly_rate)
-    students = afc_dsf_students(session_data)
-    all_slots = afc_dsf_planned_slots(session_data)
-    billed_by_student, billed_keys = afc_dsf_billed_hours_by_student(session_data)
-    planned_by_student = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
-    billable_by_student = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
-    unbilled_billable_by_student = {st["id"]: {m: Decimal("0") for m in AFC_DSF_MODULES} for st in students}
-    session_id = session_data.get("id")
-    for st in students:
-        sid = st["id"]
-        effective_start = afc_dsf_effective_start(period_start or "0000-00-00", st)
-        entry = st.get("entryDate") or session_data.get("date_debut") or ""
-        for slot in all_slots:
-            if entry and slot["date"] < entry:
-                continue
-            module = slot["module"]
-            hours = afc_dsf_decimal(Decimal(slot["minutes"]) / Decimal(60))
-            planned_by_student[sid][module] += hours
-            if slot["date"] < effective_start or slot["date"] > period_end:
-                continue
-            billable_by_student[sid][module] += hours
-            key = afc_dsf_slot_key(session_id, sid, {"date": slot["date"]}, slot, module)
-            if key not in billed_keys:
-                unbilled_billable_by_student[sid][module] += hours
-
-    module_totals = {m: {"planned": Decimal("0"), "billable": Decimal("0"), "billed": Decimal("0"), "toInvoice": Decimal("0"), "remaining": Decimal("0"), "advanceOver": Decimal("0"), "definitiveOver": Decimal("0")} for m in AFC_DSF_MODULES}
-    detail = []
-    anomaly_count = Decimal("0")
-    for st in students:
-        sid = st["id"]
-        row = {"student": st, "modules": {}, "plannedTotal": Decimal("0"), "billableTotal": Decimal("0"), "billedTotal": Decimal("0"), "toInvoiceTotal": Decimal("0"), "remainingTotal": Decimal("0"), "amountToInvoice": Decimal("0"), "anomalies": []}
-        for m in AFC_DSF_MODULES:
-            planned = planned_by_student[sid][m]
-            billable = billable_by_student[sid][m]
-            billed = billed_by_student.get(sid, {}).get(m, Decimal("0"))
-            remaining_before_invoice = max(Decimal("0"), planned - billed)
-            to_invoice = min(remaining_before_invoice, unbilled_billable_by_student[sid][m])
-            remaining = max(Decimal("0"), remaining_before_invoice - to_invoice)
-            overbilled = max(Decimal("0"), billed - planned)
-            progress = Decimal("0") if planned <= 0 else min(Decimal("100"), (billed / planned * Decimal("100")).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
-            row["modules"][m] = {"planned": round(planned, 2), "billable": round(billable, 2), "billed": round(billed, 2), "toInvoice": round(to_invoice, 2), "remaining": round(remaining, 2), "overbilled": round(overbilled, 2), "progress": progress}
-            row["plannedTotal"] += planned
-            row["billableTotal"] += billable
-            row["billedTotal"] += billed
-            row["toInvoiceTotal"] += to_invoice
-            row["remainingTotal"] += remaining
-            row["amountToInvoice"] += afc_dsf_amount(to_invoice, rate)
-            module_totals[m]["planned"] += planned
-            module_totals[m]["billable"] += billable
-            module_totals[m]["billed"] += billed
-            module_totals[m]["toInvoice"] += to_invoice
-            module_totals[m]["remaining"] += remaining
-            module_totals[m]["advanceOver"] += max(Decimal("0"), billed - billable)
-            module_totals[m]["definitiveOver"] += overbilled
-            if overbilled > 0:
-                anomaly_count += 1
-                row["anomalies"].append({"module": m, "type": "overbilling", "hours": round(overbilled, 2)})
-        detail.append(row)
-    cards=[]
-    for m, meta in AFC_DSF_MODULES.items():
-        t=module_totals[m]; t.update({"amountTotal":afc_dsf_amount(t["planned"], rate),"amountBilled":afc_dsf_amount(t["billed"], rate),"amountToInvoice":afc_dsf_amount(t["toInvoice"], rate),"amountRemaining":afc_dsf_amount(t["remaining"], rate)})
-        cards.append({"code":m, **meta, **t, "plannedTotal": round(float(t["planned"]),2), "billedTotal": round(float(t["billed"]),2), "remainingTotal": (0 if t["billed"] > t["planned"] else round(float(t["remaining"]),2)), "overbilledTotal": round(float(max(Decimal("0"), t["billed"] - t["planned"])),2), "plannedPerStudent": round(float(t["planned"] / max(Decimal(len(students)), Decimal(1))),2), "remainingPerStudent": round(float(t["remaining"] / max(Decimal(len(students)), Decimal(1))),2)})
-    total = {"studentCount": len(students), "studentsToInvoice": sum(1 for r in detail if r["toInvoiceTotal"] > 0), "planned": sum(c["planned"] for c in cards), "billable": sum(c["billable"] for c in cards), "billed": sum(c["billed"] for c in cards), "toInvoice": sum(c["toInvoice"] for c in cards), "remaining": sum(c["remaining"] for c in cards), "overbilled": sum(c["overbilledTotal"] for c in cards), "anomalyCount": int(anomaly_count)}
-    total.update({"amountTotal": afc_dsf_amount(total["planned"], rate), "amountBilled": afc_dsf_amount(total["billed"], rate), "amountToInvoice": afc_dsf_amount(total["toInvoice"], rate), "amountRemaining": afc_dsf_amount(total["remaining"], rate)})
-    total["amountCoherenceGap"] = (total["amountTotal"] - total["amountBilled"] - total["amountToInvoice"] - total["amountRemaining"]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return {"billingUntil": cutoff, "periodStart": period_start or "", "periodEnd": period_end, "cards": cards, "detail": detail, "total": total, "rate": str(rate)}
-
-def afc_dsf_compute(session_data, start_iso, end_iso, modules, excluded_students=None, hourly_rate=None):
-    if not modules or len(modules) > 2 or len(set(modules)) != len(modules): raise ValueError("S√©lectionnez un ou deux modules maximum.")
-    if any(m not in AFC_DSF_MODULES for m in modules): raise ValueError("Module DSF invalide.")
-    rate = afc_dsf_rate(hourly_rate)
-    state = afc_dsf_build_invoice_state(session_data, billing_until=end_iso, period_start=start_iso, period_end=end_iso, hourly_rate=rate)
-    excluded_students = set(excluded_students or [])
-    billed_keys = afc_dsf_billed_keys(session_data.get("afcDsfs") or [])
-    students=[]; billed_slot_keys=[]; billed_slots=[]; totals={m:0 for m in modules}
-    slots=afc_dsf_planned_slots(session_data, start_iso, end_iso, modules)
-    for row in state["detail"]:
-        st=row["student"]
-        if st["id"] in excluded_students: continue
-        out={"id":st["id"],"lastName":st["lastName"],"firstName":st["firstName"],"displayName":st["displayName"],"entryDate":st.get("entryDate") or "","modules":{m:float(row["modules"][m]["toInvoice"]) for m in modules},"totalHours":float(sum(row["modules"][m]["toInvoice"] for m in modules)),"amountToInvoice":str(afc_dsf_amount(sum(row["modules"][m]["toInvoice"] for m in modules), rate))}
-        if out["totalHours"] <= 0: continue
-        for slot in slots:
-            if slot["module"] not in modules or slot["date"] < (st.get("entryDate") or ""):
-                continue
-            key=afc_dsf_slot_key(session_data.get("id"), st["id"], {"date": slot["date"]}, slot, slot["module"])
-            if key not in billed_keys:
-                billed_slot_keys.append(key); billed_slots.append({**slot,"studentId":st["id"],"studentName":st["displayName"]})
-        for m in modules: totals[m]+=out["modules"][m]
-        students.append(out)
-    total=round(sum(totals.values()),2)
-    if total <= 0: raise ValueError("Aucune heure restante √† facturer pour les modules et la p√©riode s√©lectionn√©s.")
-    return {"periodStart":start_iso,"periodEnd":end_iso,"billingUntil":end_iso,"modules":modules,"students":students,"studentCount":len(students),"moduleTotals":{m:round(totals[m],2) for m in modules},"totalHours":total,"amountTotal":str(afc_dsf_amount(total, rate)),"billedSlotKeys":billed_slot_keys,"billedSlots":billed_slots,"hoursPerStudent":{m:round(totals[m]/max(len(students),1),2) for m in modules},"requestedHours":{m:round(totals[m],2) for m in modules},"alreadyBilledHours":{m:0 for m in modules},"hasAlreadyBilled":False,"anomalies":[a for r in state["detail"] for a in r["anomalies"]]}
-
-
-def afc_dsf_session_snapshot(session_data, dsf_result, number, hourly_rate):
-    ft = session_data.get("france_travail") or {}
-    dsf_sequence_number = normalize_dsf_sequence_number(number)
-    engagement_kairos_base = normalize_kairos_base_reference(ft.get("engagement_kairos") or ft.get("convention") or "")
-    full_dsf_reference = build_full_kairos_reference(engagement_kairos_base, dsf_sequence_number)
-    org_name = os.environ.get("ORGANISME_RAISON_SOCIALE", "INTEGRALE SECURITE FORMATIONS")
-    org_address = os.environ.get("ORGANISME_ADRESSE", "54 chemin du Carreou, 83480 PUGET SUR ARGENS")
-    source_students = {st["id"]: st for st in afc_dsf_students(session_data)}
-    students = []
-    missing = []
-    for row in dsf_result.get("students") or []:
-        src = source_students.get(row.get("id"), {})
-        ft_id = src.get("france_travail_id") or ""
-        if not ft_id:
-            missing.append(row.get("displayName") or "")
-        modules = {m: float(row.get("modules", {}).get(m, 0) or 0) for m in AFC_DSF_MODULES}
-        total = round(sum(modules.values()), 2)
-        students.append({
-            "id": row.get("id"),
-            "lastName": row.get("lastName") or src.get("lastName") or "",
-            "firstName": row.get("firstName") or src.get("firstName") or "",
-            "displayName": row.get("displayName") or src.get("displayName") or "",
-            "france_travail_id": ft_id,
-            "modules": modules,
-            "distanceHours": 0,
-            "festeHours": 0,
-            "totalHours": total,
-            "nonBillableHours": 0,
-            "billableHours": total,
-        })
-    module_totals = {m: round(sum(st["modules"].get(m, 0) for st in students), 2) for m in AFC_DSF_MODULES}
-    total_hours = round(sum(st["totalHours"] for st in students), 2)
-    return {
-        "number": str(number),
-        "engagement_kairos_base": engagement_kairos_base,
-        "dsf_sequence_number": dsf_sequence_number,
-        "full_dsf_reference": full_dsf_reference,
-        "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "periodStart": dsf_result.get("periodStart"),
-        "periodEnd": dsf_result.get("periodEnd"),
-        "hourlyRate": str(afc_dsf_rate(hourly_rate)),
-        "session": {
-            "id": session_data.get("id"),
-            "name": session_data.get("display_name") or session_data.get("formation") or "",
-            "organisme": org_name,
-            "organisme_adresse": org_address,
-            "convention": str(ft.get("convention") or ""),
-            "intitule": ft.get("intitule") or session_data.get("display_name") or session_data.get("formation") or "",
-            "lieu": session_data.get("salle") or session_data.get("lieu") or org_address,
-            "date_debut": session_data.get("date_debut"),
-            "date_fin": session_data.get("date_fin"),
-            "france_travail": ft,
-        },
-        "students": students,
-        "studentCount": len(students),
-        "moduleTotals": module_totals,
-        "totalHours": total_hours,
-        "missingFranceTravailIds": [m for m in missing if m],
-        "anomalies": dsf_result.get("anomalies") or [],
-    }
-
-def afc_dsf_preview_metadata(session_data, result, number, hourly_rate):
-    snapshot = afc_dsf_session_snapshot(session_data, result, number, hourly_rate)
-    return {
-        "number": str(number),
-        "periodStart": result.get("periodStart"),
-        "periodEnd": result.get("periodEnd"),
-        "studentCount": snapshot["studentCount"],
-        "totalHours": snapshot["totalHours"],
-        "moduleTotals": snapshot["moduleTotals"],
-        "missingFranceTravailIds": snapshot["missingFranceTravailIds"],
-        "excelPageCount": page_count_for_snapshot(snapshot),
-        "fullDsfReference": snapshot["full_dsf_reference"],
-        "message": "Cette DSF est calcul√©e depuis le planning central AFC. Les absences ne sont pas automatiquement d√©duites.",
-    }
-
-def afc_dsf_validate_number(session_data, number):
-    text = str(number or "").strip()
-    if not text:
-        raise ValueError("Le num√©ro de DSF est obligatoire.")
-    if any(str(d.get("number")) == text and d.get("status") == AFC_DSF_STATUS_FINALIZED for d in session_data.get("afcDsfs") or []):
-        raise ValueError("Ce num√©ro de DSF est d√©j√† utilis√© pour cette session.")
-    return text
-
-def afc_dsf_summary(session_data, billing_until=None, period_start=None, period_end=None, hourly_rate=None):
-    return afc_dsf_build_invoice_state(session_data, billing_until=billing_until, period_start=period_start, period_end=period_end, hourly_rate=hourly_rate)
-
-def afc_dsf_find(sess, dsf_id):
-    return next((d for d in (sess or {}).get('afcDsfs', []) if d.get('id') == dsf_id), None)
-
-def afc_dsf_invoice_exists(sess, dsf_id):
-    dsf = afc_dsf_find(sess, dsf_id)
-    return bool((dsf or {}).get('invoice'))
-
-def afc_dsf_invoice_number_used(data, invoice_number, current_dsf_id=None):
-    text = str(invoice_number or '').strip()
-    for s in data.get('sessions') or []:
-        for d in s.get('afcDsfs') or []:
-            inv = d.get('invoice') or {}
-            if current_dsf_id and d.get('id') == current_dsf_id:
-                continue
-            if str(inv.get('invoice_number') or '').strip() == text:
-                return True
-    return False
-
-def afc_invoice_next_number(data):
-    nums = []
-    for s in data.get('sessions') or []:
-        for d in s.get('afcDsfs') or []:
-            n = str(((d.get('invoice') or {}).get('invoice_number')) or '')
-            if n.isdigit():
-                nums.append(int(n))
-    return str((max(nums) + 1) if nums else int(datetime.now().strftime('%Y0001')))
-
-def afc_invoice_default_place(sess):
-    return os.environ.get('ORGANISME_VILLE') or (sess.get('ville') or 'PUGET SUR ARGENS')
-
-def afc_invoice_default_kairos_reference(sess, dsf):
-    ft = sess.get('france_travail') or {}
-    snap = dsf.get('franceTravailExcelSnapshot') or {}
-    if snap.get('full_dsf_reference'):
-        return snap.get('full_dsf_reference')
-    engagement = normalize_kairos_base_reference(snap.get('engagement_kairos_base') or ft.get('engagement_kairos') or ft.get('convention') or '')
-    return build_full_kairos_reference(engagement, snap.get('dsf_sequence_number') or snap.get('number') or dsf.get('number'))
-
-def afc_invoice_suggest_type(sess):
-    try:
-        summary = afc_dsf_summary(sess)
-        remaining = afc_dsf_decimal(summary.get('total', {}).get('remaining'))
-        return 'final' if remaining <= 0 else 'intermediate'
-    except Exception:
-        return 'intermediate'
-
-def afc_invoice_preview_payload(data, sess, dsf):
-    snap = dsf.get('franceTravailExcelSnapshot') or {}
-    return {
-        'session': sess.get('display_name') or sess.get('formation'), 'dsfId': dsf.get('id'), 'dsfNumber': afc_invoice_default_kairos_reference(sess, dsf),
-        'periodStart': snap.get('periodStart') or dsf.get('periodStart'), 'periodEnd': snap.get('periodEnd') or dsf.get('periodEnd'),
-        'studentCount': snap.get('studentCount') or dsf.get('studentCount'), 'totalHours': snap.get('totalHours') or dsf.get('totalHours'),
-        'hourlyRate': snap.get('hourlyRate'), 'amountTotal': dsf.get('amountTotal'), 'moduleTotals': snap.get('moduleTotals') or dsf.get('moduleTotals'),
-        'invoiceType': '', 'invoiceNumber': afc_invoice_next_number(data),
-        'invoiceDate': datetime.now().date().isoformat(), 'invoicePlace': afc_invoice_default_place(sess),
-        'kairosEngagementReference': afc_invoice_default_kairos_reference(sess, dsf),
-    }
-
-
-def afc_dsf_detail_report_context(session_data):
-    summary = afc_dsf_summary(session_data)
-    totals = {
-        "planned": round(sum(row.get("plannedTotal", 0) for row in summary["detail"]), 2),
-        "billed": round(sum(row.get("billedTotal", 0) for row in summary["detail"]), 2),
-        "remaining": round(sum(row.get("remainingTotal", 0) for row in summary["detail"]), 2),
-    }
-    return {"summary": summary, "totals": totals, "modules": AFC_DSF_MODULES}
-
-def parse_interruption_ranges(value):
-    ranges = []
-    if not value:
-        return ranges
-    if isinstance(value, (list, tuple)):
-        items = []
-        for item in value:
-            if isinstance(item, dict):
-                items.append(f"{item.get('start') or item.get('startDate') or ''} au {item.get('end') or item.get('endDate') or ''}")
-            else:
-                items.append(item)
-    else:
-        items = re.split(r"[,;\n]+", str(value))
-    for item in items:
-        parts = re.split(r"\s+(?:au|√†|a|-|‚Üí)\s+", str(item).strip(), maxsplit=1, flags=re.I)
-        if len(parts) == 1 and ".." in parts[0]:
-            parts = parts[0].split("..", 1)
-        start = parse_date(parts[0].strip()) if parts and parts[0].strip() else None
-        end = parse_date(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else start
-        if start and end:
-            if end < start:
-                start, end = end, start
-            ranges.append((start.date(), end.date()))
-    return ranges
-
-def is_interrupted_day(day, interruptions):
-    return any(start <= day <= end for start, end in (interruptions or []))
-
-def is_afc_working_day(day, interruptions=None):
-    return is_french_working_day(day) and not is_interrupted_day(day, interruptions or [])
-
-def afc_minutes_to_hhmm(minute):
-    return f"{minute//60:02d}:{minute%60:02d}"
-
-def afc_build_main_sequence():
-    seq = [
-        {"code":"RAN", "category":"RAN", "uv":"RAN", "title":"Remise √† niveau (RAN)", "durationMinutes":55*60, "afcKind":"RAN"},
-        {"code":"ACCUEIL", "category":"ACCUEIL", "uv":"ACCUEIL", "title":"Accueil", "durationMinutes":210, "afcKind":"FT"},
-    ]
-    for name, hours in APS_MODULES:
-        uv, title = split_uv_title(name)
-        seq.append({"code":"APS", "category":"APS", "uv":uv, "title":title, "content":title, "durationMinutes":int(hours*60), "afcKind":"FT"})
-    seq.extend([
-        {"code":"EXAM_APS", "category":"EXAM_APS", "uv":"EXAM_APS", "title":"Examen APS", "durationMinutes":420, "afcKind":"FT"},
-        {"code":"H0B0", "category":"H0B0", "uv":"H0B0", "title":"Habilitation √©lectrique H0B0", "durationMinutes":420, "afcKind":"FT"},
-    ])
-    for detail in SSIAP1_SEQUENCE_DETAILS:
-        seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":detail["code"], "sequence":detail["code"], "part":detail["part_title"], "title":detail["sequence_title"], "content":detail["sequence_title"], "durationMinutes":detail["total_duration_minutes"], "afcKind":"FT", "partNumber":detail["part_number"], "sequenceNumber":detail["sequence_number"], "sequenceTitle":detail["sequence_title"], "totalSequenceDurationMinutes":detail["total_duration_minutes"], "subpartItems":detail.get("content_items") or detail.get("application_items") or []})
-    seq.append({"code":"SSIAP1", "category":"SSIAP1", "uv":"REV-SSIAP1", "title":"R√©visions g√©n√©rales SSIAP 1", "content":"R√©visions g√©n√©rales et pr√©paration p√©dagogique SSIAP 1", "durationMinutes":180, "afcKind":"FT"})
-    seq.extend([
-        {"code":"EXAM_SSIAP1", "category":"EXAM_SSIAP1", "uv":"EXAM_SSIAP1", "title":"Examen SSIAP 1", "durationMinutes":420, "afcKind":"FT"},
-        {"code":"BILAN", "category":"BILAN", "uv":"BILAN", "title":"Bilan de formation", "durationMinutes":210, "afcKind":"FT"},
-    ])
-    return seq
-
-def afc_slot_from_module(day, start, end, module, trainer, room):
-    minutes = end - start
-    slot = {"start": afc_minutes_to_hhmm(start), "end": afc_minutes_to_hhmm(end), "duration": round(minutes/60,2), "durationMinutes": minutes, "uv": module.get("uv") or module["code"], "sequence": module.get("sequence") or module.get("uv") or module["code"], "part": module.get("part") or AFC_APS_SSIAP_LABELS.get(module.get("category") or module["code"], module.get("title")), "title": module.get("title"), "content": module.get("content") or module.get("title"), "room": room, "trainer": trainer, "modality": "presentiel", "afcKind": module.get("afcKind"), "afcCategory": module.get("category") or module["code"]}
-    for key in ("partNumber", "sequenceNumber", "sequenceTitle", "totalSequenceDurationMinutes", "subpartItems", "blockId", "blockType", "blockTotalMinutes", "is_atomic", "can_split", "required_same_date"):
-        if module.get(key) is not None: slot[key] = module[key]
-    return slot
-
-def afc_active_weeks(start_date, interruptions, count):
-    weeks, seen, day = [], set(), start_date
-    while len(weeks) < count:
-        if is_afc_working_day(day, interruptions):
-            key = day.isocalendar()[:2]
-            if key not in seen:
-                seen.add(key); weeks.append(key)
-        day += timedelta(days=1)
-    return weeks
-
-def afc_nth_working_day(start_date, interruptions=None, count=57):
-    if not start_date:
-        return None
-    remaining, day = count, start_date
-    while remaining > 0:
-        if is_afc_working_day(day, interruptions or []):
-            remaining -= 1
-            if remaining == 0:
-                return day
-        day += timedelta(days=1)
-    return None
-
-def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None, contractual_end_date=None):
-    """G√©n√®re le parcours AFC APS + SSIAP en r√©servant d'abord les blocs m√©tier indivisibles."""
-    interruptions = interruptions or [(date(2026, 12, 23), date(2027, 1, 4))]
-    end_date = contractual_end_date or date(2027, 2, 15)
-    if isinstance(end_date, str):
-        parsed = parse_date(end_date); end_date = parsed.date() if parsed else None
-    if not end_date:
-        raise ValueError("La date de fin contractuelle AFC est invalide.")
-
-    eligible_dates, day = [], start_date
-    while day <= end_date:
-        if is_afc_working_day(day, interruptions): eligible_dates.append(day)
-        day += timedelta(days=1)
-    if len(eligible_dates) != 57:
-        raise ValueError("La p√©riode s√©lectionn√©e ne contient pas les 57 jours pr√©vus par la commande France Travail.")
-    if eligible_dates[-1] != end_date:
-        raise ValueError("La date de fin AFC doit √™tre un jour admissible et contenir l‚Äôexamen SSIAP 1.")
-
-    six_hour_days = {date(2026, 11, 25), date(2026, 12, 1), date(2026, 12, 8), date(2027, 1, 6), date(2027, 2, 3), date(2027, 2, 11)}
-    daily_targets = {d: (6 * 60 if d in six_hour_days else 7 * 60) for d in eligible_dates}
-    planning_map = {}
-    free_intervals = {d: [(8*60+30, 12*60+30), (13*60+30, 13*60+30 + max(0, daily_targets[d] - 240))] for d in eligible_dates}
-
-    def item(d):
-        return planning_map.setdefault(d.isoformat(), {"date": d.isoformat(), "dayLabel": aps_day_label(d), "category": "afc_aps_ssiap", "slots": []})
-    def atomic(mod, block_id=None, block_type=None, total=None):
-        m = dict(mod)
-        m.update({"is_atomic": True, "can_split": False, "required_same_date": True})
-        if block_id: m["blockId"] = block_id
-        if block_type: m["blockType"] = block_type
-        if total: m["blockTotalMinutes"] = total
-        return m
-    def add(d, start, minutes, mod):
-        item(d)["slots"].append(afc_slot_from_module(d, start, start + minutes, mod, trainer, room))
-    def module_for(code, block_id=None):
-        return atomic({"code": code, "category": code, "uv": code, "title": AFC_APS_SSIAP_LABELS[code], "content": "Accompagnement transversal", "afcKind": code}, block_id, code, 300)
-    def reserve_full_day(d, mod):
-        add(d, 8*60+30, 240, mod); add(d, 13*60+30, 180, mod); free_intervals[d] = []
-    def reserve_support(d, code, block_id):
-        add(d, 10*60+30, 120, module_for(code, block_id)); add(d, 13*60+30, 180, module_for(code, block_id)); free_intervals[d] = [(8*60+30, 10*60+30)]
-
-    raw = afc_build_main_sequence()
-    ran = dict(next(m for m in raw if m["category"] == "RAN"), remainingMinutes=55 * 60)
-    accueil = atomic(dict(next(m for m in raw if m["category"] == "ACCUEIL")), "ACCUEIL", "ACCUEIL", 210)
-    exam_aps = atomic(dict(next(m for m in raw if m["category"] == "EXAM_APS")), "EXAM_APS", "EXAM_APS", 420)
-    h0b0 = atomic(dict(next(m for m in raw if m["category"] == "H0B0")), "H0B0", "H0B0", 420)
-    exam_ssiap = atomic(dict(next(m for m in raw if m["category"] == "EXAM_SSIAP1")), "EXAM_SSIAP1", "EXAM_SSIAP1", 420)
-    bilan = atomic(dict(next(m for m in raw if m["category"] == "BILAN")), "BILAN", "BILAN", 210)
-
-    # Blocs indivisibles r√©serv√©s avant le remplissage APS/SSIAP.
-    reserve_full_day(end_date, exam_ssiap)
-    reserve_full_day(date(2027, 1, 25), exam_aps)
-    reserve_full_day(date(2027, 1, 26), h0b0)
-    sp_dates = [date(2026,12,4), date(2026,12,11), date(2026,12,18), date(2026,12,22), date(2027,1,8), date(2027,1,15), date(2027,1,22), date(2027,1,29), date(2027,2,5)]
-    paf_dates = [date(2027,1,14), date(2027,1,21), date(2027,1,28), date(2027,2,11)]
-    for d in sp_dates: reserve_support(d, "SP", f"SP-{d.isocalendar().year}-W{d.isocalendar().week:02d}")
-    for d in paf_dates: reserve_support(d, "PAF", f"PAF-{d.isocalendar().year}-W{d.isocalendar().week:02d}")
-
-    for d in eligible_dates[:8]:
-        minutes = min(daily_targets[d], ran["remainingMinutes"])
-        add(d, 8*60+30, min(240, minutes), ran)
-        if minutes > 240: add(d, 13*60+30, minutes - 240, ran)
-        free_intervals[d] = []
-        ran["remainingMinutes"] -= minutes
-    if ran["remainingMinutes"] != 0: raise ValueError("Les 55h de RAN n‚Äôont pas pu √™tre plac√©es avant toute autre activit√©.")
-
-    accueil_day = eligible_dates[8]
-    add(accueil_day, 8*60+30, 210, accueil)
-    free_intervals[accueil_day] = [(12*60, 12*60+30), (13*60+30, 16*60+30)]
-    add(date(2027,2,12), 8*60+30, 210, bilan)
-    free_intervals[date(2027,2,12)] = [(12*60, 12*60+30), (13*60+30, 16*60+30)]
-
-    sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in raw if m["category"] in {"APS", "SSIAP1"}]
-    idx = 0
-    def add_technical(d, start, minutes):
-        nonlocal idx
-        cur, left = start, minutes
-        while left > 0 and idx < len(sequence):
-            m = sequence[idx]
-            take = min(left, m["remainingMinutes"])
-            add(d, cur, take, m)
-            m["remainingMinutes"] -= take; cur += take; left -= take
-            if m["remainingMinutes"] == 0: idx += 1
-    for d in eligible_dates:
-        for start, end in list(free_intervals.get(d, [])):
-            if idx < len(sequence): add_technical(d, start, end - start)
-    if idx < len(sequence) or any(m.get("remainingMinutes", 0) for m in sequence[idx:]):
-        raise ValueError(f"Impossible de planifier les 393 heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les r√®gles AFC France Travail.")
-
-    for it in planning_map.values(): it["slots"].sort(key=lambda x: x["start"])
-    planning = [planning_map[d.isoformat()] for d in eligible_dates if planning_map.get(d.isoformat(), {}).get("slots")]
-    summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions, contractual_end_date=end_date)
-    if summary["errors"]: raise ValueError(" ".join(summary["errors"]))
-    return planning
-
-def calculate_actual_afc_hours(events):
-    """Additionne les dur√©es r√©elles AFC par cat√©gorie depuis les cr√©neaux planifi√©s."""
-    totals = {k: 0 for k in AFC_APS_SSIAP_EXPECTED_MINUTES}
-    for day in events or []:
-        for slot in day.get("slots", []) or []:
-            cat = slot.get("afcCategory") or slot.get("category") or slot.get("uv") or ""
-            minutes = int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0) * 60)))
-            totals[cat] = totals.get(cat, 0) + minutes
-    return {k: round(v / 60, 2) for k, v in totals.items()}
-
-def validate_actual_afc_hours(events):
-    actual_hours = calculate_actual_afc_hours(events)
-    expected_hours = {k: round(v / 60, 2) for k, v in AFC_APS_SSIAP_EXPECTED_MINUTES.items()}
-    errors = []
-    for code in AFC_APS_SSIAP_SUMMARY_ORDER:
-        actual = actual_hours.get(code, 0)
-        expected = expected_hours.get(code, 0)
-        if actual != expected:
-            errors.append(f"- {AFC_APS_SSIAP_LABELS.get(code, code)} : {actual:g} h planifi√©es au lieu de {expected:g} h")
-    total = round(sum(actual_hours.values()), 2)
-    if total != AFC_APS_SSIAP_TOTAL_HOURS:
-        errors.append(f"- Total AFC : {total:g} h planifi√©es au lieu de {AFC_APS_SSIAP_TOTAL_HOURS:g} h")
-    if errors:
-        return ["Planning AFC invalide :\n" + "\n".join(errors)]
-    return []
-
-def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractual_end_date=None):
-    actual_hours = calculate_actual_afc_hours(planning_data)
-    totals = {k: int(round(actual_hours.get(k, 0) * 60)) for k in AFC_APS_SSIAP_EXPECTED_MINUTES}
-    errors = []; week_buckets = {}; total = 0
-    for day in planning_data or []:
-        d = parse_date(day.get("date")); day_minutes = 0; intervals = []
-        if not d or not is_french_working_day(d.date()): errors.append(f"Jour non ouvr√© dans le planning AFC: {day.get('date')}.")
-        if d and is_interrupted_day(d.date(), interruptions or []): errors.append(f"Jour d'interruption dans le planning AFC: {day.get('date')}.")
-        for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
-            minutes = int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))
-            cat = slot.get("afcCategory") or slot.get("uv") or ""; total += minutes; day_minutes += minutes
-            try:
-                sm = int(slot["start"][:2])*60 + int(slot["start"][3:5]); em = int(slot["end"][:2])*60 + int(slot["end"][3:5])
-                if em <= sm or em-sm != minutes: errors.append(f"Cr√©neau invalide le {day.get('date')} {slot.get('start')}-{slot.get('end')}.")
-                if not any(sm >= a and em <= b for a,b in AFC_DAY_SEGMENTS): errors.append(f"Cr√©neau traversant une demi-journ√©e le {day.get('date')} {slot.get('start')}-{slot.get('end')}.")
-                if any(sm < old_end and em > old_start for old_start, old_end in intervals): errors.append(f"Chevauchement le {day.get('date')} {slot.get('start')}-{slot.get('end')}.")
-                intervals.append((sm, em))
-            except Exception: errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
-            if d:
-                b = week_buckets.setdefault(d.date().isocalendar()[:2], {"total":0,"technical":0,"RAN":0,"SP":0,"PAF":0})
-                b["total"] += minutes
-                if cat in AFC_TECHNICAL_CODES: b["technical"] += minutes
-                if cat in {"RAN", "SP", "PAF"}: b[cat] += minutes
-        # Contr√¥le facturable : FT/RAN/SP/PAF en heures enti√®res par demi-journ√©e.
-        halfday_totals = {}
-        for slot in day.get("slots", []):
-            minutes = int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))
-            sm = int(slot["start"][:2])*60 + int(slot["start"][3:5])
-            half = "AM" if sm < 13*60 else "PM"
-            cat = slot.get("afcCategory") or slot.get("uv") or ""
-            billing = "FT" if cat in AFC_TECHNICAL_CODES else cat
-            if billing in {"FT","RAN","SP","PAF"}:
-                halfday_totals[(half,billing)] = halfday_totals.get((half,billing), 0) + minutes
-        for (half,billing), minutes in halfday_totals.items():
-            if minutes % 60 != 0:
-                errors.append(f"La demi-journ√©e {half} du {day.get('date')} contient {format_duration_from_minutes(minutes)} en {billing}, non facturable en heures enti√®res.")
-        if day_minutes > APS_MAX_DAILY_MINUTES: errors.append(f"La journ√©e {day.get('date')} d√©passe 7h.")
-    for week, b in week_buckets.items():
-        support_minutes = b["SP"] + b["PAF"]
-        if b["total"] > 35*60: errors.append(f"La semaine {week} d√©passe 35h.")
-        if b["technical"] > 30*60: errors.append(f"La semaine {week} d√©passe 30h de formation technique.")
-        if support_minutes not in {0, 5*60, 10*60}: errors.append(f"La semaine {week} doit contenir exactement 0h, 5h ou 10h de SP/PAF (actuel: {format_duration_from_minutes(support_minutes)}).")
-        if b["SP"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de SP (actuel: {format_duration_from_minutes(b['SP'])}).")
-        if b["PAF"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de PAF (actuel: {format_duration_from_minutes(b['PAF'])}).")
-    errors.extend(validate_actual_afc_hours(planning_data))
-    eligible_dates = []
-    if planning_data:
-        first = parse_date(planning_data[0].get("date")); last = parse_date((contractual_end_date.isoformat() if hasattr(contractual_end_date, "isoformat") else contractual_end_date) or planning_data[-1].get("date"))
-        if first and last:
-            cur = first.date(); end = last.date()
-            while cur <= end:
-                if is_afc_working_day(cur, interruptions or []): eligible_dates.append(cur.isoformat())
-                cur += timedelta(days=1)
-            programmed_dates = sorted({d.get("date") for d in planning_data or [] if d.get("slots")})
-            if len(eligible_dates) != 57: errors.append(f"La p√©riode AFC doit contenir exactement 57 dates admissibles (actuel: {len(eligible_dates)}).")
-            if len(programmed_dates) != 57: errors.append(f"Le planning AFC doit contenir exactement 57 dates programm√©es (actuel: {len(programmed_dates)}).")
-            if set(programmed_dates) != set(eligible_dates): errors.append("Chaque date admissible AFC doit contenir de la formation, sans date suppl√©mentaire.")
-    day_values = []
-    for day in planning_data or []:
-        dm = sum(int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60))) for slot in day.get("slots", []))
-        day_values.append(dm)
-        if dm < 6*60: errors.append(f"La journ√©e {day.get('date')} contient moins de 6h.")
-        if dm > 7*60: errors.append(f"La journ√©e {day.get('date')} d√©passe 7h.")
-        if day.get("date", "") >= "2027-03-01": errors.append("Aucune activit√© AFC ne doit √™tre planifi√©e en mars 2027.")
-    if day_values and day_values.count(7*60) != 51: errors.append(f"Le planning AFC doit contenir 51 journ√©es de 7h (actuel: {day_values.count(7*60)}).")
-    if day_values and day_values.count(6*60) != 6: errors.append(f"Le planning AFC doit contenir 6 journ√©es de 6h (actuel: {day_values.count(6*60)}).")
-    ordered_slots = []
-    for day in sorted(planning_data or [], key=lambda d: d.get("date") or ""):
-        for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
-            cat = slot.get("afcCategory") or slot.get("uv") or ""
-            ordered_slots.append((day.get("date"), slot.get("start"), slot.get("end"), cat, slot))
-    weekly_ordered = {}
-    for d, st, e, cat, slot in ordered_slots:
-        parsed = parse_date(d)
-        if parsed:
-            weekly_ordered.setdefault(parsed.date().isocalendar()[:2], []).append((d, st, e, cat, slot))
-    for week, slots in weekly_ordered.items():
-        sp_slots = [slot for slot in slots if slot[3] == "SP"]
-        paf_slots = [slot for slot in slots if slot[3] == "PAF"]
-        if sp_slots and slots[-len(sp_slots):] != sp_slots:
-            errors.append(f"La semaine {week} ne place pas le bloc SP dans les 5 derni√®res heures.")
-        if paf_slots and sp_slots and max((d, e) for d, _st, e, _cat, _slot in paf_slots) >= min((d, st) for d, st, _e, _cat, _slot in sp_slots):
-            errors.append(f"La semaine {week} doit placer la PAF avant le SP.")
-    def first_time(cat):
-        return next(((d, st) for d, st, _e, ccat, _s in ordered_slots if ccat == cat), None)
-    def last_end(cat):
-        matches = [(d, e) for d, _st, e, ccat, _s in ordered_slots if ccat == cat]
-        return matches[-1] if matches else None
-    strict_order = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "EXAM_SSIAP1"]
-    for before, after in zip(strict_order, strict_order[1:]):
-        if first_time(after) and last_end(before) and first_time(after) < last_end(before):
-            errors.append(f"Ordre AFC invalide: {AFC_APS_SSIAP_LABELS[after]} commence avant la fin de {AFC_APS_SSIAP_LABELS[before]}.")
-    ran_end = last_end("RAN")
-    accueil_end = last_end("ACCUEIL")
-    if ran_end:
-        for d, st, _e, cat, _slot in ordered_slots:
-            if cat != "RAN" and (d, st) < ran_end:
-                errors.append("Une activit√© non RAN est planifi√©e avant la fin compl√®te des 55h de RAN.")
-                break
-    if accueil_end:
-        for d, st, _e, cat, _slot in ordered_slots:
-            if cat in {"APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"} and (d, st) < accueil_end:
-                errors.append("Une activit√© technique/SP/PAF est planifi√©e avant la fin compl√®te de l‚ÄôAccueil.")
-                break
-    first_sp = first_time("SP")
-    first_aps = first_time("APS")
-    if first_sp:
-        aps_minutes_before_sp = 0
-        aps_days_before_sp = set()
-        accueil_day = accueil_end[0] if accueil_end else None
-        for d, st, e, cat, slot in ordered_slots:
-            if (d, st) >= first_sp:
-                break
-            if cat == "APS":
-                aps_minutes_before_sp += int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))
-                aps_days_before_sp.add(d)
-        if aps_minutes_before_sp < 7 * 60:
-            errors.append("Le premier SP doit √™tre strictement post√©rieur √† au moins 7h d‚ÄôAPS d√©j√† r√©alis√©es (aps_hours_completed_before_first_sp >= 7).")
-        if accueil_day and first_sp[0] == accueil_day:
-            errors.append("Aucun SP ne peut √™tre plac√© le jour de l‚ÄôAccueil.")
-        if first_aps and first_sp[0] == first_aps[0]:
-            errors.append("Le premier SP ne peut pas √™tre plac√© le jour du premier d√©marrage APS.")
-        if not any(sum(int(round(float(s.get("durationMinutes") or float(s.get("duration") or 0)*60))) for s in day.get("slots", []) if (s.get("afcCategory") or s.get("uv")) == "APS") >= 7*60 for day in planning_data or [] if day.get("date") in aps_days_before_sp):
-            errors.append("Le premier SP doit intervenir apr√®s une journ√©e compl√®te de 7h d‚ÄôAPS.")
-    if ordered_slots and ordered_slots[-1][3] != "EXAM_SSIAP1":
-        errors.append("L‚Äôexamen SSIAP 1 doit √™tre la derni√®re activit√© du parcours AFC.")
-    if contractual_end_date:
-        end_iso = contractual_end_date.isoformat() if hasattr(contractual_end_date, "isoformat") else str(contractual_end_date)
-        if ordered_slots and ordered_slots[-1][0] != end_iso:
-            errors.append(f"La derni√®re activit√© AFC doit √™tre plac√©e le {format_date(end_iso)}.")
-        if any(d > end_iso for d, _st, _e, _cat, _slot in ordered_slots):
-            errors.append(f"Aucune activit√© AFC ne doit √™tre post√©rieure au {format_date(end_iso)}.")
-        exam_slots = [x for x in ordered_slots if x[0] == end_iso]
-        if len(exam_slots) != 2 or any(x[3] != "EXAM_SSIAP1" for x in exam_slots):
-            errors.append("La date de fin contractuelle doit contenir uniquement les deux cr√©neaux d‚Äôexamen SSIAP 1.")
-    def _dt_tuple(d, t):
-        return (d or "", t or "")
-    def _cat_slots(cat):
-        return [(d, st, e, slot, int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))) for d, st, e, ccat, slot in ordered_slots if ccat == cat]
-    for cat, expected, label in (("EXAM_APS", 420, "L‚Äôexamen APS"), ("H0B0", 420, "Le H0B0"), ("EXAM_SSIAP1", 420, "L‚Äôexamen SSIAP 1")):
-        slots = _cat_slots(cat); dates = {d for d, _st, _e, _slot, _m in slots}
-        if sum(m for *_rest, m in slots) != expected: errors.append(f"{label} doit totaliser exactement {format_duration_from_minutes(expected)}.")
-        if len(dates) != 1: errors.append(f"{label} doit √™tre plac√© sur une seule date.")
-        if dates:
-            day_slots = [(d, st, e, ccat, slot) for d, st, e, ccat, slot in ordered_slots if d in dates]
-            if any(ccat != cat for _d, _st, _e, ccat, _slot in day_slots): errors.append(f"{label} doit occuper une journ√©e sans autre activit√©.")
-            if sum(int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60))) for _d, _st, _e, _ccat, slot in day_slots) != expected: errors.append(f"La journ√©e de {label.lower()} doit durer exactement 7h.")
-    exam_aps_slots = _cat_slots("EXAM_APS")
-    aps_slots = _cat_slots("APS")
-    if exam_aps_slots and aps_slots:
-        first_exam = min(_dt_tuple(d, st) for d, st, _e, _slot, _m in exam_aps_slots)
-        aps_before = sum(m for d, _st, e, _slot, m in aps_slots if _dt_tuple(d, e) <= first_exam)
-        if aps_before != AFC_APS_SSIAP_EXPECTED_MINUTES["APS"]: errors.append("L‚Äôexamen APS ne peut commencer qu‚Äôapr√®s les 175h d‚ÄôAPS.")
-    h0b0_slots = _cat_slots("H0B0")
-    if exam_aps_slots and h0b0_slots and min(d for d, *_ in h0b0_slots) <= max(d for d, *_ in exam_aps_slots): errors.append("Le H0B0 doit √™tre post√©rieur √† la journ√©e d‚Äôexamen APS.")
-    for cat, expected, label in (("ACCUEIL", 210, "L‚ÄôAccueil"), ("BILAN", 210, "Le Bilan")):
-        slots = _cat_slots(cat); dates = {d for d, _st, _e, _slot, _m in slots}
-        if sum(m for *_rest, m in slots) != expected or len(dates) != 1 or len(slots) != 1:
-            errors.append(f"{label} doit √™tre un √©v√©nement continu unique de {format_duration_from_minutes(expected)}.")
-    bilan_slots = _cat_slots("BILAN")
-    if bilan_slots:
-        bilan_start = min(_dt_tuple(d, st) for d, st, _e, _slot, _m in bilan_slots)
-        for cat, label in (("SP", "SP"), ("PAF", "PAF")):
-            slots = _cat_slots(cat)
-            if slots and max(_dt_tuple(d, e) for d, _st, e, _slot, _m in slots) >= bilan_start:
-                errors.append(f"Aucun {label} ne doit exister apr√®s le d√©but du Bilan.")
-    for cat, count, label in (("SP", 9, "SP"), ("PAF", 4, "PAF")):
-        slots = _cat_slots(cat); blocks = {}
-        for d, st, e, slot, m in slots:
-            bid = slot.get("blockId") or f"{cat}-{d}"
-            blocks.setdefault(bid, []).append((d, st, e, m))
-        if sum(m for *_rest, m in slots) != count * 300: errors.append(f"Le total {label} doit √™tre exactement {count*5}h.")
-        if len(blocks) != count: errors.append(f"Le planning doit contenir exactement {count} blocs {label} de 5h.")
-        for bid, parts in blocks.items():
-            if sum(m for *_rest, m in parts) != 300 or len({d for d, *_ in parts}) != 1:
-                errors.append(f"Le bloc {bid} doit faire exactement 5h sur une seule date.")
-    for _d, _st, _e, _cat, slot in ordered_slots:
-        visible = " ".join(str(slot.get(k) or "") for k in ("uv", "sequence", "part", "title", "content"))
-        if any(bad in visible for bad in ("None", "null", "undefined")) or not (slot.get("title") or "").strip():
-            errors.append("Un cr√©neau AFC contient un libell√© vide ou invalide.")
-            break
-    rows = [{"uv": code, "label": AFC_APS_SSIAP_LABELS[code], "title": AFC_APS_SSIAP_LABELS[code], "hours": round(totals.get(code,0)/60,2), "expected": round(AFC_APS_SSIAP_EXPECTED_MINUTES[code]/60,2), "modality":"presentiel"} for code in AFC_APS_SSIAP_SUMMARY_ORDER]
-    return {"total_hours": round(total/60,2), "uv_totals": {k: round(v/60,2) for k,v in totals.items()}, "uv_rows": rows, "modality_totals": {"presentiel": round(total/60,2)}, "weekly": {str(k): {kk: round(vv/60,2) for kk,vv in b.items()} for k,b in week_buckets.items()}, "days_count": len(planning_data or []), "slots_count": sum(len(d.get("slots", [])) for d in planning_data or []), "errors": errors}
-
-def aps_summary_from_data(planning_data):
-    uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
-    total = 0.0
-    modality_totals = {"elearning": 0.0, "presentiel": 0.0}
-    detailed_rows = {}
-    slot_count = 0
-    errors = []
-    previous = None
-    for day in planning_data or []:
-        day_date = day.get("date")
-        try:
-            datetime.strptime(day_date, "%Y-%m-%d")
-        except Exception:
-            errors.append(f"Date invalide: {day_date}")
-        for slot in day.get("slots", []):
-            # A vacant slot is deliberately kept in the calendar so that its
-            # date, duration and time range remain available for rescheduling.
-            # It is not pedagogical content and must not count toward APS hours.
-            if not is_countable_planning_slot(slot):
-                continue
-            slot_count += 1
-            uv = (slot.get("uv") or "").strip().upper()
-            duration_minutes = int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60))))
-            duration = round(duration_minutes / 60, 2)
-            start = slot.get("start") or ""
-            end = slot.get("end") or ""
-            try:
-                start_dt = datetime.strptime(f"{day_date} {start}", "%Y-%m-%d %H:%M")
-                end_dt = datetime.strptime(f"{day_date} {end}", "%Y-%m-%d %H:%M")
-                real_duration = round((end_dt - start_dt).total_seconds() / 3600, 2)
-                if real_duration != round(duration, 2):
-                    errors.append(f"Dur√©e incoh√©rente le {day_date} {start}-{end}.")
-                if previous and start_dt < previous:
-                    errors.append(f"Ordre chronologique incoh√©rent le {day_date} {start}.")
-                previous = end_dt
-            except Exception:
-                errors.append(f"Horaire invalide le {day_date}: {start}-{end}.")
-            modality = (slot.get("modality") or "presentiel").strip()
-            if modality in modality_totals:
-                modality_totals[modality] = round(modality_totals[modality] + duration, 2)
-            # In a mixed course, the same UV can be taught partly online and
-            # partly in person. Keep those deliveries separate for the PDF
-            # recap instead of collapsing them into the generic APS UV list.
-            if modality in {"elearning", "presentiel"}:
-                title = (slot.get("title") or APS_UV_LABELS.get(uv, "")).strip()
-                key = (modality, uv, title)
-                row = detailed_rows.setdefault(key, {
-                    "uv": uv,
-                    "label": title,
-                    "title": title,
-                    "hours": 0.0,
-                    "modality": modality,
-                })
-                row["hours"] = round(row["hours"] + duration, 2)
-            if uv not in uv_totals:
-                errors.append(f"UV inconnue: {uv}")
-            else:
-                uv_totals[uv] = round(uv_totals[uv] + duration, 2)
-            total = round(total + duration, 2)
-    has_mixed_modalities = modality_totals["elearning"] > 0 and modality_totals["presentiel"] > 0
-    rows = (
-        list(detailed_rows.values())
-        if has_mixed_modalities
-        else [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected, "modality": "presentiel"} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
-    )
-    return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "modality_totals": modality_totals, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
-
-
-def aps_expected_content(planning_mode="full_presentiel"):
-    """Return the canonical APS curriculum, independently from a session plan.
-
-    This is intentionally derived from the programme constants, never from a
-    deletion log.  Older plans without ``pedagogicalKey`` remain supported via
-    the matching fallback in :func:`aps_content_key_for_slot`.
-    """
-    if planning_mode == "elearning_presentiel":
-        contents = {}
-        for item in APS_ELEARNING_PRESENTIEL_MODULES:
-            key = "|".join((item["uv"], item["title"], item["modality"]))
-            row = contents.setdefault(key, {"key": key, "uv": item["uv"], "title": item["title"], "part": item["part"], "modality": item["modality"], "expectedMinutes": 0, "color": "#6d28d9" if item["modality"] == "elearning" else "#0d9488"})
-            row["expectedMinutes"] += int(item["durationMinutes"])
-        return list(contents.values())
-    return [{"key": uv, "uv": uv, "title": APS_UV_LABELS[uv], "part": "Programme APS", "modality": "presentiel", "expectedMinutes": int(hours * 60), "color": "#0d9488"} for uv, hours in APS_EXPECTED_UV_TOTALS.items()]
-
-
-def aps_content_key_for_slot(slot, planning_mode="full_presentiel"):
-    if slot.get("pedagogicalKey"):
-        return str(slot["pedagogicalKey"])
-    uv = (slot.get("uv") or "").strip().upper()
-    if planning_mode == "elearning_presentiel":
-        return "|".join((uv, (slot.get("title") or "").strip(), (slot.get("modality") or "presentiel").strip()))
-    return uv
-
-
-def aps_curriculum_summary(planning_data, planning_mode="full_presentiel"):
-    contents = aps_expected_content(planning_mode)
-    by_key = {item["key"]: dict(item, plannedMinutes=0) for item in contents}
-    for day in planning_data or []:
-        for slot in day.get("slots", []):
-            if not is_countable_planning_slot(slot):
-                continue
-            key = aps_content_key_for_slot(slot, planning_mode)
-            if key in by_key:
-                by_key[key]["plannedMinutes"] += int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0) * 60)))
-    rows = []
-    for item in by_key.values():
-        item["plannedMinutes"] = int(item["plannedMinutes"])
-        item["remainingMinutes"] = item["expectedMinutes"] - item["plannedMinutes"]
-        item["status"] = "complete" if item["remainingMinutes"] == 0 else ("missing" if item["plannedMinutes"] == 0 else "partial")
-        rows.append(item)
-    expected = sum(row["expectedMinutes"] for row in rows)
-    planned = sum(max(0, row["plannedMinutes"]) for row in rows)
-    return {"contents": rows, "expectedMinutes": expected, "plannedMinutes": planned, "remainingMinutes": expected - planned}
-
-
-def aps_daily_capacity_minutes(session_data):
-    """Return the configured APS daily teaching capacity (seven hours by default)."""
-    value = session_data.get("apsDailyCapacityMinutes", session_data.get("dailyCapacityMinutes", APS_MAX_DAILY_MINUTES))
-    try:
-        return max(1, int(value))
-    except (TypeError, ValueError):
-        return APS_MAX_DAILY_MINUTES
-
-
-def aps_lunch_break(session_data):
-    """Return the session lunch break, defaulting to 12:30‚Äì13:30."""
-    return (session_data.get("apsLunchStart") or "12:30", session_data.get("apsLunchEnd") or "13:30")
-
-
-def normalize_aps_slot_durations(planning_data):
-    """Make duration fields server-derived from persisted start/end times."""
-    for day in planning_data or []:
-        for slot in day.get("slots", []):
-            try:
-                start = datetime.strptime(slot.get("start") or "", "%H:%M")
-                end = datetime.strptime(slot.get("end") or "", "%H:%M")
-                minutes = int((end - start).total_seconds() // 60)
-                if minutes > 0:
-                    slot["durationMinutes"] = minutes
-                    slot["duration"] = round(minutes / 60, 2)
-            except (TypeError, ValueError):
-                # The validator returns the user-facing invalid-time message.
-                continue
-    return planning_data
-
-
-_INVALID_PLANNING_LABELS = {"", "none", "null", "undefined"}
-
-
-def is_countable_planning_slot(slot):
-    """Return whether a slot represents an actual labelled course.
-
-    Some legacy planning records contain a timed row with ``uv`` and ``title``
-    serialised as ``None``.  It is a placeholder, not training content, and
-    must never be rendered or included in hours.
-    """
-    if not isinstance(slot, dict) or slot.get("isEmpty"):
-        return False
-    return all(str(slot.get(key) or "").strip().lower() not in _INVALID_PLANNING_LABELS
-               for key in ("uv", "title"))
-
-
-def visible_planning_data(planning_data, include_empty=False):
-    """Copy a planning while removing invalid placeholder slots and empty days."""
-    visible_days = []
-    for day in planning_data or []:
-        slots = [slot for slot in day.get("slots", [])
-                 if is_countable_planning_slot(slot) or (include_empty and slot.get("isEmpty"))]
-        if slots:
-            visible_days.append({**day, "slots": slots})
-    return visible_days
-
-
-def aps_day_availability(planning_data, session_data):
-    capacity = aps_daily_capacity_minutes(session_data)
-    return [{"date": day.get("date"), "capacityMinutes": capacity,
-             "plannedMinutes": sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if is_countable_planning_slot(slot)),
-             "availableMinutes": capacity - sum(int(slot.get("durationMinutes") or 0) for slot in day.get("slots", []) if is_countable_planning_slot(slot))}
-            for day in planning_data or []]
-
-
-def aps_capacity_violations(planning_data, daily_capacity_minutes=APS_MAX_DAILY_MINUTES):
-    """Return machine-readable APS daily-capacity problems from actual times.
-
-    The time range is deliberately the source of truth here.  This also makes
-    legacy plans with stale ``durationMinutes`` diagnosable before a PUT has
-    had a chance to normalize them.
-    """
-    violations = []
-    for day in planning_data or []:
-        slots = []
-        for slot in day.get("slots", []):
-            if slot.get("isEmpty"):
-                continue
-            try:
-                start = datetime.strptime(slot.get("start") or "", "%H:%M")
-                end = datetime.strptime(slot.get("end") or "", "%H:%M")
-                duration = int((end - start).total_seconds() // 60)
-            except (TypeError, ValueError):
-                continue
-            if duration > 0:
-                slots.append({"start": slot.get("start"), "end": slot.get("end"), "durationMinutes": duration})
-        planned = sum(slot["durationMinutes"] for slot in slots)
-        if planned > daily_capacity_minutes:
-            violations.append({"date": day.get("date"), "capacityMinutes": daily_capacity_minutes,
-                               "plannedMinutes": planned, "excessMinutes": planned - daily_capacity_minutes,
-                               "slots": slots})
-    return violations
-
-
-def aps_capacity_warnings(planning_data, daily_capacity_minutes=APS_MAX_DAILY_MINUTES):
-    """Return non-blocking daily-capacity warnings for the APS editor."""
-    return [{
-        "date": violation["date"], "plannedMinutes": violation["plannedMinutes"],
-        "capacityMinutes": violation["capacityMinutes"], "excessMinutes": violation["excessMinutes"],
-        "message": f"La journ√©e {violation['date']} d√©passe la dur√©e indicative de {format_duration_from_minutes(violation['capacityMinutes'])}.",
-    } for violation in aps_capacity_violations(planning_data, daily_capacity_minutes)]
-
-
-def aps_capacity_violation_message(violation):
-    """Format a capacity violation for the editor while retaining its JSON form."""
-    def human(minutes):
-        return format_duration_from_minutes(minutes).replace("h", " h")
-    try:
-        value = datetime.strptime(violation["date"], "%Y-%m-%d")
-        french_date = f"{value.day} {('janvier', 'f√©vrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'ao√ªt', 'septembre', 'octobre', 'novembre', 'd√©cembre')[value.month - 1]} {value.year}"
-    except (TypeError, ValueError):
-        french_date = violation["date"]
-    slots = " ".join(
-        f"- {slot['start']}‚Äì{slot['end']} : {human(slot['durationMinutes'])}"
-        for slot in violation["slots"]
-    )
-    return (f"La journ√©e du {french_date} contient "
-            f"{human(violation['plannedMinutes'])} de formation, soit un d√©passement de "
-            f"{human(violation['excessMinutes'])}. Cr√©neaux concern√©s : {slots} "
-            f"La journ√©e d√©passe sa capacit√© de {human(violation['capacityMinutes'])}.")
-
-
-def log_aps_planning_diagnostics(session_data):
-    """Log persisted APS slots verbatim enough to investigate legacy plans."""
-    for day in session_data.get("apsPlanningData") or []:
-        for slot in day.get("slots", []):
-            app.logger.info("APS planning diagnostic session=%s date=%s start=%s end=%s durationMinutes=%s uv=%s title=%s modality=%s isEmpty=%s pedagogicalKey=%s",
-                            session_data.get("id"), day.get("date"), slot.get("start"), slot.get("end"),
-                            slot.get("durationMinutes"), slot.get("uv"), slot.get("title"), slot.get("modality"),
-                            bool(slot.get("isEmpty")), slot.get("pedagogicalKey"))
-
-
-def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel", daily_capacity_minutes=APS_MAX_DAILY_MINUTES, lunch_break=("12:30", "13:30")):
-    """Validate an editable APS plan while allowing curriculum gaps.
-
-    Daily capacity overruns are warnings, never validation errors.
-    """
-    summary = aps_summary_from_data(planning_data)
-    errors = list(summary["errors"])
-    curriculum = aps_curriculum_summary(planning_data, planning_mode)
-    expected = {item["key"]: item for item in aps_expected_content(planning_mode)}
-    for day in planning_data or []:
-        intervals = []
-        # Empty slots are retained as rescheduling placeholders, not courses.
-        # They must therefore have no bearing on timetable, curriculum, or
-        # capacity validation until an insertion turns them into a real slot.
-        scheduled_slots = [
-            slot for slot in day.get("slots", []) if not slot.get("isEmpty")
-        ]
-        for slot in scheduled_slots:
-            try:
-                start = datetime.strptime(slot.get("start") or "", "%H:%M")
-                end = datetime.strptime(slot.get("end") or "", "%H:%M")
-                if end <= start:
-                    errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
-                    continue
-                if any(start < old_end and end > old_start for old_start, old_end in intervals):
-                    errors.append(f"Deux cours se chevauchent le {day.get('date')}.")
-                intervals.append((start, end))
-                lunch_start = datetime.strptime(lunch_break[0], "%H:%M")
-                lunch_end = datetime.strptime(lunch_break[1], "%H:%M")
-                if start < lunch_end and end > lunch_start:
-                    errors.append(f"Le cr√©neau {day.get('date')} {slot.get('start')}-{slot.get('end')} chevauche la pause d√©jeuner ({lunch_break[0]}-{lunch_break[1]}). Cr√©ez un cours le matin et un autre l‚Äôapr√®s-midi.")
-            except (TypeError, ValueError):
-                errors.append(f"Horaire invalide le {day.get('date')}: {slot.get('start')}-{slot.get('end')}.")
-                continue
-            if aps_content_key_for_slot(slot, planning_mode) not in expected:
-                errors.append(f"Contenu p√©dagogique inconnu: {slot.get('title') or slot.get('uv') or 'sans libell√©'}.")
-    for item in curriculum["contents"]:
-        if item["plannedMinutes"] > item["expectedMinutes"]:
-            errors.append(f"{item['title']} d√©passe le volume p√©dagogique obligatoire ({format_duration_from_minutes(item['expectedMinutes'])}).")
-    summary["warnings"] = aps_capacity_warnings(planning_data, daily_capacity_minutes)
-    return errors, summary, curriculum
-
-def validate_aps_planning_data(planning_data, planning_mode="full_presentiel"):
-    summary = aps_summary_from_data(planning_data)
-    errors = list(summary["errors"])
-    if round(summary["total_hours"], 2) != APS_TOTAL_HOURS:
-        errors.append(f"Le total doit √™tre exactement de {APS_TOTAL_HOURS}h (actuel: {summary['total_hours']}h).")
-    if planning_mode == "elearning_presentiel":
-        errors.extend(validate_aps_elearning_presentiel_rules(planning_data, summary))
-    else:
-        for uv, expected in APS_EXPECTED_UV_TOTALS.items():
-            actual = round(summary["uv_totals"].get(uv, 0), 2)
-            if actual != expected:
-                errors.append(f"{uv} doit totaliser {expected}h (actuel: {actual}h).")
-    return errors, summary
-
-def validate_aps_elearning_presentiel_rules(planning_data, summary=None):
-    summary = summary or aps_summary_from_data(planning_data)
-    errors = []
-    totals = summary.get("modality_totals", {})
-    if int(round(totals.get("elearning", 0) * 60)) != APS_ELEARNING_MINUTES:
-        errors.append(f"Le total e-learning doit √™tre exactement de 62h (actuel: {totals.get('elearning', 0):g}h).")
-    if int(round(totals.get("presentiel", 0) * 60)) != APS_PRESENTIEL_MINUTES:
-        errors.append(f"Le total pr√©sentiel doit √™tre exactement de 113h (actuel: {totals.get('presentiel', 0):g}h).")
-    seen_presentiel = False
-    last_elearning_day = None
-    first_presentiel = None
-    for day in planning_data or []:
-        # Empty slots are placeholders for future rescheduling.  Their selected
-        # modality is only used by the editor to filter the course picker; it
-        # must not make an otherwise valid e-learning day look mixed.
-        scheduled_slots = [slot for slot in day.get("slots", []) if not slot.get("isEmpty")]
-        day_modalities = {(slot.get("modality") or "presentiel") for slot in scheduled_slots}
-        if len(day_modalities) > 1:
-            errors.append(f"La journ√©e {day.get('date')} m√©lange e-learning et pr√©sentiel.")
-        for slot in scheduled_slots:
-            modality = slot.get("modality") or "presentiel"
-            if modality == "presentiel":
-                seen_presentiel = True
-                if first_presentiel is None:
-                    first_presentiel = (day.get("date"), slot.get("start"))
-            elif seen_presentiel:
-                errors.append("Tous les blocs e-learning doivent √™tre avant les blocs pr√©sentiels.")
-            if modality == "elearning":
-                last_elearning_day = day.get("date")
-    if first_presentiel:
-        first_date, first_start = first_presentiel
-        if first_start != "08:30":
-            errors.append("Le pr√©sentiel doit commencer sur un nouveau jour ouvr√© √† 08h30.")
-        try:
-            expected = next_aps_training_day(datetime.strptime(last_elearning_day, "%Y-%m-%d").date()).isoformat()
-            if first_date != expected:
-                errors.append(f"Le pr√©sentiel doit commencer le prochain jour ouvr√© complet ({expected}) apr√®s la p√©riode e-learning.")
-        except Exception:
-            errors.append("Impossible de v√©rifier le prochain jour ouvr√© de d√©marrage pr√©sentiel.")
-    return errors
-
-def aps_pdf_logo_path():
-    public_logo = os.path.join(BASE_DIR, "public", "logo-integrale-academy.png")
-    if os.path.exists(public_logo):
-        return public_logo
-    static_logo = os.path.join(BASE_DIR, "static", "img", "logo-integrale.png")
-    return static_logo if os.path.exists(static_logo) else None
-
-def append_planning_history(session_data, label):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    session_data.setdefault("planning_history", []).append({"label": label, "at": now})
-    if len(session_data["planning_history"]) > 20:
-        session_data["planning_history"] = session_data["planning_history"][-20:]
-    return now
-
-def aps_modality_ranges(planning_data):
-    ranges = {}
-    for day in planning_data or []:
-        day_date = day.get("date")
-        if not day_date:
-            continue
-        for slot in day.get("slots", []):
-            modality = (slot.get("modality") or "presentiel").strip()
-            if modality not in {"elearning", "presentiel"}:
-                continue
-            ranges.setdefault(modality, {"start": day_date, "end": day_date})
-            ranges[modality]["start"] = min(ranges[modality]["start"], day_date)
-            ranges[modality]["end"] = max(ranges[modality]["end"], day_date)
-    return ranges
-
-def aps_format_range(range_data):
-    if not range_data:
-        return ""
-    return f"du {format_date(range_data.get('start'))} au {format_date(range_data.get('end'))}"
-
-def planning_pdf_profile(document_profile, planning_mode, summary):
-    profile = dict(document_profile or {})
-    is_desp = profile.get("validate") == "desp"
-    is_ssiap1 = profile.get("validate") == "ssiap1"
-    is_afc = profile.get("validate") == "afc_aps_ssiap"
-    totals = summary.get("modality_totals", {}) if summary else {}
-    if is_ssiap1:
-        profile.setdefault("planning_title", "PLANNING DE FORMATION SSIAP 1")
-        profile.setdefault("subtitle", "Parcours comprenant 14 h de SST, 67 h de formation SSIAP 1 et une pr√©paration √† l‚Äôexamen")
-        profile.setdefault("modality_line", "SST : 14h ‚Ä¢ Formation r√©glementaire SSIAP 1 : 67h ‚Ä¢ R√©visions : 3h ‚Ä¢ Total pr√©sence avant examen : 84h")
-        profile.setdefault("legend_elearning", "Examen SSIAP 1")
-        profile.setdefault("legend_presentiel", "Formation SSIAP 1 ‚Äî 67h")
-        profile.setdefault("short_label", "SSIAP 1")
-    elif is_afc:
-        profile.setdefault("planning_title", "PLANNING AFC FRANCE TRAVAIL APS + SSIAP")
-        profile.setdefault("subtitle", "Parcours complet ‚Äî 393 heures")
-        profile.setdefault("modality_line", "Modalit√© : pr√©sentiel ‚Ä¢ Parcours complet : 393h")
-        profile.setdefault("legend_elearning", "Accompagnements SP / PAF")
-        profile.setdefault("legend_presentiel", "Formation AFC APS + SSIAP")
-        profile.setdefault("short_label", "AFC APS + SSIAP")
-    elif is_desp:
-        profile.setdefault("planning_title", "PLANNING DE FORMATION DESP")
-        profile.setdefault("subtitle", f"{DESP_LABEL} ‚Äî {DESP_TOTAL_HOURS} heures")
-        profile.setdefault("modality_line", f"Modalit√© : E-learning + pr√©sentiel ‚Ä¢ E-learning : {DESP_ELEARNING_HOURS}h ‚Ä¢ Pr√©sentiel : {DESP_PRESENTIEL_HOURS}h ‚Ä¢ Total : {DESP_TOTAL_HOURS}h")
-        profile.setdefault("legend_elearning", f"E-learning / distanciel ‚Äî {DESP_ELEARNING_HOURS}h")
-        profile.setdefault("legend_presentiel", f"Pr√©sentiel au centre ‚Äî {DESP_PRESENTIEL_HOURS}h")
-        profile.setdefault("short_label", "DESP")
-    elif planning_mode == "elearning_presentiel":
-        profile.setdefault("planning_title", "PLANNING DE FORMATION APS")
-        profile.setdefault("subtitle", "Agent de Pr√©vention et de S√©curit√© ‚Äî 175 heures")
-        profile.setdefault("modality_line", f"Modalit√© : E-learning + pr√©sentiel ‚Ä¢ E-learning : {totals.get('elearning', APS_ELEARNING_HOURS):g}h ‚Ä¢ Pr√©sentiel : {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h ‚Ä¢ Total : {summary.get('total_hours', APS_TOTAL_HOURS):g}h")
-        profile.setdefault("legend_elearning", f"E-learning / distanciel ‚Äî {totals.get('elearning', APS_ELEARNING_HOURS):g}h")
-        profile.setdefault("legend_presentiel", f"Pr√©sentiel au centre ‚Äî {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h")
-    else:
-        profile.setdefault("planning_title", "PLANNING DE FORMATION APS")
-        profile.setdefault("subtitle", "Agent de Pr√©vention et de S√©curit√© ‚Äî 175 heures")
-        profile.setdefault("modality_line", "Modalit√© : 100% pr√©sentiel ‚Ä¢ Pr√©sentiel : 175h")
-    return profile
-
-
-def planning_day_title(day, document_profile=None):
-    if (document_profile or {}).get("validate") == "a3p":
-        return _a3p_full_day_label(day.get("date"))
-    parsed = parse_date(day.get("date"))
-    return aps_day_label(parsed.date()) if parsed else (day.get("dayLabel") or day.get("date"))
-
-
-def planning_slot_title(slot):
-    if slot.get("partNumber") and slot.get("sequenceNumber"):
-        split = f" ‚Äî {slot.get('splitLabel')}" if slot.get("splitLabel") else ""
-        return f"S√©quence {slot.get('sequenceNumber')} ‚Äî {slot.get('sequenceTitle') or slot.get('title')}{split}"
-    return f"{slot.get('uv')} ‚Äî {slot.get('title')}"
-
-
-def planning_card_height(slot, printable_width):
-    if slot.get("partNumber") and slot.get("sequenceNumber"):
-        text_w = printable_width - 32
-        title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), text_w, "Helvetica-Bold", 9.4)))
-        items_h = 0
-        for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
-            items_h += max(1, len(wrap_text_lines(f"‚Ä¢ {item}", text_w - 14, "Helvetica", 8.7))) * 10
-        progress_h = 10 if slot.get("subpartProgressLabel") else 0
-        meta_lines = max(1, len(wrap_text_lines(f"Formateur : {slot.get('trainer') or '‚Äî'} ‚Ä¢ Salle : {slot.get('room') or '‚Äî'}", text_w, "Helvetica", 7.8)))
-        return max(90, 16 + title_lines * 11 + 13 + 16 + progress_h + 8 + items_h + 8 + meta_lines * 9 + 8)
-    title_w = printable_width - 225
-    title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), title_w, "Helvetica-Bold", 8.2)))
-    title_h = title_lines * 9
-    meta_h = 14 if (slot.get("modality") or "presentiel") != "elearning" else 0
-    return max(44, 12 + title_h + 8 + meta_h + 14)
-
-
-def planning_day_height(day, current_part, planning_mode, printable_width):
-    needed = 30 + 2
-    part_cursor = current_part
-    first_part = None
-    for slot in day.get("slots", []):
-        slot_part = slot.get("part")
-        if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != part_cursor:
-            needed += 34
-            part_cursor = slot_part
-            first_part = first_part or slot_part
-        needed += planning_card_height(slot, printable_width) + 5
-    return needed, first_part
-
-
-def generate_aps_planning_pdf(session_data, formateur, output_path, planning_data=None, planning_mode="full_presentiel", document_profile=None):
-    document_profile = document_profile or {}
-    if planning_mode not in {"full_presentiel", "elearning_presentiel", "desp", "ssiap1"}:
-        raise ValueError("Le type de planning est obligatoire.")
-    if document_profile.get("validate") == "ssiap1":
-        planning_mode = "ssiap1"
-    try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-    except ImportError as exc:
-        raise RuntimeError("La d√©pendance reportlab est requise pour g√©n√©rer le PDF APS.") from exc
-
-    start_dt = parse_date(session_data.get("date_debut"))
-    exam_dt = parse_date(session_data.get("date_exam"))
-    is_afc_document = document_profile.get("validate") == "afc_aps_ssiap"
-    if not start_dt:
-        raise ValueError("La date de d√©but de session est obligatoire.")
-    if not exam_dt and not is_afc_document:
-        raise ValueError("La date d'examen est obligatoire pour g√©n√©rer le planning APS.")
-
-    salle = session_data.get("salle") or session_data.get("room") or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS"
-    exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-    session_end = parse_date(session_data.get("date_fin"))
-    latest_training_date = session_end.date() if session_end else ((exam_dt.date() - timedelta(days=1)) if exam_dt else None)
-    if exam_dt and latest_training_date and latest_training_date >= exam_dt.date() and document_profile.get("validate") not in {"ssiap1", "afc_aps_ssiap"}:
-        raise ValueError("Impossible de g√©n√©rer le planning : la date de fin de formation doit √™tre ant√©rieure √† la date d‚Äôexamen.")
-    if planning_data is None:
-        planning_data, _, _ = (build_ssiap1_planning_data(start_dt.date(), formateur, salle, end_date=latest_training_date, exam_iso=exam_iso, exam_payload=ssiap1_exam_payload(session_data), excluded_dates=ssiap1_excluded_dates_from_payload(session_data)) if document_profile.get("validate") == "ssiap1" else build_aps_planning_data(start_dt.date(), formateur, salle, planning_mode, end_date=latest_training_date, exam_iso=exam_iso, session_id=session_data.get("id")))
-    # Do not let legacy placeholder rows (for example ``None ‚Äî None``) leak
-    # into a generated planning or inflate its daily totals.
-    planning_data = visible_planning_data(planning_data)
-    if document_profile.get("validate") == "desp":
-        summary = document_profile.get("summary") or desp_summary_from_planning(planning_data)
-        errors = list(summary.get("errors") or [])
-    elif document_profile.get("validate") == "a3p":
-        errors, a3p_summary = validate_a3p_planning(document_profile.get("source_planning") or [], exam_iso)
-        summary = document_profile.get("summary") or {"total_hours": a3p_summary.get("totalHours", 0), "uv_totals": a3p_summary.get("moduleTotals", {}), "uv_rows": document_profile.get("summary_rows", []), "modality_totals": {"presentiel": a3p_summary.get("totalHours", 0)}}
-    elif document_profile.get("validate") == "ssiap1":
-        summary = document_profile.get("summary") or ssiap1_summary_from_data(planning_data)
-        errors = list(summary.get("errors") or [])
-    elif document_profile.get("validate") == "afc_aps_ssiap":
-        summary = document_profile.get("summary") or afc_aps_ssiap_summary_from_data(planning_data)
-        errors = list(summary.get("errors") or [])
-    elif document_profile.get("validate") == "rescheduling":
-        # The editor deliberately permits an incomplete plan while a course is
-        # being moved.  Its API has already checked the editable constraints
-        # (times, overlaps and lunch break), so rendering must not reapply the
-        # "exactly 175h" rule and turn a save-and-regenerate into a 500.
-        errors, _, _ = validate_aps_rescheduling_data(planning_data, planning_mode)
-        summary = document_profile.get("summary") or aps_summary_from_data(planning_data)
-    else:
-        errors, summary = validate_aps_planning_data(planning_data, planning_mode)
-    if document_profile.get("validate") not in {"ssiap1", "afc_aps_ssiap"} and any(day.get("date") == exam_iso for day in planning_data or []):
-        errors.append(f"S√©curit√© planning {document_profile.get('short_label', 'APS')}: la date d'examen ({format_date(exam_iso)}) est exclue des journ√©es de formation. Aucun cr√©neau ne peut √™tre g√©n√©r√© ce jour-l√†.")
-    if errors:
-        raise ValueError(" ".join(errors))
-
-    document_profile = planning_pdf_profile(document_profile, planning_mode, summary)
-    c = canvas.Canvas(output_path, pagesize=A4)
-    width, height = A4
-    margin = 36
-    printable_width = width - 2 * margin
-    logo_path = aps_pdf_logo_path()
-    title = document_profile.get("planning_title") or "PLANNING DE FORMATION APS"
-    edited = datetime.now().strftime("%d/%m/%Y √† %H:%M")
-    computed_end = (planning_data[-1].get("date") if planning_data else session_data.get("date_fin"))
-    period = f"Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin') or computed_end) if (session_data.get('date_fin') or computed_end) else '‚Äî'}"
-    trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and (slot.get("trainer") or "").strip()})
-    trainer_label = ", ".join(trainers[:4]) + ("‚Ä¶" if len(trainers) > 4 else "") if trainers else "‚Äî"
-    modality_ranges = aps_modality_ranges(planning_data)
-    if document_profile.get("validate") == "ssiap1":
-        for key, modality in (("sst", "sst"), ("presentiel", "presentiel"), ("revision", "revision")):
-            dates = [day.get("date") for day in planning_data or [] for slot in day.get("slots", []) if (slot.get("modality") or "") == modality and day.get("date")]
-            if dates:
-                modality_ranges[key] = {"start": min(dates), "end": max(dates)}
-        if modality_ranges.get("presentiel"):
-            modality_ranges["presentiel"]["end"] = aps_local_date_iso(session_data.get("date_fin")) or modality_ranges["presentiel"].get("end")
-    modality_totals = summary.get("modality_totals", {})
-    logical_day_totals = {}
-    for source_day in planning_data or []:
-        if document_profile.get("validate") == "ssiap1" and source_day.get("exam"):
-            continue
-        logical_day_totals[source_day.get("date")] = sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in source_day.get("slots", []) if is_countable_planning_slot(slot))
-
-    def period_title(part):
-        if document_profile.get("validate") == "ssiap1":
-            if is_ssiap1_exam_part(part):
-                exam = summary.get("exam") or {}
-                return f"EXAMEN SSIAP 1 ‚Äî {format_date(exam.get('date'))} ‚Äî {exam.get('start') or '‚Äî'} / {exam.get('end') or '‚Äî'}"
-            return part
-        modality = "elearning" if "E-LEARNING" in (part or "") else "presentiel"
-        base = "P√âRIODE 1 ‚Äî E-LEARNING / DISTANCIEL" if modality == "elearning" else "P√âRIODE 2 ‚Äî PR√âSENTIEL AU CENTRE"
-        hours = modality_totals.get(modality, 0)
-        date_range = aps_format_range(modality_ranges.get(modality))
-        return f"{base} ‚Äî {date_range} ‚Äî {hours:g}h" if date_range else f"{base} ‚Äî {hours:g}h"
-
-    first_content_y = height - (146 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} else 122)
-    def build_pages():
-        built_pages, current_page, current_part = [], [], None
-        planning_day_height_helper = planning_day_height
-        y = first_content_y
-        bottom_limit = 84
-        source_days = [day for day in (planning_data or []) if not (document_profile.get("validate") == "ssiap1" and day.get("exam"))]
-        for day in source_days:
-            day_header_needed = 32
-            day_started_on_page = any(existing.get("date") == day.get("date") for existing in current_page)
-            current_fragment = None
-            for slot in day.get("slots", []):
-                _ = planning_day_height_helper
-                slot_part = slot.get("part")
-                band_needed = 34 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != current_part else 0
-                header_needed = 0 if day_started_on_page and current_fragment is not None else day_header_needed
-                needed = header_needed + band_needed + planning_card_height(slot, printable_width) + 5
-                if current_page and y - needed < bottom_limit:
-                    built_pages.append(current_page)
-                    current_page, current_part = [], None
-                    y = height - 122
-                    current_fragment = None
-                    day_started_on_page = False
-                    band_needed = 34 if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part else 0
-                    header_needed = day_header_needed
-                    needed = header_needed + band_needed + planning_card_height(slot, printable_width) + 5
-                if current_fragment is None:
-                    current_fragment = {**day, "slots": []}
-                    current_page.append(current_fragment)
-                    y -= header_needed
-                    day_started_on_page = True
-                if band_needed:
-                    y -= band_needed
-                    current_part = slot_part
-                current_fragment["slots"].append(slot)
-                y -= planning_card_height(slot, printable_width) + 5
-            if current_fragment:
-                y -= 2
-        if current_page or not built_pages:
-            built_pages.append(current_page)
-        return built_pages
-
-    pages = build_pages()
-    signature_image = find_center_image("signature", "sign")
-    stamp_image = find_center_image("tampon", "cachet", "stamp")
-    page_no = 1
-    total_pages = 1
-
-    def draw_header_footer(page_no, total_pages):
-        if logo_path:
-            c.drawImage(logo_path, margin, height - 72, width=72, height=49, preserveAspectRatio=True, mask="auto")
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 16)
-        c.drawString(margin + 88, height - 35, title)
-        c.setFont("Helvetica", 9); c.setFillColor(colors.HexColor("#4b5563"))
-        c.drawString(margin + 88, height - 50, document_profile.get("subtitle"))
-        exam_bits = ""
-        if document_profile.get("validate") == "afc_aps_ssiap":
-            aps_exam = next((d.get("date") for d in planning_data for sl in d.get("slots", []) if sl.get("afcCategory") == "EXAM_APS"), None)
-            ssiap_exam = next((d.get("date") for d in planning_data for sl in d.get("slots", []) if sl.get("afcCategory") == "EXAM_SSIAP1"), None)
-            exam_bits = f" ‚Ä¢ Examen APS : {format_date(aps_exam)} ‚Ä¢ Examen SSIAP 1 : {format_date(ssiap_exam)}"
-        else:
-            exam_bits = f" ‚Ä¢ Examen pr√©vu le {format_date(session_data.get('date_exam'))}"
-        info_y = draw_wrapped_text(c, f"{period}{exam_bits} ‚Ä¢ Formateur(s) pr√©sentiel : {trainer_label}", margin + 88, height - 64, width - margin - (margin + 88), "Helvetica", 9, 11)
-        modality_y = info_y - 1
-        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-        c.drawString(margin + 88, modality_y, document_profile.get("modality_line"))
-        y_dates = modality_y - 13
-        date_lines = []
-        if document_profile.get("validate") == "ssiap1":
-            date_lines.append(f"P√©riode globale de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}")
-            if modality_ranges.get("sst"):
-                date_lines.append(f"SST : {aps_format_range(modality_ranges.get('sst'))}")
-            if modality_ranges.get("presentiel"):
-                date_lines.append(f"SSIAP 1 : {aps_format_range(modality_ranges.get('presentiel'))}")
-            date_lines.append(f"Examen SSIAP 1 : le {format_date(session_data.get('date_exam'))}")
-        else:
-            if document_profile.get("validate") == "afc_aps_ssiap":
-                date_lines.append(period)
-            if modality_ranges.get("elearning"):
-                date_lines.append(f"P√©riode e-learning : {aps_format_range(modality_ranges.get('elearning'))}")
-            if modality_ranges.get("presentiel"):
-                date_lines.append(f"P√©riode pr√©sentiel : {aps_format_range(modality_ranges.get('presentiel'))}")
-        draw_wrapped_text(c, " ‚Ä¢ ".join(date_lines), margin + 88, y_dates, width - margin - (margin + 88), "Helvetica-Bold", 8, 10)
-        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, height - 112, width - margin, height - 112)
-        c.setFont("Helvetica", 6.2); c.setFillColor(colors.HexColor("#6b7280"))
-        c.drawString(margin, 40, f"√âdit√© le {edited}, sous r√©serve de modification.")
-        legal_lines = APS_LEGAL_LINES[:1] + APS_LEGAL_LINES[2:]
-        if document_profile.get("validate") == "ssiap1":
-            legal_lines.append(SSIAP1_AGREMENT_LINE)
-        legal = " ‚Ä¢ ".join(legal_lines)
-        draw_wrapped_text(c, legal, margin, 28, width - 2 * margin - 78, "Helvetica", 6.2, 8)
-        c.drawRightString(width - margin, 40, f"Page {page_no} / {total_pages}")
-
-    def draw_legend(y):
-        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "L√©gende :")
-        exam_legend_color = "#b91c1c" if document_profile.get("validate") == "ssiap1" else "#6d28d9"
-        c.setFillColor(colors.HexColor(exam_legend_color)); c.roundRect(margin + 54, y - 8, 18, 9, 2, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 78, y, document_profile.get("legend_elearning"))
-        c.setFillColor(colors.HexColor("#0d9488")); c.roundRect(margin + 238, y - 8, 18, 9, 2, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 262, y, document_profile.get("legend_presentiel"))
-        return y - 20
-
-    def draw_planning_pages(total_pages):
-        nonlocal page_no
-        for page_days in pages:
-            draw_header_footer(page_no, total_pages)
-            y = first_content_y if page_no == 1 else height - 122
-            if page_no == 1 and planning_mode in {"elearning_presentiel", "desp", "ssiap1"}:
-                y = draw_legend(y)
-            current_part = None
-            seen_dates_on_previous_pages = {fragment.get("date") for previous_page in pages[:page_no-1] for fragment in previous_page}
-            for day in page_days:
-                c.setFillColor(colors.HexColor("#f3f4f6")); c.roundRect(margin, y - 18, printable_width, 22, 6, fill=1, stroke=0)
-                day_total_minutes = logical_day_totals.get(day.get("date"), sum(int(round(float(slot.get("durationMinutes") or (float(slot.get("duration") or 0) * 60)))) for slot in day.get("slots", [])))
-                suite = " ‚Äî suite" if day.get("date") in seen_dates_on_previous_pages else ""
-                day_total_label = format_duration_from_minutes(day_total_minutes).replace("h", " h")
-                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, f"{planning_day_title(day, document_profile)}{suite} ‚Äî {day_total_label.replace(' ', '')} ‚Äî Total journ√©e : {day_total_label}")
-                y -= 30
-                for slot in day.get("slots", []):
-                    slot_part = slot.get("part")
-                    if planning_mode in {"elearning_presentiel", "desp", "ssiap1"} and slot_part and slot_part != current_part:
-                        current_part = slot_part
-                        band_color = "#b91c1c" if is_ssiap1_exam_part(slot_part) else ("#6d28d9" if "E-LEARNING" in slot_part else "#0d9488")
-                        c.setFillColor(colors.HexColor(band_color)); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
-                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, period_title(slot_part))
-                        y -= 34
-                    h = planning_card_height(slot, printable_width)
-                    c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(margin, y - h + 5, printable_width, h, 6, fill=1, stroke=1)
-                    if document_profile.get("validate") == "afc_aps_ssiap":
-                        modality_color = AFC_CATEGORY_COLORS.get(slot.get("afcCategory"), "#0d9488")
-                    else:
-                        modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
-                    c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
-                    modality_label = "Examen" if slot.get("modality") == "exam" else ("E-learning" if slot.get("modality") == "elearning" else "Pr√©sentiel")
-
-                    def draw_modality_badge(badge_x, badge_y):
-                        c.setFillColor(colors.HexColor(modality_color))
-                        c.roundRect(badge_x, badge_y, 76, 14, 4, fill=1, stroke=0)
-                        c.setFillColor(colors.white)
-                        c.setFont("Helvetica-Bold", 7)
-                        c.drawCentredString(badge_x + 38, badge_y + 4, modality_label)
-
-                    if slot.get("partNumber") and slot.get("sequenceNumber"):
-                        text_x = margin + 16; text_w = printable_width - 32
-                        cursor_y = draw_wrapped_text(c, planning_slot_title(slot), text_x, y - 8, text_w, "Helvetica-Bold", 9.4, 11)
-                        c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
-                        c.drawString(text_x, cursor_y, f"Dur√©e totale de la s√©quence : {format_duration_from_minutes(int(slot.get('totalSequenceDurationMinutes') or 0))}")
-                        badge_y = cursor_y - 16
-                        c.setFillColor(colors.HexColor(modality_color)); c.roundRect(text_x, badge_y - 3, 94, 14, 4, fill=1, stroke=0)
-                        c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 7.4); c.drawCentredString(text_x + 47, badge_y + 1, f"{slot.get('subpartLabel') or 'S√©quence'} ‚Äî {format_duration_from_minutes(int(slot.get('durationMinutes') or 0))}")
-                        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 8.2)
-                        c.drawRightString(margin + printable_width - 10, badge_y + 1, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
-                        item_y = badge_y - 13
-                        if slot.get("subpartProgressLabel"):
-                            item_y = draw_wrapped_text(c, slot.get("subpartProgressLabel"), text_x + 8, item_y, text_w - 12, "Helvetica-Oblique", 7.6, 9)
-                        for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
-                            item_y = draw_wrapped_text(c, f"‚Ä¢ {item}", text_x + 8, item_y, text_w - 12, "Helvetica", 8.7, 10)
-                        draw_wrapped_text(c, f"Formateur : {slot.get('trainer') or '‚Äî'} ‚Ä¢ Salle : {slot.get('room') or salle}", text_x, y - h + 19, text_w - 112, "Helvetica", 7.8, 9)
-                        draw_modality_badge(width - margin - 86, y - h + 14)
-                    else:
-                        title_w = printable_width - 225
-                        draw_wrapped_text(c, planning_slot_title(slot), margin + 16, y - 8, title_w, "Helvetica-Bold", 8.2, 9)
-                        c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#374151"))
-                        c.drawString(width - margin - 168, y - 8, f"{slot.get('start')} - {slot.get('end')} ({format_duration_from_minutes(int(slot.get('durationMinutes') or 0))})")
-                        draw_modality_badge(width - margin - 86, y - h + 14)
-                        if slot.get("modality") != "elearning":
-                            c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica", 8)
-                            draw_wrapped_text(c, f"Salle : {slot.get('room') or salle} ‚Ä¢ Formateur : {slot.get('trainer') or '‚Äî'}", margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
-                    y -= h + 5
-                y -= 2
-            page_no += 1
-            c.showPage()
-
-    def summary_table_header(y, continued=False):
-        c.setFont("Helvetica-Bold", 10); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "B. R√©capitulatif d√©taill√©" + (" ‚Äî suite" if continued else ""))
-        y -= 14
-        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Partie"); c.drawString(margin+92, y, "Module"); c.drawString(width-margin-140, y, "Modalit√©"); c.drawRightString(width-margin, y, "Heures")
-        c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, y-4, width-margin, y-4)
-        return y - 12
-
-    def draw_summary_pages(total_pages):
-        nonlocal page_no
-        draw_header_footer(page_no, total_pages)
-        y = height - 122
-        if document_profile.get("validate") == "afc_aps_ssiap":
-            c.setFont("Helvetica-Bold", 18); c.setFillColor(colors.HexColor("#0f766e")); c.drawCentredString(width/2, y, "SYNTH√àSE DES HEURES")
-            y -= 22; c.setFont("Helvetica-Bold", 12); c.setFillColor(colors.HexColor("#111827")); c.drawCentredString(width/2, y, "AFC FRANCE TRAVAIL APS + SSIAP")
-            y -= 34
-            col_x=[margin, margin+44, margin+300, width-margin-72]; headers=["Couleur","Intitul√© complet","Cat√©gorie de facturation","Dur√©e"]
-            c.setFillColor(colors.HexColor("#0f766e")); c.roundRect(margin, y-18, printable_width, 24, 6, fill=1, stroke=0)
-            c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 8.5)
-            for x,h in zip(col_x,headers): c.drawString(x+4, y-10, h)
-            y -= 28
-            billing={"RAN":"RAN","SP":"SP","PAF":"PAF","ACCUEIL":"Formation technique (FT)","APS":"Formation technique (FT)","EXAM_APS":"Formation technique (FT)","H0B0":"Formation technique (FT)","SSIAP1":"Formation technique (FT)","EXAM_SSIAP1":"Formation technique (FT)","BILAN":"Formation technique (FT)"}
-            for code in AFC_APS_SSIAP_SUMMARY_ORDER:
-                c.setFillColor(colors.HexColor("#f8fafc" if AFC_APS_SSIAP_SUMMARY_ORDER.index(code)%2==0 else "#ffffff")); c.rect(margin, y-16, printable_width, 20, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor(AFC_CATEGORY_COLORS[code])); c.circle(col_x[0]+14, y-6, 4, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica", 8.2); c.drawString(col_x[1]+4, y-9, AFC_APS_SSIAP_LABELS[code])
-                c.drawString(col_x[2]+4, y-9, billing[code]); c.drawRightString(width-margin-8, y-9, format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace("h", " h"))
-                y -= 20
-            y -= 10
-            recap=[("Formation technique (FT)","273 h"),("Remise √† niveau (RAN)","55 h"),("Soutien personnalis√© (SP)","45 h"),("Pr√©paration √† l‚Äôapr√®s-formation (PAF)","20 h")]
-            c.setFillColor(colors.HexColor("#ecfeff")); c.roundRect(margin, y-86, printable_width, 92, 8, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#0f172a")); c.setFont("Helvetica-Bold", 10); c.drawString(margin+14, y-12, "R√©capitulatif de facturation")
-            yy=y-30; c.setFont("Helvetica", 9)
-            for label,val in recap:
-                c.drawString(margin+18, yy, label); c.drawRightString(width-margin-18, yy, val); yy-=14
-            c.setFillColor(colors.HexColor("#0f766e")); c.roundRect(margin+12, yy-18, printable_width-24, 22, 5, fill=1, stroke=0)
-            c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin+22, yy-11, "TOTAL"); c.drawRightString(width-margin-22, yy-11, "393 h")
-            y = yy - 46
-            box_w=(printable_width-18)/2
-            for idx_label,(label,img) in enumerate((("Signature",signature_image),("Tampon",stamp_image))):
-                x=margin+idx_label*(box_w+18); c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(x,y-64,box_w,64,6,fill=1,stroke=1); c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold",9); c.drawString(x+10,y-16,label)
-                if img: c.drawImage(img,x+12,y-58,width=box_w-24,height=40,preserveAspectRatio=True,mask="auto")
-            page_no += 1
-            return
-        if document_profile.get("validate") == "ssiap1":
-            exam_day = next((day for day in planning_data or [] if day.get("exam")), None)
-            exam_slot = (exam_day.get("slots") or [{}])[0] if exam_day else (summary.get("exam") or {})
-            c.setFillColor(colors.HexColor("#b91c1c")); c.roundRect(margin, y - 20, printable_width, 24, 6, fill=1, stroke=0)
-            c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin + 10, y - 12, "EXAMEN SSIAP 1")
-            y -= 34
-            c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#fecaca")); c.roundRect(margin, y - 74, printable_width, 78, 6, fill=1, stroke=1)
-            c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10)
-            c.drawString(margin + 14, y - 16, f"{planning_day_title(exam_day or {'date': (summary.get('exam') or {}).get('date')}, document_profile)} ‚Äî {exam_slot.get('start') or '‚Äî'} - {exam_slot.get('end') or '‚Äî'}")
-            c.setFont("Helvetica", 8.6); c.setFillColor(colors.HexColor("#374151"))
-            c.drawString(margin + 14, y - 32, f"Salle : {exam_slot.get('room') or salle}")
-            c.drawString(margin + 14, y - 46, f"Formateur / responsable : {exam_slot.get('trainer') or formateur or '‚Äî'}")
-            c.drawString(margin + 14, y - 60, exam_slot.get("content") or "√âpreuves d'examen SSIAP 1")
-            y -= 96
-        c.setFont("Helvetica-Bold", 13); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "Synth√®se des heures")
-        y -= 18
-        c.setFont("Helvetica", 9)
-        if document_profile.get("validate") == "afc_aps_ssiap":
-            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. AFC France Travail APS + SSIAP")
-            y -= 14
-            c.setFont("Helvetica", 9)
-            for code in AFC_APS_SSIAP_SUMMARY_ORDER:
-                c.setFillColor(colors.HexColor(AFC_CATEGORY_COLORS[code])); c.rect(margin, y - 7, 8, 8, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 12, y, f"{AFC_APS_SSIAP_LABELS[code]} : {format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace('h', ' h')}"); y -= 13
-            c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "TOTAL : 393 h"); y -= 20
-        elif document_profile.get("validate") == "ssiap1":
-            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. SST")
-            y -= 14
-            c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"12/10/2026 : 7 h ‚Ä¢ 13/10/2026 : 7 h ‚Ä¢ Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
-            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Formation r√©glementaire SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"du {format_date(modality_ranges.get('presentiel', {}).get('start'))} au {format_date(modality_ranges.get('presentiel', {}).get('end'))} ‚Äî total : {summary['total_hours']:g} h"); y -= 14
-            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "C. R√©visions et pr√©paration √† l‚Äôexamen"); y -= 14; c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"27/10/2026 de 13h30 √† 16h30 ‚Äî total : {summary.get('revision_hours', 0):g} h ‚Äî hors total r√©glementaire des 67 h"); y -= 14
-            c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "D. Examen SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"28/10/2026 ‚Äî {exam_slot.get('start') or '08:30'} - {exam_slot.get('end') or '16:30'} ‚Äî journ√©e distincte"); y -= 16
-            c.setFont("Helvetica-Bold", 9)
-            y = draw_wrapped_text(c, f"Total SST : {summary.get('sst_hours', 0):g} h ‚Ä¢ Total SSIAP 1 r√©glementaire : {summary['total_hours']:g} h ‚Ä¢ Total r√©visions compl√©mentaires : {summary.get('revision_hours', 0):g} h ‚Ä¢ Total de pr√©sence avant examen : {summary.get('presence_total_hours', 0):g} h ‚Ä¢ Examen : distinct", margin, y, printable_width, "Helvetica-Bold", 9, 11) - 11
-        else:
-            if document_profile.get("validate") == "afc_aps_ssiap":
-                date_lines.append(period)
-            if modality_ranges.get("elearning"):
-                c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h ‚Äî {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13
-            if modality_ranges.get("presentiel"):
-                c.drawString(margin, y, f"Pr√©sentiel : {modality_totals.get('presentiel', 0):g}h ‚Äî {aps_format_range(modality_ranges.get('presentiel'))}"); y -= 13
-            c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
-            y -= 20
-        y = summary_table_header(y)
-        rows = summary.get("uv_rows") or []
-        continued = False
-        for row in rows:
-            module_text = ((row.get("title") or row.get("label")) if document_profile.get("validate") == "afc_aps_ssiap" else (f"S√©quence {str(row.get('uv')).split('-S')[-1]} ‚Äî {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} ‚Äî {row.get('title') or row.get('label')}"))
-            module_lines = wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)
-            row_h = max(12, len(module_lines) * 8 + 4)
-            if y - row_h < 132:
-                c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122; continued = True; y = summary_table_header(y, continued=True)
-            c.setFont("Helvetica", 6.4); c.setFillColor(colors.HexColor("#111827"))
-            modality = row.get("modality") or ("elearning" if "Distanciel" in str(row.get("label")) else "presentiel")
-            part_label = ("Parcours" if document_profile.get("validate") == "afc_aps_ssiap" else (f"Partie {str(row.get('uv')).split('-')[0][1:]}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else ("P√©riode 1" if modality == "elearning" else "P√©riode 2")))
-            c.drawString(margin, y, part_label)
-            draw_wrapped_text(c, module_text, margin+92, y, width - margin - 300, "Helvetica", 7.2, 8)
-            c.drawString(width-margin-140, y, "E-learning" if modality == "elearning" else "Pr√©sentiel")
-            c.drawRightString(width-margin, y, format_duration_from_minutes(int(round(float(row.get("hours", 0))*60))))
-            y -= row_h
-        final_block_h = 34 + 24 + 92 + 25 + 70
-        if y - final_block_h < 84:
-            c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122
-        total_label = f"Total formation SSIAP 1 : {summary['total_hours']:g}h" if document_profile.get("validate") == "ssiap1" else f"TOTAL : {summary['total_hours']:g}h"
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y - 4, total_label)
-        y -= 34
-        exam_summary = summary.get("exam") or {}
-        if document_profile.get("validate") == "afc_aps_ssiap":
-            exam_line = "Examens APS et SSIAP 1 : voir dates calcul√©es en en-t√™te."
-        else:
-            exam_line = f"Examen SSIAP 1 : {format_date(exam_summary.get('date'))} de {exam_summary.get('start') or '‚Äî'} √† {exam_summary.get('end') or '‚Äî'}" if document_profile.get("validate") == "ssiap1" else f"Examen le {format_date(session_data.get('date_exam'))}."
-        c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, exam_line)
-        y -= 24
-        box_w = (width - 2 * margin - 18) / 2; signature_box_h = 92; signature_label_h = 18
-        for idx, (label, image_path) in enumerate((("Signature", signature_image), ("Tampon", stamp_image))):
-            x = margin + idx * (box_w + 18)
-            c.setFillColor(colors.white); c.setStrokeColor(colors.HexColor("#d1d5db")); c.roundRect(x, y - signature_box_h, box_w, signature_box_h, 6, fill=1, stroke=1)
-            c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica-Bold", 9); c.drawString(x + 10, y - 16, label)
-            if image_path:
-                c.drawImage(image_path, x + 12, y - signature_box_h + 8, width=box_w - 24, height=signature_box_h - signature_label_h - 10, preserveAspectRatio=True, mask="auto")
-        y -= signature_box_h + 25
-        c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "Informations l√©gales")
-        y -= 14
-        for line in APS_LEGAL_LINES + ([SSIAP1_AGREMENT_LINE] if document_profile.get("validate") == "ssiap1" else []):
-            y = draw_wrapped_text(c, line, margin, y, printable_width, "Helvetica", 7.5, 10)
-        page_no += 1
-
-    def compute_summary_page_count():
-        count = 1
-        y = height - 122 - (130 if document_profile.get("validate") == "ssiap1" else 0) - 18
-        if document_profile.get("validate") in {"afc_aps_ssiap", "ssiap1"}:
-            y -= 14
-        if modality_ranges.get("elearning"):
-            y -= 13
-        if modality_ranges.get("presentiel"):
-            y -= 13
-        y -= 20
-        y -= 26
-        for row in summary.get("uv_rows") or []:
-            module_text = ((row.get("title") or row.get("label")) if document_profile.get("validate") == "afc_aps_ssiap" else (f"S√©quence {str(row.get('uv')).split('-S')[-1]} ‚Äî {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} ‚Äî {row.get('title') or row.get('label')}"))
-            row_h = max(12, len(wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)) * 8 + 4)
-            if y - row_h < 132:
-                count += 1
-                y = height - 122 - 26
-            y -= row_h
-        final_block_h = 34 + 24 + 92 + 25 + 70
-        if y - final_block_h < 84:
-            count += 1
-        return count
-
-    calendar_month_count = 0
-    if document_profile.get("validate") == "afc_aps_ssiap" and planning_data:
-        _sd=parse_date(planning_data[0]["date"]).date(); _ed=parse_date(planning_data[-1]["date"]).date(); _cur=date(_sd.year,_sd.month,1)
-        while _cur <= _ed:
-            calendar_month_count += 1; _cur = date(_cur.year + (1 if _cur.month==12 else 0), 1 if _cur.month==12 else _cur.month+1, 1)
-    extra_calendar_pages = 1 if document_profile.get("validate") == "afc_aps_ssiap" and calendar_month_count else 0
-    total_pages = len(pages) + compute_summary_page_count() + extra_calendar_pages
-    draw_planning_pages(total_pages)
-    draw_summary_pages(total_pages)
-    if document_profile.get("validate") == "afc_aps_ssiap":
-        c.showPage(); page_no += 1
-        from reportlab.lib.pagesizes import landscape, A3
-        import calendar
-        c.setPageSize(landscape(A3)); lw, lh = landscape(A3)
-        logo_path = find_center_image("logo")
-        if logo_path:
-            c.drawImage(logo_path, 36, lh-58, width=72, height=34, preserveAspectRatio=True, mask="auto")
-        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 15)
-        c.drawString(118, lh-35, "CALENDRIER R√âCAPITULATIF")
-        c.setFont("Helvetica-Bold", 12); c.drawString(118, lh-52, "AFC France Travail APS + SSIAP")
-        c.setFont("Helvetica", 9); c.drawString(118, lh-66, f"Du {format_date(planning_data[0]["date"])} au {format_date(planning_data[-1]["date"])}.")
-        colors_by_cat = AFC_CATEGORY_COLORS
-        by_date={d.get("date"):d for d in planning_data}; start_d=parse_date(planning_data[0]["date"]).date(); end_d=parse_date(planning_data[-1]["date"]).date(); months=[]; cur=date(start_d.year,start_d.month,1)
-        while cur <= end_d:
-            months.append(cur); cur = date(cur.year + (1 if cur.month==12 else 0), 1 if cur.month==12 else cur.month+1, 1)
-        fr_months=["", "Janvier", "F√©vrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Ao√ªt", "Septembre", "Octobre", "Novembre", "D√©cembre"]
-        short_labels={"RAN":"RAN","ACCUEIL":"Accueil","APS":"APS","EXAM_APS":"Examen APS","H0B0":"H0B0","SSIAP1":"SSIAP 1","EXAM_SSIAP1":"Examen SSIAP 1","SP":"SP","PAF":"PAF","BILAN":"Bilan"}
-        months = months[:4]
-        per_page=4
-        calendar_page_no = 0
-        for page_start in range(0, len(months), per_page):
-            if page_start:
-                c.showPage(); page_no += 1; c.setPageSize(landscape(A3))
-            calendar_page_no += 1
-            subset=months[page_start:page_start+per_page]
-            cols=2; rows=2
-            cell_w_month=(lw-72)/cols; cell_h_month=(lh-176)/rows
-            for i,m in enumerate(subset):
-                x=36+(i%cols)*cell_w_month; y=lh-78-(i//cols)*cell_h_month
-                c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold", 10); c.drawString(x,y, f"{fr_months[m.month]} {m.year}")
-                cell_w=(cell_w_month-8)/7; cell_h=(cell_h_month-34)/6; y0=y-16
-                c.setFont("Helvetica-Bold",6.3)
-                for col,letter in enumerate(["L","M","M","J","V","S","D"]): c.drawCentredString(x+col*cell_w+cell_w/2, y0, letter)
-                c.setFont("Helvetica",5.0)
-                for r,week in enumerate(calendar.Calendar(firstweekday=0).monthdayscalendar(m.year,m.month)):
-                    for col,dd in enumerate(week):
-                        cx=x+col*cell_w; cy=y0-5-r*cell_h
-                        if not dd: continue
-                        curd=date(m.year,m.month,dd); iso=curd.isoformat(); bg="#f3f4f6" if curd.weekday()>=5 else ("#fee2e2" if curd in french_holidays(curd.year) else "#ffffff")
-                        interrupted=is_interrupted_day(curd, parse_interruption_ranges(session_data.get("interruptions")))
-                        if interrupted: bg="#d1d5db"
-                        c.setFillColor(colors.HexColor(bg)); c.rect(cx,cy-cell_h+2,cell_w-1,cell_h-1,fill=1,stroke=1)
-                        c.setFillColor(colors.HexColor("#111827")); c.drawString(cx+1,cy-5,str(dd))
-                        if iso in by_date:
-                            am=[]; pm=[]
-                            for sl in by_date[iso].get("slots",[]):
-                                sm=int(sl["start"][:2])*60+int(sl["start"][3:5]); (am if sm < 12*60+30 else pm).append(sl.get("afcCategory"))
-                            for half,cats in enumerate((am,pm)):
-                                if not cats: continue
-                                cat=next((c for c in cats if c), cats[0]); yy=cy-9-half*(cell_h/2-2)
-                                c.setFillColor(colors.HexColor(colors_by_cat.get(cat,"#e5e7eb"))); c.rect(cx+9, yy-(cell_h/2-6), cell_w-12, cell_h/2-7, fill=1, stroke=0)
-                                c.setFillColor(colors.white if cat in {"APS","EXAM_APS","EXAM_SSIAP1","BILAN"} else colors.black)
-                                for li,line in enumerate(wrap_text_lines(short_labels.get(cat,cat), cell_w-13, "Helvetica-Bold", 4.6)[:2]):
-                                    c.setFont("Helvetica-Bold",4.6); c.drawString(cx+10, yy-4-li*5, line)
-                        elif interrupted:
-                            c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica",4.5); c.drawString(cx+2, cy-14, "INTERRUPTION")
-            legend_y=54; legend_cols=5; legend_cell=(lw-72)/legend_cols; c.setFont("Helvetica", 6.1)
-            for li, code in enumerate(AFC_APS_SSIAP_SUMMARY_ORDER):
-                label=AFC_APS_SSIAP_LABELS[code]; lx=36+(li%legend_cols)*legend_cell; ly=legend_y-(li//legend_cols)*16
-                c.setFillColor(colors.HexColor("#f8fafc")); c.roundRect(lx, ly-7, legend_cell-5, 13, 3, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor(colors_by_cat[code])); c.circle(lx+6, ly-1, 3, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor("#111827")); draw_wrapped_text(c, label, lx+14, ly+1, legend_cell-22, "Helvetica", 6.1, 6.5)
-            c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(36, 28, lw-36, 28)
-            c.setFillColor(colors.HexColor("#6b7280")); c.setFont("Helvetica", 6.4)
-            c.drawString(36, 18, f"√âdit√© le {edited}")
-            c.drawCentredString(lw/2, 18, "Int√©grale Academy ‚Äî calendrier r√©capitulatif AFC")
-            c.drawRightString(lw-36, 18, f"Page {page_no - 1} / {total_pages}")
-    c.save()
-    return {"planning_data": planning_data, "totals": summary["uv_totals"], "total_hours": summary["total_hours"], "summary": summary}
-
-def _money(value):
-    try:
-        return f"{float(value):,.2f} ‚Ç¨".replace(",", " ").replace(".", ",")
-    except Exception:
-        return "0,00 ‚Ç¨"
-
-
-def _normalized_slot_value(slot, *keys):
-    for key in keys:
-        value = (slot or {}).get(key)
-        if value is not None and str(value).strip():
-            return str(value).strip().lower().replace("√©", "e")
-    return ""
-
-
-def is_in_person_slot(slot):
-    """Return True only for normalized in-person training slots."""
-    return _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"presentiel", "in_person"}
-
-
-def aps_is_contract_billable_slot(slot):
-    normalized = _normalized_slot_value(slot, "modality", "delivery_mode", "period_type")
-    if normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous", "examen", "exam"}:
-        return False
-    return True
-
-
-def aps_detect_trainers(planning_data):
-    return sorted({
-        (slot.get("trainer") or "").strip()
-        for day in planning_data or []
-        for slot in day.get("slots", [])
-        if aps_is_contract_billable_slot(slot) and (slot.get("trainer") or "").strip()
-    })
-
-
-TRAINER_CONTRACT_INTERVENTION_LOCATION = "Int√©grale S√©curit√© Formations 54 chemin du Carreou 83480 PUGET SUR ARGENS"
-
-
-def aps_trainer_contract_location_label(interventions, default_location="Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS"):
-    locations = []
-    seen = set()
-    for row in interventions or []:
-        location = str((row or {}).get("room") or "").strip()
-        if not location or location == "‚Äî":
-            continue
-        normalized = " ".join(location.lower().split())
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        locations.append(location)
-    return " / ".join(locations) if locations else default_location
-
-
-def trainer_contract_intervention_location(session_data, interventions):
-    """Return the contractual intervention location for the supported trainings."""
-    formation = str((session_data or {}).get("formation") or "").strip().upper()
-    if formation in {"APS", "SSIAP", "SSIAP1", "A3P"}:
-        return TRAINER_CONTRACT_INTERVENTION_LOCATION
-    return aps_trainer_contract_location_label(interventions)
-
-
-def aps_trainer_interventions(planning_data, trainer_name):
-    interventions = []
-    total_hours = 0.0
-    dates = set()
-    for day in planning_data or []:
-        day_date = day.get("date") or ""
-        for slot in day.get("slots", []):
-            if not aps_is_contract_billable_slot(slot):
-                continue
-            if (slot.get("trainer") or "").strip() != trainer_name:
-                continue
-            duration = round(float(slot.get("duration") or 0), 2)
-            total_hours = round(total_hours + duration, 2)
-            dates.add(day_date)
-            interventions.append({
-                "date": day_date,
-                "dateLabel": format_date(day_date),
-                "hours": duration,
-                "start": slot.get("start") or "",
-                "end": slot.get("end") or "",
-                "module": f"{slot.get('uv') or ''} {slot.get('title') or ''}".strip(),
-                "modality": "E-learning" if slot.get("modality") == "elearning" else "Pr√©sentiel",
-                "room": slot.get("room") or "‚Äî",
-            })
-    calculated_days = round(total_hours / 7, 2) if total_hours else 0
-    return {"interventions": interventions, "totalHours": total_hours, "calendarDays": len(dates), "calculatedDays": calculated_days}
-
-
-def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
-    """G√©n√®re un contrat formateur professionnel en PDF avec ReportLab.
-
-    Le g√©n√©rateur reste autonome (pas de Render/LibreOffice) et s'appuie sur les
-    donn√©es d√©j√† collect√©es dans le planning APS et la modale de g√©n√©ration.
-    """
-    try:
-        from reportlab.lib import colors
-        from reportlab.lib.enums import TA_CENTER
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-        from reportlab.lib.units import mm
-        from reportlab.platypus import (
-            BaseDocTemplate,
-            Frame,
-            ListFlowable,
-            ListItem,
-            PageBreak,
-            PageTemplate,
-            Paragraph,
-            Spacer,
-            Table,
-            TableStyle,
-            KeepTogether,
-            CondPageBreak,
-            NextPageTemplate,
-            Image,
-        )
-    except ImportError as exc:
-        raise RuntimeError("La d√©pendance reportlab est requise pour g√©n√©rer le contrat PDF.") from exc
-
-    width, height = A4
-    landscape_width, landscape_height = landscape(A4)
-    logo_path = aps_pdf_logo_path()
-    # La date du contrat est contractuellement fix√©e √† J-7 du d√©but officiel
-    # de session, ind√©pendamment de la date de cr√©ation ou de r√©g√©n√©ration PDF.
-    session_start = parse_date(session_data.get("date_debut"))
-    if not session_start:
-        raise ValueError("Impossible de g√©n√©rer le contrat : la date officielle de d√©but de session est absente ou invalide.")
-    contract_date = (session_start - timedelta(days=7)).strftime("%d/%m/%Y")
-    formation_name = session_data.get("formation") or "APS"
-    session_name = session_data.get("display_name") or session_data.get("name") or formation_name
-    start_date = format_date(session_data.get("date_debut"))
-    end_date = format_date(session_data.get("date_fin"))
-    exam_date = format_date(session_data.get("date_exam"))
-    modality_label = "Pr√©sentiel"
-    interventions = contract.get("interventions") or []
-    modules = sorted({(row.get("module") or "Module non renseign√©").strip() for row in interventions if (row.get("module") or "").strip()})
-    room_label = trainer_contract_intervention_location(session_data, interventions)
-    total_ht = float(contract.get("totalHT") or 0)
-    tva_label = f"TVA {float(contract.get('vatRate') or 20):g}%" if contract.get("vatEnabled") else (contract.get("vatMention") or "TVA non applicable / franchise de TVA si applicable")
-
-    doc = BaseDocTemplate(
-        output_path,
-        pagesize=A4,
-        leftMargin=19 * mm,
-        rightMargin=19 * mm,
-        topMargin=24 * mm,
-        bottomMargin=17 * mm,
-        title="Contrat d‚Äôintervention formateur",
-        author="Int√©grale Academy",
-    )
-    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="normal")
-    cover_frame = Frame(17 * mm, 18 * mm, width - 34 * mm, height - 32 * mm, id="cover")
-    landscape_frame = Frame(doc.leftMargin, doc.bottomMargin, landscape_width - doc.leftMargin - doc.rightMargin, landscape_height - doc.topMargin - doc.bottomMargin, id="landscape")
-
-    def page_canvas(canvas, document):
-        page_width, page_height = document.pagesize
-        canvas.saveState()
-        if logo_path:
-            canvas.drawImage(logo_path, doc.leftMargin, page_height - 18 * mm, width=24 * mm, height=12 * mm, preserveAspectRatio=True, mask="auto")
-        canvas.setFillColor(colors.HexColor("#111827")); canvas.setFont("Helvetica-Bold", 9.5)
-        canvas.drawString(doc.leftMargin + 29 * mm, page_height - 10 * mm, "CONTRAT D‚ÄôINTERVENTION FORMATEUR")
-        canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 7.2)
-        canvas.drawString(doc.leftMargin + 29 * mm, page_height - 15 * mm, f"{formation_name} ‚Äî {session_name}")
-        canvas.setStrokeColor(colors.HexColor("#d1d5db")); canvas.line(doc.leftMargin, page_height - 20 * mm, page_width - doc.rightMargin, page_height - 20 * mm)
-        canvas.setFillColor(colors.HexColor("#6b7280")); canvas.setFont("Helvetica", 8)
-        canvas.drawCentredString(page_width / 2, 8 * mm, f"Page {document.page}")
-        canvas.restoreState()
-
-    doc.addPageTemplates([
-        PageTemplate(id="cover", frames=[cover_frame], pagesize=A4),
-        PageTemplate(id="contrat", frames=[frame], pagesize=A4, onPage=page_canvas),
-        PageTemplate(id="planning_landscape", frames=[landscape_frame], pagesize=landscape(A4), onPage=page_canvas),
-    ])
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle("CoverTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=17, leading=20, textColor=colors.HexColor("#111827"), alignment=TA_CENTER, spaceAfter=4))
-    styles.add(ParagraphStyle("CoverSubtitle", parent=styles["Normal"], fontSize=9.4, leading=11.4, textColor=colors.HexColor("#6b5f4a"), alignment=TA_CENTER, spaceAfter=6))
-    styles.add(ParagraphStyle("CardTitle", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#8a5a20"), uppercase=True, spaceAfter=3))
-    styles.add(ParagraphStyle("CardText", parent=styles["Normal"], fontSize=7.7, leading=9.1, textColor=colors.HexColor("#1f2937"), wordWrap="CJK"))
-    styles.add(ParagraphStyle("Subtle", parent=styles["Normal"], fontSize=8.2, leading=10, textColor=colors.HexColor("#64748b"), alignment=TA_CENTER))
-    styles.add(ParagraphStyle("Body", parent=styles["Normal"], fontSize=9.1, leading=11.5, textColor=colors.HexColor("#1f2937"), spaceAfter=4.2))
-    styles.add(ParagraphStyle("H", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=11.4, leading=14, textColor=colors.HexColor("#2f2418"), spaceBefore=7, spaceAfter=4, borderPadding=(0, 0, 4, 0), borderColor=colors.HexColor("#d6b26d"), borderWidth=0, borderBottomWidth=0.5))
-    styles.add(ParagraphStyle("Small", parent=styles["Normal"], fontSize=8.6, leading=10.5, textColor=colors.HexColor("#334155")))
-    styles.add(ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7.2, leading=8.6, textColor=colors.HexColor("#111827"), wordWrap="CJK"))
-    styles.add(ParagraphStyle("CellHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.3, leading=8.8, textColor=colors.white, alignment=TA_CENTER))
-    styles.add(ParagraphStyle("SignLabel", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.6, leading=9.2, textColor=colors.HexColor("#475569"), alignment=TA_CENTER))
-    styles.add(ParagraphStyle(
-        "YousignAnchor",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=1,
-        leading=1,
-        textColor=colors.Color(1, 1, 1, alpha=0),
-        alignment=TA_CENTER,
-    ))
-
-    def p(txt, style="Body"):
-        return Paragraph(str(txt or "‚Äî").replace("\n", "<br/>"), styles[style])
-
-    def section(title):
-        return KeepTogether([CondPageBreak(22 * mm), Paragraph(title, styles["H"])])
-
-    def compact_module_label(module):
-        text = str(module or "Module non renseign√©").strip()
-        import re
-        match = re.search(r"\b(UV\s*\d+)\b\s*[-‚Äî:]?\s*(.*)", text, re.IGNORECASE)
-        if not match:
-            return text
-        uv = match.group(1).upper().replace(" ", "")
-        label = match.group(2).strip(" -‚Äî:")
-        label = re.sub(r"^(MODULE|UNIT[√âE] DE VALEUR)\s*[:\-‚Äî]?\s*", "", label, flags=re.IGNORECASE)
-        return f"{uv} ‚Äî {label}" if label else uv
-
-    def bullet(items):
-        return ListFlowable([ListItem(p(i, "Body"), leftIndent=3, bulletOffsetY=1) for i in items], bulletType="bullet", start="‚Ä¢", leftIndent=10, bulletIndent=2, bulletFontSize=5.5, spaceBefore=1, spaceAfter=3)
-
-    def kv_table(rows, col_widths=None, shade=True):
-        table = Table([[p(k, "Small"), p(v, "Small")] for k, v in rows], colWidths=col_widths or [42 * mm, 52 * mm], hAlign="LEFT")
-        table.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.35, colors.HexColor("#d9dee7")),
-            ("INNERGRID", (0, 0), (-1, -1), 0.2, colors.HexColor("#e7ebf0")),
-            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#faf7f1") if shade else colors.white),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        return table
-
-    def card(title, lines):
-        body = [p(title, "CardTitle"), p(lines, "CardText")]
-        tbl = Table([[body]], colWidths=[(width - 40 * mm) / 2], rowHeights=[40 * mm], hAlign="LEFT")
-        tbl.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.45, colors.HexColor("#d7dce3")),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5.5), ("RIGHTPADDING", (0, 0), (-1, -1), 5.5),
-            ("TOPPADDING", (0, 0), (-1, -1), 5.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5.5),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
-        return tbl
-
-    story = []
-    if logo_path:
-        story.append(Image(logo_path, width=34 * mm, height=16 * mm, kind="proportional", hAlign="CENTER"))
-        story.append(Spacer(1, 3))
-    story += [p("Contrat d‚Äôintervention formateur", "CoverTitle"), p("Contrat de prestation de services / sous-traitance p√©dagogique", "CoverSubtitle")]
-    cover_cards = [
-        [card("Centre de formation", "Int√©grale Academy<br/>54 chemin du Carreou<br/>83480 Puget-sur-Argens<br/>SIRET : 840 899 884 00026<br/>Repr√©sentant l√©gal : Monsieur Cl√©ment VAILLANT"), card("Formateur / prestataire", f"{contract.get('trainerName')}<br/>{contract.get('status') or 'Statut juridique √† compl√©ter'}<br/>SIRET : {contract.get('siret') or '√† compl√©ter'}<br/>NDA : {contract.get('activityDeclaration') or '√† compl√©ter'}<br/>{contract.get('address') or 'Adresse √† compl√©ter'}<br/>{contract.get('trainerEmail') or 'Email √† compl√©ter'} ‚Äî {contract.get('trainerPhone') or 'T√©l√©phone √† compl√©ter'}")],
-        [card("Mission", f"{formation_name} ‚Äî {session_name}<br/>Du {start_date} au {end_date}<br/>Examen : {exam_date}<br/>Modalit√© : {modality_label}<br/>Volume : {float(contract.get('calculatedHours') or 0):g} h"), card("R√©mun√©ration", f"{float(contract.get('billedDays') or 0):g} jour(s) factur√©(s)<br/>Tarif journalier : {_money(contract.get('dailyRate'))} HT<br/>Total HT : {_money(total_ht)}<br/>TVA : {tva_label}<br/>Total TTC : {_money(contract.get('totalTTC') or total_ht)}")],
-        [card("Lieu d‚Äôintervention", room_label), card("Documents contractuels", "Le pr√©sent contrat est compl√©t√© par le planning d√©taill√© des interventions, le r√©capitulatif financier et l‚Äôengagement qualit√© / tra√ßabilit√© p√©dagogique.")],
-    ]
-    cover_grid = Table(cover_cards, colWidths=[(width - 40 * mm) / 2, (width - 40 * mm) / 2], rowHeights=[46 * mm, 46 * mm, 46 * mm], hAlign="CENTER")
-    cover_grid.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
-    story += [cover_grid, Spacer(1, 5), p("Document contractuel √©tabli √† partir des informations de la session et du planning valid√©.", "Subtle"), NextPageTemplate("contrat"), PageBreak()]
-
-    story += [section("1. Nature juridique du contrat et ind√©pendance du prestataire"),
-        p("Le pr√©sent contrat est un contrat de prestation de services et, le cas √©ch√©ant, de sous-traitance p√©dagogique. Le formateur intervient exclusivement en qualit√© de prestataire ind√©pendant : aucune clause, consigne op√©rationnelle ou modalit√© de suivi ne peut √™tre interpr√©t√©e comme cr√©ant un lien de subordination juridique avec Int√©grale Academy."),
-        p("Le formateur organise librement ses moyens humains, mat√©riels et p√©dagogiques, sous sa responsabilit√© professionnelle. Cette autonomie s‚Äôexerce toutefois dans le cadre strict des r√©f√©rentiels applicables, du planning valid√©, des horaires communiqu√©s, du r√®glement int√©rieur, des proc√©dures qualit√©, des consignes de s√©curit√© et des exigences administratives du centre."),
-        bullet(["le formateur demeure seul responsable de ses d√©clarations fiscales et sociales, de ses cotisations, assurances, habilitations, qualifications, autorisations administratives et obligations r√©glementaires ;", "le pr√©sent contrat n‚Äôemporte aucune exclusivit√© au profit d‚ÄôInt√©grale Academy, sauf accord √©crit distinct ;", "le formateur s‚Äôinterdit de se pr√©senter comme salari√©, repr√©sentant permanent, mandataire social ou agent d‚ÄôInt√©grale Academy aupr√®s des stagiaires, financeurs, autorit√©s ou partenaires."])]
-    story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Service de S√©curit√© Incendie et d‚ÄôAssistance √† Personnes ‚Äî Niveau 1' if is_ssiap1_session(session_data) else ('Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Pr√©vention et de S√©curit√©')}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d‚Äôexamen", exam_date), ("Modalit√©", modality_label), ("Modules / UV confi√©s", ", ".join(modules) or "Selon planning annex√©"), ("Volume horaire formation", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Intervention examen", "Oui" if contract.get("trainerAttendsExam") else "Non"), ("Heures examen", f"{float(contract.get('examTrainerHours') or 0):g} h"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Jours factur√©s", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d‚Äôintervention", room_label)], [43 * mm, 133 * mm]),
-        p("La mission confi√©e porte sur la r√©alisation de s√©quences p√©dagogiques identifi√©es dans le planning annex√©, pour les modules, dates, horaires et volumes horaires g√©n√©r√©s dynamiquement par la session. En signant le pr√©sent contrat, le formateur accepte les modules confi√©s, les objectifs p√©dagogiques, le niveau attendu et les contraintes de continuit√© p√©dagogique propres √† l‚Äôaction de formation."),
-        p("Le formateur adapte son animation au public accueilli, veille √† la progression des apprenants et respecte les contenus r√©glementaires sans modification non valid√©e. Toute modification de planning, d‚Äôhoraires, de lieu, de module, de modalit√© ou d‚Äôintervenant doit faire l‚Äôobjet d‚Äôune validation √©crite pr√©alable d‚ÄôInt√©grale Academy.")]
-    story += [section("3. Obligations g√©n√©rales du formateur"),
-        p("Le formateur s‚Äôengage √† pr√©parer s√©rieusement chaque s√©ance, √† assurer une pr√©sence effective et ponctuelle pendant toute la dur√©e pr√©vue, et √† conduire ses interventions avec rigueur, p√©dagogie et professionnalisme. Il garantit que son intervention respecte le programme r√©glementaire applicable, le r√©f√©rentiel applicable, les exigences administratives, les crit√®res Qualiopi, les attentes financeurs et les consignes internes transmises."),
-        bullet(["respecter strictement les horaires, dates, dur√©es, lieux, modules et modalit√©s figurant au planning ;", "signer obligatoirement le planning journalier par demi-journ√©e et faire compl√©ter les √©margements requis ;", "remettre les feuilles d‚Äô√©margement, documents de suivi, √©valuations, observations et justificatifs demand√©s avant de quitter le centre ou dans le d√©lai fix√© ;", "signaler imm√©diatement toute absence, retard, incident, difficult√© stagiaire, tension de groupe, probl√®me mat√©riel ou risque de non-conformit√© ;", "ne pas quitter le centre sans avoir remis les documents n√©cessaires √† la tra√ßabilit√© de la journ√©e ;", "adopter un comportement exemplaire avec les stagiaires, l‚Äô√©quipe administrative, les partenaires, les auditeurs et tout repr√©sentant d‚Äôune autorit√© de contr√¥le ;", "ne pas se faire remplacer ni sous-traiter tout ou partie de la mission sans accord √©crit pr√©alable d‚ÄôInt√©grale Academy."])]
-    story += [section("4. Obligations d‚ÄôInt√©grale Academy"),
-        p("Int√©grale Academy met √† disposition du formateur, lorsque cela est n√©cessaire √† l‚Äôex√©cution de la mission, les informations et moyens raisonnablement requis : locaux, salle, supports disponibles, listes de stagiaires, feuilles d‚Äô√©margement, planning, consignes p√©dagogiques, consignes qualit√© et documents administratifs utiles."),
-        p("Le centre assure la validation des heures r√©alis√©es au regard du planning, des √©margements, des documents remis et des contr√¥les internes. Le paiement intervient uniquement apr√®s r√©ception d‚Äôune facture conforme et des justificatifs attendus. Int√©grale Academy peut contr√¥ler la conformit√© des interventions et demander toute correction documentaire n√©cessaire avant validation ou paiement.")]
-    story += [section("5. S√©curit√©, locaux et fermeture du centre"),
-        p("Lorsque l‚Äôintervention se d√©roule dans les locaux d‚ÄôInt√©grale Academy, le formateur participe activement √† la s√©curit√© des personnes, √† la protection des biens et √† la pr√©servation des √©quipements. Il utilise les locaux et mat√©riels avec soin et respecte les r√®gles d‚Äôacc√®s, de rangement, de fermeture et de confidentialit√©."),
-        p("En fin de journ√©e ou de demi-journ√©e, il v√©rifie que la salle est propre, rang√©e et exploitable pour la s√©ance suivante : tables, chaises, supports et mat√©riels doivent √™tre remis en ordre ; aucun document confidentiel, liste stagiaire, feuille d‚Äô√©margement ou information interne ne doit rester visible ou accessible."),
-        bullet(["√©teindre vid√©oprojecteur, √©cran, ordinateur, climatisation, chauffage et lumi√®res inutiles lorsque ces √©quipements ont √©t√© utilis√©s ;", "fermer les fen√™tres, v√©rifier les acc√®s, fermer la salle √† cl√© et restituer les cl√©s ou badges selon les consignes ;", "s‚Äôil est le dernier pr√©sent dans le centre, s‚Äôassurer que les lumi√®res sont √©teintes, que les acc√®s sont s√©curis√©s et que les locaux sont laiss√©s en bon √©tat ;", "signaler imm√©diatement toute anomalie, d√©gradation, perte de cl√©, incident mat√©riel, probl√®me de s√©curit√© ou situation susceptible d‚Äôengager la responsabilit√© du centre."])]
-    story += [section("6. Tra√ßabilit√© p√©dagogique et qualit√©"),
-        p("Les √©margements, plannings journaliers, √©valuations, observations, justificatifs et preuves de suivi constituent des √©l√©ments essentiels de preuve de la r√©alisation de la formation. Ils conditionnent la conformit√© Qualiopi, la relation avec les financeurs, la conformit√© r√©glementaire et la capacit√© d‚ÄôInt√©grale Academy √† justifier la r√©alit√© de l‚Äôaction."),
-        p("Tous les documents doivent √™tre sinc√®res, complets, lisibles, coh√©rents avec les horaires r√©ellement effectu√©s et remis dans les d√©lais fix√©s. Le planning journalier doit √™tre sign√© par demi-journ√©e. Toute anomalie, omission, rature non justifi√©e ou incoh√©rence doit √™tre signal√©e et corrig√©e sans d√©lai."),
-        bullet(["l‚Äôabsence, l‚Äôincompl√©tude ou l‚Äôincoh√©rence d‚Äôun document peut entra√Æner la suspension de la validation des heures et du paiement correspondant jusqu‚Äô√† r√©gularisation ;", "le formateur coop√®re √† la d√©marche d‚Äôam√©lioration continue et fournit les √©l√©ments n√©cessaires aux audits, contr√¥les qualit√© et demandes des financeurs."])]
-    story += [section("7. R√©mun√©ration et facturation"), kv_table([("Nombre total d‚Äôheures formation", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Heures examen s√©par√©es", f"{float(contract.get('examTrainerHours') or 0):g} h" if contract.get("trainerAttendsExam") else "Non incluses"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Nombre de jours calcul√©s", f"{float(contract.get('calculatedDays') or 0):g}"), ("Nombre de jours factur√©s retenus", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} ‚Äî {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52 * mm, 124 * mm]),
-        p("Seules les heures effectivement r√©alis√©es, justifi√©es par les documents attendus et valid√©es par Int√©grale Academy ouvrent droit √† r√©mun√©ration. La facture du formateur doit √™tre conforme aux informations contractuelles, aux r√®gles fiscales applicables et aux heures valid√©es."),
-        bullet(["aucun paiement automatique n‚Äôest d√ª en cas d‚Äôabsence, de retard, d‚Äôannulation, de prestation non r√©alis√©e ou de document manquant ;", "en cas de r√©alisation partielle, Int√©grale Academy peut proratiser le montant d√ª selon les heures ou demi-journ√©es r√©ellement effectu√©es et valid√©es ;", "les frais de d√©placement, repas, h√©bergement, stationnement ou toute indemnit√© compl√©mentaire ne sont pas inclus sauf accord √©crit pr√©alable ;", "le formateur reste seul responsable de ses charges, cotisations, imp√¥ts, d√©clarations et obligations comptables."])]
-    story += [section("8. Annulation, report et modification des interventions"),
-        p("Le formateur informe Int√©grale Academy par √©crit de toute difficult√© susceptible d‚Äôaffecter sa pr√©sence, sa ponctualit√© ou la continuit√© p√©dagogique. Sauf cas de force majeure ou √©v√©nement impr√©visible d√ªment justifi√©, toute demande d‚Äôannulation, de report ou de modification √©manant du formateur doit √™tre adress√©e √† Int√©grale Academy au moins quinze jours calendaires avant la date de l‚Äôintervention concern√©e."),
-        p("Int√©grale Academy s‚Äôengage √©galement √† informer le formateur par √©crit de toute annulation, de tout report ou de toute modification d‚Äôune intervention au moins quinze jours calendaires avant la date concern√©e."),
-        p("Toute modification portant notamment sur les dates, les horaires, le lieu d‚Äôintervention, le volume horaire ou les modules confi√©s et notifi√©e moins de quinze jours calendaires avant l‚Äôintervention doit recueillir l‚Äôaccord √©crit de l‚Äôautre partie."),
-        p("En l‚Äôabsence d‚Äôaccord √©crit, le refus d‚Äôune modification tardive par le formateur ne peut √™tre consid√©r√© comme une faute, une absence injustifi√©e ou un manquement contractuel."),
-        p("Le d√©lai de pr√©venance de quinze jours calendaires peut toutefois √™tre r√©duit en cas de force majeure, de d√©cision d‚Äôune autorit√© administrative, de modification r√©glementaire urgente, d‚Äôindisponibilit√© impr√©visible des locaux, de probl√®me de s√©curit√© ou de tout √©v√©nement ext√©rieur, impr√©visible et ind√©pendant de la volont√© de la partie concern√©e. Dans ce cas, l‚Äôautre partie doit √™tre inform√©e par √©crit dans les meilleurs d√©lais et les parties recherchent de bonne foi une solution de remplacement ou une nouvelle date d‚Äôintervention."),
-        p("Une absence injustifi√©e, un retard significatif ou une annulation tardive imputable au formateur peut constituer un manquement contractuel lorsqu‚Äôelle entra√Æne une d√©sorganisation de la session ou un risque de non-conformit√© r√©glementaire."),
-        p("Seules les interventions effectivement r√©alis√©es et valid√©es ouvrent droit √† facturation, sauf engagement √©crit contraire conclu entre les parties.")]
-    social = ["garantit √™tre r√©guli√®rement immatricul√© et autoris√© √† exercer son activit√© ;", "fournit sur demande son SIRET, assurance RC Pro, attestation de vigilance le cas √©ch√©ant, NDA si applicable, justificatifs de comp√©tences, dipl√¥mes, habilitations et tout document administratif utile ;", "informe imm√©diatement Int√©grale Academy de tout changement de statut, radiation, suspension, interdiction d‚Äôexercer, d√©faut d‚Äôassurance ou perte d‚Äôhabilitation ;", "garantit Int√©grale Academy contre tout recours, redressement, sanction ou r√©clamation li√© au travail dissimul√©, √† un d√©faut de d√©claration, √† un d√©faut d‚Äôassurance ou √† un manquement r√©glementaire du formateur."]
-    if total_ht >= 5000:
-        social.append("Compte tenu du montant de la prestation, le formateur devra fournir une attestation de vigilance URSSAF de moins de six mois.")
-    story += [section("9. Conformit√© administrative, sociale et fiscale"), p("Le formateur garantit que sa situation administrative, sociale, fiscale et professionnelle est r√©guli√®re pendant toute la dur√©e du contrat."), bullet(social)]
-    story += [section("10. Responsabilit√© et assurance"),
-        p("Le formateur est responsable de la qualit√© p√©dagogique de ses interventions et des cons√©quences de ses fautes, n√©gligences, omissions, comportements inadapt√©s ou non-respects des consignes. Il doit disposer d‚Äôune assurance responsabilit√© civile professionnelle couvrant son activit√© de formation et en justifier sur demande."),
-        bullet(["utiliser correctement les locaux, mat√©riels, supports et √©quipements mis √† disposition ;", "r√©pondre des d√©gradations volontaires ou r√©sultant d‚Äôune n√©gligence caract√©ris√©e ;", "signaler imm√©diatement tout incident, accident, d√©gradation, r√©clamation stagiaire ou difficult√© susceptible d‚Äôengager sa responsabilit√© ou celle du centre."])]
-    story += [section("11. Qualit√© p√©dagogique, documents et preuves de r√©alisation"),
-        p("Le formateur pr√©pare ses interventions, adapte ses m√©thodes au public, respecte les objectifs p√©dagogiques et utilise des m√©thodes d‚Äôanimation compatibles avec le niveau attendu. Il ne modifie pas les contenus r√©glementaires, volumes horaires, objectifs, √©valuations ou modalit√©s de r√©alisation sans validation pr√©alable du centre."),
-        bullet(["identifier et remonter les difficult√©s stagiaires, besoins d‚Äôadaptation, absences, incidents ou risques d‚Äô√©chec ;", "participer aux contr√¥les qualit√©, retours d‚Äôexp√©rience et actions correctives demand√©es ;", "remettre √©valuations, observations, preuves de r√©alisation, documents p√©dagogiques et √©l√©ments de suivi selon les d√©lais fix√©s ;", "contribuer √† une animation claire, structur√©e, professionnelle et conforme aux exigences du r√©f√©rentiel."])]
-    story += [section("12. Confidentialit√© et protection des donn√©es"),
-        p("Le formateur est tenu √† une obligation stricte de confidentialit√© concernant les donn√©es stagiaires, dossiers administratifs, tarifs, supports, proc√©dures internes, informations commerciales, documents p√©dagogiques et toute information non publique port√©e √† sa connaissance dans le cadre de la mission."),
-        bullet(["ne pas copier, transmettre, r√©utiliser, c√©der, publier ou diffuser les documents et supports d‚ÄôInt√©grale Academy sans autorisation √©crite ;", "prot√©ger les donn√©es personnelles et n‚Äôy acc√©der que pour les besoins stricts de la mission ;", "ne pas utiliser les contacts stagiaires √† des fins personnelles, commerciales, de prospection ou au profit d‚Äôun tiers ;", "maintenir cette obligation pendant toute la dur√©e du contrat et apr√®s son terme, quelle qu‚Äôen soit la cause."])]
-    story += [section("13. Comportement professionnel"),
-        p("Le formateur adopte en toutes circonstances une attitude correcte, respectueuse, neutre et professionnelle. Il veille √† pr√©server l‚Äôimage, la r√©putation et les int√©r√™ts l√©gitimes d‚ÄôInt√©grale Academy aupr√®s des stagiaires, √©quipes, partenaires, financeurs et autorit√©s."),
-        bullet(["porter une tenue adapt√©e au contexte de formation et respecter le r√®glement int√©rieur ;", "s‚Äôinterdire tout propos discriminatoire, agressif, humiliant, politique, religieux, d√©plac√© ou contraire √† la dignit√© des personnes ;", "g√©rer les d√©saccords et conflits avec calme et professionnalisme ;", "pr√©venir sans d√©lai la direction en cas de difficult√© avec un stagiaire, un groupe, un partenaire ou un membre de l‚Äô√©quipe."])]
-    story += [section("14. R√©siliation"),
-        p("Int√©grale Academy peut r√©silier le contrat en cas de manquement contractuel du formateur, notamment en cas d‚Äôabsence, retard r√©p√©t√©, d√©faut de documents, refus de correction, comportement inadapt√©, non-respect du r√©f√©rentiel, probl√®me de s√©curit√©, non-respect de la confidentialit√© ou atteinte √† l‚Äôimage du centre."),
-        p("En cas de faute grave, de risque r√©glementaire, de mise en danger, de d√©sorganisation importante de la session ou de manquement portant atteinte aux int√©r√™ts du centre, la r√©siliation peut √™tre imm√©diate. Seules les heures effectivement r√©alis√©es, justifi√©es et valid√©es restent dues ; aucune indemnit√© n‚Äôest due pour les heures non r√©alis√©es ou annul√©es.")]
-    story += [section("15. Contr√¥les, audits et conformit√©"),
-        p("Le formateur accepte que ses interventions, documents et preuves de r√©alisation puissent √™tre v√©rifi√©s dans le cadre de contr√¥les internes, audits Qualiopi, contr√¥les financeurs, contr√¥les CNAPS, ADEF ou demandes de toute autorit√© comp√©tente."),
-        bullet(["coop√©rer loyalement avec Int√©grale Academy et fournir rapidement tout document ou explication demand√© ;", "corriger sans d√©lai les non-conformit√©s documentaires ou p√©dagogiques relevant de son intervention ;", "rester disponible pour toute demande d‚Äôexplication li√©e √† une intervention pass√©e, un audit, un contr√¥le financeur ou une v√©rification r√©glementaire ;", "respecter les plans d‚Äôaction qualit√© d√©cid√©s par Int√©grale Academy lorsque ceux-ci concernent la tra√ßabilit√© ou la conformit√© de ses prestations."])]
-
-    story += [NextPageTemplate("planning_landscape"), PageBreak(), section("Annexe 1 : Planning d√©taill√© des interventions")]
-    planning_rows = [[p("Date", "CellHead"), p("Demi-journ√©e", "CellHead"), p("Horaires", "CellHead"), p("Dur√©e", "CellHead"), p("UV / module", "CellHead"), p("Lieu", "CellHead"), p("Signature", "CellHead")]]
-    for r in interventions:
-        try:
-            hour = int((r.get("start") or "12:00").split(":")[0])
-        except Exception:
-            hour = 12
-        half_day = "Matin" if hour < 12 else "Apr√®s-midi"
-        row_room_label = trainer_contract_intervention_location(session_data, [r])
-        planning_rows.append([p(r.get("dateLabel") or r.get("date"), "Cell"), p(half_day, "Cell"), p(f"{r.get('start')} - {r.get('end')}", "Cell"), p(f"{float(r.get('hours') or 0):g} h", "Cell"), p(compact_module_label(r.get("module")), "Cell"), p(row_room_label, "Cell"), p("", "Cell")])
-    table = Table(planning_rows, colWidths=[24*mm, 22*mm, 22*mm, 15*mm, 88*mm, 55*mm, 33*mm], repeatRows=1, splitByRow=1, hAlign="LEFT")
-    table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#3b3026")), ("GRID", (0,0), (-1,-1), 0.22, colors.HexColor("#cbd5e1")), ("VALIGN", (0,0), (-1,-1), "TOP"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#fafafa")]), ("LEFTPADDING", (0,0), (-1,-1), 2.5), ("RIGHTPADDING", (0,0), (-1,-1), 2.5), ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3)]))
-    story += [table, NextPageTemplate("contrat"), PageBreak(), section("Annexe 2 : R√©capitulatif financier"), kv_table([("Total heures", f"{float(contract.get('calculatedHours') or 0):g} h"), ("Jours factur√©s", f"{float(contract.get('billedDays') or 0):g}"), ("Tarif journalier HT", f"{_money(contract.get('dailyRate'))} HT"), ("Total HT", f"{_money(total_ht)} HT"), ("TVA", f"{tva_label} ‚Äî {_money(contract.get('vatAmount') or 0)}"), ("Total TTC", _money(contract.get('totalTTC') or total_ht))], [52*mm, 124*mm])]
-    story += [KeepTogether([section("Annexe 3 : Engagement qualit√© et tra√ßabilit√© p√©dagogique"),
-        p("Le formateur confirme que la qualit√© de l‚Äôanimation et la tra√ßabilit√© p√©dagogique constituent des obligations essentielles du contrat. Il s‚Äôengage √† respecter le r√©f√©rentiel applicable, le programme valid√©, les objectifs p√©dagogiques, les modalit√©s d‚Äô√©valuation et les proc√©dures qualit√© d‚ÄôInt√©grale Academy."),
-        bullet(["faire compl√©ter et contr√¥ler les √©margements √† chaque demi-journ√©e ;", "signer le planning journalier par demi-journ√©e et signaler imm√©diatement toute incoh√©rence ;", "remonter sans d√©lai les absences, retards, incidents, difficult√©s stagiaires, probl√®mes mat√©riels ou situations de s√©curit√© ;", "remettre en fin de journ√©e, ou dans le d√©lai fix√© par le centre, les feuilles d‚Äô√©margement, observations, √©valuations, justificatifs et documents demand√©s ;", "participer √† la d√©marche Qualiopi, aux contr√¥les financeurs, audits internes, actions correctives et demandes de preuves ;", "garantir une animation professionnelle, adapt√©e au public, respectueuse des stagiaires et conforme √† l‚Äôimage d‚ÄôInt√©grale Academy ;", "pr√©server la confidentialit√© des donn√©es stagiaires, supports, documents internes et informations commerciales."])
-    ])]
-
-    story += [PageBreak(), p(f"Fait √† Puget-sur-Argens, le {contract_date}.", "Body"), p("Chaque partie reconna√Æt avoir pris connaissance du pr√©sent contrat, de ses annexes √©ventuelles et en accepter l‚Äôensemble des conditions.", "Body"), Spacer(1, 5)]
-    signature_image = find_center_image("signature", "sign")
-    stamp_image = find_center_image("tampon", "cachet", "stamp")
-
-    def signature_zone(label, image_path=None, height_mm=31):
-        content = [p(label, "SignLabel")]
-        if image_path:
-            content.append(Image(image_path, width=42 * mm, height=(18 if "Signature" in label else 24) * mm, kind="proportional", hAlign="CENTER"))
-        else:
-            content.append(p("<br/><br/>", "Body"))
-        tbl = Table([[content]], colWidths=[75 * mm], rowHeights=[height_mm * mm])
-        tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 5)]))
-        return tbl
-
-    def trainer_signature_box(height_mm=31):
-        # Signature positionn√©e exclusivement par champ manuel Yousign.
-        # Ne pas r√©ins√©rer l‚Äôancre {{s1|signature|160|60}} dans ce PDF.
-        content = [p("Signature du formateur", "SignLabel"), Spacer(1, 8), p(" ", "Body")]
-        tbl = Table([[content]], colWidths=[75 * mm], rowHeights=[height_mm * mm])
-        tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 5)]))
-        return tbl
-
-    def party_block(title, name, quality, sig_img=None, stamp_img=None, trainer_signature_anchor=False):
-        signature_label = "Signature du formateur" if trainer_signature_anchor else "Signature / cachet du centre"
-        inner = [p(f"<b>{title}</b><br/>{name}<br/>{quality}<br/><br/>Mention manuscrite : ‚ÄúLu et approuv√©‚Äù", "Body"), trainer_signature_box() if trainer_signature_anchor else signature_zone(signature_label, sig_img), Spacer(1, 3), signature_zone("Tampon / cachet", stamp_img, 28)]
-        tbl = Table([[inner]], colWidths=[82 * mm], rowHeights=[108 * mm])
-        tbl.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#94a3b8")), ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbfaf7")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
-        return tbl
-
-    sign_table = Table([[party_block("Pour Int√©grale Academy", "Monsieur Cl√©ment VAILLANT", "Directeur g√©n√©ral", signature_image, stamp_image), party_block("Pour le formateur / prestataire", contract.get('trainerName') or "Nom √† compl√©ter", contract.get('status') or "Qualit√© √† compl√©ter", trainer_signature_anchor=True)]], colWidths=[86 * mm, 86 * mm], hAlign="CENTER")
-    sign_table.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 2), ("RIGHTPADDING", (0,0), (-1,-1), 2)]))
-    story.append(sign_table)
-    doc.build(story)
-
-def _aps_presentiel_days(planning_data, planning_mode):
-    days = []
-    for day in planning_data or []:
-        slots = day.get("slots") or []
-        if planning_mode in {"elearning_presentiel", "desp"}:
-            slots = [slot for slot in slots if is_in_person_slot(slot)]
-        if slots:
-            copied = dict(day)
-            copied["slots"] = slots
-            days.append(copied)
-    return days
-
-
-def _minutes_from_hhmm(value):
-    try:
-        h, m = str(value).split(":")
-        return int(h) * 60 + int(m)
-    except Exception:
-        return 0
-
-
-def _hhmm_to_fr(value):
-    return str(value or "").replace(":", "h")
-
-
-def _period_label(slots, morning=True):
-    selected = []
-    for slot in slots:
-        midpoint = (_minutes_from_hhmm(slot.get("start")) + _minutes_from_hhmm(slot.get("end"))) / 2
-        if (morning and midpoint < 13 * 60) or (not morning and midpoint >= 13 * 60):
-            selected.append(slot)
-    if not selected:
-        return "‚Äî"
-    return " / ".join(f"{_hhmm_to_fr(s.get('start'))} - {_hhmm_to_fr(s.get('end'))}" for s in selected)
-
-
-def _aps_normalize_student_name(value, uppercase=False):
-    cleaned = re.sub(r"[^A-Za-z√Ä-√ø' ,\-]", "", value or "")
-    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,\t;-')(")
-    if uppercase:
-        return cleaned.upper()
-    return cleaned
-
-
-def _aps_extract_phone_from_line(line):
-    phone_pattern = re.compile(r"(?<!\d)((?:\+33|0)\s*[1-9](?:[\s.\-]*\d{2}){4})(?!\d)")
-    match = phone_pattern.search(line)
-    if not match:
-        return "", line
-    phone = re.sub(r"\D+", "", match.group(1))
-    if phone.startswith("33") and len(phone) == 11:
-        phone = "0" + phone[2:]
-    if len(phone) == 10:
-        phone = " ".join([phone[:2], phone[2:4], phone[4:6], phone[6:8], phone[8:]])
-    remaining = (line[:match.start()] + " " + line[match.end():]).strip()
-    return phone, remaining
-
-
-def aps_extract_students_from_text(text):
-    students = []
-    seen = set()
-    email_pattern = re.compile(r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", re.IGNORECASE)
-
-    for raw_line in (text or "").splitlines():
-        line = re.sub(r"\s+", " ", raw_line).strip(" -\t;")
-        if not line:
-            continue
-
-        numbered_match = re.match(r"^(\d{1,3})\s+(.+)$", line)
-        if not numbered_match:
-            continue
-
-        candidate = numbered_match.group(2).strip()
-        lowered = candidate.lower()
-        if any(fragment in lowered for fragment in (
-            "num√©ros trouv√©s", "numero trouves", "num√©ro trouv√©", "# nom", "nom pr√©nom",
-            "email t√©l√©phone", "liste stagiaires", "http://", "https://", "page "
-        )):
-            continue
-
-        email = ""
-        email_match = email_pattern.search(candidate)
-        if email_match:
-            email = email_match.group(0).strip()
-            candidate = (candidate[:email_match.start()] + " " + candidate[email_match.end():]).strip()
-
-        phone, candidate = _aps_extract_phone_from_line(candidate)
-        name_part = re.sub(r"\s+", " ", candidate).strip(" -\t;")
-        parts = name_part.split()
-        if len(parts) < 2:
-            continue
-
-        last_parts = []
-        for part in parts:
-            comparable = re.sub(r"[^A-Za-z√Ä-√ø]", "", part)
-            if comparable and comparable.upper() == comparable:
-                last_parts.append(part)
-            else:
-                break
-        if not last_parts or len(last_parts) >= len(parts):
-            continue
-
-        last = _aps_normalize_student_name(" ".join(last_parts), uppercase=True)
-        first = _aps_normalize_student_name(" ".join(parts[len(last_parts):]))
-        if not last or not first:
-            continue
-
-        student = {"lastName": last, "firstName": first}
-        if email:
-            student["email"] = email
-        if phone:
-            student["phone"] = phone
-        key = (last, first, email, phone)
-        if key not in seen:
-            seen.add(key)
-            students.append(student)
-    return students
-
-
-def aps_extract_students_from_pdf(file_storage):
-    suffix = os.path.splitext(file_storage.filename or "")[-1].lower()
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix or ".pdf") as tmp:
-        file_storage.save(tmp.name)
-        tmp_path = tmp.name
-    try:
-        try:
-            from pypdf import PdfReader
-        except ImportError as exc:
-            raise RuntimeError("La d√©pendance pypdf est requise pour lire le texte PDF.") from exc
-        reader = PdfReader(tmp_path)
-        text = "\n".join((page.extract_text() or "") for page in reader.pages)
-        return aps_extract_students_from_text(text), bool(text.strip())
-    finally:
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-
-
-
-def attendance_header_layout(page_width, page_height, margin, string_width, title="FEUILLE DE PR√âSENCE", subtitle=None):
-    """Return the shared APS/DESP attendance header geometry."""
-    logo_width = 91
-    logo_height = 55
-    logo_x = margin
-    logo_y = page_height - 72
-    lines = [
-        {"text": title, "font": "Helvetica-Bold", "size": 17, "x": page_width / 2, "y": page_height - 38, "align": "center"},
-        {"text": subtitle or "Agent de Pr√©vention et de S√©curit√© (APS)", "font": "Helvetica", "size": 9, "x": page_width / 2, "y": page_height - 54, "align": "center"},
-    ]
-    for line in lines:
-        line["width"] = string_width(line["text"], line["font"], line["size"])
-    return {
-        "logo": {"x": logo_x, "y": logo_y, "width": logo_width, "height": logo_height},
-        "lines": lines,
-        "session_y": page_height - 84,
-        "title": lines[0],
-        "subtitle": lines[1],
-    }
-
-
-def desp_attendance_header_layout(page_width, page_height, margin, string_width):
-    """Compatibility wrapper: DESP now uses the shared APS header layout."""
-    return attendance_header_layout(page_width, page_height, margin, string_width, subtitle=DESP_LABEL)
-
-def generate_attendance_pdf_common(session_data, output_path, training_type=None, subtitle=None):
-    try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import mm
-        from reportlab.pdfgen import canvas
-    except ImportError as exc:
-        raise RuntimeError("La d√©pendance reportlab est requise pour g√©n√©rer le PDF.") from exc
-
-    training_type = (training_type or session_data.get("formation") or "APS").upper()
-    planning_data = session_data.get("apsPlanningData") or []
-    planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
-    students = session_data.get("apsAttendanceStudents") or []
-    is_afc = training_type == "AFC_APS_SSIAP"
-    default_student_start_date = session_data.get("date_debut") or ""
-
-    def students_for_day(day_date):
-        if not is_afc:
-            return students
-        day_key = str(day_date or "")
-        return [
-            student for student in students
-            if not (student.get("startDate") or default_student_start_date)
-            or not day_key
-            or (student.get("startDate") or default_student_start_date) <= day_key
-        ]
-
-    is_ssiap1 = training_type == "SSIAP1" or is_ssiap1_session(session_data)
-    if is_ssiap1:
-        presentiel_days = []
-        exam_days = []
-        for day in planning_data:
-            training_slots = [slot for slot in (day.get("slots") or []) if is_in_person_slot(slot) or _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"sst", "revision"}]
-            exam_slots = [slot for slot in (day.get("slots") or []) if _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"exam", "examen"} or (slot.get("uv") or "").upper() == "EXAMEN"]
-            if training_slots:
-                copied = dict(day); copied["slots"] = training_slots; presentiel_days.append(copied)
-            if exam_slots:
-                copied = dict(day); copied["slots"] = exam_slots; exam_days.append(copied)
-    else:
-        presentiel_days = _aps_presentiel_days(planning_data, planning_mode)
-        exam_days = []
-    if not presentiel_days:
-        raise ValueError(f"Aucun jour pr√©sentiel n'est trouv√© dans le planning {training_type}.")
-    if training_type == "DESP":
-        desp_hours = {"presentiel": 0.0, "elearning": 0.0, "exam": 0.0}
-        for day in planning_data:
-            for slot in day.get("slots", []):
-                duration = round(float(slot.get("duration") or 0), 2)
-                normalized = _normalized_slot_value(slot, "modality", "delivery_mode", "period_type")
-                if is_in_person_slot(slot): desp_hours["presentiel"] = round(desp_hours["presentiel"] + duration, 2)
-                elif normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous"}: desp_hours["elearning"] = round(desp_hours["elearning"] + duration, 2)
-                elif normalized in {"examen", "exam"}: desp_hours["exam"] = round(desp_hours["exam"] + duration, 2)
-        if desp_hours["presentiel"] != DESP_PRESENTIEL_HOURS:
-            raise ValueError(f"Impossible de g√©n√©rer les feuilles de pr√©sence DESP : le planning pr√©sentiel contient {desp_hours['presentiel']:g}h alors que {DESP_PRESENTIEL_HOURS}h sont attendues.")
-
-    c = canvas.Canvas(output_path, pagesize=A4)
-    width, height = A4
-    margin = 10 * mm
-    FOOTER_RESERVED_HEIGHT = 16 * mm
-    footer_y = 6 * mm
-    footer_top_y = footer_y + FOOTER_RESERVED_HEIGHT
-    content_bottom_limit = footer_top_y + 6
-    logo_path = aps_pdf_logo_path()
-    stamp_image = find_center_image("tampon", "cachet", "stamp")
-    include_summary_page = training_type != "DESP" and not (is_ssiap1 and len(students) <= 6 and exam_days)
-    total_pages = len(presentiel_days) + len(exam_days) + (1 if include_summary_page else 0)
-    raw_session_name = (session_data.get("display_name") or session_data.get("name") or "").strip()
-    session_id = str(session_data.get("id") or "").strip()
-    session_name = raw_session_name if raw_session_name and raw_session_name != f"Session {session_id}" else (session_id or raw_session_name or "‚Äî")
-
-    def reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75):
-        if hasattr(c, "setFillAlpha"):
-            c.setFillAlpha(1)
-        if hasattr(c, "setStrokeAlpha"):
-            c.setStrokeAlpha(1)
-        c.setFillColor(fill)
-        c.setStrokeColor(stroke)
-        c.setLineWidth(line_width)
-
-    def footer(page_no):
-        c.saveState()
-        reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.HexColor("#4b5563"), line_width=0.75)
-        c.line(margin, footer_top_y, width - margin, footer_top_y)
-        page_label = f"Page {page_no} / {total_pages}"; c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica", 6.4)
-        lines = APS_LEGAL_LINES[:]
-        if is_ssiap1 and SSIAP1_AGREMENT_LINE not in lines: lines.append(SSIAP1_AGREMENT_LINE)
-        y = footer_top_y - 6
-        for line in lines[:5]:
-            reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.HexColor("#4b5563"), line_width=0.75)
-            c.setFont("Helvetica", 6.4)
-            c.drawString(margin, y, line[:155]); y -= 6.2
-        reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.HexColor("#4b5563"), line_width=0.75)
-        c.setFont("Helvetica", 6.4)
-        c.drawRightString(width - margin, footer_y, page_label); c.restoreState()
-
-    def draw_header(title, date_label, slots, page_no, *, exam=False, continuation=False):
-        c.saveState()
-        reset_graphics_state(fill=colors.white, stroke=colors.white, line_width=0)
-        c.rect(0, 0, width, height, fill=1, stroke=0)
-        c.restoreState()
-        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-        if logo_path:
-            c.saveState(); c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto"); c.restoreState()
-        reset_graphics_state(fill=colors.HexColor("#111827"), stroke=colors.black, line_width=0.75)
-        c.setFont("Helvetica-Bold", 16 if exam else 17)
-        c.drawCentredString(width / 2, height - 38, title)
-        c.setFont("Helvetica", 9); c.drawCentredString(width / 2, height - 54, subtitle or "Agent de Pr√©vention et de S√©curit√© (APS)")
-        y = height - 84
-        if continuation:
-            c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"Suite de la feuille de pr√©sence du {date_label}"); y -= 16
-        trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["‚Äî"]
-        room = (slots[0].get("room") if slots else "") or session_data.get("exam_room") or session_data.get("salle") or "‚Äî"
-        am = period_amplitude(slots, True); pm = period_amplitude(slots, False)
-        rows = [("Session", session_name, "Date de l‚Äôexamen" if exam else "Date", date_label), ("Responsable(s) / intervenant(s)" if exam else "Formateur", ", ".join(trainers), "Lieu / salle", room), ("P√©riode de formation", f"du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", "Date d‚Äôexamen", format_date(session_data.get('date_exam'))), ("Horaires du matin", am if am != "‚Äî" else "", "Horaires de l‚Äôapr√®s-midi", pm if pm != "‚Äî" else "")]
-        col_w = (width - 2 * margin - 12) / 2; label_w = 112; row_h = 21
-        # No filled background box here: DESP must use the same readable APS text flow,
-        # without a pale rectangle covering or tinting the session information.
-        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-        cy = y - 14
-        for l1,v1,l2,v2 in rows:
-            for x,l,v in [(margin+6,l1,v1),(margin+6+col_w+12,l2,v2)]:
-                reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-                c.setFont("Helvetica-Bold", 7.4); c.drawString(x, cy, f"{l} :")
-                reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-                c.setFont("Helvetica", 7.8)
-                tx = x + label_w
-                for i,line in enumerate(wrap_text_lines(v, col_w - label_w - 8, "Helvetica", 7.8)[:2]): c.drawString(tx, cy - i*8, line)
-            cy -= row_h
-        return y - row_h*4 - 18
-
-    def period_amplitude(slots, morning=True):
-        start_limit, end_limit = (0, 13 * 60) if morning else (13 * 60, 24 * 60)
-        selected = [slot for slot in slots if _minutes_from_hhmm(slot.get("start")) < end_limit and _minutes_from_hhmm(slot.get("end")) > start_limit]
-        if not selected:
-            return "‚Äî"
-        if any(_minutes_from_hhmm(slot.get("start")) < 13 * 60 and _minutes_from_hhmm(slot.get("end")) > 13 * 60 for slot in selected):
-            return "08h30 - 12h30" if morning else "13h30 - 16h30"
-        return f"{_hhmm_to_fr(min(slot.get('start') for slot in selected))} - {_hhmm_to_fr(max(slot.get('end') for slot in selected))}"
-
-    def parts(slots):
-        return period_amplitude(slots, True) != "‚Äî", period_amplitude(slots, False) != "‚Äî"
-
-    def module_rows(slots):
-        out=[]
-        for slot in slots:
-            code=slot.get("uv") or ""; detail=SSIAP1_SEQUENCE_DETAIL_BY_CODE.get(code, {})
-            ps = f"Partie {detail.get('part_number')} - S√©quence {detail.get('sequence_number')}" if detail else code
-            typ = (slot.get("subpartLabel") or slot.get("subpartType") or slot.get("content_type") or slot.get("type") or slot.get("modality") or "Contenu").capitalize()
-            if typ.lower() in {"presentiel", "pr√©sentiel"}: typ = "Contenu"
-            items = slot.get("subpartDisplayItems") or slot.get("subpartItems") or []
-            title = " ; ".join(items[:2]) if items else (slot.get("content") or slot.get("title") or detail.get("title") or "")
-            row=(f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))}", ps, typ, title)
-            if not out or out[-1] != row: out.append(row)
-        return out
-
-    def draw_modules(y, slots):
-        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-        c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Programme et horaires du jour"); y-=12
-        headers=["Horaires","Partie / S√©quence","Type","Intitul√©"]; ws=[70,105,62,width-2*margin-70-105-62]
-        row_data=[headers]+module_rows(slots); x0=margin
-        for r,row in enumerate(row_data):
-            line_lists=[wrap_text_lines(cell, ws[i]-6, "Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5) or [""] for i,cell in enumerate(row)]
-            rh=max(16, max(len(ll) for ll in line_lists)*9.5+6)
-            c.saveState()
-            reset_graphics_state(fill=colors.HexColor("#f3f4f6") if r==0 else colors.white, stroke=colors.black, line_width=0.75)
-            c.rect(x0, y-rh, sum(ws), rh, fill=1, stroke=1)
-            c.restoreState()
-            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-            x=x0
-            for i,ll in enumerate(line_lists):
-                if i:
-                    reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-                    c.line(x, y, x, y-rh)
-                reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-                c.setFont("Helvetica-Bold" if r==0 else "Helvetica", 8.2 if r==0 else 8.5)
-                ty=y-11
-                for line in ll: c.drawString(x+3, ty, line); ty-=9.5
-                x+=ws[i]
-            y-=rh
-        return y-8
-
-    def attendance_bottom_layout(table_top, people_count, signatures_count):
-        signature_h = 50 if len(students)>6 else 62
-        observations_h = signature_h
-        header_h = 18
-        spacing_after_table = 12
-        spacing_between_sections = 10
-        min_row_h = 23.5
-        max_row_h = 45
-        available_table_height = (
-            content_bottom_limit
-            - table_top
-            - signature_h
-            - observations_h
-            - spacing_after_table
-            - spacing_between_sections
-        )
-        # ReportLab coordinates descend as content is drawn; convert the available
-        # vertical span to a positive line height while reserving the APS footer.
-        available_table_height = abs(available_table_height) - header_h
-        row_h = max(min_row_h, min(max_row_h, available_table_height / max(people_count, 1)))
-        table_bottom = table_top - header_h - (row_h * max(people_count, 0))
-        signatures_y = table_bottom - spacing_after_table
-        bottom_boxes_y = signatures_y - signature_h - spacing_between_sections
-        bottom_boxes_bottom = bottom_boxes_y - observations_h
-        if bottom_boxes_bottom < content_bottom_limit:
-            row_h = max(min_row_h, (table_top - header_h - spacing_after_table - signature_h - spacing_between_sections - observations_h - content_bottom_limit) / max(people_count, 1))
-            table_bottom = table_top - header_h - (row_h * max(people_count, 0))
-            signatures_y = table_bottom - spacing_after_table
-            bottom_boxes_y = signatures_y - signature_h - spacing_between_sections
-            bottom_boxes_bottom = bottom_boxes_y - observations_h
-        if bottom_boxes_bottom < content_bottom_limit - 0.1:
-            raise ValueError("La feuille de pr√©sence ne peut pas √™tre dessin√©e sans chevauchement du footer.")
-        return {"row_h": row_h, "signature_h": signature_h, "observations_h": observations_h, "signatures_y": signatures_y, "bottom_boxes_y": bottom_boxes_y, "bottom_boxes_bottom": bottom_boxes_bottom}
-
-    def draw_people_table(y, people, has_am, has_pm, row_h):
-        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-        headers=["N¬∞","Nom","Pr√©nom"] + (["Signature matin"] if has_am else []) + (["Signature apr√®s-midi"] if has_pm else [])
-        if has_am and has_pm: ws=[28,115,95,145,width-2*margin-28-115-95-145]
-        else: ws=[28,125,105,width-2*margin-28-125-105]
-        c.saveState(); reset_graphics_state(fill=colors.HexColor("#f3f4f6"), stroke=colors.black, line_width=0.75); c.rect(margin,y-18,sum(ws),18,fill=1,stroke=1); c.restoreState(); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica-Bold",8)
-        x=margin
-        for i,h in enumerate(headers): c.drawString(x+4,y-12,h); x+=ws[i]
-        y-=18; reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica",8.5)
-        for idx, st in enumerate(people,1):
-            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-            c.rect(margin,y-row_h,sum(ws),row_h); x=margin
-            for w in ws[:-1]: x+=w; c.line(x,y,x,y-row_h)
-            reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-            c.setFont("Helvetica",8.5)
-            c.drawString(margin+8,y-14,str(idx)); c.drawString(margin+36,y-14,st.get("lastName", "")); c.drawString(margin+36+ws[1],y-14,st.get("firstName", "")); y-=row_h
-        return y-12
-
-    def draw_signature_blocks(y, slots, *, exam=False, block_h=None):
-        has_am, has_pm = parts(slots); gap=18; bw=(width-2*margin-gap)/2; bh=block_h or (50 if len(students)>6 else 62)
-        labels=[]
-        if has_am: labels.append(("Signature responsable / intervenant - matin" if exam else ("Signature du formateur - matin" if is_ssiap1 else "Signature formateur matin"), True))
-        if has_pm: labels.append(("Signature responsable / intervenant - apr√®s-midi" if exam else ("Signature du formateur - apr√®s-midi" if is_ssiap1 else "Signature formateur apr√®s-midi"), False))
-        if len(labels)==1: bw=width-2*margin; gap=0
-        for i,(lab,morn) in enumerate(labels):
-            x=margin+i*(bw+gap); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.setFont("Helvetica",8); c.drawString(x+8,y-27,half_day_trainer_label(slots,morn))
-        y-=bh+10; bw=(width-2*margin-gap)/2
-        for i,lab in enumerate(["Observations √©ventuelles","Cachet du centre"]):
-            x=margin+i*(bw+gap); reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75); c.rect(x,y-bh,bw,bh); c.setFont("Helvetica-Bold",8); c.drawString(x+8,y-14,lab)
-            if i==1 and stamp_image: c.drawImage(stamp_image,x+14,y-bh+10,width=bw-28,height=bh-22,preserveAspectRatio=True,anchor="c",mask="auto")
-        bottom = y-bh
-        if bottom < content_bottom_limit - 0.1:
-            raise ValueError("Chevauchement d√©tect√© entre les cadres bas et la zone footer r√©serv√©e.")
-        return bottom-8
-
-    def half_day_trainer_label(slots, morning=True):
-        names=[]
-        for slot in slots:
-            in_period = (_minutes_from_hhmm(slot.get("start")) < 13*60 and _minutes_from_hhmm(slot.get("end")) > 0) if morning else (_minutes_from_hhmm(slot.get("end")) > 13*60)
-            if in_period and (slot.get("trainer") or "").strip() not in names: names.append((slot.get("trainer") or "").strip())
-        return ", ".join([n for n in names if n]) or "‚Äî"
-
-    def draw_summary(y):
-        c.setFillColor(colors.HexColor("#f9fafb")); c.rect(margin,y-92,width-2*margin,92,fill=1,stroke=1); c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold",10); c.drawString(margin+8,y-14,"Synth√®se des feuilles de pr√©sence SSIAP 1" if is_ssiap1 else "Synth√®se des feuilles de pr√©sence")
-        total_hours = SSIAP1_TOTAL_HOURS if is_ssiap1 else round(sum(float(slot.get("duration") or 0) for day in presentiel_days for slot in day.get("slots", [])), 2)
-        vals=[f"Nombre total de stagiaires : {len(students)}",(f"Nombre de journ√©es de formation : {len(presentiel_days)}" if is_ssiap1 else f"Nombre de journ√©es pr√©sentielles : {len(presentiel_days)}"),(f"Total formation : {total_hours:g} h" if is_ssiap1 else f"Nombre total d‚Äôheures pr√©sentielles : {total_hours:g}h"),f"P√©riode de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}",f"Date d‚Äôexamen : {format_date(session_data.get('date_exam'))}",("Modalit√© : pr√©sentiel" if is_ssiap1 else "Modalit√© : Pr√©sentiel au centre")]
-        c.setFont("Helvetica",8.5); yy=y-30
-        for i,v in enumerate(vals): c.drawString(margin+10+(i%2)*250, yy-(i//2)*16, v)
-        return y-102
-
-    page_no=1
-    for day in presentiel_days:
-        slots=day.get("slots") or []; date_label=format_date(day.get("date"));
-        if is_ssiap1 and all((slot.get("modality") or "") == "sst" for slot in slots):
-            page_title = "FEUILLE DE PR√âSENCE ‚Äî FORMATION SST"; page_subtitle = "Formation int√©gr√©e au parcours SSIAP 1"
-        else:
-            page_title = "FEUILLE DE PR√âSENCE ‚Äî FORMATION SSIAP 1" if is_ssiap1 else "FEUILLE DE PR√âSENCE"; page_subtitle = subtitle
-        original_subtitle = subtitle
-        if page_subtitle != subtitle:
-            subtitle = page_subtitle
-        y=draw_header(page_title, date_label, slots, page_no)
-        subtitle = original_subtitle
-        reset_graphics_state(fill=colors.black, stroke=colors.black, line_width=0.75)
-        c.setFont("Helvetica-Bold", 8.8); c.drawString(margin, y, "Modules et horaires du jour"); y -= 12
-        for slot in slots:
-            code = slot.get("code") or slot.get("uv") or ""
-            title = slot.get("content") or slot.get("title") or ""
-            if is_ssiap1:
-                detail = SSIAP1_SEQUENCE_DETAIL_BY_CODE.get(code, {})
-                items = slot.get("subpartDisplayItems") or slot.get("subpartItems") or []
-                sequence = f"Partie {detail.get('part_number')} - S√©quence {detail.get('sequence_number')}" if detail else code
-                title = " ; ".join(items[:2]) if items else title or detail.get("title") or ""
-                label = f"{code} ‚Äî {sequence}" if sequence and sequence != code else code
-            else:
-                label = code
-            separator = " ‚Äî " if label and title else ""
-            y = draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {label}{separator}{title}", margin + 8, y, width - 2 * margin - 8, "Helvetica", 7.4, 8.5)
-        y -= 5
-        day_students = students_for_day(day.get("date"))
-        has_am,has_pm=parts(slots); layout=attendance_bottom_layout(y, len(day_students), int(has_am)+int(has_pm)); y=draw_people_table(y, day_students, has_am, has_pm, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, block_h=layout["signature_h"])
-        footer(page_no); c.showPage(); page_no+=1
-
-    for exam_day in exam_days:
-        slots=exam_day.get("slots") or []; date_label=format_date(exam_day.get("date")); y=draw_header("FEUILLE DE PR√âSENCE - EXAMEN SSIAP 1", date_label, slots, page_no, exam=True)
-        c.setFont("Helvetica-Bold",8.8); c.drawString(margin,y,"√âpreuve(s) d‚Äôexamen"); y-=12
-        for slot in slots: y=draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}", margin+8, y, width-2*margin-8, "Helvetica", 8.5, 10)
-        day_students = students_for_day(exam_day.get("date"))
-        y-=8; layout=attendance_bottom_layout(y, len(day_students), 2); y=draw_people_table(y, day_students, True, True, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, exam=True, block_h=layout["signature_h"])
-        if is_ssiap1 and len(students)<=6 and y-102>footer_top_y+10: y=draw_summary(y)
-        footer(page_no); c.showPage(); page_no+=1
-
-    if include_summary_page:
-        y=height-70
-        if logo_path: c.drawImage(logo_path, margin, height - 72, width=91, height=55, preserveAspectRatio=True, mask="auto")
-        c.setFont("Helvetica-Bold",16)
-        title_x = margin + 100 if logo_path else margin
-        c.drawString(title_x, y, "Synth√®se des feuilles de pr√©sence SSIAP 1" if is_ssiap1 else "Synth√®se des feuilles de pr√©sence"); y-=28
-        draw_summary(y); footer(page_no)
-    c.save()
-
-
-def generate_aps_attendance_pdf(session_data, output_path):
-    if is_ssiap1_session(session_data):
-        training_type = "SSIAP1"
-        subtitle = "Service de S√©curit√© Incendie et d‚ÄôAssistance √† Personnes - Niveau 1"
-    else:
-        code = normalize_training_code(session_data)
-        training_type = "AFC_APS_SSIAP" if code == "AFC_APS_SSIAP" else ("DESP" if (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"} else "APS")
-        subtitle = AFC_APS_SSIAP_LABEL if training_type == "AFC_APS_SSIAP" else (DESP_LABEL if training_type == "DESP" else None)
-    return generate_attendance_pdf_common(session_data, output_path, training_type=training_type, subtitle=subtitle)
-
-
-def send_email_with_attachments(to_email, subject, body, attachments):
-    smtp_config = get_smtp_config() if 'get_smtp_config' in globals() else {"server": SMTP_SERVER, "port": SMTP_PORT, "username": FROM_EMAIL, "password": EMAIL_PASSWORD, "from_email": FROM_EMAIL}
-    if not smtp_config.get("from_email") or not smtp_config.get("username") or not smtp_config.get("password"):
-        return False, "SMTP non configur√©."
-    msg = MIMEMultipart(); msg["From"] = smtp_config["from_email"]; msg["To"] = to_email; msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain", "utf-8"))
-    for path, filename in attachments:
-        with open(path, "rb") as f:
-            part = MIMEApplication(f.read(), _subtype="pdf")
-        part.add_header("Content-Disposition", "attachment", filename=filename)
-        msg.attach(part)
-    try:
-        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-            server.starttls(); server.login(smtp_config["username"], smtp_config["password"]); server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
-        return True, "Email envoy√©"
-    except Exception as exc:
-        return False, f"Erreur email: {exc}"
-
-# -----------------------
-# Convocation APS depuis mod√®le Word officiel
-# -----------------------
-DOCX_UNRESOLVED_PATTERN = re.compile(r"\[(?:'?[A-Za-z√Ä-√ø0-9_()=]+|:[A-Za-z√Ä-√ø0-9_]+)\]")
-WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-
-
-def _xml_escape(value):
-    return ("" if value is None else str(value)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
-def _format_hour(value, default="08h30"):
-    raw = (value or "").strip() if isinstance(value, str) else ""
-    if not raw:
-        return default
-    if re.match(r"^\d{1,2}:\d{2}$", raw):
-        h, m = raw.split(":")
-        return f"{int(h):02d}h{m}"
-    return raw
-
-
-def _session_label(session_data):
-    return session_data.get("display_name") or session_data.get("name") or "TFP APS - Agent de Pr√©vention et de S√©curit√©"
-
-
-def _trainee_value(trainee, *keys):
-    for key in keys:
-        value = trainee.get(key) if isinstance(trainee, dict) else None
-        if value not in (None, ""):
-            return str(value).strip()
-    return ""
-
-
-def _aps_convocation_context(trainee, session_data):
-    start = parse_date(session_data.get("date_debut"))
-    exam = parse_date(session_data.get("date_exam"))
-    date_convocation = start.strftime("%d/%m/%Y") if start else ""
-    date_exam = exam.strftime("%d/%m/%Y") if exam else ""
-    civilite = _trainee_value(trainee, "civilite", "NomCivilite", "title")
-    prenom = _trainee_value(trainee, "prenom", "Prenom", "first_name")
-    nom = _trainee_value(trainee, "nom", "Nom", "last_name")
-    ctx = {
-        "NomCivilite": civilite,
-        "Prenom": prenom,
-        "Nom": nom,
-        "Ligne1": _trainee_value(trainee, "ligne1", "Ligne1", "adresse", "address1"),
-        "Ligne2": _trainee_value(trainee, "ligne2", "Ligne2", "address2"),
-        "Ligne3": _trainee_value(trainee, "ligne3", "Ligne3", "address3"),
-        "Ligne4": _trainee_value(trainee, "ligne4", "Ligne4", "address4"),
-        "CodePostal": _trainee_value(trainee, "code_postal", "CodePostal", "postal_code", "cp"),
-        "Ville": _trainee_value(trainee, "ville", "Ville", "city"),
-        "NomPedagogique": _session_label(session_data),
-        "Libelle": _session_label(session_data),
-        "DateConvocation": date_convocation,
-        "heureConvocation": _format_hour(session_data.get("heure_convocation") or session_data.get("heureConvocation"), "08h30"),
-        "DateExamen": date_exam,
-        "heureExamen": _format_hour(session_data.get("heure_exam") or session_data.get("heureExamen"), "08h00"),
-        "Duree": "175 heures",
-        "LieuFormation": "Int√©grale Academy - 54 chemin du Carreou - 83480 Puget-sur-Argens",
-        "=TODAY()": datetime.now().strftime("%d/%m/%Y"),
-    }
-    # Le mod√®le contient les deux variantes: [Nom] et ['Nom].
-    replacements = {}
-    for key, value in ctx.items():
-        replacements[f"[{key}]"] = value
-        replacements[f"['{key}]"] = value
-    return ctx, replacements
-
-
-def _replace_text_preserving_xml_nodes(xml, replacements):
-    def repl_paragraph(match):
-        block = match.group(0)
-        texts = re.findall(r"<w:t[^>]*>(.*?)</w:t>", block, flags=re.S)
-        if not texts:
-            return block
-        plain = "".join(texts)
-        original = plain
-        for needle, value in replacements.items():
-            plain = plain.replace(needle, str(value))
-        if plain == original:
-            return block
-        escaped = _xml_escape(plain)
-        first = True
-        def replace_t(tmatch):
-            nonlocal first
-            if first:
-                first = False
-                return re.sub(r">.*?</w:t>", f">{escaped}</w:t>", tmatch.group(0), flags=re.S)
-            return re.sub(r">.*?</w:t>", "></w:t>", tmatch.group(0), flags=re.S)
-        return re.sub(r"<w:t[^>]*>.*?</w:t>", replace_t, block, flags=re.S)
-    return re.sub(r"<w:p[\s>].*?</w:p>", repl_paragraph, xml, flags=re.S)
-
-
-def _drop_empty_conditionals(xml, ctx):
-    def conditional_repl(match):
-        block = match.group(0)
-        key_match = re.search(r"\['?([A-Za-z√Ä-√ø0-9_]+)\].*?\[:if\]", block, flags=re.S)
-        if key_match and not str(ctx.get(key_match.group(1), "")).strip():
-            return ""
-        return block.replace("[:if]", "")
-    xml = re.sub(r"<w:tr[\s>].*?\[:if\].*?</w:tr>", conditional_repl, xml, flags=re.S)
-    xml = re.sub(r"<w:p[\s>].*?\[:if\].*?</w:p>", conditional_repl, xml, flags=re.S)
-    return xml
-
-
-def _expand_afs_block(xml, replacements):
-    formation_line = {
-        "[Libelle]": replacements.get("[Libelle]", ""),
-        "['Libelle]": replacements.get("[Libelle]", ""),
-        "[DateConvocation]": replacements.get("[DateConvocation]", ""),
-        "[heureConvocation]": replacements.get("[heureConvocation]", ""),
-        "[Duree]": "175 heures",
-        "[LieuFormation]": "Int√©grale Academy - 54 chemin du Carreou - 83480 Puget-sur-Argens",
-    }
-    def repl(match):
-        inner = match.group(1)
-        for needle, value in formation_line.items():
-            inner = inner.replace(needle, str(value))
-        return inner
-    return re.sub(r"\[AFs\](.*?)\[:AFs\]", repl, xml, flags=re.S)
-
-
-def _render_docx_template(template_path, output_docx_path, ctx, replacements):
-    if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Mod√®le Word APS introuvable: {template_path}")
-    unresolved = set()
-    with zipfile.ZipFile(template_path, "r") as zin, zipfile.ZipFile(output_docx_path, "w", zipfile.ZIP_DEFLATED) as zout:
-        for item in zin.infolist():
-            data = zin.read(item.filename)
-            if item.filename.startswith("word/") and item.filename.endswith(".xml"):
-                xml = data.decode("utf-8")
-                xml = _drop_empty_conditionals(xml, ctx)
-                xml = _expand_afs_block(xml, replacements)
-                xml = _replace_text_preserving_xml_nodes(xml, replacements)
-                xml = xml.replace("[:if]", "")
-                found = {m.group(0) for m in DOCX_UNRESOLVED_PATTERN.finditer(xml)}
-                unresolved.update(v for v in found if v not in {"[Content_Types]"})
-                data = xml.encode("utf-8")
-            zout.writestr(item, data)
-    return sorted(unresolved)
-
-
-def _convert_docx_to_pdf(docx_path, output_dir):
-    soffice = shutil.which("libreoffice") or shutil.which("soffice")
-    if not soffice:
-        raise RuntimeError("LibreOffice/soffice est introuvable sur le serveur; impossible de convertir le DOCX en PDF.")
-    result = subprocess.run([soffice, "--headless", "--convert-to", "pdf", "--outdir", output_dir, docx_path], capture_output=True, text=True, timeout=90)
-    if result.returncode != 0:
-        raise RuntimeError(f"Conversion LibreOffice √©chou√©e: {result.stderr or result.stdout}")
-    pdf_path = os.path.join(output_dir, os.path.splitext(os.path.basename(docx_path))[0] + ".pdf")
-    if not os.path.exists(pdf_path):
-        raise RuntimeError("Conversion LibreOffice termin√©e sans fichier PDF g√©n√©r√©.")
-    return pdf_path
-
-
-def generateApsConvocationFromDocxTemplate(trainee, session_data):
-    ctx, replacements = _aps_convocation_context(trainee or {}, session_data or {})
-    sid = session_data.get("id") or uuid.uuid4().hex
-    trainee_id = _trainee_value(trainee or {}, "id") or hashlib.sha1((ctx.get("Nom", "") + ctx.get("Prenom", "") + uuid.uuid4().hex).encode()).hexdigest()[:10]
-    base_name = secure_filename(f"convocation_aps_session_{sid}_{trainee_id}")
-    docx_path = os.path.join(CONVOCATION_DIR, f"{base_name}.docx")
-    final_pdf = os.path.join(CONVOCATION_DIR, f"{base_name}.pdf")
-    app.logger.info("Convocation APS: template=%s stagiaire=%s %s session=%s date_convocation=%s date_examen=%s", APS_CONVOCATION_TEMPLATE, ctx.get("Prenom"), ctx.get("Nom"), sid, ctx.get("DateConvocation"), ctx.get("DateExamen"))
-    unresolved = _render_docx_template(APS_CONVOCATION_TEMPLATE, docx_path, ctx, replacements)
-    if unresolved:
-        app.logger.error("Convocation APS: variables non remplac√©es session=%s stagiaire=%s variables=%s", sid, trainee_id, unresolved)
-        try:
-            os.remove(docx_path)
-        except OSError:
-            pass
-        raise ValueError("Variables non remplac√©es dans le mod√®le Word: " + ", ".join(unresolved))
-    generated_pdf = _convert_docx_to_pdf(docx_path, CONVOCATION_DIR)
-    if generated_pdf != final_pdf:
-        os.replace(generated_pdf, final_pdf)
-    app.logger.info("Convocation APS g√©n√©r√©e: docx=%s pdf=%s", docx_path, final_pdf)
-    return {"pdf_url": url_for("view_aps_convocation_pdf", filename=os.path.basename(final_pdf)), "docx_url": url_for("download_aps_convocation_docx", filename=os.path.basename(docx_path)), "pdf_path": final_pdf, "docx_path": docx_path}
-
-def get_planning_for_session(sid):
-    data = load_sessions()
-    s = find_session(data, sid)
-    if not s:
-        return None
-    return s.get("planning_pdf")  # ex: "planning_session_<sid>.pdf"
-
-def set_planning_for_session(sid, filename):
-    data = load_sessions()
-    s = find_session(data, sid)
-    if not s:
-        return False
-    s["planning_pdf"] = filename
-    s["planning_generated_at"] = datetime.now().strftime("%Y-%m-%d")
-    save_sessions(data)
-    return True
-
-
-def refresh_aps_planning_pdf_file(session_data, sid):
-    if (session_data.get("formation") or "").upper() != "APS" and not is_ssiap1_session(session_data):
-        return session_data.get("planning_pdf")
-    planning_data = session_data.get("apsPlanningData") or []
-    if not planning_data:
-        return session_data.get("planning_pdf")
-
-    filename = f"planning_{'ssiap1' if is_ssiap1_session(session_data) else 'aps'}_session_{sid}.pdf"
-    output_path = os.path.join(PLANNING_DIR, filename)
-    temp_path = f"{output_path}.tmp"
-    planning_mode = session_data.get("apsPlanningMode") or (
-        "ssiap1" if is_ssiap1_session(session_data) else
-        "elearning_presentiel"
-        if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
-        else "full_presentiel"
-    )
-    try:
-        result = generate_aps_planning_pdf(
-            session_data,
-            "",
-            temp_path,
-            planning_data=planning_data,
-            planning_mode=planning_mode,
-            # A plan edited in the APS editor may intentionally depart from
-            # the automatic e-learning/presentiel sequence.  It was already
-            # checked on save for real scheduling issues (times, overlaps,
-            # lunch break and known course content), so refreshing its PDF
-            # must use the same rescheduling validation rather than reject a
-            # deliberate manual modification with the generator rules.
-            document_profile=(
-                {"validate": "ssiap1"}
-                if is_ssiap1_session(session_data)
-                else {"validate": "rescheduling"}
-            ),
-        )
-        os.replace(temp_path, output_path)
-        session_data["planning_pdf"] = filename
-        session_data["apsPlanningSummary"] = result["summary"]
-        session_data["apsPlanningMode"] = planning_mode
-        session_data["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return filename
-    finally:
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError:
-                pass
-
-
-def send_planning_pdf_file(path, *, as_attachment, download_name=None):
-    response = send_file(
-        path,
-        mimetype="application/pdf",
-        as_attachment=as_attachment,
-        download_name=download_name,
-        conditional=False,
-        max_age=0,
-    )
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-
-FROM_EMAIL = os.environ.get("FROM_EMAIL")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
-SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-
-BREVO_SMTP_LOGIN = os.environ.get("BREVO_SMTP_LOGIN") or os.environ.get("BREVO_SMTP_USER")
-BREVO_SMTP_KEY = os.environ.get("BREVO_SMTP_KEY")
-BREVO_SMTP_SERVER = os.environ.get("BREVO_SMTP_SERVER", "smtp-relay.brevo.com")
-BREVO_SMTP_PORT = int(os.environ.get("BREVO_SMTP_PORT", "587"))
-BREVO_FROM_EMAIL = os.environ.get("BREVO_FROM_EMAIL")
-BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL")
-BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME")
-BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
-BREVO_SMS_SENDER = os.environ.get("BREVO_SMS_SENDER")
-
-# -----------------------
-# Utils persistance
-# -----------------------
-
-
-A3P_TRAINER_MANUAL_CODES = {"UV1", "UV5", "UV6A", "UV9"}
-A3P_TRAINER_MODULE_LABELS = {m["code"]: m for m in A3P_MODULES if m["code"] in A3P_TRAINER_MANUAL_CODES}
-A3P_TRAINER_STATUS_LABELS = {
-    "no_link": "Lien non g√©n√©r√©",
-    "waiting": "En attente formateur",
-    "sent": "Lien envoy√©",
-    "in_progress": "En cours de compl√©tion",
-    "incomplete": "Incomplet",
-    "completed": "Modules compl√©t√©s",
-    "validated": "Valid√©",
-    "disabled": "Lien d√©sactiv√©",
-}
-
-def a3p_trainer_public_url(token):
-    return url_for("public_a3p_planning_page", token=token, _external=True)
-
-def a3p_trainer_status(session_data):
-    token = session_data.get("a3pTrainerPublicToken")
-    status = session_data.get("a3pTrainerModulesStatus") or ("waiting" if token else "no_link")
-    return {"code": status, "label": A3P_TRAINER_STATUS_LABELS.get(status, status), "url": a3p_trainer_public_url(token) if token and status != "disabled" else ""}
-
-def find_a3p_public_session(data, token):
-    for s in data.get("sessions", []):
-        if (s.get("formation") or "").upper() == "A3P" and s.get("a3pTrainerPublicToken") == token and s.get("a3pTrainerModulesStatus") != "disabled":
-            return s
-    return None
-
-def validate_a3p_trainer_manual_data(session_data, modules_data):
-    cfg = session_data.get("a3pPlanningDraftJson") or {}
-    start = cfg.get("startDate") or session_data.get("date_debut")
-    end = cfg.get("endDate") or session_data.get("date_fin")
-    exam = cfg.get("examDate") or session_data.get("date_exam")
-    errors = []
-    by_day = {}
-    for code in A3P_TRAINER_MANUAL_CODES:
-        expected = int(A3P_TRAINER_MODULE_LABELS[code]["hours"] * 60)
-        rows = (modules_data or {}).get(code) or []
-        total = 0
-        for row in rows:
-            d, st, en = row.get("date"), row.get("start"), row.get("end")
-            if not d or not st or not en:
-                errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : date et horaires obligatoires."); continue
-            if (start and d < start) or (end and d > end): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} hors p√©riode de formation.")
-            try:
-                parsed_day = datetime.strptime(d, "%Y-%m-%d").date()
-                if is_a3p_non_working_day(parsed_day): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} est un jour non travaill√© (week-end ou jour f√©ri√© fran√ßais).")
-            except Exception:
-                errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : date invalide.")
-            if exam and d == exam: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : impossible le jour de l‚Äôexamen.")
-            try:
-                sm = int(st[:2])*60 + int(st[3:5]); em = int(en[:2])*60 + int(en[3:5])
-            except Exception:
-                errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : horaires invalides."); continue
-            if em <= sm: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : heure de fin avant d√©but."); continue
-            total += em - sm
-            by_day.setdefault(d, []).append((sm, em, code))
-        if total != expected:
-            errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {round(total/60,2)}h saisies / {expected/60:g}h attendues.")
-    for d, slots in by_day.items():
-        if sum(e-s for s,e,_ in slots) > 480: errors.append(f"{format_date(d)} : plus de 8h de formation.")
-        slots = sorted(slots)
-        for prev, cur in zip(slots, slots[1:]):
-            if cur[0] < prev[1]: errors.append(f"{format_date(d)} : chevauchement entre modules impos√©s.")
-    return errors
-
-
-
-def _a3p_manual_modules_from_state(state):
-    if not isinstance(state, dict):
-        return {}
-    cfg = state.get("scheduleConfig") if isinstance(state.get("scheduleConfig"), dict) else state
-    return cfg.get("lockedModules") or state.get("lockedModules") or {}
-
-def are_a3p_manual_modules_complete(state):
-    modules_data = _a3p_manual_modules_from_state(state)
-    for code in A3P_TRAINER_MANUAL_CODES:
-        expected = int(A3P_TRAINER_MODULE_LABELS[code]["hours"] * 60)
-        total = 0
-        for row in modules_data.get(code) or []:
-            if row.get("durationMinutes") is not None:
-                try:
-                    total += int(float(row.get("durationMinutes") or 0))
-                    continue
-                except (TypeError, ValueError):
-                    pass
-            try:
-                st, en = row.get("start"), row.get("end")
-                if not st or not en:
-                    continue
-                total += (int(en[:2]) * 60 + int(en[3:5])) - (int(st[:2]) * 60 + int(st[3:5]))
-            except Exception:
-                continue
-        if total != expected:
-            return False
-    return True
-
-def _a3p_planning_total_minutes(planning):
-    if not isinstance(planning, list):
-        return 0
-    return sum(int(float(slot.get("durationMinutes") or 0)) for day in planning for slot in (day.get("slots") or []))
-
-def can_generate_a3p_documents_state(state):
-    planning = state.get("planning") or state.get("preview") or state.get("generatedPlanning") or [] if isinstance(state, dict) else []
-    total_minutes = _a3p_planning_total_minutes(planning)
-    total_hours = total_minutes / 60
-    remaining_hours = A3P_TOTAL_HOURS - total_hours
-    return (
-        are_a3p_manual_modules_complete(state)
-        and round(total_minutes) == A3P_TOTAL_HOURS * 60
-        and round(remaining_hours * 60) == 0
-        and bool(planning)
-    )
-
-def mark_a3p_manual_modules_admin_validated(session_data, modules_data=None):
-    now = datetime.now().isoformat()
-    session_data["manual_modules_source"] = "admin"
-    session_data["manual_modules_completed"] = True
-    session_data["manual_modules_validated"] = True
-    session_data["manual_modules_validated_at"] = now
-    session_data["a3pTrainerModulesStatus"] = "validated"
-    session_data["a3pTrainerModulesValidatedAt"] = now
-    if modules_data is not None:
-        session_data["a3pTrainerManualModulesData"] = modules_data
-
-def a3p_public_payload(session_data):
-    cfg = session_data.get("a3pPlanningDraftJson") or {}
-    return {
-        "sessionId": session_data.get("id"), "formation": "A3P",
-        "startDate": cfg.get("startDate") or session_data.get("date_debut"),
-        "endDate": cfg.get("endDate") or session_data.get("date_fin"),
-        "examDate": cfg.get("examDate") or session_data.get("date_exam"),
-        "room": cfg.get("room") or session_data.get("a3pRoom") or session_data.get("salle") or "",
-        "trainerName": session_data.get("a3pTrainerName") or (cfg.get("trainerFirstName", "") + " " + cfg.get("trainerLastName", "")).strip(),
-        "showWeekends": bool(cfg.get("showWeekends")),
-        "days": cfg.get("days") or [],
-        "modules": [{"code": c, "title": A3P_TRAINER_MODULE_LABELS[c]["title"], "hours": A3P_TRAINER_MODULE_LABELS[c]["hours"]} for c in ("UV1","UV5","UV6A","UV9")],
-        "modulesData": session_data.get("a3pTrainerManualModulesData") or {},
-        "status": a3p_trainer_status(session_data),
-    }
-
-def load_sessions():
-    if os.path.exists(SESSIONS_FILE):
-        try:
-            with open(SESSIONS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    data.setdefault("sessions", [])
-                    data.setdefault("jurys", [])
-                    return data
-        except Exception:
-            pass
-    return {"sessions": [], "jurys": []}
-
-def save_sessions(data):
-    tmp_path = SESSIONS_FILE + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp_path, SESSIONS_FILE)
-
-def load_price_adaptator_data():
-    if os.path.exists(PRICE_ADAPTATOR_FILE):
-        try:
-            with open(PRICE_ADAPTATOR_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    data.setdefault("prospects", [])
-                    data.setdefault("dates", {})
-                    return data
-        except Exception:
-            pass
-    return {"prospects": [], "dates": {}}
-
-def save_price_adaptator_data(data):
-    with open(PRICE_ADAPTATOR_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def normalize_price_adaptator_discount(value):
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        return PRICE_ADAPTATOR_DEFAULT_DISCOUNT
-    return max(0, min(parsed, 100))
-
-def normalize_price_adaptator_nom(value):
-    if value is None:
-        return ""
-    return str(value).strip().upper()
-
-
-def normalize_price_adaptator_prenom(value):
-    if value is None:
-        return ""
-    cleaned = " ".join(str(value).strip().split())
-    return cleaned.lower().title()
-
-
-def normalize_price_adaptator_formation(value):
-    if value is None:
-        return None
-    cleaned = str(value).strip().upper()
-    return PRICE_ADAPTATOR_ALLOWED_FORMATIONS.get(cleaned)
-
-
-def normalize_price_adaptator_proposed_price(price_value):
-    try:
-        return max(float(price_value), 0.0)
-    except (TypeError, ValueError):
-        return 0.0
-
-def get_price_adaptator_followup_date(dates, formation):
-    date_range = (dates or {}).get(formation, {})
-    start_value = (date_range or {}).get("start")
-    if not start_value:
-        return None
-    try:
-        start_date = datetime.strptime(start_value, "%Y-%m-%d").date()
-    except ValueError:
-        return None
-    return start_date - timedelta(days=PRICE_ADAPTATOR_FOLLOWUP_DAYS)
-
-def format_price_adaptator_date_range(date_range):
-    if not date_range:
-        return "dates √† d√©finir"
-    start_value = date_range.get("start")
-    end_value = date_range.get("end")
-    try:
-        start_label = datetime.strptime(start_value, "%Y-%m-%d").strftime("%d/%m/%Y") if start_value else None
-    except ValueError:
-        start_label = None
-    try:
-        end_label = datetime.strptime(end_value, "%Y-%m-%d").strftime("%d/%m/%Y") if end_value else None
-    except ValueError:
-        end_label = None
-    if start_label and end_label:
-        return f"{start_label} au {end_label}"
-    if start_label:
-        return start_label
-    return "dates √† d√©finir"
-
-def build_price_adaptator_message(prospect, dates, price_override=None):
-    formation = prospect.get("formation", "")
-    formation_full = PRICE_ADAPTATOR_FORMATION_LABELS.get(formation, formation)
-    base_price = PRICE_ADAPTATOR_FORMATION_PRICES.get(formation, 0)
-    discount_value = normalize_price_adaptator_discount((dates or {}).get(formation, {}).get("discount"))
-    discounted_price = round(base_price * (1 - discount_value / 100))
-    price_value = price_override if price_override is not None else discounted_price
-    if base_price and price_value is not None:
-        computed_discount = round((1 - price_value / base_price) * 100)
-        discount_value = max(0, min(computed_discount, 100))
-    price_label = f"{price_value:,.0f} ‚Ç¨".replace(",", " ")
-    base_price_label = f"{base_price:,.0f} ‚Ç¨".replace(",", " ") if base_price else None
-    date_text = format_price_adaptator_date_range((dates or {}).get(formation))
-    prenom = normalize_price_adaptator_prenom(prospect.get("prenom"))
-    logo_path = os.path.join("static", "img", "logo-integrale.png")
-    logo_src = url_for("static", filename="img/logo-integrale.png", _external=True)
-    try:
-        with open(logo_path, "rb") as logo_file:
-            logo_src = "data:image/png;base64," + base64.b64encode(logo_file.read()).decode("utf-8")
-    except OSError:
-        pass
-    html = f"""
-    <div style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:#f2f4f7;padding:24px;">
-      <style>
-        @media screen and (max-width: 600px) {{
-          .stack-column {{
-            display: block !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-          }}
-          .stack-column-right {{
-            text-align: left !important;
-            padding-top: 0 !important;
-          }}
-          .email-container {{
-            max-width: 100% !important;
-            width: 100% !important;
-          }}
-          .email-body {{
-            padding-left: 20px !important;
-            padding-right: 20px !important;
-          }}
-        }}
-      </style>
-      <table role="presentation" cellspacing="0" cellpadding="0" class="email-container" style="width:100%;max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9ef;box-shadow:0 12px 30px rgba(16,24,40,0.08);">
-        <tr>
-          <td style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px;text-align:center;">
-            <img src="{logo_src}" alt="Int√©grale Academy" style="max-width:150px;height:auto;">
-            <div style="margin-top:12px;color:#e5e7eb;font-size:14px;letter-spacing:0.4px;text-transform:uppercase;">Offre derni√®re minute</div>
-          </td>
-        </tr>
-        <tr>
-          <td class="email-body" style="padding:28px 32px 10px;color:#1f2937;line-height:1.7;">
-            <p style="margin:0 0 16px;font-size:16px;">Bonjour {prenom},</p>
-            <p style="margin:0 0 16px;font-size:16px;">
-              Je me permets de revenir vers vous concernant notre formation <strong>{formation_full}</strong>.
-            </p>
-            <p style="margin:0 0 16px;font-size:16px;">
-              Bonne nouvelle : Suite √† des d√©sistements, nous pouvons vous proposer un tarif exceptionnel de derni√®re
-              minute √† <strong>{price_label}</strong> au lieu de <strong>{base_price_label or "prix initial"}</strong> (prix initial de
-              la formation), soit une remise de <strong>{discount_value:.0f} %</strong> pour notre prochaine session
-              qui se d√©roulera du <strong>{date_text}</strong>.
-            </p>
-            <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#f9fafb;border-radius:12px;border:1px solid #eef2f6;margin:16px 0;">
-              <tr>
-                <td class="stack-column" style="padding:18px 20px;">
-                  <div style="font-size:14px;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;margin-bottom:8px;">Tarif exceptionnel</div>
-                  <div style="font-size:28px;font-weight:700;color:#111827;">{price_label}</div>
-                  <div style="font-size:14px;color:#6b7280;margin-top:4px;">
-                    {f"Au lieu de {base_price_label} ‚Ä¢ remise de {discount_value:.0f} %" if base_price_label else "Offre derni√®re minute limit√©e"}
-                  </div>
-                </td>
-                <td class="stack-column stack-column-right" style="padding:18px 20px;text-align:right;">
-                  <div style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;">Prochaine session</div>
-                  <div style="font-size:16px;font-weight:600;color:#111827;">{date_text}</div>
-                </td>
-              </tr>
-            </table>
-            <p style="margin:0 0 16px;font-size:16px;">
-              Pour b√©n√©ficier de ce tarif et pour vous inscrire, nous vous remercions de bien vouloir nous contacter au
-              <strong>04 22 47 07 68</strong>.
-            </p>
-            <p style="margin:0 0 20px;font-size:16px;">Cette offre est limit√©e, profitez-en d√®s maintenant.</p>
-            <p style="margin:0 0 8px;font-size:16px;">
-              Je reste √† votre disposition pour tous renseignements compl√©mentaires et je vous souhaite une bonne journ√©e,
-            </p>
-            <p style="margin:0 0 0;font-size:16px;">A tr√®s bient√¥t !</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:0 32px 28px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;background:#111827;border-radius:12px;">
-              <tr>
-                <td style="padding:16px 20px;color:#ffffff;font-size:15px;">
-                  <div style="font-weight:600;">Cl√©ment VAILLANT</div>
-                  <div style="font-size:13px;color:#d1d5db;">Int√©grale Academy</div>
-                </td>
-                <td style="padding:16px 20px;text-align:right;">
-                  <span style="display:inline-block;background:#f9fafb;color:#111827;font-weight:600;padding:10px 16px;border-radius:999px;font-size:13px;">
-                    04 22 47 07 68
-                  </span>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </div>
-    """
-    subject = f"Proposition tarif derni√®re minute {formation_full}"
-    sms_message = (
-        f"Bonjour {prenom}, Tarif exceptionnel derni√®re minute √† {price_label} pour la formation "
-        f"{formation_full} (du {date_text}). Offre limit√©e: contactez-nous au 04 22 47 07 68. "
-        "Cordialement, Cl√©ment VAILLANT - Int√©grale Academy"
-    )
-    return {
-        "subject": subject,
-        "html": html,
-        "sms": sms_message,
-        "price": price_value,
-        "base_price": base_price,
-        "discount_value": discount_value,
-        "date_text": date_text,
-    }
-
-def attempt_price_adaptator_send(prospect, dates, price_override=None):
-    message = build_price_adaptator_message(prospect, dates, price_override=price_override)
-    email_sent = False
-    email_error = None
-    sms_sent = False
-    sms_error = None
-    email = (prospect.get("email") or "").strip()
-    phone = (prospect.get("telephone") or "").strip()
-    if email:
-        email_sent, email_error = send_price_adaptator_email(email, message["subject"], message["html"])
-    if phone:
-        sms_sent, sms_error = send_price_adaptator_sms(phone, message["sms"])
-    return {
-        "email_sent": email_sent,
-        "sms_sent": sms_sent,
-        "email_error": email_error,
-        "sms_error": sms_error,
-        "price": message["price"],
-    }
-
-def process_price_adaptator_followups():
-    data = load_price_adaptator_data()
-    today = datetime.now().date()
-    updated = False
-    for prospect in data.get("prospects", []):
-        if prospect.get("sent") or prospect.get("manual_sent"):
-            continue
-        followup_date = get_price_adaptator_followup_date(data.get("dates"), prospect.get("formation"))
-        if not followup_date or followup_date > today:
-            continue
-        price_override = prospect.get("proposed_price")
-        with app.app_context():
-            result = attempt_price_adaptator_send(prospect, data.get("dates"), price_override=price_override)
-        prospect["last_attempt_at"] = datetime.now().isoformat()
-        prospect["last_error"] = result["email_error"] or result["sms_error"]
-        prospect["proposed_price"] = result["price"]
-        if result["email_sent"] or result["sms_sent"]:
-            prospect["sent"] = True
-            prospect["sentAt"] = datetime.now().isoformat()
-            prospect["last_sent_price"] = result["price"]
-        updated = True
-    if updated:
-        save_price_adaptator_data(data)
-
-def price_adaptator_scheduler_loop():
-    while True:
-        try:
-            process_price_adaptator_followups()
-        except Exception as exc:
-            logging.exception("[price-adaptator] Scheduler error: %s", exc)
-        time.sleep(60 * 30)
-
-def start_price_adaptator_scheduler():
-    if os.environ.get("ENABLE_PRICE_ADAPTATOR_AUTOSEND", "").lower() != "true":
-        return
-    if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        return
-    thread = threading.Thread(target=price_adaptator_scheduler_loop, daemon=True)
-    thread.start()
-
-def ensure_jury_defaults(session):
-    session.setdefault("jurys", [])
-    session.setdefault("jury_notification_status", "to_notify")
-    for jury in session["jurys"]:
-        # URL path parameters are strings.  Normalize legacy numeric ids here so
-        # that a jury rendered in the page can also be found by POST handlers.
-        jury["id"] = str(jury.get("id") or str(uuid.uuid4())[:8])
-        jury.setdefault("status", "pending")
-        jury.setdefault("token", str(uuid.uuid4()))
-        jury.setdefault("notified_at", None)
-        jury.setdefault("reminded_at", None)
-
-def ensure_global_jury_defaults(data):
-    data.setdefault("jurys", [])
-    for jury in data["jurys"]:
-        jury["id"] = str(jury.get("id") or str(uuid.uuid4())[:8])
-        jury.setdefault("nom", "")
-        jury.setdefault("prenom", "")
-        jury.setdefault("email", "")
-        jury.setdefault("telephone", "")
-
-def find_global_jury_by_email(data, email):
-    if not email:
-        return None
-    normalized = email.strip().lower()
-    return next((j for j in data.get("jurys", []) if j.get("email", "").strip().lower() == normalized), None)
-
-def find_global_jury_by_id(data, jury_id):
-    return next((j for j in data.get("jurys", []) if j.get("id") == jury_id), None)
-
-def sync_global_jurys(data):
-    ensure_global_jury_defaults(data)
-    for session in data.get("sessions", []):
-        for jury in session.get("jurys", []):
-            if not jury.get("email") and not jury.get("id"):
-                continue
-            existing = find_global_jury_by_email(data, jury.get("email"))
-            if existing:
-                existing.update({
-                    "nom": jury.get("nom", existing.get("nom", "")),
-                    "prenom": jury.get("prenom", existing.get("prenom", "")),
-                    "email": jury.get("email", existing.get("email", "")),
-                    "telephone": jury.get("telephone", existing.get("telephone", "")),
-                })
-                if not existing.get("id") and jury.get("id"):
-                    existing["id"] = jury.get("id")
-            elif find_global_jury_by_id(data, jury.get("id")) is None:
-                data["jurys"].append({
-                    "id": jury.get("id") or str(uuid.uuid4())[:8],
-                    "nom": jury.get("nom", ""),
-                    "prenom": jury.get("prenom", ""),
-                    "email": jury.get("email", ""),
-                    "telephone": jury.get("telephone", ""),
-                })
-
-def find_session(data, sid):
-    for s in data["sessions"]:
-        if s["id"] == sid:
-            return s
-    return None
-
-def steps_rules_for_formation(formation):
-    if formation in ("APS", "A3P", "DIRIGEANT", "AFC_APS_SSIAP"):
-        rules = APS_A3P_STEPS
-    elif formation == "SSIAP":
-        rules = SSIAP_STEPS
-    elif formation == "GENERAL":
-        rules = GENERAL_STEPS
-    else:
-        return []
-
-    return [rule for rule in rules if "formations" not in rule or formation in rule["formations"]]
-
-
-def sync_steps(session):
-    """Reconstruit les √©tapes selon le mod√®le officiel (ordre + ajout + √©vite doublons),
-    tout en conservant done/done_at/custom_date des √©tapes existantes.
-    """
-    formation = session.get("formation")
-
-    rules = steps_rules_for_formation(formation)
-    if not rules:
-        return
-
-    # s√©curit√© si steps absent
-    session.setdefault("steps", [])
-
-    # index existant par nom
-    existing_by_name = {s.get("name"): s for s in session["steps"] if s.get("name")}
-
-    new_steps = []
-    for rule in rules:
-        name = rule["name"]
-        old = existing_by_name.get(name)
-
-        # ‚úÖ on conserve l'√©tat existant si pr√©sent
-        new_steps.append({
-            "name": name,
-            "done": bool(old.get("done")) if old else False,
-            "done_at": old.get("done_at") if old else None,
-            "custom_date": old.get("custom_date") if old else None
-        })
-
-    session["steps"] = new_steps
-
-
-    # R√©cup√®re la liste actuelle des r√®gles depuis le code
-    rules = steps_rules_for_formation(formation)
-    if not rules:
-        return
-    existing_names = [s["name"] for s in session.get("steps", [])]
-
-    # Pour chaque √©tape officielle, si elle n‚Äôexiste pas encore dans la session ‚Üí on l‚Äôajoute
-    for rule in rules:
-        if rule["name"] not in existing_names:
-            session["steps"].append({
-                "name": rule["name"],
-                "done": False,
-                "done_at": None
-            })
-
-
-# -----------------------
-# Mod√®les d'√©tapes
-# -----------------------
-APS_A3P_STEPS = [
-    {"name":"Cr√©ation session CNAPS", "relative_to":"start", "offset_type":"before", "days":20},
-    {"name":"Cr√©ation session ADEF", "relative_to":"start", "offset_type":"before", "days":15},
-    {"name":"Envoyer test de fran√ßais", "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Nomination jury examen", "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Planification YPAREO", "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Envoyer lien √† compl√©ter stagiaires", "relative_to":"start", "offset_type":"before", "days":10},
-    {"name":"Ajout des stagiaires sur DRACAR", "relative_to":"start", "offset_type":"before", "days":7},
-    {"name":"Ajout des formateurs sur DRACAR", "relative_to":"start", "offset_type":"before", "days":7},
-    {"name":"Contrat envoy√© au formateur", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Contrat formateur imprim√©", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Saisie des candidats ADEF", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Impression des fiches CNIL", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Fabrication badge formateur", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"V√©rification dossier formateur", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Corriger et imprimer test de fran√ßais", "relative_to":"start", "offset_type":"before", "days":5},
-    {"name":"Validation session ADEF", "relative_to":"start", "offset_type":"before", "days":2},
-    # AVANT EXAM
-    {"name":"Saisie des SST", "relative_to":"exam", "offset_type":"before", "days":7},
-    {"name":"Impression des SST", "relative_to":"exam", "offset_type":"before", "days":5},
-    {"name":"Impression dossier fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
-    {"name":"Impression √©valuation de fin de formation", "relative_to":"exam", "offset_type":"before", "days":5},
-    # JOUR EXAM
-    {"name":"Session examen cl√¥tur√©e", "relative_to":"exam", "offset_type":"after", "days":0},
-    {"name":"Frais ADEF r√©gl√©s", "relative_to":"exam", "offset_type":"after", "days":0},
-    {"name":"Documents examen envoy√©s √† l‚ÄôADEF", "relative_to":"exam", "offset_type":"after", "days":0},
-    # APR√àS EXAM
-    {"name":"Envoyer mail stagiaires attestations de formation", "relative_to":"exam", "offset_type":"after", "days":2},
-    {"name":"Message avis Google", "relative_to":"exam", "offset_type":"after", "days":2},
-    {"name":"Dipl√¥mes re√ßus", "relative_to":"exam", "offset_type":"after", "days":7},
-    {"name":"Dipl√¥mes envoy√©s aux stagiaires", "relative_to":"exam", "offset_type":"after", "days":10},
-    {"name": "Saisie entr√©e en formation EDOF", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name":"Imprimer feuilles de pr√©sence et planning", "relative_to":"start", "offset_type":"before", "days":2},
-    {"name":"Documents examens imprim√©s", "relative_to":"exam", "offset_type":"before", "days":1},
-    {"name": "Signature fiches CNIL", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name":"Fin de formation EDOF", "relative_to":"exam", "offset_type":"after", "days":1},
-    {"name": "Signature registre entretien SST", "relative_to": "start", "offset_type": "after", "days": 15},
-    {"name": "Distribution des t-shirts", "relative_to": "start", "offset_type": "after", "days": 1, "formations": ["A3P"]},
-    {"name": "R√©cup√©rer paiement logement", "relative_to": "start", "offset_type": "after", "days": 0, "formations": ["A3P"]},
-    {"name":"Pr√©paration planning de m√©nage", "relative_to":"start", "offset_type":"before", "days":2, "formations": ["A3P"]},
-    {"name":"Cr√©er groupe Whatsapp", "relative_to":"start", "offset_type":"before", "days":7},
-]
-
-SSIAP_STEPS = [
-
-    # ============================
-    # üìå SESSION ‚Äî Article 4
-    # ============================
-    {"name": "Le formateur a √©t√© nomm√© (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Le contrat d'intervention a √©t√© envoy√© au formateur (7 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 7},
-    {"name": "Le contrat d'intervention formateur a √©t√© sign√© et imprim√© (5 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 5},
-    {"name": "Le nombre de candidats est de 12 maximum (2 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 2},
-    {"name": "La pr√©fecture a √©t√© avis√©e de l'ouverture de la session 2 mois avant le d√©marrage (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "La pr√©fecture a √©t√© avis√©e de la date d'examen 2 mois avant le d√©marrage (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Les convocations en formation ont √©t√© envoy√©es aux candidats (15 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 15},
-    {"name": "Le test de fran√ßais a √©t√© envoy√© √† tous les candidats (7 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 7},
-
-    # =======================================
-    # üìå DOSSIER CANDIDAT (formation)
-    # =======================================
-    {"name": "Le dossier comporte la pi√®ce d'identit√© de chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Le dossier comporte l'attestation de formation au secourisme de chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Le dossier comporte 2 photos d'identit√© (1 archive, 1 dipl√¥me) pour chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Le dossier comporte le certificat m√©dical conforme √† l'Annexe VII de l'arr√™t√© du 2 mai 2005 modifi√© de chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Le dossier comporte une copie du test de fran√ßais r√©alis√© par chaque candidat en amont de la formation (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Le dossier comporte le contrat de formation sign√© par chaque candidat (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-    {"name": "Les dossiers de chaque candidat ont √©t√© v√©rifi√©s avant le d√©marrage de la session (1er jour de formation)", "relative_to": "start", "offset_type": "after", "days": 0},
-
-    # =======================================
-    # üìå DEMANDE PR√âSIDENCE JURY SDIS (Art 8)
-    # =======================================
-    {"name": "Le SDIS a √©t√© avis√© de la date d'organisation des √©preuves (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "La demande comporte le nom, la fonction et la qualification du jury chef de service incendie (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "La demande comporte l'attestation d'engagement (accord) du jury chef de service incendie (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "L'engagement √©crit, du propri√©taire ou de l'exploitant de l'√©tablissement, de mettre √† disposition les locaux et d'autoriser la manipulation des installations techniques n√©cessaires au d√©roulement de l'√©preuve pratique est fournit (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Le planning de la session est fournit (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Sur le planning le nom, la qualit√©, la fonction et les qualifications des formateurs sont indiqu√©s (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "La convention de demande de pr√©sidence jury SDIS en fournit en double exemplaire (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "La demande de pr√©sidence de jury SDIS a √©t√© envoy√© en LRAR (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-
-    # =======================================
-    # üìå DOSSIER CANDIDAT (examen)
-    # =======================================
-    {"name": "Les dossiers examen des candidats sont imprim√©s pour les membres du jury (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte la pi√®ce d'identit√© du candidat (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte l'attestation de formation au secourisme (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte le certificat m√©dical conforme √† l'Annexe VII de l'arr√™t√© du 2 mai 2005 modifi√© (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte le test de fran√ßais r√©alis√© par le candidat en amont de la formation (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte le certificat de r√©alisation de la formation (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte le PV d'examen individuel pr√©-rempli (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte une attestation du directeur certifiant que les candidats ne travaillent pas dans la m√™me entreprise que le jury (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Chaque dossier examen comporte une attestation du directeur certifiant que les candidats sont capables d'√©crire une main courante (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-
-    # =======================================
-    # üìå ORGANISATION DE L‚ÄôEXAMEN
-    # =======================================
-    {"name": "Le jury chef de service de s√©curit√© incendie a √©t√© nomm√© (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Le lieu d'examen (pratique) a √©t√© r√©serv√© (65 jours avant d√©but de session)", "relative_to": "start", "offset_type": "before", "days": 65},
-    {"name": "Les convocations √† l'examen ont √©t√© envoy√©es aux candidats (15 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 15},
-    {"name": "Les t√©l√©commandes QUIZZBOX ont √©t√© v√©rifi√©es en vue de l'examen (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Le logiciel QUIZZBOX a √©t√© param√©tr√© pour l'examen (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Le proc√®s verbal collectif a √©t√© pr√©-rempli et imprim√© (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "La salle d'examen th√©orique a √©t√© pr√©par√©e et v√©rifi√©e (2 jours avant l'examen)", "relative_to": "exam", "offset_type": "before", "days": 2},
-    {"name": "Les pi√®ces d'identit√© des candidats ont √©t√© v√©rifi√© par le jury (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
-    {"name": "Le PV de r√©sultats examen th√©orique (QCM Quizzbox) a √©t√© imprim√© en double exemplaire : SDIS et archives (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
-    {"name": "A l'issue de l'examen les PV d'examen individuels ont √©t√© photocopi√©s en triples exemplaires : SDIS, candidats et archives (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
-    {"name": "A l'issue de l'examen le PV d'examen collectif a √©t√© photocopi√© en doubles exemplaires : SDIS et archives (jour de l'examen)", "relative_to": "exam", "offset_type": "after", "days": 0},
-
-    # =======================================
-    # üìå DIPL√îMES ‚Äî Annexe VIII / Article 11
-    # =======================================
-    {"name": "Chaque dipl√¥me comporte une photographie couleur dans l'angle droit (2 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Les num√©ros de dipl√¥mes ont √©t√© v√©rifi√©s (2 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "La signature du directeur du centre de formation agr√©√© est appos√©e dans l'angle inf√©rieur gauche (2 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Les dipl√¥mes ont √©t√© imprim√© sur du papier rigide 180g (2 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Les dipl√¥mes ont √©t√© envoy√©s au SDIS en LRAR (2 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
-    {"name": "Les dipl√¥mes ont √©t√© valid√© par le SDIS (30 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 30},
-    {"name": "Les dipl√¥mes ont √©t√© distribu√©s aux candidats (35 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 35},
-    {"name": "Les candidats ont sign√© le r√©c√©piss√© de d√©livrance, preuve de remise du dipl√¥me (35 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 35},
-    {"name": "Les dipl√¥mes sont r√©f√©renc√©s dans un tableau Excel pour assurer la tra√ßabilit√© (2 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 2},
-
-    # =======================================
-    # üìå CL√îTURE DE SESSION
-    # =======================================
-    {"name": "Le rapport de tra√ßabilit√© et de conformit√© a √©t√© g√©n√©r√© (40 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 40},
-    {"name": "Le rapport de tra√ßabilit√© et de conformit√© a √©t√© envoy√© par mail √† la pr√©fecture (40 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 40},
-    {"name": "Le rapport de tra√ßabilit√© et de conformit√© a √©t√© imprim√© et archiv√© (40 jours apr√®s l'examen)", "relative_to": "exam", "offset_type": "after", "days": 40},
-]
-
-
-GENERAL_STEPS = [
-    {"name": "V√©rification des extincteurs", "fixed_date": "2026-10-15"},
-    {"name": "Contr√¥le des installations √©lectriques", "fixed_date": "2026-09-10"},
-    {"name": "V√©rification SSI", "fixed_date": "2026-08-15"},
-    {"name": "Contr√¥le climatisation", "fixed_date": "2026-09-10"},
-    {"name": "Inscriptions examen BTS", "fixed_date": "2026-09-10"},
-    {"name": "Renouvellement agr√©ment CNAPS", "fixed_date": "2026-09-01"},
-]
-
-
-FORMATION_COLORS = {
-    "AFC_APS_SSIAP": "#0f766e",
-    "APS": "#1b9aaa",
-    "A3P": "#2a9134",
-    "SSIAP": "#c0392b",
-    "DIRIGEANT": "#8e44ad",
-    "GENERAL": "#d4ac0d",
-}
-
-FORMATION_LABELS = {
-    "AFC_APS_SSIAP": "AFC France Travail APS + SSIAP",
-    "APS": "Agent de Pr√©vention et de S√©curit√©",
-    "A3P": "Agent de Protection Rapproch√©e (A3P)",
-    "SSIAP": "Service de S√©curit√© Incendie et d‚ÄôAssistance √† Personnes (SSIAP)",
-    "DIRIGEANT": "Dirigeant",
-    "GENERAL": "G√©n√©ral",
-}
-
-DIRIGEANT_LOCATIONS = {
-    "PARIS": "Paris",
-    "PUGET": "Puget",
-}
-
-def formation_label(value):
-    return FORMATION_LABELS.get(value, value)
-app.jinja_env.filters['formation_label'] = formation_label
-
-def default_steps_for(formation):
-    steps = steps_rules_for_formation(formation)
-    return [{"name": s["name"], "done": False, "done_at": None} for s in steps]
-
-
-# -----------------------
-# Statuts / √©ch√©ances
-# -----------------------
-def _rule_for(formation, step_index):
-    rules = steps_rules_for_formation(formation)
-
-    # ‚úÖ Protection anti IndexError
-    if step_index < 0 or step_index >= len(rules):
-        return None
-
-    return rules[step_index]
-
-
-
-def parse_date(date_str):
-    """Accepte les formats AAAA-MM-JJ ou JJ/MM/AAAA"""
-    if not date_str:
-        return None
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
-        try:
-            return datetime.strptime(date_str, fmt)
-        except ValueError:
-            continue
-    return None
-
-def deadline_for(step_index, session):
-    rule = _rule_for(session["formation"], step_index)
-
-    # ‚úÖ Si cette √©tape a une date personnalis√©e enregistr√©e dans la session ‚Üí priorit√©
-    custom_date = session["steps"][step_index].get("custom_date")
-    if custom_date:
-        return parse_date(custom_date)
-
-    if not rule:
-        return None
-
-    # ‚úÖ Si l‚Äô√©tape a une date fixe ‚Üí on la renvoie directement
-    if "fixed_date" in rule and rule["fixed_date"]:
-        return parse_date(rule["fixed_date"])
-
-    # Sinon on garde le comportement classique (start/exam + offset)
-    base_date = parse_date(session.get("date_exam")) if rule["relative_to"] == "exam" else parse_date(session.get("date_debut"))
-    if not base_date:
-        return None
-    return (base_date - timedelta(days=rule["days"])) if rule["offset_type"] == "before" else (base_date + timedelta(days=rule["days"]))
-
-
-
-def status_for_step(step_index, session, now=None):
-    if now is None:
-        now = datetime.now()
-    dl = deadline_for(step_index, session)
-    if dl is None:
-        return ("n/a", None)
-    step = session["steps"][step_index]
-    if step["done"]:
-        return ("done", dl)
-
-    # --- üîß Correction : tol√©rance r√©elle sur les 24 h ---
-    diff_days = (dl.date() - now.date()).days
-    if diff_days < 0:
-        return ("late", dl)
-    elif diff_days == 0:
-        return ("on_time", dl)
-    elif diff_days == 1:
-        return ("upcoming", dl)  # √©ch√©ance demain ‚Üí "√† venir"
-    else:
-        return ("on_time", dl)
-
-
-
-# ‚úÖ Fonction sp√©ciale pour le template Jinja
-def status_for_step_jinja(i, s):
-    return status_for_step(i, s, now=datetime.now())
-
-def snapshot_overdue(session):
-    overdue = []
-    for i, step in enumerate(session["steps"]):
-        st, dl = status_for_step(i, session)
-        if st == "late":
-            overdue.append((step["name"], dl))
-    overdue.sort(key=lambda x: (x[1] or datetime.max))
-    return overdue
-
-# -----------------------
-# Archivage automatique
-# -----------------------
-def auto_archive_if_all_done(session):
-    session["archived"] = all(step["done"] for step in session["steps"])
-
-# -----------------------
-# Mails & r√©sum√©
-# -----------------------
-def _late_phrase(dl: datetime) -> str:
-    if not dl:
-        return "Retard (date N/A)"
-    days = (datetime.now().date() - dl.date()).days
-    days = max(days, 0)
-    return f"Retard de {days} jour{'s' if days>1 else ''} ({dl.strftime('%d-%m-%Y')})"
-
-def normalize_phone_number(value: str):
-    if not value:
-        return None
-    cleaned = value.replace(" ", "").replace(".", "").replace("-", "").replace("(", "").replace(")", "")
-    if cleaned.startswith("00"):
-        cleaned = "+" + cleaned[2:]
-    elif cleaned.startswith("0"):
-        cleaned = "+33" + cleaned[1:]
-    if not cleaned.startswith("+"):
-        return None
-    return cleaned
-
-def generate_daily_overdue_email(sessions):
-    now_txt = datetime.now().strftime("%d-%m-%Y %H:%M")
-    logo_path = os.path.join("static", "img", "logo-integrale.png")
-    logo_base64 = ""
-    if os.path.exists(logo_path):
-        with open(logo_path, "rb") as f:
-            logo_base64 = base64.b64encode(f.read()).decode("utf-8")
-
-    html = f"""
-    <body style="font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;margin:0;padding:0;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f7f7f7;">
-        <tr>
-          <td align="center" style="padding:20px 10px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.1);">
-              <tr>
-                <td style="background:#121212;color:#fff;padding:20px;text-align:center;">
-                  {('<img src="data:image/png;base64,'+logo_base64+'" alt="Int√©grale Academy" style="width:100%;max-width:250px;height:auto;margin-bottom:10px;border-radius:12px;">') if logo_base64 else ''}
-                  <h1 style="margin:10px 0;font-size:20px;">‚ö†Ô∏è R√©capitulatif des retards ‚Äî Int√©grale Academy</h1>
-                  <div style="font-size:13px;opacity:.9;">{now_txt}</div>
-                </td>
-              </tr>
-
-              <tr>
-                <td style="padding:20px 18px;">
-    """
-
-    found_any = False
-    for s in sessions:
-        # On ignore les sessions archiv√©es dans le mail quotidien
-        # pour √©viter d'afficher d'anciennes formations en doublon.
-        if s.get("archived"):
-            continue
-        overdue = snapshot_overdue(s)
-        if not overdue:
-            continue
-        found_any = True
-        color = FORMATION_COLORS.get(s["formation"], "#999")
-        html += f"""
-          <div style="border:1px solid #eee;border-radius:12px;padding:18px 20px;margin-bottom:18px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;">
-              <div style="background:{color};color:#fff;font-weight:700;border-radius:30px;padding:6px 14px;font-size:14px;letter-spacing:.5px;">{s["formation"]}</div>
-              <div style="font-size:14px;color:#444;margin-top:8px;">
-                <b>D√©but :</b> {format_date(s.get("date_debut","‚Äî"))} &nbsp;&nbsp;
-                <b>Fin :</b> {format_date(s.get("date_fin","‚Äî"))} &nbsp;&nbsp;
-                <b>Examen :</b> {format_date(s.get("date_exam","‚Äî"))}
-              </div>
-            </div>
-            <ul style="margin:12px 0 0 18px;padding:0;color:#333;font-size:15px;line-height:1.6;">
-        """
-        for name, dl in overdue:
-            html += f"<li style='margin-bottom:4px;list-style:none;'>üî∏ {name} ‚Äî {_late_phrase(dl)}</li>"
-        html += "</ul></div>"
-
-    if not found_any:
-        html += "<p style='text-align:center;font-size:15px;color:#444;margin:20px 0;'>‚úÖ Aucun retard √† signaler aujourd‚Äôhui.</p>"
-
-    html += """
-                </td>
-              </tr>
-              <tr>
-                <td style="background:#fafafa;text-align:center;padding:14px;font-size:13px;color:#666;">
-                  Vous recevez ce mail automatiquement chaque matin √† 8h.
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-    """
-    return html
-
-def get_smtp_config():
-    if BREVO_SMTP_KEY:
-        brevo_login = BREVO_SMTP_LOGIN or "apikey"
-        return {
-            "server": BREVO_SMTP_SERVER,
-            "port": BREVO_SMTP_PORT,
-            "login": brevo_login,
-            "password": BREVO_SMTP_KEY,
-            "from_email": BREVO_FROM_EMAIL or FROM_EMAIL or BREVO_SMTP_LOGIN,
-        }
-    return {
-        "server": SMTP_SERVER,
-        "port": SMTP_PORT,
-        "login": FROM_EMAIL,
-        "password": EMAIL_PASSWORD,
-        "from_email": FROM_EMAIL,
-    }
-
-def send_daily_overdue_summary():
-    smtp_config = get_smtp_config()
-    if not smtp_config["login"] or not smtp_config["password"]:
-        print("‚ö†Ô∏è EMAIL non configur√©")
-        return
-    data = load_sessions()
-    sessions = data["sessions"]
-    html = generate_daily_overdue_email(sessions)
-    msg = MIMEText(html, "html", _charset="utf-8")
-    msg["Subject"] = "‚ö†Ô∏è R√©capitulatif des retards ‚Äî Int√©grale Academy"
-    msg["From"] = smtp_config["from_email"]
-    msg["To"] = "clement@integraleacademy.com"
-    try:
-        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-            server.starttls()
-            server.login(smtp_config["login"], smtp_config["password"])
-            server.sendmail(smtp_config["from_email"], ["clement@integraleacademy.com"], msg.as_string())
-        print("‚úÖ Mail quotidien envoy√© avec succ√®s")
-    except Exception as e:
-        print("‚ùå Erreur envoi mail quotidien :", e)
-
-
-def _list_formateur_expired_documents(formateurs):
-    today = datetime.now().date()
-    expired_docs = []
-
-    for formateur in formateurs:
-        nom = (formateur.get("nom") or "").upper().strip()
-        prenom = (formateur.get("prenom") or "").strip()
-        full_name = f"{prenom} {nom}".strip()
-
-        for doc in formateur.get("documents", []):
-            exp_str = (doc.get("expiration") or "").strip()
-            if not exp_str:
-                continue
-
-            exp_dt = parse_date(exp_str)
-            if not exp_dt or exp_dt.date() > today:
-                continue
-
-            # Une seule alerte par document et par date d'expiration
-            if doc.get("expiration_alert_sent_for") == exp_str:
-                continue
-
-            expired_docs.append({
-                "formateur_id": formateur.get("id"),
-                "formateur_nom": full_name,
-                "label": doc.get("label", "Document"),
-                "expiration": exp_str,
-                "doc": doc,
-            })
-
-    return expired_docs
-
-
-def send_formateur_expiration_alerts():
-    smtp_config = get_smtp_config()
-    if not smtp_config["login"] or not smtp_config["password"]:
-        print("‚ö†Ô∏è SMTP non configur√© pour les alertes formateurs")
-        return 0
-
-    formateurs = load_formateurs()
-    expired_docs = _list_formateur_expired_documents(formateurs)
-    if not expired_docs:
-        return 0
-
-    html_items = ""
-    for item in expired_docs:
-        html_items += (
-            f"<li><b>{item['formateur_nom'] or 'Formateur sans nom'}</b> ‚Äî "
-            f"{item['label']} (expiration : {format_date(item['expiration'])})</li>"
-        )
-
-    now_txt = datetime.now().strftime("%d-%m-%Y %H:%M")
-    html = f"""
-    <div style=\"font-family:Arial,Helvetica,sans-serif;color:#222;line-height:1.5;\">
-      <h2 style=\"margin-bottom:8px;\">‚ö†Ô∏è Documents formateurs expir√©s</h2>
-      <p style=\"margin-top:0;\">D√©tection automatique du {now_txt}.</p>
-      <p>Les documents suivants sont arriv√©s √† expiration :</p>
-      <ul>{html_items}</ul>
-    </div>
-    """
-
-    msg = MIMEText(html, "html", _charset="utf-8")
-    msg["Subject"] = "‚ö†Ô∏è Alerte expiration documents formateurs"
-    msg["From"] = smtp_config["from_email"]
-    msg["To"] = "clement@integraleacademy.com"
-
-    try:
-        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-            server.starttls()
-            server.login(smtp_config["login"], smtp_config["password"])
-            server.sendmail(
-                smtp_config["from_email"],
-                ["clement@integraleacademy.com"],
-                msg.as_string(),
-            )
-
-        for item in expired_docs:
-            item["doc"]["expiration_alert_sent_for"] = item["expiration"]
-            item["doc"]["expiration_alert_sent_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        save_formateurs(formateurs)
-
-        print(f"‚úÖ Alertes expiration formateurs envoy√©es ({len(expired_docs)} document(s))")
-        return len(expired_docs)
-    except Exception as e:
-        print("‚ùå Erreur envoi alertes expiration formateurs :", e)
-        return 0
-
-
-def build_jury_invitation_html(session, jury, yes_url, no_url):
-    formation = formation_label(session.get("formation", "‚Äî"))
-    date_exam = format_date(session.get("date_exam", "‚Äî"))
-    full_name = f"{jury.get('prenom','').strip()} {jury.get('nom','').strip()}".strip()
-    return f"""
-    <div style="font-family:Arial,Helvetica,sans-serif;color:#222;line-height:1.6;">
-      <p>Bonjour{',' if full_name else ''} {full_name}</p>
-      <p>
-        Nous vous proposons d'intervenir en tant que membre de jury de notre session
-        <strong>{formation}</strong>, le <strong>{date_exam}</strong>.
-      </p>
-      <p>Pourriez-vous svp me confirmer votre pr√©sence pour cet examen ?</p>
-      <div style="margin:20px 0;">
-        <a href="{yes_url}" style="display:inline-block;background:#2a9134;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:600;margin-right:10px;">
-          JE CONFIRME MA PRESENCE
-        </a>
-        <a href="{no_url}" style="display:inline-block;background:#c0392b;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:600;">
-          JE NE SERAI PAS DISPONIBLE A CETTE DATE
-        </a>
-      </div>
-      <p>Merci par avance,</p>
-      <p style="margin-top:10px;">
-        Cl√©ment VAILLANT<br>
-        Int√©grale Academy
-      </p>
-    </div>
-    """
-
-
-def send_jury_invitation_email(session, jury, yes_url, no_url):
-    to_email = jury.get("email", "").strip()
-    if not to_email:
-        print("[jury email] Email jury manquant")
-        return False, "Email jury manquant"
-    html = build_jury_invitation_html(session, jury, yes_url, no_url)
-    if BREVO_API_KEY and (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
-        print("[jury email] Envoi via Brevo API")
-        sender_email = BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL
-        sender_name = BREVO_SENDER_NAME or "Int√©grale Academy"
-        payload = json.dumps({
-            "sender": {"email": sender_email, "name": sender_name},
-            "to": [{"email": to_email}],
-            "subject": f"Invitation jury ‚Äî Session {session.get('formation', 'Formation')}",
-            "htmlContent": html,
-        }).encode("utf-8")
-        request_obj = urllib.request.Request("https://api.brevo.com/v3/smtp/email")
-        request_obj.add_header("Content-Type", "application/json")
-        request_obj.add_header("api-key", BREVO_API_KEY)
-        try:
-            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
-                if 200 <= response.status < 300:
-                    print("[jury email] Brevo API OK", response.status)
-                    return True, "Email envoy√©"
-                body = response.read().decode("utf-8")
-                print("[jury email] Brevo API erreur", response.status, body)
-                return False, f"Erreur email: {response.status} {body}"
-        except Exception as e:
-            print("[jury email] Brevo API exception", e)
-            return False, f"Erreur email: {e}"
-    if BREVO_API_KEY and not (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
-        print("[jury email] Brevo API configur√©e mais exp√©diteur manquant")
-
-    smtp_config = get_smtp_config()
-    if not smtp_config["login"] or not smtp_config["password"]:
-        print("[jury email] SMTP non configur√©", {
-            "server": smtp_config["server"],
-            "login_set": bool(smtp_config["login"]),
-            "password_set": bool(smtp_config["password"]),
-            "from_set": bool(smtp_config["from_email"]),
-        })
-        return False, "EMAIL non configur√©"
-    msg = MIMEText(html, "html", _charset="utf-8")
-    msg["Subject"] = f"Invitation jury ‚Äî Session {session.get('formation', 'Formation')}"
-    msg["From"] = smtp_config["from_email"]
-    msg["To"] = to_email
-    try:
-        print("[jury email] Envoi via SMTP", {
-            "server": smtp_config["server"],
-            "port": smtp_config["port"],
-            "from": smtp_config["from_email"],
-            "to": to_email,
-        })
-        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-            server.starttls()
-            server.login(smtp_config["login"], smtp_config["password"])
-            server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
-        print("[jury email] SMTP OK")
-        return True, "Email envoy√©"
-    except Exception as e:
-        print("[jury email] SMTP exception", e)
-        return False, f"Erreur email: {e}"
-
-
-def send_jury_sms(session, jury, yes_url, no_url):
-    to_number = jury.get("telephone", "").strip()
-    if not to_number:
-        print("[jury sms] T√©l√©phone jury manquant")
-        return False, "T√©l√©phone jury manquant"
-    normalized_number = normalize_phone_number(to_number)
-    if not normalized_number:
-        print("[jury sms] T√©l√©phone jury invalide", to_number)
-        return False, "T√©l√©phone jury au format international requis (ex: +336...)"
-    formation = formation_label(session.get("formation", "‚Äî"))
-    date_exam = format_date(session.get("date_exam", "‚Äî"))
-    message = (
-        "Bonjour,\n\n"
-        f"Nous vous proposons d'intervenir en tant que membre de jury de notre session {formation}, le {date_exam}.\n\n"
-        "Pourriez-vous svp me confirmer votre pr√©sence pour cet examen ?\n"
-        f"JE CONFIRME MA PRESENCE: {yes_url}\n"
-        f"JE NE SERAI PAS DISPONIBLE A CETTE DATE: {no_url}\n\n"
-        "Merci par avance,\n"
-        "Cl√©ment VAILLANT\n"
-        "Int√©grale Academy"
-    )
-
-    if BREVO_API_KEY and BREVO_SMS_SENDER:
-        print("[jury sms] Envoi via Brevo API")
-        payload = json.dumps({
-            "sender": BREVO_SMS_SENDER,
-            "recipient": normalized_number,
-            "content": message,
-            "type": "transactional",
-        }).encode("utf-8")
-        request_obj = urllib.request.Request("https://api.brevo.com/v3/transactionalSMS/sms")
-        request_obj.add_header("Content-Type", "application/json")
-        request_obj.add_header("api-key", BREVO_API_KEY)
-        try:
-            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
-                if 200 <= response.status < 300:
-                    print("[jury sms] Brevo API OK", response.status)
-                    return True, "SMS envoy√©"
-                body = response.read().decode("utf-8")
-                print("[jury sms] Brevo API erreur", response.status, body)
-                return False, f"Erreur SMS: {response.status} {body}"
-        except Exception as e:
-            print("[jury sms] Brevo API exception", e)
-            return False, f"Erreur SMS: {e}"
-    elif BREVO_API_KEY and not BREVO_SMS_SENDER:
-        print("[jury sms] Brevo API configur√©e mais sender manquant")
-        return False, "SMS non configur√©: BREVO_SMS_SENDER manquant"
-
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_number = os.environ.get("TWILIO_FROM_NUMBER")
-    if not account_sid or not auth_token or not from_number:
-        print("[jury sms] Twilio non configur√©", {
-            "account_sid_set": bool(account_sid),
-            "auth_token_set": bool(auth_token),
-            "from_number_set": bool(from_number),
-        })
-        return False, "SMS non configur√©"
-    payload = urllib.parse.urlencode({
-        "From": from_number,
-        "To": normalized_number,
-        "Body": message
-    }).encode("utf-8")
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
-    request_obj = urllib.request.Request(url, data=payload, method="POST")
-    auth_header = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("utf-8")
-    request_obj.add_header("Authorization", f"Basic {auth_header}")
-    try:
-        print("[jury sms] Envoi via Twilio", {"from": from_number, "to": normalized_number})
-        with urllib.request.urlopen(request_obj, timeout=10) as response:
-            if 200 <= response.status < 300:
-                print("[jury sms] Twilio OK", response.status)
-                return True, "SMS envoy√©"
-            print("[jury sms] Twilio erreur", response.status)
-            return False, f"Erreur SMS: {response.status}"
-    except Exception as e:
-        print("[jury sms] Twilio exception", e)
-        return False, f"Erreur SMS: {e}"
-
-def build_jury_reminder_html(session, jury, yes_url, no_url):
-    formation = formation_label(session.get("formation", "Formation"))
-    date_exam = format_date(session.get("date_exam", ""))
-    full_name = f"{jury.get('prenom','').strip()} {jury.get('nom','').strip()}".strip()
-    return f"""
-    <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#222;">
-      <h2>Rappel : jury d'examen</h2>
-      <p>Bonjour {full_name or "membre du jury"},</p>
-      <p>
-        Petit rappel concernant votre participation au jury de la session
-        <strong>{formation}</strong> pr√©vue le <strong>{date_exam}</strong>.
-      </p>
-      <p>Merci de confirmer votre pr√©sence :</p>
-      <p>
-        <a href="{yes_url}" style="background:#2a9134;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;margin-right:8px;">‚úÖ Pr√©sent</a>
-        <a href="{no_url}" style="background:#c0392b;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">‚ùå Absent</a>
-      </p>
-      <p>Merci pour votre retour.</p>
-    </div>
-    """
-
-def send_jury_reminder_email(session, jury, yes_url, no_url):
-    to_email = jury.get("email", "").strip()
-    if not to_email:
-        print("[jury reminder email] Email jury manquant")
-        return False, "Email jury manquant"
-    html = build_jury_reminder_html(session, jury, yes_url, no_url)
-    if BREVO_API_KEY and (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
-        print("[jury reminder email] Envoi via Brevo API")
-        sender_email = BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL
-        sender_name = BREVO_SENDER_NAME or "Int√©grale Academy"
-        payload = json.dumps({
-            "sender": {"email": sender_email, "name": sender_name},
-            "to": [{"email": to_email}],
-            "subject": f"Rappel jury ‚Äî Session {session.get('formation', 'Formation')}",
-            "htmlContent": html,
-        }).encode("utf-8")
-        request_obj = urllib.request.Request("https://api.brevo.com/v3/smtp/email")
-        request_obj.add_header("Content-Type", "application/json")
-        request_obj.add_header("api-key", BREVO_API_KEY)
-        try:
-            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
-                if 200 <= response.status < 300:
-                    print("[jury reminder email] Brevo API OK", response.status)
-                    return True, "Email rappel envoy√©"
-                body = response.read().decode("utf-8")
-                print("[jury reminder email] Brevo API erreur", response.status, body)
-                return False, f"Erreur email: {response.status} {body}"
-        except Exception as e:
-            print("[jury reminder email] Brevo API exception", e)
-            return False, f"Erreur email: {e}"
-    if BREVO_API_KEY and not (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL):
-        print("[jury reminder email] Brevo API configur√©e mais exp√©diteur manquant")
-
-    smtp_config = get_smtp_config()
-    if not smtp_config["login"] or not smtp_config["password"]:
-        print("[jury reminder email] SMTP non configur√©", {
-            "server": smtp_config["server"],
-            "login_set": bool(smtp_config["login"]),
-            "password_set": bool(smtp_config["password"]),
-            "from_set": bool(smtp_config["from_email"]),
-        })
-        return False, "EMAIL non configur√©"
-    msg = MIMEText(html, "html", _charset="utf-8")
-    msg["Subject"] = f"Rappel jury ‚Äî Session {session.get('formation', 'Formation')}"
-    msg["From"] = smtp_config["from_email"]
-    msg["To"] = to_email
-    try:
-        print("[jury reminder email] Envoi via SMTP", {
-            "server": smtp_config["server"],
-            "port": smtp_config["port"],
-            "from": smtp_config["from_email"],
-            "to": to_email,
-        })
-        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-            server.starttls()
-            server.login(smtp_config["login"], smtp_config["password"])
-            server.sendmail(smtp_config["from_email"], [to_email], msg.as_string())
-        print("[jury reminder email] SMTP OK")
-        return True, "Email rappel envoy√©"
-    except Exception as e:
-        print("[jury reminder email] SMTP exception", e)
-        return False, f"Erreur email: {e}"
-
-def send_jury_reminder_sms(session, jury, yes_url, no_url):
-    to_number = jury.get("telephone", "").strip()
-    if not to_number:
-        print("[jury reminder sms] T√©l√©phone jury manquant")
-        return False, "T√©l√©phone jury manquant"
-    normalized_number = normalize_phone_number(to_number)
-    if not normalized_number:
-        print("[jury reminder sms] T√©l√©phone jury invalide", to_number)
-        return False, "T√©l√©phone jury au format international requis (ex: +336...)"
-    formation = formation_label(session.get("formation", "‚Äî"))
-    date_exam = format_date(session.get("date_exam", "‚Äî"))
-    message = (
-        f"Rappel jury {formation} du {date_exam}. "
-        f"Pr√©sent: {yes_url} / Absent: {no_url}"
-    )
-
-    if BREVO_API_KEY and BREVO_SMS_SENDER:
-        print("[jury reminder sms] Envoi via Brevo API")
-        payload = json.dumps({
-            "sender": BREVO_SMS_SENDER,
-            "recipient": normalized_number,
-            "content": message,
-            "type": "transactional",
-        }).encode("utf-8")
-        request_obj = urllib.request.Request("https://api.brevo.com/v3/transactionalSMS/sms")
-        request_obj.add_header("Content-Type", "application/json")
-        request_obj.add_header("api-key", BREVO_API_KEY)
-        try:
-            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
-                if 200 <= response.status < 300:
-                    print("[jury reminder sms] Brevo API OK", response.status)
-                    return True, "SMS rappel envoy√©"
-                body = response.read().decode("utf-8")
-                print("[jury reminder sms] Brevo API erreur", response.status, body)
-                return False, f"Erreur SMS: {response.status} {body}"
-        except Exception as e:
-            print("[jury reminder sms] Brevo API exception", e)
-            return False, f"Erreur SMS: {e}"
-    elif BREVO_API_KEY and not BREVO_SMS_SENDER:
-        print("[jury reminder sms] Brevo API configur√©e mais sender manquant")
-        return False, "SMS non configur√©: BREVO_SMS_SENDER manquant"
-
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_number = os.environ.get("TWILIO_FROM_NUMBER")
-    if not account_sid or not auth_token or not from_number:
-        print("[jury reminder sms] Twilio non configur√©", {
-            "account_sid_set": bool(account_sid),
-            "auth_token_set": bool(auth_token),
-            "from_number_set": bool(from_number),
-        })
-        return False, "SMS non configur√©"
-    payload = urllib.parse.urlencode({
-        "From": from_number,
-        "To": normalized_number,
-        "Body": message
-    }).encode("utf-8")
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
-    request_obj = urllib.request.Request(url, data=payload, method="POST")
-    auth_header = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("utf-8")
-    request_obj.add_header("Authorization", f"Basic {auth_header}")
-    try:
-        print("[jury reminder sms] Envoi via Twilio", {"from": from_number, "to": normalized_number})
-        with urllib.request.urlopen(request_obj, timeout=10) as response:
-            if 200 <= response.status < 300:
-                print("[jury reminder sms] Twilio OK", response.status)
-                return True, "SMS rappel envoy√©"
-            print("[jury reminder sms] Twilio erreur", response.status)
-            return False, f"Erreur SMS: {response.status}"
-    except Exception as e:
-        print("[jury reminder sms] Twilio exception", e)
-        return False, f"Erreur SMS: {e}"
-
-def send_jury_reminders(data, base_url):
-    today = datetime.now().date()
-    reminded = []
-    for session in data.get("sessions", []):
-        if session.get("archived"):
-            continue
-        ensure_jury_defaults(session)
-        date_exam = parse_date(session.get("date_exam"))
-        if not date_exam:
-            continue
-        if (date_exam.date() - today).days != 5:
-            continue
-        for jury in session.get("jurys", []):
-            if jury.get("status") in ("present", "absent"):
-                continue
-            if jury.get("reminded_at"):
-                continue
-            token = jury.get("token") or str(uuid.uuid4())
-            jury["token"] = token
-            yes_url = f"{base_url}{url_for('jury_response', sid=session['id'], jid=jury['id'], response='present')}?token={token}"
-            no_url = f"{base_url}{url_for('jury_response', sid=session['id'], jid=jury['id'], response='absent')}?token={token}"
-            email_ok, _ = send_jury_reminder_email(session, jury, yes_url, no_url)
-            sms_ok, _ = send_jury_reminder_sms(session, jury, yes_url, no_url)
-            if email_ok or sms_ok:
-                jury["reminded_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                reminded.append(f"{jury.get('prenom','')} {jury.get('nom','')}")
-    return reminded
-
-# ------------------------------------------------------------
-# üîê Authentification simple pour la pr√©fecture (HTTP Basic)
-# ------------------------------------------------------------
-from functools import wraps
-from flask import request, Response
-
-def pref_auth_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or not (auth.username == "prefecture" and auth.password == "pref2025"):
-            return Response(
-                "Acc√®s r√©serv√© √† la pr√©fecture.\n",
-                401,
-                {"WWW-Authenticate": 'Basic realm="Acc√®s Pr√©fecture"'}
-            )
-        return f(*args, **kwargs)
-    return decorated
-
-# ------------------------------------------------------------
-# üìã R√©sum√© conformit√© globale formateurs (pour l'index)
-# ------------------------------------------------------------
-def get_formateurs_global_non_conformites():
-    formateurs = load_formateurs()
-    total_non_conformes = 0
-
-    for f in formateurs:
-        for doc in f.get("documents", []):
-            auto_update_document_status(doc)
-            if doc.get("status") in ("non_conforme", "a_controler"):
-                total_non_conformes += 1
-
-
-    return total_non_conformes
-
-
-
-
-# -----------------------
-# Routes principales
-# -----------------------
-@app.route("/")
-def index():
-    nb_non_conformes = get_formateurs_global_non_conformites()
-
-    return render_template(
-        "index.html",
-        title="Plateforme de gestion Int√©grale Academy",
-        formateurs_non_conformes=nb_non_conformes,
-        shortcuts=load_shortcuts()
-    )
-
-
-@app.route("/shortcuts", methods=["GET"])
-def shortcuts_data():
-    return jsonify(load_shortcuts())
-
-
-@app.route("/stagiaires/docs-to-control.json")
-def stagiaires_docs_to_control():
-    now = time.monotonic()
-    with _stagiaires_docs_cache_lock:
-        cached_payload = _stagiaires_docs_cache["payload"]
-        retry_after = _stagiaires_docs_cache["retry_after"]
-
-    if now < retry_after:
-        if cached_payload is not None:
-            return jsonify(stagiaires_docs_response(cached_payload, stale=True))
-        return jsonify({
-            "ok": False,
-            "pending_count": None,
-            "items": [],
-            "error": "Donn√©es dossiers stagiaires temporairement indisponibles",
-        })
-
-    try:
-        payload = fetch_json_url(
-            STAGIAIRES_DOCS_TO_CONTROL_URL,
-            headers=stagiaires_docs_request_headers(),
-        )
-        if not isinstance(payload, dict) or payload.get("ok") is False:
-            raise ValueError("R√©ponse dossiers stagiaires invalide")
-    except (OSError, ValueError, TimeoutError, json.JSONDecodeError) as exc:
-        logger.warning("Impossible de r√©cup√©rer les dossiers stagiaires: %s", exc)
-        with _stagiaires_docs_cache_lock:
-            _stagiaires_docs_cache["retry_after"] = now + STAGIAIRES_DOCS_RETRY_SECONDS
-            cached_payload = _stagiaires_docs_cache["payload"]
-        if cached_payload is not None:
-            return jsonify(stagiaires_docs_response(cached_payload, stale=True))
-        return jsonify({
-            "ok": False,
-            "pending_count": None,
-            "items": [],
-            "error": "Donn√©es dossiers stagiaires indisponibles",
-        })
-
-    with _stagiaires_docs_cache_lock:
-        _stagiaires_docs_cache["payload"] = payload
-        _stagiaires_docs_cache["retry_after"] = 0.0
-    return jsonify(stagiaires_docs_response(payload))
-
-
-@app.route("/shortcut-images/<path:filename>")
-def shortcut_image(filename):
-    return send_from_directory(SHORTCUT_UPLOAD_DIR, filename)
-
-
-@app.route("/shortcuts", methods=["POST"])
-def create_shortcut():
-    name = (request.form.get("name") or "").strip()
-    url = (request.form.get("url") or "").strip()
-    image = request.files.get("image")
-
-    if not name or not url:
-        return jsonify({"ok": False, "error": "Le nom et le lien sont obligatoires."}), 400
-
-    if not (url.startswith("http://") or url.startswith("https://")):
-        return jsonify({"ok": False, "error": "Le lien doit commencer par http:// ou https://"}), 400
-
-    if image is None or not image.filename:
-        return jsonify({"ok": False, "error": "Veuillez importer une image."}), 400
-
-    if not allowed_shortcut_image(image.filename):
-        return jsonify({"ok": False, "error": "Format d'image non pris en charge."}), 400
-
-    ensure_shortcuts_storage()
-    original_name = secure_filename(image.filename)
-    extension = original_name.rsplit(".", 1)[1].lower()
-    filename = f"{uuid.uuid4().hex}.{extension}"
-    image.save(os.path.join(SHORTCUT_UPLOAD_DIR, filename))
-
-    shortcuts = load_shortcuts()
-    shortcut = {
-        "id": uuid.uuid4().hex,
-        "name": name,
-        "url": url,
-        "image": shortcut_image_url(filename)
-    }
-    shortcuts.append(shortcut)
-    save_shortcuts(shortcuts)
-    return jsonify({"ok": True, "shortcut": shortcut}), 201
-
-
-@app.route("/shortcuts/<shortcut_id>", methods=["DELETE"])
-def delete_shortcut(shortcut_id):
-    shortcuts = load_shortcuts()
-    shortcut_to_delete = next((shortcut for shortcut in shortcuts if shortcut.get("id") == shortcut_id), None)
-    remaining = [shortcut for shortcut in shortcuts if shortcut.get("id") != shortcut_id]
-
-    if len(remaining) == len(shortcuts):
-        return jsonify({"ok": False, "error": "Raccourci introuvable."}), 404
-
-    if shortcut_to_delete:
-        image_path = shortcut_to_delete.get("image") or ""
-        filename = os.path.basename(urllib.parse.urlparse(image_path).path)
-        if filename:
-            stored_image_path = os.path.join(SHORTCUT_UPLOAD_DIR, filename)
-            if os.path.exists(stored_image_path):
-                os.remove(stored_image_path)
-
-    save_shortcuts(remaining)
-    return jsonify({"ok": True})
-
-
-@app.route("/general-tools")
-def general_tools():
-    return render_template("general_tools.html", title="Outils g√©n√©raux")
-
-
-@app.route("/price-adaptator")
-def price_adaptator():
-    return render_template("price_adaptator.html", title="Price adaptator")
-
-
-@app.route("/price-adaptator/data")
-def price_adaptator_data():
-    data = load_price_adaptator_data()
-    return {"prospects": data.get("prospects", []), "dates": data.get("dates", {})}
-
-
-@app.route("/price-adaptator/prospects", methods=["POST"])
-def price_adaptator_add_prospect():
-    payload = request.get_json(silent=True) or {}
-    nom = normalize_price_adaptator_nom(payload.get("nom"))
-    prenom = normalize_price_adaptator_prenom(payload.get("prenom"))
-    cpf = payload.get("cpf")
-    email = (payload.get("email", "") or "").strip()
-    telephone = (payload.get("telephone", "") or "").strip()
-    formation = (payload.get("formation", "") or "").strip()
-
-    if not (nom and prenom and formation):
-        return {"ok": False, "error": "Donn√©es prospect incompl√®tes"}, 400
-
-    try:
-        cpf_value = float(cpf)
-        if cpf_value < 0:
-            raise ValueError
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "Montant CPF invalide"}, 400
-
-    data = load_price_adaptator_data()
-    prospect = {
-        "id": str(uuid.uuid4()),
-        "nom": nom,
-        "prenom": prenom,
-        "cpf": cpf_value,
-        "email": email,
-        "telephone": telephone,
-        "formation": formation,
-        "sent": False,
-        "sentAt": None,
-        "proposed_price": None,
-        "last_error": None,
-        "last_attempt_at": None,
-        "created_at": datetime.now().isoformat(),
-    }
-    data["prospects"].insert(0, prospect)
-    save_price_adaptator_data(data)
-    return {"ok": True, "prospects": data["prospects"]}
-
-
-@app.route("/price-adaptator/prospects/<prospect_id>", methods=["DELETE"])
-def price_adaptator_delete_prospect(prospect_id):
-    data = load_price_adaptator_data()
-    prospects = data.get("prospects", [])
-    updated = [prospect for prospect in prospects if prospect.get("id") != prospect_id]
-    if len(updated) == len(prospects):
-        return {"ok": False, "error": "Prospect introuvable"}, 404
-    data["prospects"] = updated
-    save_price_adaptator_data(data)
-    return {"ok": True, "prospects": data["prospects"]}
-
-
-@app.route("/price-adaptator/prospects", methods=["DELETE"])
-def price_adaptator_clear_prospects():
-    data = load_price_adaptator_data()
-    data["prospects"] = []
-    save_price_adaptator_data(data)
-    return {"ok": True, "prospects": data["prospects"]}
-
-
-@app.route("/price-adaptator/import", methods=["POST"])
-def price_adaptator_import():
-    upload = request.files.get("file")
-    if not upload or not upload.filename:
-        return {"ok": False, "error": "Fichier Excel manquant"}, 400
-
-    try:
-        from openpyxl import load_workbook
-    except ImportError:
-        return {"ok": False, "error": "La biblioth√®que openpyxl est manquante"}, 500
-
-    try:
-        workbook = load_workbook(filename=BytesIO(upload.read()), data_only=True)
-    except Exception:
-        return {"ok": False, "error": "Impossible de lire le fichier Excel"}, 400
-
-    sheet = workbook.active
-    data = load_price_adaptator_data()
-    prospects = data.get("prospects", [])
-
-    existing_emails = {p.get("email", "").strip().lower() for p in prospects if p.get("email")}
-    existing_phones = set()
-    existing_names = set()
-    for prospect in prospects:
-        normalized_phone = normalize_phone_number((prospect.get("telephone") or "").strip())
-        if normalized_phone:
-            existing_phones.add(normalized_phone)
-        nom = normalize_price_adaptator_nom(prospect.get("nom")).lower()
-        prenom = normalize_price_adaptator_prenom(prospect.get("prenom")).lower()
-        formation = (prospect.get("formation") or "").strip()
-        if nom and prenom and formation:
-            existing_names.add((nom, prenom, formation))
-
-    added_prospects = []
-    seen_emails = set()
-    seen_phones = set()
-    seen_names = set()
-    skipped = 0
-    errors = []
-
-    def normalize_import_phone(raw_value):
-        if raw_value is None:
-            return ""
-        value = str(raw_value).strip()
-        if not value:
-            return ""
-        if value.startswith("+") or value.startswith("00") or value.startswith("0"):
-            return value
-        return f"0{value}"
-
-    for idx, row in enumerate(sheet.iter_rows(values_only=True), start=1):
-        values = list(row[:6]) if row else []
-        values += [None] * (6 - len(values))
-        formation_raw, nom, prenom, cpf, email, telephone = values
-        if not any([formation_raw, nom, prenom, cpf, email, telephone]):
-            continue
-
-        formation = normalize_price_adaptator_formation(formation_raw)
-        if not formation:
-            errors.append(f"Ligne {idx}: formation invalide")
-            continue
-
-        nom_value = normalize_price_adaptator_nom(nom)
-        prenom_value = normalize_price_adaptator_prenom(prenom)
-        if not nom_value or not prenom_value:
-            errors.append(f"Ligne {idx}: nom/pr√©nom manquants")
-            continue
-
-        if cpf is None or (isinstance(cpf, str) and not cpf.strip()):
-            cpf_value = 0.0
-        else:
-            try:
-                cpf_value = float(cpf)
-                if cpf_value < 0:
-                    raise ValueError
-            except (TypeError, ValueError):
-                errors.append(f"Ligne {idx}: montant CPF invalide")
-                continue
-        formation_price = PRICE_ADAPTATOR_FORMATION_PRICES.get(formation)
-        if formation_price is not None and cpf_value > formation_price:
-            skipped += 1
-            errors.append(
-                f"Ligne {idx}: montant CPF sup√©rieur au montant de la formation"
-            )
-            continue
-
-        email_value = str(email).strip() if email is not None else ""
-        email_key = email_value.lower() if email_value else ""
-        telephone_value = normalize_import_phone(telephone)
-        phone_key = normalize_phone_number(telephone_value) or ""
-
-        name_key = (nom_value.lower(), prenom_value.lower(), formation)
-
-        if (
-            (email_key and (email_key in existing_emails or email_key in seen_emails))
-            or (phone_key and (phone_key in existing_phones or phone_key in seen_phones))
-            or (name_key in existing_names or name_key in seen_names)
-        ):
-            skipped += 1
-            errors.append(f"Ligne {idx}: prospect d√©j√† existant")
-            continue
-
-        prospect = {
-            "id": str(uuid.uuid4()),
-            "nom": nom_value,
-            "prenom": prenom_value,
-            "cpf": cpf_value,
-            "email": email_value,
-            "telephone": telephone_value,
-            "formation": formation,
-            "sent": False,
-            "sentAt": None,
-            "proposed_price": None,
-            "last_error": None,
-            "last_attempt_at": None,
-            "created_at": datetime.now().isoformat(),
-        }
-        added_prospects.append(prospect)
-        if email_key:
-            seen_emails.add(email_key)
-        if phone_key:
-            seen_phones.add(phone_key)
-        seen_names.add(name_key)
-
-    if added_prospects:
-        data["prospects"] = added_prospects[::-1] + prospects
-        save_price_adaptator_data(data)
-
-    return {
-        "ok": True,
-        "added": len(added_prospects),
-        "skipped": skipped,
-        "errors": errors,
-        "prospects": data.get("prospects", prospects),
-    }
-
-
-@app.route("/price-adaptator/dates", methods=["POST"])
-def price_adaptator_save_dates():
-    payload = request.get_json(silent=True) or {}
-    dates = payload.get("dates", {})
-    data = load_price_adaptator_data()
-    cleaned = {}
-    for formation, range_data in (dates or {}).items():
-        if not isinstance(range_data, dict):
-            continue
-        cleaned[formation] = {
-            "start": range_data.get("start"),
-            "end": range_data.get("end"),
-            "discount": normalize_price_adaptator_discount(range_data.get("discount")),
-        }
-    data["dates"] = cleaned
-    save_price_adaptator_data(data)
-    return {"ok": True, "dates": data["dates"]}
-
-
-@app.route("/price-adaptator/prospects/<prospect_id>/proposal", methods=["POST"])
-def price_adaptator_save_proposal(prospect_id):
-    payload = request.get_json(silent=True) or {}
-    price = payload.get("price")
-
-    if price is None:
-        return {"ok": False, "error": "Prix manquant"}, 400
-
-    try:
-        price_value = float(price)
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "Prix invalide"}, 400
-
-    data = load_price_adaptator_data()
-    prospect = next((item for item in data.get("prospects", []) if item.get("id") == prospect_id), None)
-    if not prospect:
-        return {"ok": False, "error": "Prospect introuvable"}, 404
-
-    price_value = normalize_price_adaptator_proposed_price(price_value)
-    prospect["proposed_price"] = price_value
-    save_price_adaptator_data(data)
-
-    return {"ok": True, "prospects": data.get("prospects", [])}
-
-
-@app.route("/price-adaptator/send", methods=["POST"])
-def price_adaptator_send():
-    payload = request.get_json(silent=True) or {}
-    price = payload.get("price")
-    prospect_id = payload.get("prospect_id")
-
-    if price is None:
-        return {"ok": False, "error": "Prix manquant"}, 400
-
-    try:
-        price_value = float(price)
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "Prix invalide"}, 400
-
-    data = load_price_adaptator_data()
-    prospect = next((item for item in data.get("prospects", []) if item.get("id") == prospect_id), None)
-    if not prospect:
-        return {"ok": False, "error": "Prospect introuvable"}, 404
-
-    price_value = normalize_price_adaptator_proposed_price(price_value)
-    result = attempt_price_adaptator_send(prospect, data.get("dates"), price_override=price_value)
-    prospect["last_attempt_at"] = datetime.now().isoformat()
-    prospect["last_error"] = result["email_error"] or result["sms_error"]
-    prospect["proposed_price"] = result["price"]
-    prospect["manual_sent"] = True
-    prospect["manualSentAt"] = datetime.now().isoformat()
-    if result["email_sent"] or result["sms_sent"]:
-        prospect["sent"] = True
-        prospect["sentAt"] = datetime.now().isoformat()
-        prospect["last_sent_price"] = result["price"]
-    save_price_adaptator_data(data)
-
-    return {
-        "ok": True,
-        "email_sent": result["email_sent"],
-        "sms_sent": result["sms_sent"],
-        "email_error": result["email_error"],
-        "sms_error": result["sms_error"],
-        "prospects": data.get("prospects", []),
-    }
-
-
-@app.route("/price-adaptator/prospects/<prospect_id>/preview")
-def price_adaptator_preview(prospect_id):
-    data = load_price_adaptator_data()
-    prospect = next((item for item in data.get("prospects", []) if item.get("id") == prospect_id), None)
-    if not prospect:
-        return {"ok": False, "error": "Prospect introuvable"}, 404
-
-    price_override = prospect.get("last_sent_price")
-    if price_override is None:
-        price_override = prospect.get("proposed_price")
-    if price_override is not None:
-        price_override = normalize_price_adaptator_proposed_price(price_override)
-
-    message = build_price_adaptator_message(prospect, data.get("dates"), price_override=price_override)
-    return {
-        "ok": True,
-        "subject": message["subject"],
-        "html": message["html"],
-        "sent_at": prospect.get("sentAt"),
-    }
-
-
-@app.route("/sessions")
-def sessions_home():
-    data = load_sessions()
-    # üîÑ Synchronise automatiquement les √©tapes manquantes pour chaque session
-    for s in data["sessions"]:
-        sync_steps(s)
-    save_sessions(data)
-
-    today = datetime.now().date()
-    active = []
-    archived = []
-
-    for s in data["sessions"]:
-        end_date = parse_date(s.get("date_fin"))
-        is_finished = bool(end_date and end_date.date() < today)
-        s["is_finished"] = is_finished
-
-        if s.get("archived") or is_finished:
-            archived.append(s)
-        else:
-            active.append(s)
-
-    for s in data["sessions"]:
-        s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
-
-    # --- DEBUG existant ---
-    print("\n=== DEBUG SESSIONS ===")
-    for s in data["sessions"]:
-        print(f"\nSession: {s['formation']} ({s['date_debut']} ‚Üí {s['date_exam']})")
-        for i, step in enumerate(s["steps"]):
-            st, dl = status_for_step(i, s)
-            if dl:
-                print(f" - {step['name']}: {st} / deadline={dl.strftime('%Y-%m-%d')}")
-            else:
-                print(f" - {step['name']}: {st} / deadline=N/A")
-
-    # --------- üß† On calcule le r√©cap en PYTHON ---------
-    recap_map = {}   # { formation: {"late_steps":[(text,days)], "today_steps":[text]} }
-    total_late = 0
-
-    # On ne prend que les sessions actives (comme avant)
-    for s in active:
-        formation = s.get("formation", "‚Äî")
-        rec = recap_map.setdefault(formation, {"late_steps": [], "today_steps": []})
-
-        for i, step in enumerate(s.get("steps", [])):
-            st, dl = status_for_step(i, s)
-            # late
-            if st == "late" and dl:
-                days = max((today - dl.date()).days, 0)
-                text = f"[{format_date(s.get('date_debut','‚Äî'))}] {step['name']}"
-                rec["late_steps"].append((text, days))
-                total_late += 1
-            # due today
-            elif st == "on_time" and dl and dl.date() == today:
-                text = f"[{format_date(s.get('date_debut','‚Äî'))}] {step['name']}"
-                rec["today_steps"].append(text)
-
-    # On transforme en liste tri√©e par nom de formation pour le template
-    recap_data = []
-    for formation, payload in sorted(recap_map.items(), key=lambda x: x[0]):
-        # trier les retards par nb de jours d√©croissant (les pires d'abord)
-        payload["late_steps"].sort(key=lambda t: t[1], reverse=True)
-        recap_data.append((formation, payload["late_steps"], payload["today_steps"]))
-
-    return render_template(
-        "sessions.html",
-        title="Gestion des sessions",
-        active_sessions=active,
-        archived_sessions=archived,
-        status_for_step=status_for_step_jinja,  # garde pour le d√©tail
-        now=datetime.now,
-        # üëá nouveaux param√®tres pour le r√©cap d√©j√† pr√™t
-        recap_data=recap_data,
-        total_late=total_late,
-        formations=[f for f, *_ in recap_data],
-    )
-
-
-
-@app.route("/sessions/create", methods=["POST"])
-def create_session():
-    formation = request.form.get("formation","").upper().strip()
-    date_debut = request.form.get("date_debut","").strip()
-    date_fin = request.form.get("date_fin","").strip()
-    date_exam = request.form.get("date_exam","").strip()
-    contractual_end_date = request.form.get("contractual_end_date", "").strip()
-    interruptions = request.form.get("interruptions", "").strip()
-    dirigeant_location = request.form.get("dirigeant_location", "").upper().strip()
-    if formation not in FORMATION_COLORS:
-        flash("Formation invalide.","error")
-        return redirect(url_for("sessions_home"))
-    if formation == "DIRIGEANT" and dirigeant_location not in DIRIGEANT_LOCATIONS:
-        flash("Choisissez le site de la session DIRIGEANT : Paris ou Puget.", "error")
-        return redirect(url_for("sessions_home"))
-    sid = str(uuid.uuid4())[:8]
-    session = {
-        "id": sid,
-        "formation": formation,
-        "date_debut": date_debut,
-        "date_fin": date_fin,
-        "date_exam": date_exam,
-        "color": FORMATION_COLORS.get(formation,"#555"),
-        "steps": default_steps_for(formation),
-        "archived": False,
-        "jurys": [],
-        "jury_notification_status": "to_notify",
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    if formation == "AFC_APS_SSIAP":
-        if not date_debut:
-            flash("La date de d√©but est obligatoire pour l'AFC APS + SSIAP.", "error")
-            return redirect(url_for("sessions_home"))
-        if not contractual_end_date:
-            flash("Date de fin obligatoire pour l'AFC APS + SSIAP.", "error")
-            return redirect(url_for("sessions_home"))
-        session["display_name"] = "AFC France Travail APS + SSIAP"
-        session["interruptions"] = interruptions
-        session["training_code"] = "AFC_APS_SSIAP"
-        session["salle"] = "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS"
-        end_dt = parse_date(contractual_end_date)
-        if not end_dt:
-            flash("La date de fin souhait√©e AFC est invalide.", "error")
-            return redirect(url_for("sessions_home"))
-        session["contractual_end_date"] = end_dt.date().isoformat()
-        planning_data = build_afc_aps_ssiap_planning_data(parse_date(date_debut).date(), "", session["salle"], parse_interruption_ranges(interruptions), contractual_end_date=end_dt.date())
-        session["date_fin"] = session["contractual_end_date"]
-        session["date_exam"] = planning_data[-1]["date"]
-        session["apsPlanningData"] = planning_data
-        session["apsPlanningSummary"] = afc_aps_ssiap_summary_from_data(planning_data, parse_interruption_ranges(interruptions), contractual_end_date=end_dt.date())
-        session["apsPlanningMode"] = "full_presentiel"
-        filename = f"planning_afc_aps_ssiap_session_{sid}.pdf"
-        generate_aps_planning_pdf(session, "", os.path.join(PLANNING_DIR, filename), planning_data=planning_data, planning_mode="full_presentiel", document_profile={"validate":"afc_aps_ssiap", "summary": session["apsPlanningSummary"], "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"})
-        session["planning_pdf"] = filename
-        session["planning_generated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if formation == "DIRIGEANT":
-        session["dirigeant_location"] = dirigeant_location
-        session["dirigeant_location_label"] = DIRIGEANT_LOCATIONS[dirigeant_location]
-    data = load_sessions()
-    data["sessions"].append(session)
-    save_sessions(data)
-    return redirect(url_for("session_detail", sid=sid))
-
-@app.route("/sessions/<sid>/afc-detail/print")
-def afc_dsf_detail_print(sid):
-    sess = find_session(load_sessions(), sid)
-    if not sess or not is_afc_aps_ssiap_session(sess):
-        abort(404)
-    return render_template(
-        "afc_dsf_detail_print.html",
-        title="D√©tail des heures par stagiaire",
-        s=sess,
-        generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
-        **afc_dsf_detail_report_context(sess),
-    )
-
-@app.route("/sessions/<sid>/afc-detail/pdf")
-def afc_dsf_detail_pdf(sid):
-    sess = find_session(load_sessions(), sid)
-    if not sess or not is_afc_aps_ssiap_session(sess):
-        abort(404)
-    path = os.path.join(DSF_DIR, f"afc_detail_{sid}.pdf")
-    generate_afc_dsf_detail_report_pdf(sess, path)
-    return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=f"detail-heures-stagiaires-{sid}.pdf")
-
-@app.route("/sessions/<sid>")
-def session_detail(sid):
-    # --- üîê V√©rification acc√®s pr√©fecture si ?key= est pr√©sent ---
-    public_key = request.args.get("key")
-
-    PREF_EMAIL = os.getenv("PREF_EMAIL")
-    PREF_PASSWORD = os.getenv("PREF_PASSWORD")
-
-    if public_key:
-        expected = f"{PREF_EMAIL}:{PREF_PASSWORD}"
-        encoded = base64.b64encode(expected.encode()).decode()
-
-        if public_key != encoded:
-            abort(403)  # acc√®s refus√©
-
-    # --- üîß Chargement session ---
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-
-    ensure_jury_defaults(session)
-    ensure_global_jury_defaults(data)
-    sync_global_jurys(data)
-    sync_steps(session)
-    save_sessions(data)
-
-    statuses = []
-    for i in range(len(session["steps"])):
-        st, dl = status_for_step(i, session)
-        statuses.append({"status": st, "deadline": (dl.strftime("%Y-%m-%d") if dl else None)})
-
-    order = sorted(
-        range(len(session["steps"])),
-        key=lambda i: deadline_for(i, session) or datetime.max
-    )
-
-    auto_archive_if_all_done(session)
-    save_sessions(data)
-
-    return render_template(
-        "session_detail.html",
-        title=f"{session['formation']} ‚Äî D√©tail",
-        s=session,
-        global_jurys=data.get("jurys", []),
-        session_jurys_by_id={j.get("id"): j for j in session.get("jurys", [])},
-        statuses=statuses,
-        order=order,
-        now=datetime.now,
-        planning_pdf=session.get("planning_pdf"),
-        afc_dsf_summary=afc_dsf_summary(session, request.args.get("billingUntil"), request.args.get("periodStart"), request.args.get("periodEnd"), request.args.get("hourlyRate")) if is_afc_aps_ssiap_session(session) else None,
-        afc_dsf_modules=AFC_DSF_MODULES,
-        afc_dsf_money=afc_dsf_money,
-        afc_dsf_hours=afc_dsf_fmt_hours,
-        afc_dsf_next_number=afc_dsf_next_number(session) if is_afc_aps_ssiap_session(session) else None,
-    )
-
-
-
-def generate_afc_dsf_pdf(session_data, dsf, output_path):
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.lib.units import mm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    doc = SimpleDocTemplate(output_path, pagesize=landscape(A4), leftMargin=12*mm, rightMargin=12*mm, topMargin=12*mm, bottomMargin=12*mm)
-    styles = getSampleStyleSheet(); body=[]
-    title = ParagraphStyle('dsfTitle', parent=styles['Title'], textColor=colors.HexColor('#111827'), fontSize=18, leading=22)
-    normal = styles['BodyText']
-    logo = aps_pdf_logo_path()
-    header = []
-    if logo: header.append(Image(logo, width=34*mm, height=16*mm, kind='proportional'))
-    header.append(Paragraph(f"<b>Demande de service fait</b><br/>{dsf['label']}<br/>{session_data.get('display_name') or session_data.get('formation') or AFC_APS_SSIAP_LABEL}<br/>Session {session_data.get('id')} ‚Äî p√©riode du {format_date(dsf['periodStart'])} au {format_date(dsf['periodEnd'])}", title))
-    body.append(Table([header], colWidths=[45*mm, 220*mm] if logo else [265*mm])); body.append(Spacer(1, 8))
-    module_labels = [AFC_DSF_MODULES[m]['label'] for m in dsf['modules']]
-    body.append(Paragraph(f"Modules s√©lectionn√©s : <b>{', '.join(module_labels)}</b><br/>Date de g√©n√©ration : {format_date(dsf.get('createdAt','')[:10])}<br/>{'<b>ANNUL√âE</b>' if dsf.get('status') == AFC_DSF_STATUS_CANCELLED else ''}", normal)); body.append(Spacer(1, 8))
-    total_per_student = sum(dsf['hoursPerStudent'].values())
-    recap = [["Nombre de stagiaires", str(dsf['studentCount']), "Total par stagiaire", f"{total_per_student:g} h", "Total heures-stagiaires", f"{dsf['totalHours']:g} h"]]
-    body.append(Table(recap, colWidths=[42*mm,25*mm,42*mm,25*mm,45*mm,25*mm], style=[('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#f8fafc')),('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#cbd5e1')),('FONTNAME',(0,0),(-1,-1),'Helvetica-Bold'),('PADDING',(0,0),(-1,-1),6)])); body.append(Spacer(1, 10))
-    header_row = ["Nom et pr√©nom"] + module_labels + ["Total"]
-    rows = [header_row]
-    for st in dsf['students']:
-        rows.append([st['displayName']] + [f"{st['modules'].get(m,0):g} h" for m in dsf['modules']] + [f"{st['totalHours']:g} h"])
-    rows.append(["Totaux heures-stagiaires"] + [f"{dsf['moduleTotals'].get(m,0):g} h" for m in dsf['modules']] + [f"{dsf['totalHours']:g} h"])
-    tbl=Table(rows, repeatRows=1, colWidths=[90*mm]+[55*mm]*len(dsf['modules'])+[35*mm])
-    style=[('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#cbd5e1')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#111827')),('TEXTCOLOR',(0,0),(-1,0),colors.white),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('BACKGROUND',(0,-1),(-1,-1),colors.HexColor('#fef3c7')),('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),('ALIGN',(1,1),(-1,-1),'RIGHT'),('PADDING',(0,0),(-1,-1),5)]
-    tbl.setStyle(TableStyle(style)); body.append(tbl); body.append(Spacer(1, 18))
-    body.append(Paragraph("Fait √† : ____________________ &nbsp;&nbsp;&nbsp; Date : ____ / ____ / ______<br/><br/>Nom du responsable : ____________________ &nbsp;&nbsp;&nbsp; Signature et tampon : ____________________<br/><br/>Int√©grale Academy ‚Äî document g√©n√©r√© depuis le planning central AFC. Page <seq id='page'/>", normal))
-    doc.build(body)
-
-
-def generate_afc_dsf_detail_report_pdf(session_data, output_path):
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    ctx = afc_dsf_detail_report_context(session_data)
-    styles = getSampleStyleSheet()
-    title = ParagraphStyle('afcPrintTitle', parent=styles['Title'], fontSize=19, leading=23, textColor=colors.HexColor('#1e3a8a'), alignment=0)
-    h2 = ParagraphStyle('afcStudent', parent=styles['Heading2'], fontSize=12, leading=15, textColor=colors.HexColor('#0f2f66'), spaceAfter=4)
-    small = ParagraphStyle('afcSmall', parent=styles['BodyText'], fontSize=8.5, leading=11, textColor=colors.HexColor('#475569'))
-    normal = ParagraphStyle('afcNormal', parent=styles['BodyText'], fontSize=9, leading=11)
-    doc = SimpleDocTemplate(output_path, pagesize=A4, leftMargin=12*mm, rightMargin=12*mm, topMargin=10*mm, bottomMargin=10*mm)
-    story = [Paragraph('D√©tail des heures par stagiaire', title), Paragraph(f"{session_data.get('display_name') or session_data.get('formation')} ‚Äî Session du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}<br/>G√©n√©r√© le {datetime.now().strftime('%d/%m/%Y %H:%M')}<br/>Suivi des heures pr√©vues, factur√©es et restant √† facturer.", small), Spacer(1, 5)]
-    totals = ctx['totals']
-    recap = [['Stagiaires', len(ctx['summary']['detail']), 'Heures pr√©vues', f"{totals['planned']:g} h", 'Heures factur√©es', f"{totals['billed']:g} h", 'Restant', f"{totals['remaining']:g} h"]]
-    story.append(Table(recap, colWidths=[22*mm,13*mm,26*mm,19*mm,29*mm,19*mm,18*mm,19*mm], style=[('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#d8e0ea')),('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#f8fafc')),('FONTNAME',(0,0),(-1,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8.5),('PADDING',(0,0),(-1,-1),4)]))
-    story += [Spacer(1, 4), Paragraph('L√©gende : <font color="#b91c1c"><b>rouge</b></font> = heures restant √† facturer ¬∑ <font color="#15803d"><b>vert</b></font> = aucune heure restante ¬∑ <font color="#c2410c"><b>orange</b></font> = d√©passement des heures pr√©vues', small), Spacer(1, 6)]
-    for row in ctx['summary']['detail']:
-        badge = f"<font color=\"{'#b91c1c' if row['remainingTotal'] else '#15803d'}\"><b>{(str(round(row['remainingTotal'],2))+' h √† facturer') if row['remainingTotal'] else 'Facturation termin√©e'}</b></font>"
-        block = [Paragraph(f"{row['student']['displayName']} ‚Äî pr√©vu {row['plannedTotal']:.2f} h ¬∑ factur√© {row['billedTotal']:.2f} h ¬∑ restant {row['remainingTotal']:.2f} h ‚Äî {badge}", h2)]
-        rows = [['Module','Pr√©vue','Factur√©e','Restante','Avancement']]
-        for code, meta in ctx['modules'].items():
-            m = row['modules'][code]
-            rest_color = '#b91c1c' if m['remaining'] else '#15803d'
-            rest = f"<font color=\"{rest_color}\"><b>{m['remaining']:g} h</b></font>"
-            if m.get('overbilled'):
-                rest += f"<br/><font color=\"#c2410c\"><b>D√©passement de {m['overbilled']:g} h</b></font>"
-            rows.append([Paragraph(meta['label'], normal), f"{m['planned']:g} h", f"{m['billed']:g} h", Paragraph(rest, normal), f"{m.get('progress',0):g} %"])
-        rows.append(['Total', f"{row['plannedTotal']:.2f} h", f"{row['billedTotal']:.2f} h", f"{row['remainingTotal']:.2f} h", ''])
-        tbl = Table(rows, colWidths=[72*mm,24*mm,25*mm,31*mm,25*mm], repeatRows=1)
-        tbl.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.35,colors.HexColor('#d8e0ea')),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#eef5ff')),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('BACKGROUND',(0,-1),(-1,-1),colors.HexColor('#f8fafc')),('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),('ALIGN',(1,1),(-1,-1),'RIGHT'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('FONTSIZE',(0,0),(-1,-1),8.5),('PADDING',(0,0),(-1,-1),4)]))
-        block += [tbl, Spacer(1, 6)]
-        story.append(KeepTogether(block))
-    doc.build(story)
-
-@app.route('/api/sessions/<sid>/afc-dsf/preview', methods=['POST'])
-def api_afc_dsf_preview(sid):
-    data=load_sessions(); sess=find_session(data,sid)
-    if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
-    payload=request.get_json(silent=True) or {}
-    try:
-        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [], payload.get('hourlyRate'))
-        number = payload.get('dsfNumber') or afc_dsf_next_number(sess)
-        result['franceTravail'] = afc_dsf_preview_metadata(sess, result, number, payload.get('hourlyRate'))
-        return jsonify({'ok':True,'preview':result,'nextDsfNumber':str(number),'moduleLabels':{k:v['label'] for k,v in AFC_DSF_MODULES.items()}})
-    except Exception as exc:
-        return jsonify({'ok':False,'error':str(exc)}),400
-
-@app.route('/api/sessions/<sid>/afc-dsf/generate', methods=['POST'])
-def api_afc_dsf_generate(sid):
-    data=load_sessions(); sess=find_session(data,sid)
-    if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
-    payload=request.get_json(silent=True) or {}
-    try:
-        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [], payload.get('hourlyRate'))
-        number=afc_dsf_validate_number(sess, payload.get('dsfNumber') or afc_dsf_next_number(sess)); dsf_id=uuid.uuid4().hex; filename=f"dsf_afc_{sid}_DSF_{number}.pdf"; path=os.path.join(DSF_DIR, filename)
-        snapshot=afc_dsf_session_snapshot(sess, result, number, payload.get('hourlyRate')) if payload.get('generateFranceTravailExcel', True) else None
-        dsf={"id":dsf_id,"number":number,"label":f"DSF {number}","sessionId":sid,"sessionName":sess.get('display_name') or sess.get('formation'),"createdAt":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"createdBy":session.get('admin_email') or 'admin',"status":AFC_DSF_STATUS_FINALIZED,"pdfFilename":filename,"franceTravailExcelSnapshot":snapshot,**result}
-        generate_afc_dsf_pdf(sess, dsf, path)
-        if not os.path.exists(path): raise RuntimeError('G√©n√©ration PDF √©chou√©e.')
-        sess.setdefault('afcDsfs',[]).append(dsf); save_sessions(data)
-        return jsonify({'ok':True,'dsf':dsf})
-    except Exception as exc:
-        app.logger.exception('Erreur g√©n√©ration DSF AFC')
-        return jsonify({'ok':False,'error':str(exc)}),400
-
-
-@app.post('/api/sessions/<sid>/afc-dsf/excel-preview')
-def download_afc_dsf_excel_preview(sid):
-    data=load_sessions(); sess=find_session(data,sid)
-    if not sess or not is_afc_aps_ssiap_session(sess): return jsonify({'ok':False,'error':'Session AFC introuvable'}),404
-    payload=request.get_json(silent=True) or {}
-    try:
-        result=afc_dsf_compute(sess, payload.get('periodStart') or '', payload.get('periodEnd') or '', payload.get('modules') or [], payload.get('excludedStudents') or [], payload.get('hourlyRate'))
-        number=payload.get('dsfNumber') or afc_dsf_next_number(sess)
-        snapshot=afc_dsf_session_snapshot(sess, result, number, payload.get('hourlyRate'))
-        output=generate_dsf_excel_from_snapshot(snapshot, current_app.root_path)
-        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=dsf_excel_filename(snapshot))
-    except Exception as exc:
-        app.logger.exception('Erreur brouillon Excel DSF AFC')
-        return jsonify({'ok':False,'error':str(exc)}),400
-
-@app.get('/sessions/<sid>/afc-dsf/<dsf_id>/france-travail.xlsx')
-def download_afc_dsf_excel(sid, dsf_id):
-    sess=find_session(load_sessions(),sid)
-    if not sess or not is_afc_aps_ssiap_session(sess): abort(404)
-    dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
-    if not dsf: abort(404)
-    snapshot=dsf.get('franceTravailExcelSnapshot')
-    if not snapshot: abort(404)
-    output=generate_dsf_excel_from_snapshot(snapshot, current_app.root_path)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=dsf_excel_filename(snapshot))
-
-@app.get('/api/sessions/<sid>/afc-dsf/<dsf_id>/invoice/preview')
-@login_required
-def preview_afc_dsf_invoice(sid, dsf_id):
-    data=load_sessions(); sess=find_session(data,sid)
-    if not sess or not is_afc_aps_ssiap_session(sess): return jsonify({'ok':False,'error':'Session AFC introuvable'}),404
-    dsf=afc_dsf_find(sess, dsf_id)
-    if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
-    if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'La DSF doit √™tre finalis√©e.'}),400
-    if dsf.get('invoice'):
-        return jsonify({'ok':True,'exists':True,'invoice':dsf.get('invoice')})
-    return jsonify({'ok':True,'exists':False,'preview':afc_invoice_preview_payload(data, sess, dsf)})
-
-@app.post('/api/sessions/<sid>/afc-dsf/<dsf_id>/invoice')
-@login_required
-def create_afc_dsf_invoice(sid, dsf_id):
-    payload=request.get_json(silent=True) or {}
-    with _invoice_creation_lock:
-        data=load_sessions(); sess=find_session(data,sid)
-        if not sess or not is_afc_aps_ssiap_session(sess): return jsonify({'ok':False,'error':'Session AFC introuvable'}),404
-        dsf=afc_dsf_find(sess, dsf_id)
-        if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
-        try:
-            if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: raise ValueError('La DSF doit √™tre finalis√©e.')
-            if dsf.get('invoice'): raise ValueError('Une facture existe d√©j√† pour cette DSF.')
-            number=str(payload.get('invoice_number') or '').strip()
-            if not number: raise ValueError('Le num√©ro de facture est obligatoire.')
-            if afc_dsf_invoice_number_used(data, number): raise ValueError('Ce num√©ro de facture est d√©j√† utilis√©.')
-            invoice_date=str(payload.get('invoice_date') or '').strip()
-            datetime.strptime(invoice_date, '%Y-%m-%d')
-            invoice_type=str(payload.get('invoice_type') or '').strip()
-            if invoice_type not in ('intermediate','final'):
-                raise ValueError('Veuillez s√©lectionner Facture interm√©diaire ou Facture de solde.')
-            if not os.path.exists(os.path.join(current_app.root_path, 'static', 'upload', 'facture.xlsx')): raise FileNotFoundError('Mod√®le de facture introuvable.')
-            invoice_payload={
-                'invoice_number': number,
-                'invoice_date': invoice_date,
-                'invoice_place': payload.get('invoice_place') or afc_invoice_default_place(sess),
-                'invoice_type': invoice_type,
-                'kairos_engagement_reference': afc_invoice_default_kairos_reference(sess, dsf),
-            }
-            snapshot=build_invoice_snapshot(sess, dsf, invoice_payload, session.get('admin_email') or 'admin')
-            dsf['invoice']={
-                'status':'generated','invoice_id':snapshot['invoice_id'],'invoice_number':snapshot['invoice_number'],
-                'invoice_date':snapshot['invoice_date'],'invoice_place':snapshot['invoice_place'],'invoice_type':snapshot['invoice_type'],
-                'kairos_engagement_reference':snapshot['kairos_engagement_reference'],'created_at':snapshot['created_at'],
-                'created_by':snapshot['created_by'],'snapshot':snapshot,
-            }
-            save_sessions(data)
-            return jsonify({'ok':True,'invoice':dsf['invoice'],'downloadUrl':url_for('download_afc_dsf_invoice', sid=sid, dsf_id=dsf_id)})
-        except Exception as exc:
-            app.logger.exception('Erreur g√©n√©ration facture DSF AFC')
-            return jsonify({'ok':False,'error':str(exc)}),400
-
-@app.get('/sessions/<sid>/afc-dsf/<dsf_id>/invoice.xlsx')
-@login_required
-def download_afc_dsf_invoice(sid, dsf_id):
-    sess=find_session(load_sessions(),sid)
-    if not sess or not is_afc_aps_ssiap_session(sess): abort(404)
-    dsf=afc_dsf_find(sess, dsf_id)
-    if not dsf or dsf.get('status') != AFC_DSF_STATUS_FINALIZED: abort(404)
-    invoice=dsf.get('invoice') or {}
-    snapshot=invoice.get('snapshot')
-    if not snapshot: abort(404)
-    output=generate_invoice_excel_from_snapshot(snapshot, current_app.root_path)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=invoice_excel_filename(snapshot))
-
-
-@app.route('/sessions/<sid>/afc-dsf/<dsf_id>/pdf')
-def view_afc_dsf_pdf(sid, dsf_id):
-    sess=find_session(load_sessions(),sid); dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
-    if not dsf: abort(404)
-    return send_file(os.path.join(DSF_DIR, os.path.basename(dsf.get('pdfFilename',''))), mimetype='application/pdf', as_attachment=False)
-
-@app.route('/sessions/<sid>/afc-dsf/<dsf_id>/download')
-def download_afc_dsf_pdf(sid, dsf_id):
-    sess=find_session(load_sessions(),sid); dsf=next((d for d in (sess or {}).get('afcDsfs',[]) if d.get('id')==dsf_id),None)
-    if not dsf: abort(404)
-    return send_file(os.path.join(DSF_DIR, os.path.basename(dsf.get('pdfFilename',''))), mimetype='application/pdf', as_attachment=True, download_name=dsf.get('pdfFilename'))
-
-@app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/delete', methods=['POST'])
-def api_afc_dsf_delete(sid, dsf_id):
-    data=load_sessions(); sess=find_session(data,sid)
-    if not sess: return jsonify({'ok':False,'error':'Session introuvable'}),404
-    dsfs=sess.get('afcDsfs') or []
-    dsf=next((d for d in dsfs if d.get('id')==dsf_id),None)
-    if not dsf: return jsonify({'ok':False,'error':'DSF introuvable'}),404
-    if dsf.get('status') != AFC_DSF_STATUS_FINALIZED: return jsonify({'ok':False,'error':'Seule une DSF finalis√©e peut √™tre supprim√©e.'}),400
-    pdf_filename=os.path.basename(dsf.get('pdfFilename',''))
-    sess['afcDsfs']=[d for d in dsfs if d.get('id')!=dsf_id]
-    save_sessions(data)
-    if pdf_filename:
-        pdf_path=os.path.join(DSF_DIR, pdf_filename)
-        try:
-            if os.path.exists(pdf_path): os.remove(pdf_path)
-        except OSError:
-            app.logger.exception('Erreur suppression PDF DSF AFC %s', pdf_filename)
-    best_response = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-    wants_json = request.headers.get('X-Requested-With') == 'fetch' or best_response != 'text/html'
-    if not wants_json:
-        flash('DSF supprim√©e d√©finitivement.', 'success')
-        return redirect(url_for('session_detail', sid=sid))
-    return jsonify({'ok':True,'deleted':True})
-
-@app.route('/api/sessions/<sid>/afc-dsf/<dsf_id>/cancel', methods=['POST'])
-def api_afc_dsf_cancel(sid, dsf_id):
-    return api_afc_dsf_delete(sid, dsf_id)
-
-@app.route("/sessions/<sid>/jury/add", methods=["POST"])
-def add_jury(sid):
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-    ensure_jury_defaults(session)
-    ensure_global_jury_defaults(data)
-    sync_global_jurys(data)
-    nom = request.form.get("nom", "").strip()
-    prenom = request.form.get("prenom", "").strip()
-    email = request.form.get("email", "").strip()
-    telephone = request.form.get("telephone", "").strip()
-    if not nom or not prenom:
-        flash("Nom et pr√©nom du jury requis.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-    existing_global = find_global_jury_by_email(data, email)
-    if existing_global:
-        existing_global.update({
-            "nom": nom or existing_global.get("nom", ""),
-            "prenom": prenom or existing_global.get("prenom", ""),
-            "email": email or existing_global.get("email", ""),
-            "telephone": telephone or existing_global.get("telephone", ""),
-        })
-        jury_id = existing_global["id"]
-    else:
-        jury_id = str(uuid.uuid4())[:8]
-        data["jurys"].append({
-            "id": jury_id,
-            "nom": nom,
-            "prenom": prenom,
-            "email": email,
-            "telephone": telephone,
-        })
-    if any(j.get("id") == jury_id for j in session["jurys"]):
-        flash("Ce jury est d√©j√† associ√© √† la session.", "info")
-        save_sessions(data)
-        return redirect(url_for("session_detail", sid=sid))
-    session["jurys"].append({
-        "id": jury_id,
-        "nom": nom,
-        "prenom": prenom,
-        "email": email,
-        "telephone": telephone,
-        "status": "pending",
-        "token": str(uuid.uuid4()),
-        "notified_at": None,
-        "reminded_at": None,
-    })
-    save_sessions(data)
-    flash("Jury ajout√©.", "success")
-    return redirect(url_for("session_detail", sid=sid))
-
-
-@app.route("/sessions/<sid>/jury/notify", methods=["POST"])
-def notify_jury(sid):
-    print("üî• HIT notify_jury", sid, dict(request.form.lists()))
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-    ensure_jury_defaults(session)
-    ensure_global_jury_defaults(data)
-    sync_global_jurys(data)
-    selected_ids = request.form.getlist("jury_ids")
-    logger.info("[jury notify] D√©clenchement", extra={"sid": sid, "selected_ids": selected_ids})
-    if not selected_ids:
-        flash("S√©lectionnez au moins un jury √† notifier.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-    base_url = request.url_root.rstrip("/")
-    logger.info("[jury notify] base_url=%s", base_url)
-    results = []
-    any_sent = False
-    now_txt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    session_jurys_by_id = {j.get("id"): j for j in session.get("jurys", [])}
-    for jury_id in selected_ids:
-        jury = session_jurys_by_id.get(jury_id)
-        if not jury:
-            global_jury = find_global_jury_by_id(data, jury_id)
-            if not global_jury:
-                results.append(f"Jury introuvable ({jury_id}).")
-                continue
-            jury = {
-                "id": global_jury.get("id"),
-                "nom": global_jury.get("nom", ""),
-                "prenom": global_jury.get("prenom", ""),
-                "email": global_jury.get("email", ""),
-                "telephone": global_jury.get("telephone", ""),
-                "status": "pending",
-                "token": str(uuid.uuid4()),
-                "notified_at": None,
-                "reminded_at": None,
-            }
-            session["jurys"].append(jury)
-            session_jurys_by_id[jury_id] = jury
-        if jury.get("status") in ("present", "absent"):
-            results.append(f"{jury.get('prenom','')} {jury.get('nom','')}: d√©j√† r√©pondu")
-            continue
-        logger.info(
-            "[jury notify] Tentative",
-            extra={
-                "jid": jury.get("id"),
-                "email_set": bool(jury.get("email")),
-                "phone_set": bool(jury.get("telephone")),
-            },
-        )
-        token = jury.get("token") or str(uuid.uuid4())
-        jury["token"] = token
-        yes_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='present')}?token={token}"
-        no_url = f"{base_url}{url_for('jury_response', sid=sid, jid=jury['id'], response='absent')}?token={token}"
-        email_ok, email_msg = send_jury_invitation_email(session, jury, yes_url, no_url)
-        sms_ok, sms_msg = send_jury_sms(session, jury, yes_url, no_url)
-        results.append(f"{jury.get('prenom','')} {jury.get('nom','')}: {email_msg} / {sms_msg}")
-        logger.info(
-            "[jury notify] R√©sultat email=%s sms=%s",
-            email_msg,
-            sms_msg,
-        )
-        if email_ok or sms_ok:
-            any_sent = True
-        jury["status"] = "pending"
-        jury["notified_at"] = now_txt if email_ok or sms_ok else jury.get("notified_at")
-    if any_sent:
-        session["jury_notification_status"] = "notified"
-    save_sessions(data)
-    if results:
-        flash_message = " | ".join(results)
-        if any_sent:
-            flash("Notifications envoy√©es. " + flash_message, "success")
-        else:
-            flash("Aucune notification envoy√©e. " + flash_message, "error")
-    return redirect(url_for("session_detail", sid=sid))
-
-
-@app.route("/sessions/<sid>/jury/<jid>/delete", methods=["POST"])
-def delete_jury(sid, jid):
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-    ensure_jury_defaults(session)
-    before = len(session["jurys"])
-    session["jurys"] = [j for j in session["jurys"] if j.get("id") != jid]
-    after = len(session["jurys"])
-    save_sessions(data)
-    if before == after:
-        flash("Jury introuvable.", "error")
-    else:
-        flash("Jury supprim√©.", "success")
-    return redirect(url_for("session_detail", sid=sid))
-
-
-@app.route("/jury-response/<sid>/<jid>/<response>")
-def jury_response(sid, jid, response):
-    token = request.args.get("token", "")
-    if response not in ("present", "absent"):
-        abort(400)
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-    ensure_jury_defaults(session)
-    jury = next((j for j in session["jurys"] if j.get("id") == jid), None)
-    if not jury or jury.get("token") != token:
-        abort(403)
-    already_responded = jury.get("status") in ("present", "absent")
-    previous_status = jury.get("status")
-    if not already_responded:
-        jury["status"] = response
-        save_sessions(data)
-    return render_template(
-        "jury_response.html",
-        title="R√©ponse jury",
-        response=previous_status if already_responded else response,
-        already_responded=already_responded,
-        jury=jury,
-        session=session
-    )
-
-
-# ------------------------------------------------------------
-# üîê Route sp√©ciale pr√©fecture : acc√®s en lecture seule
-# ------------------------------------------------------------
-@app.route("/prefecture/session/<sid>")
-@pref_auth_required
-def prefecture_session(sid):
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-
-    # recalcul des statuts
-    statuses = []
-    for i in range(len(session["steps"])):
-        st, dl = status_for_step(i, session)
-        statuses.append({
-            "status": st,
-            "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
-        })
-
-    order = sorted(
-        range(len(session["steps"])),
-        key=lambda i: deadline_for(i, session) or datetime.max
-    )
-
-    # page d√©di√©e "prefecture_session.html"
-    return render_template(
-        "prefecture_session.html",
-        title=f"Dossier session ‚Äî Pr√©fecture",
-        s=session,
-        statuses=statuses,
-        order=order,
-        now=datetime.now
-    )
-
-@app.route("/formateurs/<fid>/edit", methods=["GET", "POST"])
-def edit_formateur(fid):
-    formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
-
-    formateur = next((f for f in formateurs if f["id"] == fid), None)
-    if not formateur:
-        abort(404)
-
-    if request.method == "POST":
-        formateur["nom"] = request.form.get("nom", "").strip()
-        formateur["prenom"] = request.form.get("prenom", "").strip()
-        try:
-            formateur["nub"] = normalize_formateur_nub(request.form.get("nub", ""))
-        except ValueError as exc:
-            flash(str(exc), "error")
-            return render_template(
-                "edit_formateur.html",
-                formateur=formateur,
-                formateur_profile_options=FORMATEUR_PROFILE_OPTIONS
-            )
-        formateur["email"] = request.form.get("email", "").strip()
-        formateur["telephone"] = request.form.get("telephone", "").strip()
-        formateur["siret"] = request.form.get("siret", "").strip()
-        formateur["adresse_postale"] = request.form.get("adresse_postale", "").strip()
-        formateur["nda"] = request.form.get("nda", "").strip()
-        formateur["tarif_journalier_ht"] = request.form.get("tarif_journalier_ht", "").strip()
-        formateur["profils"] = normalize_formateur_profils(
-            request.form.getlist("profils")
-        )
-        apply_profile_document_requirements(formateur, profils_docs_config)
-
-        save_formateurs(formateurs)
-        return redirect(url_for("formateurs_home"))
-
-    return render_template(
-        "edit_formateur.html",
-        formateur=formateur,
-        formateur_profile_options=FORMATEUR_PROFILE_OPTIONS
-    )
-
-
-
-@app.route("/sessions/<sid>/edit", methods=["GET","POST"])
-def edit_session(sid):
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-    if request.method == "POST":
-        session["date_debut"] = request.form.get("date_debut","").strip()
-        session["date_fin"] = request.form.get("date_fin","").strip()
-        session["date_exam"] = request.form.get("date_exam","").strip()
-        save_sessions(data)
-        flash("Session mise √† jour.","ok")
-        return redirect(url_for("session_detail", sid=sid))
-    return render_template("session_edit.html", s=session)
-
-@app.route("/sessions/<sid>/toggle_step", methods=["POST"])
-def toggle_step(sid):
-    idx = int(request.form.get("index","-1"))
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session or idx<0 or idx>=len(session["steps"]):
-        abort(400)
-    step = session["steps"][idx]
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    step["done"] = not step["done"]
-    step["done_at"] = now if step["done"] else None
-    auto_archive_if_all_done(session)
-    save_sessions(data)
-    return redirect(url_for("session_detail", sid=sid) + f"#step{idx}")
-
-@app.route("/sessions/<sid>/update_date", methods=["POST"])
-def update_step_date(sid):
-    """Permet de modifier la date fixe d'une √©tape dans la session GENERAL et la sauvegarder."""
-    idx = int(request.form.get("index", "-1"))
-    new_date = request.form.get("new_date", "").strip()
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session or idx < 0 or idx >= len(session["steps"]):
-        abort(400)
-
-    if session.get("formation") != "GENERAL":
-        flash("‚ùå Modification de date r√©serv√©e √† la session GENERAL.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-
-    try:
-        # ‚úÖ On cr√©e un champ 'custom_date' pour cette √©tape
-        session["steps"][idx]["custom_date"] = new_date
-        save_sessions(data)
-        flash(f"‚úÖ Date mise √† jour pour ¬´ {session['steps'][idx]['name']} ¬ª", "ok")
-    except Exception as e:
-        flash(f"‚ùå Erreur modification date : {e}", "error")
-
-    return redirect(url_for("session_detail", sid=sid))
-
-
-@app.route("/sessions/<sid>/rename", methods=["POST"])
-def rename_session(sid):
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        return {"ok": False, "error": "Session introuvable"}, 404
-
-    payload = request.get_json(silent=True) or {}
-    raw_name = payload.get("name", request.form.get("name", ""))
-    name = (raw_name or "").strip()
-
-    if not name:
-        return {"ok": False, "error": "Le nom ne peut pas √™tre vide."}, 400
-    if len(name) > 80:
-        return {"ok": False, "error": "Le nom est trop long (80 caract√®res max)."}, 400
-
-    session["display_name"] = name
-    save_sessions(data)
-    return {"ok": True, "name": name}
-
-
-@app.route("/sessions/<sid>/delete", methods=["POST"])
-def delete_session(sid):
-    data = load_sessions()
-    data["sessions"] = [s for s in data["sessions"] if s["id"]!=sid]
-    save_sessions(data)
-    flash("Session supprim√©e.","ok")
-    return redirect(url_for("sessions_home"))
-
-@app.post("/sessions/<sid>/planning/upload")
-def upload_planning_pdf(sid):
-    f = request.files.get("planning_pdf")
-    if not f or f.filename == "":
-        flash("‚ùå Aucun fichier re√ßu.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-
-    # s√©curit√© : on force PDF
-    if not f.filename.lower().endswith(".pdf"):
-        flash("‚ùå Le fichier doit √™tre un PDF.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-
-    saved_name = f"planning_session_{sid}.pdf"
-    path = os.path.join(PLANNING_DIR, saved_name)
-    f.save(path)
-
-    set_planning_for_session(sid, saved_name)
-    flash("‚úÖ Planning PDF enregistr√©.", "ok")
-    return redirect(url_for("session_detail", sid=sid))
-
-@app.post("/api/sessions/<sid>/generate-aps-planning")
-def generate_aps_planning_route(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    try:
-        training_code = normalize_training_code(session_data)
-    except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    is_desp = training_code == "DESP"
-    is_ssiap1 = training_code == "SSIAP1"
-    is_afc = training_code == "AFC_APS_SSIAP"
-    if training_code not in {"APS", "SSIAP1", "DESP", "AFC_APS_SSIAP"}:
-        return jsonify({"ok": False, "error": "Le planning automatique est r√©serv√© aux sessions APS, SSIAP 1, DESP ou AFC APS + SSIAP."}), 400
-
-    payload = request.get_json(silent=True) or {}
-    planning_mode = "desp" if is_desp else ("ssiap1" if is_ssiap1 else ("full_presentiel" if is_afc else (payload.get("planningMode") or "").strip()))
-    formateur = (payload.get("trainer") or payload.get("formateur") or "").strip()
-    room = (payload.get("room") or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS").strip() or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS"
-    if not is_desp and not is_ssiap1 and not is_afc and planning_mode not in {"full_presentiel", "elearning_presentiel"}:
-        return jsonify({"ok": False, "error": "Le type de planning APS est obligatoire."}), 400
-    if not formateur and not is_desp and not is_afc:
-        return jsonify({"ok": False, "error": "Le nom et pr√©nom du formateur sont obligatoires."}), 400
-    if not is_afc and not parse_date(session_data.get("date_exam")):
-        return jsonify({"ok": False, "error": "La date d'examen est obligatoire pour g√©n√©rer le planning."}), 400
-
-    filename = f"planning_{'afc_aps_ssiap' if is_afc else ('desp' if is_desp else ('ssiap1' if is_ssiap1 else 'aps'))}_session_{sid}.pdf"
-    output_path = os.path.join(PLANNING_DIR, filename)
-    temp_path = f"{output_path}.tmp"
-    try:
-        session_data["salle"] = room
-        if is_afc:
-            interruption_payload = payload.get("interruptions") if "interruptions" in payload else session_data.get("interruptions")
-            interruptions = parse_interruption_ranges(interruption_payload)
-            start_dt = parse_date(session_data.get("date_debut"))
-            if not start_dt:
-                raise ValueError("La date de d√©but AFC est invalide.")
-            contractual_raw = payload.get("contractual_end_date") or payload.get("date_fin_contractuelle") or payload.get("date_fin") or session_data.get("contractual_end_date") or session_data.get("date_fin_contractuelle") or session_data.get("date_fin")
-            contractual_dt = parse_date(contractual_raw) if contractual_raw else None
-            auto_end_date = afc_nth_working_day(start_dt.date(), interruptions, 57)
-            if not auto_end_date:
-                raise ValueError("Impossible de d√©terminer la 57e date admissible AFC.")
-            if not contractual_dt:
-                contractual_date = auto_end_date
-            else:
-                contractual_date = contractual_dt.date()
-                eligible_count = 0
-                day = start_dt.date()
-                while day <= contractual_date:
-                    if is_afc_working_day(day, interruptions):
-                        eligible_count += 1
-                    day += timedelta(days=1)
-                if eligible_count != 57 or not is_afc_working_day(contractual_date, interruptions):
-                    contractual_date = auto_end_date
-            session_data["contractual_end_date"] = contractual_date.isoformat()
-            planning_data = build_afc_aps_ssiap_planning_data(start_dt.date(), formateur, room, interruptions, contractual_end_date=contractual_date)
-            summary = afc_aps_ssiap_summary_from_data(planning_data, interruptions, contractual_end_date=contractual_date)
-            session_data["interruptions"] = "\n".join(f"{start.isoformat()} au {end.isoformat()}" for start, end in interruptions)
-            session_data["date_fin"] = planning_data[-1]["date"]
-            session_data["date_exam"] = planning_data[-1]["date"]
-            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="full_presentiel", document_profile={"validate":"afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"})
-        elif is_ssiap1:
-            exam = ssiap1_exam_payload(session_data, payload)
-            session_data.update({"date_exam": exam["date"], "exam_date": exam["date"], "exam_start_time": exam["start"], "exam_end_time": exam["end"], "exam_room": exam["room"], "ssiapExamStartTime": exam["start"], "ssiapExamEndTime": exam["end"], "ssiapExamRoom": exam["room"], "ssiapSstTrainer": exam.get("sstTrainer") or formateur, "ssiapTrainer": exam.get("ssiapTrainer") or formateur, "ssiapRevisionTrainer": exam.get("revisionTrainer") or formateur, "ssiapExamTrainer": exam.get("examTrainer") or formateur})
-            end_dt = parse_date(session_data.get("date_fin"))
-            planning_data, totals, total_hours = build_ssiap1_planning_data(parse_date(session_data.get("date_debut")).date(), formateur, room, end_date=end_dt.date() if end_dt else None, exam_iso=exam["date"], exam_payload=exam, excluded_dates=ssiap1_excluded_dates_from_payload(session_data, payload))
-            summary = ssiap1_summary_from_data(planning_data)
-            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="ssiap1", document_profile={"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"})
-        elif is_desp:
-            elearning_start = parse_date(payload.get("despElearningStart") or session_data.get("despElearningStart") or session_data.get("date_debut"))
-            elearning_end = parse_date(payload.get("despElearningEnd") or session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin"))
-            presentiel_start = parse_date(payload.get("despPresentielStart") or session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut"))
-            presentiel_end = parse_date(payload.get("despPresentielEnd") or session_data.get("despPresentielEnd") or session_data.get("date_fin"))
-            if not all([elearning_start, elearning_end, presentiel_start, presentiel_end]):
-                return jsonify({"ok": False, "error": "Les dates de d√©but/fin distanciel et d√©but/fin pr√©sentiel DESP sont obligatoires."}), 400
-            allow_saturday = bool(payload.get("allowSaturday") or session_data.get("despAllowSaturday"))
-            planning_data = generate_desp_planning(elearning_start.date(), elearning_end.date(), presentiel_start.date(), presentiel_end.date(), formateur, room, exam_iso=aps_local_date_iso(session_data.get("date_exam")), allow_saturday=allow_saturday)
-            session_data["despAllowSaturday"] = allow_saturday
-            summary = desp_summary_from_planning(planning_data)
-            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_data=planning_data, planning_mode="desp", document_profile={"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"})
-        else:
-            result = generate_aps_planning_pdf(session_data, formateur, temp_path, planning_mode=planning_mode)
-        expected_total = AFC_APS_SSIAP_TOTAL_HOURS if is_afc else (SSIAP1_TOTAL_HOURS if is_ssiap1 else (DESP_TOTAL_HOURS if is_desp else APS_TOTAL_HOURS))
-        if round(result["total_hours"], 2) != expected_total :
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            return jsonify({"ok": False, "error": f"Le total g√©n√©r√© n'est pas exactement de {expected_total}h."}), 500
-        exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-        if not is_ssiap1 and not is_afc and any(day.get("date") == exam_iso for day in result.get("planning_data", [])):
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            return jsonify({"ok": False, "error": f"S√©curit√© planning APS: la date d'examen ({format_date(exam_iso)}) est r√©serv√©e √† l‚Äôexamen et ne peut contenir aucun cr√©neau de formation."}), 400
-        os.replace(temp_path, output_path)
-        session_data["planning_pdf"] = filename
-        session_data["apsPlanningData"] = result["planning_data"]
-        session_data["apsPlanningSummary"] = result["summary"]
-        session_data["apsPlanningMode"] = planning_mode
-        session_data["planning_generated_at"] = append_planning_history(session_data, "planning g√©n√©r√©")
-        save_sessions(data)
-        app.logger.info(
-            "Planning APS g√©n√©r√© session=%s date_debut=%s date_fin=%s date_exam=%s jours=%s total=%sh uv_totals=%s",
-            sid,
-            session_data.get("date_debut"),
-            session_data.get("date_fin"),
-            session_data.get("date_exam"),
-            len(result["planning_data"]),
-            result["total_hours"],
-            result["totals"],
-        )
-        return jsonify({
-            "ok": True,
-            "url": url_for("view_planning_pdf", sid=sid),
-            "filename": filename,
-            "generated_at": session_data["planning_generated_at"],
-            "warnings": (result.get("summary") or {}).get("warnings") or [],
-        })
-    except ValueError as exc:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        app.logger.warning("G√©n√©ration planning APS impossible session=%s erreur=%s", sid, exc)
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    except Exception as exc:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        app.logger.exception("Erreur g√©n√©ration planning APS session=%s", sid)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-
-
-@app.get("/api/sessions/<sid>/aps-trainer-contracts/preview")
-def preview_aps_trainer_contracts(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    planning_data = session_data.get("apsPlanningData") or []
-    if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez g√©n√©rer le planning APS avant de g√©n√©rer un contrat formateur."}), 400
-    trainers = []
-    for name in aps_detect_trainers(planning_data):
-        calc = aps_trainer_interventions(planning_data, name)
-        formateur = find_formateur_by_identity(name=name)
-        trainers.append({"name": name, **calc, "defaults": formateur_contract_defaults(formateur)})
-    return jsonify({"ok": True, "trainers": trainers})
-
-
-def ensure_aps_trainer_contract_pdf(session_data, contract):
-    """Return the local APS trainer contract PDF path, regenerating it if needed.
-
-    Render's filesystem can be reset between deployments/restarts while the
-    session metadata remains in persistent storage. In that case, existing
-    contract links should keep working instead of returning a bare 404.
-    """
-    filename = os.path.basename(contract.get("pdfFilename") or "")
-    if not filename:
-        filename = f"contrat_formateur_aps_{session_data.get('id') or 'session'}_{contract.get('id') or uuid.uuid4()}.pdf"
-        contract["pdfFilename"] = filename
-    path = os.path.join(APS_CONTRACT_DIR, filename)
-    if not os.path.exists(path):
-        os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
-        generate_aps_trainer_contract_pdf(session_data, contract, path)
-    return path
-
-
-@app.get("/sessions/<sid>/aps-trainer-contracts/<contract_id>/view")
-def view_aps_trainer_contract(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: abort(404)
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: abort(404)
-    try:
-        path = ensure_aps_trainer_contract_pdf(session_data, contract)
-    except Exception:
-        app.logger.exception("R√©g√©n√©ration contrat APS impossible session=%s contrat=%s", sid, contract_id)
-        abort(404)
-    return send_file(path, mimetype="application/pdf", as_attachment=False)
-
-
-@app.post("/api/sessions/<sid>/aps-trainer-contracts/generate")
-def generate_aps_trainer_contracts(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    if not parse_date(session_data.get("date_debut")):
-        return jsonify({"ok": False, "error": "Impossible de g√©n√©rer le contrat : la date officielle de d√©but de session est absente ou invalide."}), 400
-    planning_data = session_data.get("apsPlanningData") or []
-    if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez g√©n√©rer le planning APS avant de g√©n√©rer un contrat formateur."}), 400
-    payload = request.get_json(silent=True) or {}; trainers = payload.get("trainers") or []
-    if not trainers: return jsonify({"ok": False, "error": "Aucun formateur s√©lectionn√©."}), 400
-    saved = []
-    for trainer in trainers:
-        name = (trainer.get("name") or "").strip(); planning_name = (trainer.get("planningName") or name).strip(); daily_rate = float(trainer.get("dailyRate") or 0)
-        if not name or daily_rate <= 0: return jsonify({"ok": False, "error": "Le nom et un tarif journalier HT sup√©rieur √† 0 sont obligatoires."}), 400
-        calc = aps_trainer_interventions(planning_data, planning_name)
-        if not calc["interventions"]: return jsonify({"ok": False, "error": f"Aucun cr√©neau trouv√© pour {planning_name}."}), 400
-        billed_days = float(trainer.get("billedDays") or calc["calculatedDays"] or 0)
-        trainer_attends_exam = bool(trainer.get("trainerAttendsExam") or trainer.get("trainer_attends_exam"))
-        exam_trainer_hours = float(trainer.get("examTrainerHours") or trainer.get("exam_trainer_hours") or 0) if trainer_attends_exam else 0.0
-        exam_trainer_rate = float(trainer.get("examTrainerRate") or trainer.get("exam_trainer_rate") or 0) if trainer_attends_exam else 0.0
-        exam_trainer_amount = round(float(trainer.get("examTrainerAmount") or trainer.get("exam_trainer_amount") or (exam_trainer_hours * exam_trainer_rate) or 0), 2) if trainer_attends_exam else 0.0
-        vat_enabled = bool(trainer.get("vatEnabled")); vat_rate = float(trainer.get("vatRate") or 20)
-        total_ht = round((billed_days * daily_rate) + exam_trainer_amount, 2); vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0; total_ttc = round(total_ht + vat_amount, 2)
-        contract_id = str(uuid.uuid4()); filename = f"contrat_formateur_aps_{sid}_{contract_id}.pdf"; path = os.path.join(APS_CONTRACT_DIR, filename)
-        trainer = merge_formateur_contract_defaults(trainer, find_formateur_by_identity(name=name, email=trainer.get("email")))
-        contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "trainerAttendsExam": trainer_attends_exam, "examTrainerHours": exam_trainer_hours, "examTrainerRate": exam_trainer_rate, "examTrainerAmount": exam_trainer_amount, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
-        generate_aps_trainer_contract_pdf(session_data, contract, path)
-        existing_contracts = session_data.setdefault("apsTrainerContracts", [])
-        kept_contracts = []
-        for existing in existing_contracts:
-            existing_planning_name = (existing.get("planningName") or existing.get("trainerName") or "").strip()
-            if existing_planning_name == planning_name:
-                old_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(existing.get("pdfFilename") or ""))
-                if old_path != path and os.path.exists(old_path):
-                    try:
-                        os.remove(old_path)
-                    except OSError:
-                        app.logger.warning("Suppression ancien contrat APS impossible: %s", old_path)
-            else:
-                kept_contracts.append(existing)
-        kept_contracts.append(contract)
-        session_data["apsTrainerContracts"] = kept_contracts
-        saved.append(contract)
-    save_sessions(data)
-    return jsonify({"ok": True, "contracts": saved})
-
-
-@app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/send")
-def send_aps_trainer_contract(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    if not contract.get("trainerEmail"): return jsonify({"ok": False, "error": "Email formateur manquant."}), 400
-    try:
-        contract_path = ensure_aps_trainer_contract_pdf(session_data, contract)
-    except Exception as exc:
-        app.logger.exception("R√©g√©n√©ration contrat APS impossible avant envoi mail session=%s contrat=%s", sid, contract_id)
-        return jsonify({"ok": False, "error": f"PDF contrat introuvable et r√©g√©n√©ration impossible: {exc}"}), 400
-    planning_name = session_data.get("planning_pdf"); planning_path = os.path.join(PLANNING_DIR, os.path.basename(planning_name or ""))
-    if not planning_name or not os.path.exists(planning_path): return jsonify({"ok": False, "error": "PDF planning APS complet introuvable."}), 400
-    payload = request.get_json(silent=True) or {}; subject = payload.get("emailSubject") or "Contrat d‚Äôintervention formateur ‚Äî Session APS"; body = payload.get("emailBody") or ""
-    ok, message = send_email_with_attachments(contract["trainerEmail"], subject, body, [(contract_path, os.path.basename(contract_path)), (planning_path, os.path.basename(planning_path))])
-    if not ok: return jsonify({"ok": False, "error": message}), 500
-    contract["sentAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
-    return jsonify({"ok": True, "sentAt": contract["sentAt"]})
-
-
-def inspect_yousign_pdf_before_upload(pdf_path):
-    info = {"path": pdf_path, "size": os.path.getsize(pdf_path) if os.path.exists(pdf_path) else 0, "page_count": None, "signature_tag_present": None}
-    try:
-        if importlib.util.find_spec("pypdf") is None:
-            app.logger.warning("Inspection PDF Yousign ignor√©e: module pypdf absent")
-            return info
-        import pypdf
-
-        reader = pypdf.PdfReader(pdf_path)
-        info["page_count"] = len(reader.pages)
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
-        info["signature_tag_present"] = YOUSIGN_TRAINER_SIGNATURE_TAG in text
-    except Exception as exc:
-        app.logger.warning("Inspection PDF Yousign impossible, envoi poursuivi: %s", exc)
-    return info
-
-
-YOUSIGN_APS_TRAINER_SIGNATURE_FIELD = {"x": 332, "y": 216, "width": 160, "height": 60}
-YOUSIGN_APS_TRAINER_NO_FIELD_ERROR = "Le signataire Yousign a √©t√© cr√©√© mais aucun champ de signature n‚Äôa √©t√© ajout√© au document."
-
-
-def yousign_trainer_signature_page(pdf_info):
-    page_count = int(pdf_info.get("page_count") or 0)
-    if page_count < 1:
-        raise YousignError("Nombre de pages du PDF APS introuvable: activation Yousign refus√©e.")
-    return page_count
-
-
-def validate_aps_trainer_signature_field(field_payload, page_count):
-    page = int(field_payload.get("page") or 0)
-    x = int(field_payload.get("x") or 0)
-    y = int(field_payload.get("y") or 0)
-    width = int(field_payload.get("width") or 0)
-    height = int(field_payload.get("height") or 0)
-    logger.info("Yousign APS trainer signature field control page=%s x=%s y=%s width=%s height=%s", page, x, y, width, height)
-    if page != int(page_count):
-        raise YousignError("Champ signature formateur hors derni√®re page: activation Yousign refus√©e.")
-    if not (305 <= x <= 518 and 193 <= y <= 282):
-        raise YousignError("Champ signature formateur hors zone attendue: activation Yousign refus√©e.")
-    return True
-
-
-@app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/send")
-def send_aps_trainer_contract_yousign(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    email = (contract.get("trainerEmail") or "").strip()
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email): return jsonify({"ok": False, "error": "Email formateur invalide ou manquant."}), 400
-    if not is_yousign_configured(): return jsonify({"ok": False, "error": "Yousign n'est pas configur√©: renseignez YOUSIGN_API_KEY c√¥t√© serveur."}), 400
-
-    state = normalize_yousign_state(contract.get("yousign"))
-    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.args.get("force"):
-        return jsonify({"ok": False, "error": "Une demande Yousign active existe d√©j√† pour ce contrat."}), 409
-
-    try:
-        contract_path = ensure_aps_trainer_contract_pdf(session_data, contract)
-    except Exception as exc:
-        app.logger.exception("R√©g√©n√©ration contrat APS impossible avant envoi Yousign session=%s contrat=%s", sid, contract_id)
-        return jsonify({"ok": False, "error": f"PDF contrat introuvable et r√©g√©n√©ration impossible: {exc}"}), 400
-
-    client = YousignClient()
-    now = datetime.now().isoformat(timespec="seconds")
-    try:
-        trainer_name = contract.get("trainerName") or email
-        external_id = sanitize_yousign_external_id(f"aps-trainer-contract-{contract_id}")
-        app.logger.info("Yousign APS trainer contract external_id=%s", external_id)
-        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=external_id)
-        signature_request_id = signature_request.get("id")
-        try:
-            pdf_info = inspect_yousign_pdf_before_upload(contract_path)
-            app.logger.info(
-                "Yousign APS trainer PDF before upload path=%s size=%s signature_tag_present=%s page_count=%s",
-                pdf_info["path"], pdf_info["size"], pdf_info["signature_tag_present"], pdf_info["page_count"]
-            )
-        except Exception as exc:
-            app.logger.warning("Inspection PDF Yousign impossible, envoi poursuivi: %s", exc)
-            pdf_info = {"path": contract_path, "size": os.path.getsize(contract_path) if os.path.exists(contract_path) else 0, "page_count": None, "signature_tag_present": None}
-        with open(contract_path, "rb") as pdf_file:
-            document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path), parse_anchors=False)
-        document_id = document.get("id")
-        app.logger.info("Yousign APS trainer document uploaded document_id=%s", document_id)
-        name_parts = str(trainer_name).split()
-        first_name = name_parts[0] if len(name_parts) > 1 else ""
-        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
-        normalized_phone = normalizeFrenchPhoneNumber(contract.get("yousignPhoneNumber") or contract.get("trainerPhone") or contract.get("phone") or contract.get("telephone") or "")
-        app.logger.info("Yousign APS trainer signer authentication_mode=otp_sms phone_number=%s", mask_phone_number(normalized_phone))
-        signer = client.add_signer(signature_request_id, first_name, last_name or trainer_name, email, document_id=document_id, use_text_tags=True, phone_number=normalized_phone, force_sms_otp=True)
-        signer_id = signer.get("id") or ""
-        app.logger.info("Yousign APS trainer signer created signer_id=%s document_id=%s", signer_id, document_id)
-        page_count = yousign_trainer_signature_page(pdf_info)
-        field_payload = {**YOUSIGN_APS_TRAINER_SIGNATURE_FIELD, "page": page_count}
-        validate_aps_trainer_signature_field(field_payload, page_count)
-        field = client.add_signature_field(
-            signature_request_id,
-            document_id,
-            signer_id,
-            page=field_payload["page"],
-            x=field_payload["x"],
-            y=field_payload["y"],
-            width=field_payload["width"],
-            height=field_payload["height"],
-        )
-        field_id = field.get("id") if isinstance(field, dict) else ""
-        app.logger.info(
-            "Yousign APS trainer signature field created field_id=%s signer_id=%s document_id=%s page=%s x=%s y=%s width=%s height=%s",
-            field_id, signer_id, document_id, field_payload["page"], field_payload["x"], field_payload["y"], field_payload["width"], field_payload["height"]
-        )
-        if not field_id:
-            raise YousignError(YOUSIGN_APS_TRAINER_NO_FIELD_ERROR, payload={"message": YOUSIGN_APS_TRAINER_NO_FIELD_ERROR})
-        activated = client.activate_signature_request(signature_request_id)
-        status = extract_yousign_status(activated) or "ongoing"
-        signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
-        contract["yousign"] = normalize_yousign_state({
-            "signatureRequestId": signature_request_id,
-            "externalId": external_id,
-            "documentId": document_id or "",
-            "signerId": signer_id,
-            "fieldId": field_id,
-            "status": status,
-            "signatureUrl": signature_url,
-            "sentAt": now,
-            "lastSyncedAt": now,
-            "lastEvent": "signature_request.activated",
-            "lastEventAt": now,
-            "recipientEmail": email,
-            "error": None,
-        })
-        mirror_yousign_state_on_contract(contract)
-        save_sessions(data)
-        return jsonify({"ok": True, "status": status, "sentAt": now, "signatureUrl": signature_url})
-    except YousignError as exc:
-        logger.error("R√©ponse exacte Yousign APS contract 400/erreur status=%s payload=%r", exc.status_code, exc.payload)
-        user_error = yousign_service_access_message(exc.status_code, exc.payload)
-        contract["yousign"] = normalize_yousign_state({**state, "status": "error", "lastSyncedAt": now, "lastEvent": "api.error", "lastEventAt": now, "error": user_error, "errorPayload": exc.payload})
-        mirror_yousign_state_on_contract(contract)
-        save_sessions(data)
-        return jsonify({"ok": False, "error": user_error, "errorPayload": exc.payload, "yousignStatus": exc.status_code}), 502
-
-
-@app.post("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/sync")
-def sync_aps_trainer_contract_yousign(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    state = normalize_yousign_state(contract.get("yousign"))
-    signature_request_id = state.get("signatureRequestId")
-    if not signature_request_id: return jsonify({"ok": False, "error": "Aucune demande Yousign √† actualiser."}), 400
-    now = datetime.now().isoformat(timespec="seconds")
-    try:
-        updates = sync_yousign_signature_request_from_api(signature_request_id, now)
-        status = updates.get("status") or state.get("status")
-        updates.update({"lastEvent": "manual.sync" if updates.get("lastSyncedAt") else "manual.sync.error", "lastEventAt": now})
-        contract["yousign"] = normalize_yousign_state({**state, **updates})
-        mirror_yousign_state_on_contract(contract)
-        save_sessions(data)
-        if not updates.get("lastSyncedAt"):
-            return jsonify({"ok": False, "error": updates.get("apiError") or "Erreur API Yousign", "status": status, "statusLabel": yousign_status_label(status)}), 502
-        return jsonify({"ok": True, "status": status, "statusLabel": yousign_status_label(status)})
-    except YousignError as exc:
-        contract["yousign"] = normalize_yousign_state({**state, "lastEvent": "manual.sync.error", "lastEventAt": now, "apiError": str(exc), "apiHttpStatus": str(exc.status_code or "network"), "apiStatus": f"erreur {exc.status_code or 'network'}", "error": str(exc)})
-        mirror_yousign_state_on_contract(contract)
-        save_sessions(data)
-        return jsonify({"ok": False, "error": f"Erreur de synchronisation Yousign: {exc}"}), 502
-
-
-def save_yousign_signed_document(content, target_dir, base_filename):
-    os.makedirs(target_dir, exist_ok=True)
-    pdf_bytes = None
-    if content.startswith(b"%PDF"):
-        pdf_bytes = content
-    else:
-        try:
-            with zipfile.ZipFile(BytesIO(content)) as archive:
-                pdf_names = [name for name in archive.namelist() if name.lower().endswith(".pdf") and not name.endswith("/")]
-                if pdf_names:
-                    pdf_names.sort(key=lambda name: ("signed" not in name.lower() and "signe" not in name.lower(), name.lower()))
-                    pdf_bytes = archive.read(pdf_names[0])
-        except zipfile.BadZipFile:
-            pdf_bytes = None
-    if pdf_bytes:
-        filename = f"{base_filename}.pdf"
-        with open(os.path.join(target_dir, filename), "wb") as fh:
-            fh.write(pdf_bytes)
-        return filename
-    filename = f"{base_filename}.zip"
-    with open(os.path.join(target_dir, filename), "wb") as fh:
-        fh.write(content)
-    return filename
-
-
-@app.route("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/yousign/download", methods=["GET", "POST"])
-def download_aps_trainer_signed_yousign(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    state = normalize_yousign_state(contract.get("yousign"))
-    if not state.get("signatureRequestId"): return jsonify({"ok": False, "error": "Aucune demande Yousign disponible."}), 400
-    try:
-        content = YousignClient().download_signed_documents(state["signatureRequestId"])
-        filename = save_yousign_signed_document(content, APS_CONTRACT_SIGNED_DIR, f"contrat_aps_signe_yousign_{state['signatureRequestId']}")
-        contract["yousign"] = normalize_yousign_state({**state, "signedDocumentFilename": filename, "signedDocumentUrl": url_for("download_aps_trainer_signed_yousign_file", filename=filename), "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
-        mirror_yousign_state_on_contract(contract)
-        save_sessions(data)
-        return send_from_directory(APS_CONTRACT_SIGNED_DIR, filename, as_attachment=request.args.get("inline") != "1")
-    except Exception as exc:
-        return jsonify({"ok": False, "error": f"T√©l√©chargement Yousign impossible: {exc}"}), 502
-
-
-@app.get("/aps-trainer-contracts/yousign/signed/<path:filename>")
-def download_aps_trainer_signed_yousign_file(filename):
-    return send_from_directory(APS_CONTRACT_SIGNED_DIR, os.path.basename(filename), as_attachment=True)
-
-
-@app.patch("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/email")
-def update_aps_trainer_contract_email(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    payload = request.get_json(silent=True) or {}
-    email = (payload.get("email") or "").strip()
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        return jsonify({"ok": False, "error": "Adresse e-mail invalide."}), 400
-    contract["trainerEmail"] = email
-    state = normalize_yousign_state(contract.get("yousign"))
-    if not state.get("sentAt"):
-        state["recipientEmail"] = email
-        contract["yousign"] = state
-        mirror_yousign_state_on_contract(contract)
-    save_sessions(data)
-    return jsonify({"ok": True, "email": email})
-
-
-@app.patch("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>/phone")
-def update_aps_trainer_contract_phone(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    payload = request.get_json(silent=True) or {}
-    phone = (payload.get("phone") or "").strip()
-    try:
-        normalized_phone = normalizeFrenchPhoneNumber(phone)
-    except YousignError:
-        return jsonify({"ok": False, "error": "T√©l√©phone portable invalide pour le code SMS Yousign."}), 400
-    contract["trainerPhone"] = phone
-    contract["yousignPhoneNumber"] = normalized_phone
-    save_sessions(data)
-    return jsonify({"ok": True, "phone": phone, "normalizedPhone": normalized_phone})
-
-
-@app.delete("/api/sessions/<sid>/aps-trainer-contracts/<contract_id>")
-def delete_aps_trainer_contract(sid, contract_id):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contracts = session_data.get("apsTrainerContracts", []); contract = next((c for c in contracts if c.get("id") == contract_id), None)
-    if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
-    if contract.get("pdfFilename"):
-        try: os.remove(os.path.join(APS_CONTRACT_DIR, os.path.basename(contract["pdfFilename"])))
-        except FileNotFoundError: pass
-    session_data["apsTrainerContracts"] = [c for c in contracts if c.get("id") != contract_id]
-    save_sessions(data)
-    return jsonify({"ok": True})
-
-
-@app.post("/api/sessions/<sid>/aps-attendance/import-students")
-def import_aps_attendance_students(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
-    uploaded = request.files.get("file")
-    if not uploaded or not uploaded.filename:
-        return jsonify({"ok": False, "error": "Veuillez importer un fichier PDF."}), 400
-    if not uploaded.filename.lower().endswith(".pdf"):
-        return jsonify({"ok": False, "error": "Le fichier doit √™tre un PDF."}), 400
-    try:
-        students, has_text = aps_extract_students_from_pdf(uploaded)
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
-    message = None
-    if not has_text or not students:
-        message = "Impossible d‚Äôextraire automatiquement les noms depuis ce PDF. Merci de saisir ou corriger la liste manuellement."
-    if formation == "AFC_APS_SSIAP":
-        default_start = session_data.get("date_debut") or ""
-        for student in students:
-            student["startDate"] = student.get("startDate") or default_start
-    return jsonify({"ok": True, "students": students, "message": message})
-
-
-@app.put("/api/sessions/<sid>/aps-attendance/students")
-def save_aps_attendance_students(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
-    payload = request.get_json(silent=True) or {}
-    students = []
-    for item in payload.get("students") or []:
-        last = (item.get("lastName") or "").strip().upper()
-        first = (item.get("firstName") or "").strip()
-        if last and first:
-            student = {"lastName": last, "firstName": first}
-            if formation == "AFC_APS_SSIAP":
-                start_date = (item.get("startDate") or session_data.get("date_debut") or "").strip()
-                if start_date and not re.match(r"^\d{4}-\d{2}-\d{2}$", start_date):
-                    return jsonify({"ok": False, "error": "La date d‚Äôentr√©e en formation doit √™tre au format AAAA-MM-JJ."}), 400
-                student["startDate"] = start_date
-            students.append(student)
-    if not students:
-        return jsonify({"ok": False, "error": "Veuillez enregistrer au moins un stagiaire."}), 400
-    student_key = "a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents"
-    updated_key = "a3pAttendanceSheetsUpdatedAt" if formation == "A3P" else "apsAttendanceSheetsUpdatedAt"
-    session_data[student_key] = students
-    session_data[updated_key] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_sessions(data)
-    return jsonify({"ok": True, "students": students})
-
-
-
-
-@app.post("/api/sessions/<sid>/afc-france-travail/settings")
-def save_afc_france_travail_settings_route(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions AFC."}), 403
-    settings = update_afc_france_travail_settings(session_data, request.get_json(silent=True) or {})
-    session_data["afcFranceTravailUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_sessions(data)
-    return jsonify({"ok": True, "settings": settings})
-
-@app.post("/api/sessions/<sid>/afc-france-travail/ids")
-def save_afc_france_travail_ids_route(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions AFC."}), 403
-    payload = request.get_json(silent=True) or {}
-    students = save_france_travail_ids(session_data, payload.get("ids") or {})
-    session_data["afcFranceTravailIdsUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_sessions(data)
-    return jsonify({"ok": True, "students": students})
-
-@app.get("/api/sessions/<sid>/afc-france-travail/preview")
-def preview_afc_france_travail_attendance_route(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions AFC."}), 403
-    try:
-        return jsonify({"ok": True, "preview": preview_france_travail_attendance(session_data)})
-    except FileNotFoundError as exc:
-        app.logger.error("Mod√®le France Travail absent session=%s error=%s", sid, exc)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-    except Exception as exc:
-        app.logger.exception("Pr√©visualisation France Travail impossible session=%s", sid)
-        return jsonify({"ok": False, "error": str(exc)}), 400
-
-@app.route("/api/sessions/<sid>/afc-france-travail/generate", methods=["GET", "POST"])
-def generate_afc_france_travail_attendance_route(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions AFC."}), 403
-    try:
-        output = generate_france_travail_workbook(session_data, current_app.root_path)
-        filename = ft_safe_filename(session_data.get("display_name") or session_data.get("formation") or sid)
-        return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=filename)
-    except FileNotFoundError as exc:
-        app.logger.error("Mod√®le France Travail absent session=%s path=%s", sid, exc)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-    except Exception as exc:
-        app.logger.exception("G√©n√©ration France Travail impossible session=%s", sid)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-
-@app.post("/api/sessions/<sid>/aps-attendance/generate")
-def generate_aps_attendance_sheets(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    try:
-        training_code = normalize_training_code(session_data)
-    except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    formation = training_code
-    planning_key = "a3pPlanningData" if training_code == "A3P" else "apsPlanningData"
-    student_key = "a3pAttendanceStudents" if training_code == "A3P" else "apsAttendanceStudents"
-    if not session_data.get(planning_key):
-        message = "Le planning SSIAP 1 doit √™tre g√©n√©r√© avant les feuilles de pr√©sence." if is_ssiap1_session(session_data) else f"Veuillez g√©n√©rer le planning {formation} avant de g√©n√©rer les feuilles de pr√©sence."
-        return jsonify({"ok": False, "error": message}), 400
-    if not session_data.get(student_key):
-        return jsonify({"ok": False, "error": "Aucune liste de stagiaires n‚Äôest enregistr√©e."}), 400
-    shared_session = session_data
-    if training_code == "A3P":
-        shared_session, converted = _a3p_session_for_shared_docs(session_data)
-        if not _aps_presentiel_days(converted, "full_presentiel"):
-            return jsonify({"ok": False, "error": "Aucun jour pr√©sentiel n‚Äôest trouv√©."}), 400
-    elif not _aps_presentiel_days(session_data.get("apsPlanningData"), "desp" if training_code == "DESP" else ("ssiap1" if training_code == "SSIAP1" else (session_data.get("apsPlanningMode") or "full_presentiel"))):
-        return jsonify({"ok": False, "error": "Aucun jour pr√©sentiel n‚Äôest trouv√©."}), 400
-    filename_formation = training_code.lower()
-    filename = f"feuilles_presence_{filename_formation}_{sid}.pdf"
-    output_dir = A3P_DOC_DIR if training_code == "A3P" else APS_ATTENDANCE_DIR
-    output_path = os.path.join(output_dir, filename)
-    temp_path = f"{output_path}.tmp"
-    try:
-        generate_a3p_attendance_pdf(session_data, temp_path) if training_code == "A3P" else generate_aps_attendance_pdf(session_data, temp_path)
-        if not os.path.exists(temp_path) or os.path.getsize(temp_path) <= 0:
-            raise ValueError("Le PDF g√©n√©r√© est vide.")
-        os.replace(temp_path, output_path)
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if training_code == "A3P":
-            session_data["a3pAttendanceSheetsPdfUrl"] = url_for("view_a3p_document", sid=sid, kind="attendance")
-            session_data["a3pAttendanceSheetsFilename"] = filename
-            session_data["a3pAttendanceSheetsGeneratedAt"] = session_data.get("a3pAttendanceSheetsGeneratedAt") or now
-            session_data["a3pAttendanceSheetsUpdatedAt"] = now
-            docs = session_data.setdefault("a3p_documents", {})
-            docs["attendance"] = {"path": output_path, "generated_at": now}
-        else:
-            session_data["apsAttendanceSheetsPdfUrl"] = url_for("view_aps_attendance_sheets", sid=sid)
-            session_data["apsAttendanceSheetsFilename"] = filename
-            session_data["apsAttendanceSheetsGeneratedAt"] = session_data.get("apsAttendanceSheetsGeneratedAt") or now
-            session_data["apsAttendanceSheetsUpdatedAt"] = now
-        save_sessions(data)
-        return jsonify({"ok": True, "pdfUrl": session_data["a3pAttendanceSheetsPdfUrl"] if formation == "A3P" else session_data["apsAttendanceSheetsPdfUrl"], "generatedAt": now})
-    except Exception as exc:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        app.logger.exception("Erreur g√©n√©ration feuilles pr√©sence %s session=%s", formation, sid)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-
-
-@app.delete("/api/sessions/<sid>/aps-attendance")
-def reset_aps_attendance_sheets(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    if formation not in {"APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "Cette action est r√©serv√©e aux sessions APS, A3P, SSIAP 1 et DESP."}), 400
-    payload = request.get_json(silent=True) or {}
-    filename = session_data.get("a3pAttendanceSheetsFilename" if formation == "A3P" else "apsAttendanceSheetsFilename")
-    if filename:
-        try: os.remove(os.path.join(A3P_DOC_DIR if formation == "A3P" else APS_ATTENDANCE_DIR, os.path.basename(filename)))
-        except FileNotFoundError: pass
-    keys = ("a3pAttendanceSheetsPdfUrl", "a3pAttendanceSheetsFilename", "a3pAttendanceSheetsGeneratedAt", "a3pAttendanceSheetsUpdatedAt") if formation == "A3P" else ("apsAttendanceSheetsPdfUrl", "apsAttendanceSheetsFilename", "apsAttendanceSheetsGeneratedAt", "apsAttendanceSheetsUpdatedAt")
-    for key in keys:
-        session_data.pop(key, None)
-    if formation == "A3P":
-        (session_data.get("a3p_documents") or {}).pop("attendance", None)
-    if payload.get("deleteStudents"):
-        session_data.pop("a3pAttendanceStudents" if formation == "A3P" else "apsAttendanceStudents", None)
-    save_sessions(data)
-    return jsonify({"ok": True})
-
-
-@app.get("/sessions/<sid>/aps-attendance/view")
-def view_aps_attendance_sheets(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: abort(404)
-    filename = session_data.get("apsAttendanceSheetsFilename")
-    if not filename: abort(404)
-    path = os.path.join(APS_ATTENDANCE_DIR, os.path.basename(filename))
-    if not os.path.exists(path): abort(404)
-    return send_file(path, mimetype="application/pdf", as_attachment=False)
-
-
-
-@app.get("/api/admin/sessions/<sid>/a3p-planning-builder")
-def get_a3p_planning_builder(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
-    state = session_data.get("a3pPlanningBuilder") or session_data.get("a3pPlanningDraftJson") or {}
-    return jsonify({"ok": True, "state": state, "savedAt": session_data.get("a3pPlanningBuilderSavedAt") or session_data.get("a3pPlanningDraftSavedAt")})
-
-@app.put("/api/admin/sessions/<sid>/a3p-planning-builder")
-def put_a3p_planning_builder(sid):
-    data = load_sessions(); session_data = find_session(data, sid)
-    if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
-    payload = request.get_json(silent=True) or {}
-    state = payload.get("state") if isinstance(payload.get("state"), dict) else payload
-    previous_state = session_data.get("a3pPlanningBuilder") or session_data.get("a3pPlanningDraftJson") or {}
-
-    def _has_builder_content(value):
-        if not isinstance(value, dict) or not value:
-            return False
-        if value.get("days") or (value.get("scheduleConfig") or {}).get("days"):
-            return True
-        locked = (value.get("scheduleConfig") or value).get("lockedModules") or {}
-        return any(locked.get(code) for code in locked)
-
-    if _has_builder_content(previous_state) and not _has_builder_content(state):
-        return jsonify({"ok": False, "error": "Sauvegarde A3P refus√©e : √©tat vide ou incomplet, conservation du dernier √©tat valide."}), 400
-    session_data["a3pPlanningBuilder"] = state
-    modules_data = _a3p_manual_modules_from_state(state)
-    if are_a3p_manual_modules_complete(state):
-        mark_a3p_manual_modules_admin_validated(session_data, modules_data)
-    session_data["a3pPlanningBuilderSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_sessions(data)
-    return jsonify({"ok": True, "savedAt": session_data["a3pPlanningBuilderSavedAt"]})
-
-@app.post("/api/sessions/<sid>/a3p-documents/draft")
-def save_a3p_documents_draft(sid):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
-    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
-    payload=request.get_json(silent=True) or {}
-    cfg=payload.get("scheduleConfig") or payload
-    session_data["a3pPlanningDraftJson"] = cfg
-    if are_a3p_manual_modules_complete({"scheduleConfig": cfg, "planning": payload.get("planning") or []}):
-        mark_a3p_manual_modules_admin_validated(session_data, cfg.get("lockedModules") or {})
-    session_data["a3pTrainerEmail"] = cfg.get("trainerEmail") or session_data.get("a3pTrainerEmail")
-    session_data["a3pTrainerName"] = ((cfg.get("trainerFirstName") or "") + " " + (cfg.get("trainerLastName") or "")).strip() or session_data.get("a3pTrainerName")
-    session_data["a3pPlanningDraftSavedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_sessions(data)
-    return jsonify({"ok":True,"savedAt":session_data["a3pPlanningDraftSavedAt"]})
-
-@app.post("/api/sessions/<sid>/a3p-documents/preview")
-def preview_a3p_documents(sid):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
-    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
-    payload=request.get_json(silent=True) or {}
-    try:
-        cfg=payload.get("scheduleConfig") or payload
-        if session_data.get("a3pTrainerModulesStatus") in {"completed","validated"}:
-            cfg=dict(cfg); cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
-        result=generateA3pSchedule(cfg)
-        return jsonify({"ok":True,"planning":result["planning"],"summary":result["summary"]})
-    except ValueError as exc:
-        return jsonify({"ok":False,"error":str(exc)}),400
-
-@app.post("/api/sessions/<sid>/a3p-documents/generate")
-def generate_a3p_documents(sid):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
-    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
-    payload=request.get_json(silent=True) or {}
-    app.logger.info("D√©but g√©n√©ration documents A3P session_id=%s", sid)
-    try:
-        cfg=payload.get("scheduleConfig") or payload
-        admin_ready = can_generate_a3p_documents_state({"scheduleConfig": cfg, "planning": payload.get("planning") or []})
-        if session_data.get("a3pTrainerModulesStatus") != "validated" and not admin_ready:
-            app.logger.warning("G√©n√©ration documents A3P refus√©e session_id=%s statut_modules=%s", sid, session_data.get("a3pTrainerModulesStatus"))
-            return jsonify({"ok":False,"error":"Les modules formateur A3P doivent √™tre compl√©t√©s puis valid√©s par l‚Äôadmin avant g√©n√©ration."}),400
-        cfg=dict(cfg)
-        if admin_ready:
-            mark_a3p_manual_modules_admin_validated(session_data, cfg.get("lockedModules") or {})
-        cfg["lockedModules"]=session_data.get("a3pTrainerManualModulesData") or cfg.get("lockedModules") or {}
-        supplied_planning = payload.get("planning") if isinstance(payload.get("planning"), list) else None
-        if supplied_planning:
-            planning = supplied_planning
-            errors, summary = validate_a3p_planning(planning, cfg.get("examDate") or session_data.get("date_exam"))
-            if errors: raise ValueError(" ".join(errors))
-        else:
-            result=generateA3pSchedule(cfg); planning=result["planning"]; summary=result["summary"]
-        trainer=((cfg.get("trainerFirstName") or "")+" "+(cfg.get("trainerLastName") or "")).strip() or cfg.get("trainerName") or session_data.get("a3pTrainerName") or ""
-        if not trainer: return jsonify({"ok":False,"error":"Nom et pr√©nom du formateur obligatoires pour le contrat formateur."}),400
-        session_data.update({"a3pPlanningData":planning,"a3pPlanningSummary":summary,"a3pTrainerName":trainer,"a3pRoom":cfg.get("room") or session_data.get("a3pRoom") or "Int√©grale Academy ‚Äì 54 chemin du Carreou ‚Äì 83480 PUGET-SUR-ARGENS","date_debut":cfg.get("startDate") or session_data.get("date_debut"),"date_fin":cfg.get("endDate") or session_data.get("date_fin"),"date_exam":cfg.get("examDate") or session_data.get("date_exam")})
-        app.logger.info("G√©n√©ration documents A3P session_id=%s lignes_planning=%s", sid, sum(len(d.get("slots", [])) for d in planning))
-        now=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        docs=[]
-        a3p_documents = {}
-        for kind, key, fname in (("planning","a3pPlanningPdfUrl",f"planning_a3p_session_{sid}.pdf"),("attendance","a3pAttendanceSheetsPdfUrl",f"feuilles_presence_a3p_{sid}.pdf")):
-            path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_planning_pdf(session_data, path) if kind == "planning" else generate_a3p_attendance_pdf(session_data, path)
-            session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname
-            a3p_documents[kind] = {"path": path, "generated_at": now}
-            docs.append({"kind":kind,"path":path})
-        contract_payload=payload.get("contract") or cfg
-        cid=str(uuid.uuid4()); cf=f"contrat_formateur_a3p_{sid}_{cid}.pdf"; cp=os.path.join(A3P_DOC_DIR,cf)
-        generate_a3p_trainer_contract_pdf(session_data, contract_payload, cp)
-        session_data["a3pTrainerContract"]={"id":cid,"pdfFilename":cf,"pdfUrl":url_for("view_a3p_document",sid=sid,kind="contract"),"generatedAt":now,"dailyRate":contract_payload.get("dailyRate"),"vatEnabled":bool(contract_payload.get("vatEnabled"))}
-        a3p_documents["contract"] = {"path": cp, "generated_at": now}
-        docs.append({"kind":"contract","path":cp})
-        session_data["a3p_documents"] = a3p_documents
-        session_data["a3pDocumentsGeneratedAt"]=now; save_sessions(data)
-        app.logger.info("Documents A3P cr√©√©s session_id=%s documents=%s chemins_sauvegard√©s=%s", sid, [d["kind"] for d in docs], docs)
-        return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"],"contractUrl":session_data["a3pTrainerContract"]["pdfUrl"]})
-    except ValueError as exc:
-        app.logger.warning("Erreur validation g√©n√©ration documents A3P session_id=%s erreur=%s", sid, exc)
-        return jsonify({"ok":False,"error":str(exc)}),400
-    except Exception as exc:
-        app.logger.exception("Erreur pr√©cise g√©n√©ration documents A3P session_id=%s", sid); return jsonify({"ok":False,"error":str(exc)}),500
-
-
-
-def a3p_document_path(session_data, kind):
-    if kind not in {"planning", "attendance", "contract"}:
-        return None
-    doc = (session_data.get("a3p_documents") or {}).get(kind) or {}
-    path = doc.get("path")
-    if path:
-        return path
-    # Compatibilit√© avec les sessions g√©n√©r√©es avant la persistance de a3p_documents.
-    if kind == "planning" and session_data.get("a3pPlanningFilename"):
-        return os.path.join(A3P_DOC_DIR, os.path.basename(session_data["a3pPlanningFilename"]))
-    if kind == "attendance" and session_data.get("a3pAttendanceSheetsFilename"):
-        return os.path.join(A3P_DOC_DIR, os.path.basename(session_data["a3pAttendanceSheetsFilename"]))
-    if kind == "contract" and (session_data.get("a3pTrainerContract") or {}).get("pdfFilename"):
-        return os.path.join(A3P_DOC_DIR, os.path.basename(session_data["a3pTrainerContract"]["pdfFilename"]))
-    return None
-
-def a3p_document_exists(session_data, kind):
-    path = a3p_document_path(session_data, kind)
-    return bool(path and os.path.exists(path))
-
-@app.context_processor
-def inject_a3p_trainer_helpers():
-    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists, "aps_detect_trainers": aps_detect_trainers, "is_ssiap1_session": is_ssiap1_session}
-
-@app.post("/api/admin/sessions/<sid>/a3p/trainer-link")
-def generate_a3p_trainer_link(sid):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
-    if (session_data.get("formation") or "").upper() != "A3P": return jsonify({"ok":False,"error":"La session n'est pas A3P."}),400
-    session_data["a3pTrainerPublicToken"] = secrets.token_urlsafe(48)
-    session_data["a3pTrainerPublicLinkCreatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    session_data["a3pTrainerModulesStatus"] = "waiting"
-    session_data.pop("a3pTrainerPublicLinkDisabledAt", None)
-    save_sessions(data)
-    status=a3p_trainer_status(session_data)
-    return jsonify({"ok":True,"url":status["url"],"status":status,"createdAt":session_data["a3pTrainerPublicLinkCreatedAt"]})
-
-@app.post("/api/admin/sessions/<sid>/a3p/trainer-link/send")
-def send_a3p_trainer_link(sid):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
-    cfg=session_data.get("a3pPlanningDraftJson") or {}
-    email=(cfg.get("trainerEmail") or session_data.get("a3pTrainerEmail") or "").strip()
-    if not email: return jsonify({"ok":False,"error":"Email formateur non renseign√©."}),400
-    if not session_data.get("a3pTrainerPublicToken"):
-        session_data["a3pTrainerPublicToken"] = secrets.token_urlsafe(48)
-        session_data["a3pTrainerPublicLinkCreatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    url=a3p_trainer_public_url(session_data["a3pTrainerPublicToken"])
-    first=(cfg.get("trainerFirstName") or session_data.get("a3pTrainerName") or "formateur").split()[0]
-    body=f"Bonjour {first},\n\nDans le cadre de la pr√©paration de la session A3P, merci de compl√©ter les dates des modules impos√©s dont vous avez la charge.\n\nVous pouvez acc√©der au formulaire via le lien s√©curis√© ci-dessous :\n{url}\n\nDates de formation : du {format_date(cfg.get('startDate') or session_data.get('date_debut'))} au {format_date(cfg.get('endDate') or session_data.get('date_fin'))}.\nDate d‚Äôexamen : {format_date(cfg.get('examDate') or session_data.get('date_exam'))}.\n\nMerci de compl√©ter les 4 modules puis de cliquer sur ‚ÄúJ‚Äôai termin√©‚Äù afin que nous puissions finaliser le planning.\n\nBien cordialement,\nInt√©grale Academy"
-    smtp_config=get_smtp_config()
-    if not smtp_config.get("login") or not smtp_config.get("password"):
-        return jsonify({"ok":False,"error":"Email non configur√©.","url":url}),400
-    msg=MIMEText(body,"plain",_charset="utf-8"); msg["Subject"]="Modules impos√©s A3P √† compl√©ter"; msg["From"]=smtp_config["from_email"]; msg["To"]=email
-    with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-        server.starttls(); server.login(smtp_config["login"], smtp_config["password"]); server.sendmail(smtp_config["from_email"],[email],msg.as_string())
-    session_data["a3pTrainerModulesStatus"]="sent"; session_data["a3pTrainerPublicLinkSentAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
-    return jsonify({"ok":True,"url":url,"status":a3p_trainer_status(session_data)})
-
-@app.post("/api/admin/sessions/<sid>/a3p/trainer-modules/validate")
-def validate_a3p_trainer_modules_admin(sid):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data: return jsonify({"ok":False,"error":"Session introuvable."}),404
-    errors=validate_a3p_trainer_manual_data(session_data, session_data.get("a3pTrainerManualModulesData") or {})
-    if errors: return jsonify({"ok":False,"errors":errors,"error":"Modules formateur incomplets."}),400
-    session_data["a3pTrainerModulesStatus"]="validated"; session_data["a3pTrainerModulesValidatedAt"]=datetime.now().isoformat(); session_data["manual_modules_validated"] = True; session_data["manual_modules_validated_at"] = session_data["a3pTrainerModulesValidatedAt"]
-    draft=session_data.setdefault("a3pPlanningDraftJson", {})
-    draft["lockedModules"] = session_data.get("a3pTrainerManualModulesData") or {}
-    save_sessions(data)
-    return jsonify({"ok":True,"status":a3p_trainer_status(session_data)})
-
-@app.get("/public/a3p-planning/<token>")
-def public_a3p_planning_page(token):
-    return render_template("public_a3p_planning.html", token=token)
-
-@app.get("/api/public/a3p-planning/<token>")
-def get_public_a3p_planning(token):
-    data=load_sessions(); session_data=find_a3p_public_session(data, token)
-    if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou d√©sactiv√©."}),404
-    session_data["a3pTrainerPublicLinkLastAccessAt"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
-    return jsonify({"ok":True,"data":a3p_public_payload(session_data)})
-
-@app.put("/api/public/a3p-planning/<token>")
-def save_public_a3p_planning(token):
-    data=load_sessions(); session_data=find_a3p_public_session(data, token)
-    if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou d√©sactiv√©."}),404
-    payload=request.get_json(silent=True) or {}; modules=payload.get("modulesData") or {}
-    session_data["a3pTrainerManualModulesData"] = {c: modules.get(c, []) for c in A3P_TRAINER_MANUAL_CODES}
-    session_data["manual_modules_source"] = "trainer"
-    session_data["manual_modules_completed"] = False
-    session_data["manual_modules_validated"] = False
-    if session_data.get("a3pTrainerModulesStatus") not in {"completed","validated"}: session_data["a3pTrainerModulesStatus"]="in_progress"
-    save_sessions(data)
-    return jsonify({"ok":True,"status":a3p_trainer_status(session_data),"errors":validate_a3p_trainer_manual_data(session_data, session_data["a3pTrainerManualModulesData"])})
-
-@app.post("/api/public/a3p-planning/<token>/complete")
-def complete_public_a3p_planning(token):
-    data=load_sessions(); session_data=find_a3p_public_session(data, token)
-    if not session_data: return jsonify({"ok":False,"error":"Lien invalide ou d√©sactiv√©."}),404
-    modules=(request.get_json(silent=True) or {}).get("modulesData") or session_data.get("a3pTrainerManualModulesData") or {}
-    session_data["a3pTrainerManualModulesData"]={c: modules.get(c, []) for c in A3P_TRAINER_MANUAL_CODES}
-    errors=validate_a3p_trainer_manual_data(session_data, session_data["a3pTrainerManualModulesData"])
-    session_data["a3pTrainerModulesStatus"]="incomplete" if errors else "completed"
-    session_data["manual_modules_source"] = "trainer"
-    session_data["manual_modules_completed"] = not bool(errors)
-    session_data["manual_modules_validated"] = False
-    if not errors: session_data["a3pTrainerModulesCompletedAt"]=datetime.now().isoformat()
-    save_sessions(data)
-    return (jsonify({"ok":not bool(errors),"status":a3p_trainer_status(session_data),"errors":errors}), 400 if errors else 200)
-
-@app.get("/sessions/<sid>/a3p-documents/<kind>/view")
-def view_a3p_document(sid, kind):
-    data=load_sessions(); session_data=find_session(data,sid)
-    if not session_data:
-        return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "A3P":
-        return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
-    if kind not in {"planning", "attendance", "contract"}:
-        return jsonify({"ok": False, "error": "Type de document A3P invalide."}), 404
-
-    path = a3p_document_path(session_data, kind)
-    exists = bool(path and os.path.exists(path))
-    app.logger.info("T√©l√©chargement document A3P session_id=%s kind=%s path=%s exists=%s", sid, kind, path, exists)
-    if not exists:
-        return jsonify({"ok": False, "error": "Document introuvable, veuillez r√©g√©n√©rer les documents."}), 404
-
-    download_names = {
-        "planning": f"planning_a3p_session_{sid}.pdf",
-        "attendance": f"feuilles_presence_a3p_{sid}.pdf",
-        "contract": f"contrat_formateur_a3p_{sid}.pdf",
-    }
-    return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=download_names[kind])
-
-@app.get("/sessions/<sid>/aps-planning/edit")
-def edit_aps_planning_page(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        abort(404)
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data):
-        abort(404)
-    return render_template("aps_planning_editor.html", title="Modifier le planning", s=session_data)
-
-@app.get("/api/sessions/<sid>/aps-planning")
-def get_aps_planning_api(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    is_desp = formation in {"DESP", "DIRIGEANT"}
-    is_ssiap1 = is_ssiap1_session(session_data)
-    is_afc = normalize_training_code(session_data) == "AFC_APS_SSIAP" if session_data else False
-    if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
-        return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    planning_data = visible_planning_data(session_data.get("apsPlanningData") or [], include_empty=True)
-    if formation == "APS":
-        # This is intentionally performed from persisted data (including empty
-        # placeholders) so a support investigation can see the exact legacy
-        # records that were loaded.
-        log_aps_planning_diagnostics(session_data)
-    planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
-    summary = ssiap1_summary_from_data(planning_data) if is_ssiap1_session(session_data) and planning_data else (desp_summary_from_planning(planning_data) if is_desp and planning_data else (aps_summary_from_data(planning_data) if planning_data else None))
-    curriculum = aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None
-    return jsonify({
-        "ok": True,
-        "session": session_data,
-        "apsPlanningData": planning_data,
-        "summary": summary,
-        "curriculum": curriculum,
-        "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [],
-        "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None,
-        "capacityViolations": aps_capacity_violations(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [],
-        "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [],
-        "pdfUrl": url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None,
-        "needsRegeneration": bool(session_data.get("planning_pdf") and not planning_data),
-    })
-
-@app.put("/api/sessions/<sid>/aps-planning")
-def update_aps_planning_api(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    formation = (session_data.get("formation") or "").upper()
-    is_desp = formation in {"DESP", "DIRIGEANT"}
-    is_ssiap1 = is_ssiap1_session(session_data)
-    is_afc = normalize_training_code(session_data) == "AFC_APS_SSIAP"
-    if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
-        return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    if not session_data.get("apsPlanningData") and not session_data.get("planning_pdf"):
-        return jsonify({"ok": False, "error": "Aucun planning APS n'existe encore."}), 400
-    payload = request.get_json(silent=True) or {}
-    planning_data = payload.get("planningData")
-    if not isinstance(planning_data, list):
-        return jsonify({"ok": False, "error": "planningData est obligatoire."}), 400
-    # Discard malformed legacy placeholders submitted by older clients while
-    # retaining intentional APS availability slots (``isEmpty``).
-    planning_data = visible_planning_data(planning_data, include_empty=True)
-    if formation == "APS":
-        # Never trust a duration sent by the browser: persist the duration
-        # calculated from the two editable time fields.
-        planning_data = normalize_aps_slot_durations(planning_data)
-        log_aps_planning_diagnostics({**session_data, "apsPlanningData": planning_data})
-    planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
-    exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-    if exam_iso and not is_ssiap1_session(session_data) and any(day.get("date") == exam_iso for day in planning_data):
-        return jsonify({"ok": False, "error": f"S√©curit√© planning APS: la date d'examen ({format_date(exam_iso)}) est r√©serv√©e √† l‚Äôexamen et ne peut contenir aucun cr√©neau de formation."}), 400
-    if is_ssiap1_session(session_data):
-        summary = ssiap1_summary_from_data(planning_data)
-        errors = list(summary.get("errors") or [])
-    elif is_afc:
-        summary = afc_aps_ssiap_summary_from_data(planning_data)
-        errors = list(summary.get("errors") or [])
-    elif is_desp:
-        summary = desp_summary_from_planning(planning_data)
-        errors = list(summary.get("errors") or [])
-    else:
-        # A rescheduled plan can be intentionally incomplete.  Completion is a
-        # reporting state, not a prerequisite for saving a deletion/insertion.
-        errors, summary, curriculum = validate_aps_rescheduling_data(
-            planning_data, planning_mode,
-            daily_capacity_minutes=aps_daily_capacity_minutes(session_data),
-            lunch_break=aps_lunch_break(session_data),
-        )
-    capacity_violations = (aps_capacity_violations(planning_data, aps_daily_capacity_minutes(session_data))
-                           if formation == "APS" else [])
-    if errors:
-        return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary,
-                        "capacityViolations": capacity_violations}), 400
-    session_data["apsPlanningData"] = planning_data
-    session_data["apsPlanningSummary"] = summary
-    session_data["planning_modified_at"] = append_planning_history(session_data, "planning modifi√©")
-    pdf_url = url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None
-    if payload.get("regeneratePdf"):
-        filename = f"planning_{'afc_aps_ssiap' if is_afc else ('desp' if is_desp else ('ssiap1' if is_ssiap1 else 'aps'))}_session_{sid}.pdf"
-        output_path = os.path.join(PLANNING_DIR, filename)
-        temp_path = f"{output_path}.tmp"
-        profile = ({"validate": "afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"} if is_afc else ({"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"} if is_ssiap1_session(session_data) else ({"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else {"validate": "rescheduling", "summary": summary})))
-        try:
-            result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode, document_profile=profile)
-            if os.path.exists(output_path):
-                archive = os.path.join(PLANNING_DIR, f"planning_{'ssiap1' if is_ssiap1_session(session_data) else ('desp' if is_desp else 'aps')}_session_{sid}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf")
-                try:
-                    os.replace(output_path, archive)
-                except OSError:
-                    pass
-            os.replace(temp_path, output_path)
-        except (OSError, RuntimeError, ValueError) as exc:
-            app.logger.exception("R√©g√©n√©ration du PDF planning impossible session=%s", sid)
-            return jsonify({"ok": False, "error": f"Impossible de r√©g√©n√©rer le PDF : {exc}"}), 400
-        finally:
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except OSError:
-                    pass
-        session_data["planning_pdf"] = filename
-        session_data["apsPlanningSummary"] = result["summary"]
-        session_data["apsPlanningMode"] = planning_mode
-        session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF r√©g√©n√©r√©")
-        pdf_url = url_for("view_planning_pdf", sid=sid)
-    save_sessions(data)
-    return jsonify({"ok": True, "pdfUrl": pdf_url, "planningData": planning_data, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [], "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None, "capacityViolations": capacity_violations, "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [], "modifiedAt": session_data.get("planning_modified_at")})
-
-
-@app.delete("/api/sessions/<sid>/aps-planning")
-def reset_aps_planning_api(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        return jsonify({"success": False, "message": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data):
-        return jsonify({"success": False, "message": "Cette action est disponible uniquement pour les sessions APS/DESP."}), 400
-
-    planning_keys = (
-        "apsPlanningData",
-        "apsPlanningMode",
-        "apsPlanningPdfUrl",
-        "apsPlanningGeneratedAt",
-        "apsPlanningUpdatedAt",
-        "apsPlanningModifiedAt",
-        "apsPlanningSummary",
-        "apsPlanningHistory",
-        "planning_pdf",
-        "planning_generated_at",
-        "planning_modified_at",
-        "planning_pdf_regenerated_at",
-        "planning_updated_at",
-        "planning_history",
-    )
-    existing_values = {key: session_data.get(key) for key in planning_keys if session_data.get(key) not in (None, "", [], {})}
-    if not existing_values:
-        return jsonify({"success": True, "message": "Aucun planning APS √† r√©initialiser."})
-
-    old_pdf = session_data.get("planning_pdf") or session_data.get("apsPlanningPdfUrl")
-    deleted_pdf = None
-    pdf_delete_error = None
-    if old_pdf:
-        pdf_name = os.path.basename(str(old_pdf))
-        pdf_path = os.path.join(PLANNING_DIR, pdf_name)
-        if os.path.exists(pdf_path):
-            try:
-                os.remove(pdf_path)
-                deleted_pdf = pdf_name
-            except OSError as exc:
-                pdf_delete_error = str(exc)
-                app.logger.warning("R√©initialisation planning APS: suppression PDF impossible session=%s pdf=%s erreur=%s", sid, pdf_name, exc)
-        else:
-            app.logger.info("R√©initialisation planning APS: PDF d√©j√† absent session=%s pdf=%s", sid, pdf_name)
-
-    for key in planning_keys:
-        session_data.pop(key, None)
-
-    reset_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    admin_user = session.get("admin_email") or session.get("admin_user") or (ADMIN_USER if session.get("admin_logged") else "")
-    save_sessions(data)
-    app.logger.info(
-        "Planning APS r√©initialis√© session=%s reset_at=%s admin=%s ancien_pdf=%s pdf_supprime=%s pdf_erreur=%s champs=%s",
-        sid,
-        reset_at,
-        admin_user or "inconnu",
-        old_pdf or "aucun",
-        deleted_pdf or "non",
-        pdf_delete_error or "aucune",
-        sorted(existing_values.keys()),
-    )
-    return jsonify({"success": True, "message": "Planning APS r√©initialis√© avec succ√®s"})
-
-
-@app.get("/sessions/<sid>/planning/view")
-def view_planning_pdf(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        abort(404)
-    try:
-        name = refresh_aps_planning_pdf_file(session_data, sid)
-        save_sessions(data)
-    except Exception as exc:
-        app.logger.exception("Impossible de rafra√Æchir le planning APS avant affichage session=%s", sid)
-        abort(500, description=str(exc))
-    if not name:
-        abort(404)
-
-    path = os.path.join(PLANNING_DIR, os.path.basename(str(name)))
-    if not os.path.exists(path):
-        abort(404)
-
-    return send_planning_pdf_file(path, as_attachment=False)
-
-
-@app.get("/sessions/<sid>/planning/download")
-def download_planning_pdf(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        abort(404)
-    try:
-        name = refresh_aps_planning_pdf_file(session_data, sid)
-        save_sessions(data)
-    except Exception as exc:
-        app.logger.exception("Impossible de rafra√Æchir le planning APS avant t√©l√©chargement session=%s", sid)
-        abort(500, description=str(exc))
-    if not name:
-        abort(404)
-
-    name = os.path.basename(str(name))
-    path = os.path.join(PLANNING_DIR, name)
-    if not os.path.exists(path):
-        abort(404)
-
-    return send_planning_pdf_file(path, as_attachment=True, download_name=name)
-
-
-
-@app.post("/api/sessions/<sid>/aps-convocation")
-def generate_aps_convocation_route(sid):
-    data = load_sessions()
-    session_data = find_session(data, sid)
-    if not session_data:
-        return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() != "APS":
-        return jsonify({"ok": False, "error": "La convocation mod√®le Word est r√©serv√©e aux sessions APS."}), 400
-    payload = request.get_json(silent=True) or {}
-    trainee = payload.get("trainee") if isinstance(payload.get("trainee"), dict) else payload
-    try:
-        result = generateApsConvocationFromDocxTemplate(trainee, session_data)
-        return jsonify({"ok": True, **result})
-    except Exception as exc:
-        app.logger.exception("Erreur g√©n√©ration convocation APS session=%s", sid)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-
-
-@app.get("/convocations/aps/<path:filename>")
-def view_aps_convocation_pdf(filename):
-    safe_name = secure_filename(filename)
-    if not safe_name.lower().endswith(".pdf"):
-        abort(404)
-    path = os.path.join(CONVOCATION_DIR, safe_name)
-    if not os.path.exists(path):
-        abort(404)
-    return send_file(path, mimetype="application/pdf", as_attachment=False)
-
-
-@app.get("/convocations/aps/docx/<path:filename>")
-def download_aps_convocation_docx(filename):
-    safe_name = secure_filename(filename)
-    if not safe_name.lower().endswith(".docx"):
-        abort(404)
-    path = os.path.join(CONVOCATION_DIR, safe_name)
-    if not os.path.exists(path):
-        abort(404)
-    return send_file(path, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document", as_attachment=True, download_name=safe_name)
-
-@app.route("/healthz")
-def healthz():
-    return "ok"
-
-@app.route("/cron-check")
-def cron_check():
-    data = load_sessions()
-    for session in data["sessions"]:
-        auto_archive_if_all_done(session)
-    reminded = send_jury_reminders(data, request.url_root.rstrip("/"))
-    expired_alerts = send_formateur_expiration_alerts()
-    save_sessions(data)
-    message = "Cron check termin√©"
-    if reminded:
-        message = f"{message} | Rappels jury envoy√©s: {', '.join(reminded)}"
-    if expired_alerts:
-        message = f"{message} | Alertes expiration formateurs: {expired_alerts}"
-    return message, 200
-
-@app.route("/cron-daily-summary")
-def cron_daily_summary():
-    send_daily_overdue_summary()
-    return "Mail r√©capitulatif envoy√©", 200
-
-# ------------------------------------------------------------
-# ‚úÖ Route publique pour le suivi auto sur la plateforme principale
-#    -> renvoie le nombre total d'√©tapes en retard (toutes sessions actives)
-# ------------------------------------------------------------
-@app.route("/data.json")
-def data_sessions_json():
-    try:
-        data = load_sessions()
-        sessions = data.get("sessions", [])
-
-        today = datetime.now().date()
-        total_retards_steps = 0
-        total_sessions_en_retard = 0
-        details = []  # utile si tu veux diagnostiquer
-
-        for s in sessions:
-            end_date = parse_date(s.get("date_fin"))
-            is_finished = bool(end_date and end_date.date() < today)
-            if s.get("archived") or is_finished:
-                continue  # on ignore les sessions archiv√©es ou termin√©es (comme /sessions)
-
-            late_steps = []
-            for i, step in enumerate(s.get("steps", [])):
-                st, dl = status_for_step(i, s)
-                if st == "late":
-                    total_retards_steps += 1
-                    late_steps.append({
-                        "name": step.get("name"),
-                        "deadline": (dl.strftime("%Y-%m-%d") if dl else None)
-                    })
-
-            if late_steps:
-                total_sessions_en_retard += 1
-
-            details.append({
-                "id": s.get("id"),
-                "formation": s.get("formation"),
-                "date_debut": s.get("date_debut"),
-                "date_exam": s.get("date_exam"),
-                "retards": len(late_steps),
-                "late_steps": late_steps
-            })
-
-        payload = {
-            "retards": total_sessions_en_retard,  # üëâ cl√© utilis√©e par l'index (compte des sessions ayant au moins 1 retard)
-            "retards_steps": total_retards_steps,  # d√©tail: nombre total d'√©tapes en retard
-            "sessions": details
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
-        }
-        return json.dumps(payload, ensure_ascii=False), 200, headers
-
-    except Exception as e:
-        print("Erreur /data.json (sessions):", e)
-        return json.dumps({"retards": -1, "error": str(e)}), 500, {
-            "Access-Control-Allow-Origin": "*"
-        }
-
-@app.route("/tz-test")
-def tz_test():
-    from datetime import datetime
-    import time
-    return f"Serveur : {datetime.now()}<br>Heure syst√®me : {time.tzname}"
-
-# ------------------------------------------------------------
-# üì¶ GESTION DES DOTATIONS
-# ------------------------------------------------------------
-
-DOTATIONS_FILE = os.path.join(DATA_DIR, "dotations.json")
-
-def load_dotations():
-    if os.path.exists(DOTATIONS_FILE):
-        try:
-            with open(DOTATIONS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return []
-
-def save_dotations(data):
-    with open(DOTATIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-# ‚úâÔ∏è Fonction d‚Äôenvoi d‚Äôemail (r√©utilise la conf SMTP)
-def send_email(to, subject, body):
-    if not FROM_EMAIL or not EMAIL_PASSWORD:
-        print("‚ö†Ô∏è Email non configur√©")
-        return
-    msg = MIMEText(body, "html", "utf-8")
-    msg["From"] = FROM_EMAIL
-    msg["To"] = to
-    msg["Subject"] = subject
-    try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
-            s.starttls()
-            s.login(FROM_EMAIL, EMAIL_PASSWORD)
-            s.sendmail(FROM_EMAIL, [to], msg.as_string())
-        print(f"‚úÖ Mail envoy√© √† {to}")
-    except Exception as e:
-        print("‚ùå Erreur envoi mail dotation :", e)
-
-
-def send_price_adaptator_email(to, subject, html):
-    smtp_config = get_smtp_config()
-    if not smtp_config["login"] or not smtp_config["password"]:
-        return False, "SMTP non configur√©"
-    msg = MIMEText(html, "html", "utf-8")
-    msg["From"] = smtp_config["from_email"]
-    msg["To"] = to
-    msg["Cc"] = "clement@integraleacademy.com"
-    msg["Subject"] = subject
-    try:
-        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
-            server.starttls()
-            server.login(smtp_config["login"], smtp_config["password"])
-            server.sendmail(
-                smtp_config["from_email"],
-                [to, "clement@integraleacademy.com"],
-                msg.as_string(),
-            )
-        return True, None
-    except Exception as e:
-        print("‚ùå Erreur envoi mail price adaptator :", e)
-        return False, str(e)
-
-
-def send_price_adaptator_sms(phone, message):
-    normalized_phone = normalize_phone_number(phone)
-    if not normalized_phone:
-        return False, "T√©l√©phone au format international requis (ex: +336...)"
-
-    # ‚úÖ Utilise Brevo comme pour les SMS jury
-    if BREVO_API_KEY and BREVO_SMS_SENDER:
-        print("[price sms] Envoi via Brevo API", {"to": normalized_phone, "sender": BREVO_SMS_SENDER})
-
-        payload = json.dumps({
-            "sender": BREVO_SMS_SENDER,
-            "recipient": normalized_phone,
-            "content": message,
-            "type": "transactional",
-        }).encode("utf-8")
-
-        req = urllib.request.Request("https://api.brevo.com/v3/transactionalSMS/sms")
-        req.add_header("Content-Type", "application/json")
-        req.add_header("api-key", BREVO_API_KEY)
-
-        try:
-            with urllib.request.urlopen(req, data=payload, timeout=10) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-                print("[price sms] Brevo response", resp.status, body)
-                if 200 <= resp.status < 300:
-                    return True, None
-                return False, f"Brevo SMS erreur {resp.status}: {body}"
-
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", errors="replace")
-            print("[price sms] Brevo HTTPError", e.code, body)
-            return False, f"Brevo HTTP {e.code}: {body}"
-
-        except Exception as e:
-            print("[price sms] Brevo exception", repr(e))
-            return False, str(e)
-
-    return False, "SMS non configur√© (BREVO_API_KEY / BREVO_SMS_SENDER manquants)"
-
-
-@app.route("/dotations")
-def dotations_home():
-    data = load_dotations()
-    return render_template("dotations.html", title="Gestion des dotations", dotations=data)
-
-
-@app.route("/dotations/add", methods=["POST"])
-def add_dotation():
-    data = load_dotations()
-    item = {
-        "id": str(uuid.uuid4())[:8],
-        "nom": request.form.get("nom", "").strip(),
-        "prenom": request.form.get("prenom", "").strip(),
-        "email": request.form.get("email", "").strip(),
-        "ipad": request.form.get("ipad", "").strip(),
-        "badge": request.form.get("badge", "").strip(),
-        "date_remise": request.form.get("date_remise", "").strip(),
-        "statut": "Dotation √† distribuer",
-        "commentaire": request.form.get("commentaire", "").strip(),
-    }
-    data.append(item)
-    save_dotations(data)
-    flash("Dotation ajout√©e avec succ√®s.", "ok")
-    return redirect(url_for("dotations_home"))
-
-
-@app.route("/dotations/<id>/delete", methods=["POST"])
-def delete_dotation(id):
-    data = load_dotations()
-    data = [d for d in data if d["id"] != id]
-    save_dotations(data)
-    flash("Dotation supprim√©e.", "ok")
-    return redirect(url_for("dotations_home"))
-
-
-@app.route("/dotations/<id>/edit", methods=["POST"])
-def edit_dotation(id):
-    data = load_dotations()
-    for d in data:
-        if d["id"] == id:
-            d["nom"] = request.form.get("nom", d["nom"])
-            d["prenom"] = request.form.get("prenom", d["prenom"])
-            d["email"] = request.form.get("email", d["email"])
-            d["ipad"] = request.form.get("ipad", d["ipad"])
-            d["badge"] = request.form.get("badge", d["badge"])
-            d["date_remise"] = request.form.get("date_remise", d["date_remise"])
-            d["commentaire"] = request.form.get("commentaire", d["commentaire"])
-            break
-    save_dotations(data)
-    flash("Dotation modifi√©e.", "ok")
-    return redirect(url_for("dotations_home"))
-
-@app.route("/dotations/<id>/update_date", methods=["POST"])
-def update_date_remise(id):
-    data = load_dotations()
-    for d in data:
-        if d["id"] == id:
-            d["date_remise"] = request.form.get("date_remise", d["date_remise"])
-            break
-    save_dotations(data)
-    flash("Date de remise mise √† jour.", "ok")
-    return redirect(url_for("dotations_home"))
-
-@app.route("/dotations/<id>/rupture", methods=["POST"])
-def rupture_contrat(id):
-    data = load_dotations()
-    for d in data:
-        if d["id"] == id:
-            d["statut"] = "Dotation non restitu√©e"
-            save_dotations(data)
-            body = f"""
-            Bonjour {d['prenom']},<br><br>
-
-            Suite √† la rupture de votre contrat d‚Äôapprentissage, nous vous rappelons que vous devez restituer l‚Äôensemble du mat√©riel mis √† disposition (iPad, chargeur et badge distributeur) dans un d√©lai de 5 jours, conform√©ment √† la convention sign√©e.<br><br>
-
-            Le mat√©riel peut √™tre d√©pos√© directement au centre Int√©grale Academy (54 chemin du Carreou, 83480 Puget-sur-Argens) ou envoy√© par courrier suivi √† la m√™me adresse.<br><br>
-
-            L‚ÄôiPad doit √™tre restitu√© en parfait √©tat de fonctionnement et sans d√©gradation.<br>
-            En cas de non-restitution ou de mat√©riel d√©grad√©, des p√©nalit√©s financi√®res pourront √™tre appliqu√©es :<br>
-            ‚Äì 400 ‚Ç¨ pour l‚ÄôiPad<br>
-            ‚Äì 20 ‚Ç¨ pour le chargeur<br>
-            ‚Äì 20 ‚Ç¨ pour le badge distributeur<br><br>
-
-            Bien cordialement,<br>
-            <b>Cl√©ment VAILLANT</b><br>
-            Directeur g√©n√©ral ‚Äì Int√©grale Academy
-            """
-            send_email(d["email"], "Restitution du mat√©riel ‚Äì Int√©grale Academy", body)
-            break
-    flash("üì© Mail de rupture envoy√© et statut mis √† jour.", "ok")
-    return redirect(url_for("dotations_home"))
-
-
-@app.route("/dotations/<id>/badge_fin", methods=["POST"])
-def badge_fin(id):
-    data = load_dotations()
-    for d in data:
-        if d["id"] == id:
-            d["statut"] = "Dotation non restitu√©e"  # ‚úÖ au lieu de "Dotation restitu√©e"
-            save_dotations(data)
-            body = f"""
-            Bonjour {d['prenom']},<br><br>
-            Votre BTS touche √† sa fin, nous vous rappelons que vous devez nous restituer le badge distributeur de boissons et snack avant de quitter l'√©cole, conform√©ment √† la convention sign√©e.<br><br>
-            Vous pouvez le d√©poser directement au centre Int√©grale Academy (54 chemin du Carreou, 83480 Puget-sur-Argens) ou l‚Äôenvoyer par courrier suivi √† la m√™me adresse.<br><br>
-            Nous vous remercions par avance pour votre r√©activit√©.<br><br>
-            Bien cordialement,<br>
-            <b>L‚Äô√©quipe Int√©grale Academy</b>
-            """
-            send_email(d["email"], "Restitution du badge distributeur ‚Äì Int√©grale Academy", body)
-            break
-    flash("üì© Mail de fin d‚Äô√©tudes envoy√© et statut mis √† jour.", "ok")
-    return redirect(url_for("dotations_home"))
-
-
-
-
-
-@app.route("/dotations/<id>/changer_statut", methods=["POST"])
-def changer_statut(id):
-    nouveau_statut = request.form.get("statut")
-    data = load_dotations()
-    for d in data:
-        if d["id"] == id:
-            d["statut"] = nouveau_statut
-            break
-    save_dotations(data)
-    return redirect(url_for("dotations_home"))
-
-# ------------------------------------------------------------
-# üë®‚Äçüè´ GESTION DES FORMATEURS (Contr√¥le formateurs)
-# ------------------------------------------------------------
-
-FORMATEURS_FILE = os.path.join(DATA_DIR, "formateurs.json")
-FORMATEURS_LOCK = FORMATEURS_FILE + ".lock"
-FORMATEUR_FILES_DIR = os.path.join(DATA_DIR, "formateurs_files")
-FORMATEUR_PROFILS_DOCS_FILE = os.path.join(DATA_DIR, "formateur_profils_docs.json")
-os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
-
-DEFAULT_DOC_LABELS = [
-    "Badge formateur ind√©pendant",
-    "Pi√®ce d‚Äôidentit√©",
-    "Carte pro formateur",
-    "Carte pro APS",
-    "Carte pro A3P",
-    "Dipl√¥me APS",
-    "Dipl√¥me A3P",
-    "Num√©ro NDA",
-    "Extrait SIRENE moins de 3 mois",
-    "Attestation d‚Äôassurance RC PRO",
-    "Extrait KBIS moins de 3 mois",
-    "DRACAR moins de 3 mois",
-    "Dipl√¥me SSIAP 1 √† jour",
-    "Dipl√¥me SSIAP 2 √† jour",
-    "Dipl√¥me SSIAP 3 √† jour",
-    "Carte formateur SST",
-    "Attestation pr√©vention des risques terroristes",
-    "Attestation √©v√©nementiel sp√©cifique",
-    "Attestation palpation de s√©curit√©",
-    "Attestation gestion des conflits",
-    "Attestation gestion des conflits d√©grad√©s",
-    "Dipl√¥me formateur p√©dagogie",
-    "Attestation sur l‚Äôhonneur CNAPS",
-    "Attestation de vigilance URSSAF de moins de 3 mois",
-    "Charte qualit√© du formateur",
-    "Attestation vacataire APS Adef",
-    "Attestation vacataire A3P Adef",
-    "Agr√©ment dirigeant CNAPS (AGD)",
-    "Autorisation d‚Äôexercice CNAPS",
-    "CV √† jour",
-    "Photo d'identit√©",
-]
-
-FORMATEUR_PROFILE_OPTIONS = [
-    {"key": "APS", "label": "APS", "color": "#1f6feb"},
-    {"key": "A3P", "label": "A3P", "color": "#2da44e"},
-    {"key": "BTS", "label": "BTS", "color": "#0ea5e9"},
-    {"key": "DIRIGEANT", "label": "DIRIGEANT", "color": "#e67e22"},
-    {"key": "SALARIE", "label": "Salari√©", "color": "#6b7280"},
-    {"key": "PRESTATAIRE", "label": "Prestataire", "color": "#111827"},
-    {"key": "SSIAP", "label": "SSIAP", "color": "#dc2626"},
-    {"key": "SST", "label": "SST", "color": "#2da44e"},
-]
-FORMATEUR_PROFILE_KEYS = {option["key"] for option in FORMATEUR_PROFILE_OPTIONS}
-
-def load_formateurs():
-    def _read_json(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-    # 1) Lecture normale
-    if os.path.exists(FORMATEURS_FILE):
-        try:
-            data = _read_json(FORMATEURS_FILE)
-            if isinstance(data, list) and len(data) > 0:
-                return data
-        except Exception:
-            pass  # on tentera le backup
-
-    # 2) Tentative restore depuis .bak
-    bak_path = FORMATEURS_FILE + ".bak"
-    if os.path.exists(bak_path):
-        try:
-            data = _read_json(bak_path)
-            if isinstance(data, list):
-                # on restaure le fichier principal
-                save_formateurs(data)
-                return data
-        except Exception:
-            pass
-
-    # 3) Dernier recours
-    return []
-
-
-
-
-def normalize_lookup_text(value):
-    return " ".join(str(value or "").strip().lower().split())
-
-def formateur_full_name(formateur):
-    return " ".join(part for part in [(formateur.get("prenom") or "").strip(), (formateur.get("nom") or "").strip()] if part).strip()
-
-def find_formateur_by_identity(name="", email=""):
-    wanted_email = normalize_lookup_text(email)
-    wanted_name = normalize_lookup_text(name)
-    if not wanted_email and not wanted_name:
-        return None
-    for formateur in load_formateurs():
-        if wanted_email and normalize_lookup_text(formateur.get("email")) == wanted_email:
-            return formateur
-        full_name = normalize_lookup_text(formateur_full_name(formateur))
-        reverse_name = normalize_lookup_text(f"{formateur.get('nom', '')} {formateur.get('prenom', '')}")
-        if wanted_name and wanted_name in {full_name, reverse_name}:
-            return formateur
-    return None
-
-def formateur_contract_defaults(formateur):
-    if not formateur:
-        return {}
-    return {
-        "email": (formateur.get("email") or "").strip(),
-        "phone": (formateur.get("telephone") or "").strip(),
-        "address": (formateur.get("adresse_postale") or formateur.get("adresse") or "").strip(),
-        "siret": (formateur.get("siret") or "").strip(),
-        "activityDeclaration": (formateur.get("nda") or formateur.get("activityDeclaration") or "").strip(),
-        "dailyRate": (formateur.get("tarif_journalier_ht") or formateur.get("dailyRate") or "").strip(),
-    }
-
-def merge_formateur_contract_defaults(contract, formateur):
-    merged = dict(contract or {})
-    for key, value in formateur_contract_defaults(formateur).items():
-        current = merged.get(key)
-        is_empty = not current.strip() if isinstance(current, str) else not current
-        if value and is_empty:
-            merged[key] = value
-    return merged
-
-def save_formateurs(data):
-    # verrou simple (anti √©critures concurrentes)
-    start = time.time()
-    while os.path.exists(FORMATEURS_LOCK):
-        # √©vite de bloquer √† l‚Äôinfini si un lock ‚Äúfant√¥me‚Äù reste
-        if time.time() - start > 5:
-            try:
-                os.remove(FORMATEURS_LOCK)
-            except Exception:
-                break
-        time.sleep(0.05)
-
-    # cr√©er le lock
-    with open(FORMATEURS_LOCK, "w") as f:
-        f.write(str(os.getpid()))
-
-    try:
-        # √©criture atomique: tmp -> replace
-        tmp_path = FORMATEURS_FILE + ".tmp"
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-
-        os.replace(tmp_path, FORMATEURS_FILE)
-
-        # backup
-        bak_path = FORMATEURS_FILE + ".bak"
-        try:
-            with open(bak_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-
-    finally:
-        try:
-            os.remove(FORMATEURS_LOCK)
-        except Exception:
-            pass
-
-
-
-
-def find_formateur(formateurs, fid):
-    for f in formateurs:
-        if f.get("id") == fid:
-            return f
-    return None
-
-
-def normalize_formateur_nub(value):
-    value = (value or "").strip()
-    if not value:
-        return ""
-    if not value.isdigit() or len(value) != 7:
-        raise ValueError("Le NUB doit contenir exactement 7 chiffres.")
-    return value
-
-
-def normalize_formateur_profils(values):
-    profils = []
-    for value in values or []:
-        key = (value or "").strip().upper()
-        if key in FORMATEUR_PROFILE_KEYS and key not in profils:
-            profils.append(key)
-    return profils
-
-
-def sanitize_doc_labels(values):
-    labels = []
-    for value in values or []:
-        label = (value or "").strip()
-        if label and label not in labels:
-            labels.append(label)
-    return labels
-
-
-def load_formateur_profils_docs_config():
-    default_map = {option["key"]: [] for option in FORMATEUR_PROFILE_OPTIONS}
-    if not os.path.exists(FORMATEUR_PROFILS_DOCS_FILE):
-        return default_map
-
-    try:
-        with open(FORMATEUR_PROFILS_DOCS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        return default_map
-
-    if not isinstance(data, dict):
-        return default_map
-
-    cleaned = {}
-    for option in FORMATEUR_PROFILE_OPTIONS:
-        key = option["key"]
-        values = data.get(key, [])
-        cleaned[key] = sanitize_doc_labels(values if isinstance(values, list) else [])
-    return cleaned
-
-
-def save_formateur_profils_docs_config(config):
-    cleaned = {}
-    for option in FORMATEUR_PROFILE_OPTIONS:
-        key = option["key"]
-        values = config.get(key, [])
-        cleaned[key] = sanitize_doc_labels(values if isinstance(values, list) else [])
-
-    with open(FORMATEUR_PROFILS_DOCS_FILE, "w", encoding="utf-8") as f:
-        json.dump(cleaned, f, ensure_ascii=False, indent=2)
-
-
-def apply_profile_document_requirements(formateur, profils_docs_config):
-    profils = normalize_formateur_profils(formateur.get("profils", []))
-    formateur["profils"] = profils
-    if not profils:
-        return
-
-    required_labels = set()
-    for profil in profils:
-        required_labels.update(profils_docs_config.get(profil, []))
-
-    for doc in formateur.get("documents", []):
-        label = doc.get("label", "")
-        if label in required_labels:
-            if doc.get("status") == "non_concerne":
-                doc["status"] = "non_conforme"
-        else:
-            doc["status"] = "non_concerne"
-
-
-
-def find_formateur_document(formateur, doc_id):
-    return next((d for d in formateur.get("documents", []) if d.get("id") == doc_id), None)
-
-
-def latest_formateur_pdf_attachment(formateur, preferred_doc_id=""):
-    docs = formateur.get("documents", [])
-    ordered_docs = []
-    if preferred_doc_id:
-        preferred = find_formateur_document(formateur, preferred_doc_id)
-        if preferred:
-            ordered_docs.append(preferred)
-    contract_docs = [d for d in docs if d not in ordered_docs and "contrat" in (d.get("label") or "").lower()]
-    other_docs = [d for d in docs if d not in ordered_docs and d not in contract_docs]
-    for doc in ordered_docs + contract_docs + other_docs:
-        for attachment in reversed(doc.get("attachments", [])):
-            original = attachment.get("original_name") or attachment.get("filename") or ""
-            filename = attachment.get("filename") or ""
-            if original.lower().endswith(".pdf") or filename.lower().endswith(".pdf"):
-                path = os.path.join(FORMATEUR_FILES_DIR, formateur.get("id", ""), doc.get("id", ""), os.path.basename(filename))
-                if os.path.exists(path):
-                    return doc, attachment, path
-    return None, None, None
-
-
-YOUSIGN_STATUS_LABELS = {
-    "draft": "Brouillon", "approval": "En pr√©paration", "ongoing": "En attente de signature",
-    "done": "Sign√©", "signed": "Sign√©", "partially_signed": "Partiellement sign√©", "declined": "Refus√©", "expired": "Expir√©", "canceled": "Annul√©",
-    "rejected": "Refus√©", "error": "Erreur d‚Äôenvoi",
-}
-YOUSIGN_EVENT_STATUS = {
-    "signature_request.activated": "ongoing",
-    "signature_request.done": "done", "signer.done": "done",
-    "signature_request.declined": "declined", "signer.declined": "declined",
-    "signature_request.expired": "expired", "signature_request.canceled": "canceled",
-    "signer.notification_delivery_failed": "error", "signer.error": "error",
-}
-YOUSIGN_HANDLED_WEBHOOK_EVENTS = {
-    "signature_request.activated", "signer.done", "signature_request.done",
-    "signer.declined", "signature_request.expired", "signature_request.canceled",
-}
-
-def yousign_status_label(status):
-    return YOUSIGN_STATUS_LABELS.get((status or "").strip(), YOUSIGN_STATUS_LABELS.get(str(status or "").split(".")[-1], "Statut inconnu"))
-
-def is_yousign_sandbox():
-    return "api-sandbox" in (get_yousign_config().base_url or "")
-
-def normalize_yousign_state(state=None):
-    defaults = {
-        "signatureRequestId": "", "documentId": "", "signerId": "", "fieldId": "", "externalId": "", "status": "draft", "statusLabel": "Brouillon",
-        "signatureUrl": "", "sentAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
-        "lastEvent": "", "lastEventAt": "", "lastSyncedAt": "", "lastWebhookAt": "",
-        "apiStatus": "", "apiSignerStatus": "", "apiHttpStatus": "", "apiError": "", "apiRawResponse": "",
-        "recipientEmail": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
-    }
-    legacy = {
-        "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
-        "yousign_external_id": "externalId", "yousign_api_status": "apiStatus", "yousign_api_signer_status": "apiSignerStatus", "yousign_api_http_status": "apiHttpStatus", "yousign_api_error": "apiError", "last_yousign_raw_response": "apiRawResponse",
-        "yousign_status": "status", "yousign_status_label": "statusLabel", "yousign_sent_at": "sentAt",
-        "yousign_signed_at": "signedAt", "yousign_declined_at": "declinedAt", "yousign_expired_at": "expiredAt",
-        "yousign_canceled_at": "canceledAt", "yousign_last_event": "lastEvent", "yousign_last_event_at": "lastEventAt",
-        "last_yousign_sync_at": "lastSyncedAt", "yousign_last_sync_at": "lastSyncedAt",
-        "yousign_last_error": "error", "yousign_recipient_email": "recipientEmail", "yousign_signed_document_url": "signedDocumentUrl",
-    }
-    if isinstance(state, dict):
-        defaults.update({k: v for k, v in state.items() if k in defaults})
-        for old_key, new_key in legacy.items():
-            if state.get(old_key) and not defaults.get(new_key):
-                defaults[new_key] = state.get(old_key)
-    defaults["statusLabel"] = yousign_status_label(defaults.get("status"))
-    return defaults
-
-def mirror_yousign_state_on_contract(contract):
-    state = normalize_yousign_state(contract.get("yousign"))
-    contract["yousign"] = state
-    mapping = {
-        "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
-        "yousign_external_id": "externalId", "yousign_api_status": "apiStatus", "yousign_api_signer_status": "apiSignerStatus", "yousign_api_http_status": "apiHttpStatus", "yousign_api_error": "apiError", "last_yousign_raw_response": "apiRawResponse",
-        "yousign_status": "status", "yousign_status_label": "statusLabel", "yousign_sent_at": "sentAt",
-        "yousign_signed_at": "signedAt", "yousign_declined_at": "declinedAt", "yousign_expired_at": "expiredAt",
-        "yousign_canceled_at": "canceledAt", "yousign_last_event": "lastEvent", "yousign_last_event_at": "lastEventAt",
-        "last_yousign_sync_at": "lastSyncedAt", "yousign_last_sync_at": "lastSyncedAt",
-        "yousign_last_error": "error", "yousign_recipient_email": "recipientEmail", "yousign_signed_document_url": "signedDocumentUrl",
-    }
-    for flat_key, state_key in mapping.items():
-        contract[flat_key] = state.get(state_key)
-    return state
-
-def extract_yousign_status(payload):
-    if not isinstance(payload, dict):
-        return "error"
-    event = payload.get("event_name") or payload.get("event") or payload.get("type") or ""
-    if event in YOUSIGN_EVENT_STATUS:
-        return YOUSIGN_EVENT_STATUS[event]
-
-    status = payload.get("status") or payload.get("event_name", "").split(".")[-1]
-    data_payload = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-    signer_payload = payload.get("signer") if isinstance(payload.get("signer"), dict) else data_payload.get("signer", {})
-    signer_status = (signer_payload or {}).get("status")
-    if signer_status in {"signed", "done"}:
-        return "done"
-    if signer_status == "declined":
-        return "declined"
-
-    signers = payload.get("signers")
-    if isinstance(signers, list):
-        signer_statuses = [s.get("status") for s in signers if isinstance(s, dict)]
-        if signer_statuses and all(s in {"signed", "done"} for s in signer_statuses):
-            return "done"
-        if any(s == "declined" for s in signer_statuses):
-            return "declined"
-
-    return status if status else "ongoing"
-
-
-
-def extract_yousign_external_id(payload):
-    if not isinstance(payload, dict):
-        return ""
-    data_payload = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-    signature_request = payload.get("signature_request") if isinstance(payload.get("signature_request"), dict) else data_payload.get("signature_request", {})
-    return payload.get("external_id") or data_payload.get("external_id") or (signature_request or {}).get("external_id") or ""
-
-def extract_yousign_signers_list(signers_payload):
-    if isinstance(signers_payload, list):
-        return signers_payload
-    if isinstance(signers_payload, dict):
-        if isinstance(signers_payload.get("data"), list):
-            return signers_payload["data"]
-        if isinstance(signers_payload.get("signers"), list):
-            return signers_payload["signers"]
-    return []
-
-def build_yousign_api_sync_updates(signature_request_payload, signers_payload=None, now=None, http_status=None, raw_response=None):
-    now = now or datetime.now().isoformat(timespec="seconds")
-    signers = extract_yousign_signers_list(signers_payload)
-    signer_statuses = [str(s.get("status") or "") for s in signers if isinstance(s, dict)]
-    api_status = signature_request_payload.get("status") if isinstance(signature_request_payload, dict) else ""
-    internal_status = extract_yousign_status({**(signature_request_payload or {}), "signers": signers})
-    signed_signers = [s for s in signer_statuses if s in {"signed", "done"}]
-    if api_status == "done":
-        internal_status = "signed"
-    elif signed_signers and len(signed_signers) == len(signer_statuses or signed_signers):
-        internal_status = "signed"
-    elif signed_signers:
-        internal_status = "partially_signed"
-    elif api_status == "ongoing":
-        internal_status = "ongoing"
-    updates = {
-        "status": internal_status,
-        "apiStatus": api_status or internal_status,
-        "apiSignerStatus": ",".join([s for s in signer_statuses if s]),
-        "apiHttpStatus": str(http_status or ""),
-        "apiRawResponse": json.dumps(raw_response if raw_response is not None else signature_request_payload, ensure_ascii=False, default=str)[:4000],
-        "apiError": "",
-        "lastSyncedAt": now,
-        "error": None,
-    }
-    external_id = extract_yousign_external_id(signature_request_payload or {})
-    if external_id:
-        updates["externalId"] = external_id
-    if internal_status in {"signed", "done"}: updates["signedAt"] = now
-    if internal_status == "declined": updates["declinedAt"] = now
-    if internal_status == "expired": updates["expiredAt"] = now
-    if internal_status == "canceled": updates["canceledAt"] = now
-    return updates
-
-def sync_yousign_signature_request_from_api(signature_request_id, now=None):
-    now = now or datetime.now().isoformat(timespec="seconds")
-    client = YousignClient()
-    env = detect_yousign_environment(client.config.base_url)
-    logger.info("YOUSIGN ENV=%s base_url=%s", env, client.config.base_url)
-    logger.info("YOUSIGN SYNC START signature_request_id=%s", signature_request_id)
-    try:
-        payload, http_status, url = client.get_signature_request_with_http_status(signature_request_id)
-        logger.info("YOUSIGN SYNC REQUEST url=%s signature_request_id=%s", url, signature_request_id)
-        logger.info("YOUSIGN SYNC RESPONSE http_status=%s body=%s", http_status, json.dumps(payload, ensure_ascii=False, default=str))
-        signers_payload, signers_http_status, signers_url = client.get_signature_request_signers_with_http_status(signature_request_id)
-        logger.info("YOUSIGN SYNC SIGNERS REQUEST url=%s signature_request_id=%s", signers_url, signature_request_id)
-        logger.info("YOUSIGN SYNC SIGNERS RESPONSE http_status=%s body=%s", signers_http_status, json.dumps(signers_payload, ensure_ascii=False, default=str))
-        for signer in extract_yousign_signers_list(signers_payload):
-            if not isinstance(signer, dict):
-                continue
-            info = signer.get("info") if isinstance(signer.get("info"), dict) else {}
-            logger.info(
-                "YOUSIGN SYNC SIGNER id=%s email=%s status=%s signed_at=%s done_at=%s",
-                signer.get("id"), signer.get("email") or info.get("email"), signer.get("status"), signer.get("signed_at"), signer.get("done_at"),
-            )
-        return build_yousign_api_sync_updates(payload, signers_payload, now, http_status=http_status, raw_response=payload)
-    except YousignError as exc:
-        status = exc.status_code or "network"
-        body = exc.payload if exc.payload is not None else str(exc)
-        logger.error("YOUSIGN SYNC ERROR signature_request_id=%s http_status=%s body=%s error=%s", signature_request_id, status, body, exc)
-        return {
-            "apiStatus": f"erreur {status}",
-            "apiHttpStatus": str(status),
-            "apiError": str(exc),
-            "apiRawResponse": json.dumps(body, ensure_ascii=False, default=str)[:4000],
-            "error": str(exc),
-        }
-
-def update_formateur_yousign_state(formateur, updates):
-    state = normalize_yousign_state(formateur.get("yousign"))
-    state.update(updates)
-    state["statusLabel"] = yousign_status_label(state.get("status"))
-    formateur["yousign"] = state
-    return state
-
-app.jinja_env.globals["yousign_status_label"] = yousign_status_label
-app.jinja_env.globals["is_yousign_sandbox"] = is_yousign_sandbox
-
-def build_doc_entry(label):
-    return {
-        "id": str(uuid.uuid4())[:8],
-        "label": label,
-        "expiration": "",
-        "status": "non_conforme",
-        "commentaire": "",
-        "attachments": []
-    }
-
-
-def get_all_formateur_document_labels(formateurs, profils_docs_config):
-    labels = list(DEFAULT_DOC_LABELS)
-
-    for formateur in formateurs:
-        for doc in formateur.get("documents", []):
-            label = (doc.get("label") or "").strip()
-            if label and label not in labels:
-                labels.append(label)
-
-    for docs in profils_docs_config.values():
-        for label in docs:
-            if label and label not in labels:
-                labels.append(label)
-
-    return labels
-
-
-def build_default_documents():
-    docs = []
-    for label in DEFAULT_DOC_LABELS:
-        docs.append(build_doc_entry(label))
-    return docs
-
-
-def auto_update_document_status(doc):
-    """
-    Si une date d'expiration est renseign√©e et d√©pass√©e,
-    on force le statut √† 'non_conforme' (sauf si 'non_concerne').
-    """
-    if doc.get("status") == "non_concerne":
-        return
-
-    exp_str = doc.get("expiration", "").strip()
-    if not exp_str:
-        return
-
-    dt = parse_date(exp_str)
-    if not dt:
-        return
-
-    if dt.date() < datetime.now().date():
-        doc["status"] = "non_conforme"
-
-
-def replace_formateur_attachment(fid, doc, uploaded_file):
-    """Remplace les anciennes pi√®ces jointes d'un contr√¥le par le dernier fichier re√ßu."""
-    doc_id = doc.get("id")
-    if not doc_id or not uploaded_file or not uploaded_file.filename:
-        return None
-
-    subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
-    os.makedirs(subdir, exist_ok=True)
-
-    for attachment in doc.get("attachments", []):
-        filename = attachment.get("filename")
-        if not filename:
-            continue
-
-        old_path = os.path.join(subdir, os.path.basename(filename))
-        if os.path.exists(old_path):
-            os.remove(old_path)
-
-    original_name = uploaded_file.filename
-    safe_name = secure_filename(original_name) or "document"
-    stored_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{safe_name}"
-    uploaded_file.save(os.path.join(subdir, stored_name))
-
-    attachment = {
-        "filename": stored_name,
-        "original_name": original_name
-    }
-    doc["attachments"] = [attachment]
-    return attachment
-
-
-# ------------------------------------------------------------
-# üîëüü¶ √âTAT COMPLET DES CL√âS & BADGES
-# ------------------------------------------------------------
-def get_etat_cles_badges(formateurs, total_cles=15, total_badges=15):
-
-    # --- Cl√©s ---
-    etat_cles = {
-        i: {
-            "type": TYPES_CLES.get(i, "Inconnu"),
-            "attribue_a": "Libre"
-        }
-        for i in range(1, total_cles + 1)
-    }
-
-    # --- Badges ---
-    etat_badges = {
-        i: {
-            "type": "Badge portail",
-            "attribue_a": "Libre"
-        }
-        for i in range(1, total_badges + 1)
-    }
-
-    for f in formateurs:
-        nom_prenom = f"{f.get('prenom','')} {f.get('nom','').upper()}".strip()
-
-        # ---- CL√â ----
-        cle = f.get("cle", {})
-        num_c = str(cle.get("numero", "")).strip()
-
-        # üî• Normalisation : True / "true" / "1" / "on"
-        attrib_c = str(cle.get("attribuee", "")).lower() in ("true", "1", "yes", "on")
-
-        if attrib_c and num_c.isdigit():
-            num = int(num_c)
-            if num in etat_cles:
-                nom_custom = cle.get("custom_nom", "").strip()
-                nom_formateur = nom_prenom
-                etat_cles[num]["attribue_a"] = nom_custom if nom_custom else nom_formateur
-
-        # ---- BADGE ----
-        badge = f.get("badge", {})
-        num_b = str(badge.get("numero", "")).strip()
-
-        attrib_b = str(badge.get("attribue", "")).lower() in ("true", "1", "yes", "on")
-
-        if attrib_b and num_b.isdigit():
-            num = int(num_b)
-            if num in etat_badges:
-                etat_badges[num]["attribue_a"] = nom_prenom
-
-    return etat_cles, etat_badges
-
-
-
-# --- CONFIG TYPES DE CLES ---
-TYPES_CLES = {
-    1: "PASS GENERAL",
-    2: "PASS GENERAL",
-    3: "PASS GENERAL",
-
-    4: "PASS PARTIEL",
-    5: "PASS PARTIEL",
-    6: "PASS PARTIEL",      # üî• changement demand√©
-
-    7: "APPARTEMENT",       # üî• renommage
-
-    8: "VIOLET",
-    9: "VIOLET",
-    10: "VIOLET",
-    11: "VIOLET",
-    12: "VIOLET",
-    13: "VIOLET",
-    14: "VIOLET",
-    15: "VIOLET",
-    16: "VIOLET"            # üî• ajout de la 16e cl√©
-}
-
-
-
-@app.route("/formateurs")
-def formateurs_home():
-    filtre_docs = request.args.get("filtre") == "docs_a_controler"
-    formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
-    available_doc_labels = get_all_formateur_document_labels(formateurs, profils_docs_config)
-
-    for f in formateurs:
-        f["profils"] = normalize_formateur_profils(f.get("profils", []))
-        apply_profile_document_requirements(f, profils_docs_config)
-        if "cle" not in f:
-            f["cle"] = {
-                "attribuee": False,
-                "numero": "",
-                "statut": "non_attribuee"
-            }
-
-        if "badge" not in f:
-            f["badge"] = {
-                "attribue": False,
-                "numero": "",
-                "statut": "non_attribue"
-            }
-
-        # ‚úÖ conformit√© + simple indicateur "docs √† contr√¥ler"
-        total = 0
-        conformes = 0
-        a_controler = False
-
-        for doc in f.get("documents", []):
-            auto_update_document_status(doc)
-
-            status = doc.get("status", "non_conforme")
-            if status != "non_concerne":
-                total += 1
-                if status == "conforme":
-                    conformes += 1
-                if status == "a_controler":
-                    a_controler = True
-
-        f["conformite"] = {"conformes": conformes, "total": total}
-        f["a_controler"] = a_controler
-
-    if filtre_docs:
-        formateurs = [f for f in formateurs if f.get("a_controler")]
-
-    # ===== EXTRACTION DES CL√âS & BADGES =====
-    liste_cles = []
-    liste_badges = []
-
-    for f in formateurs:
-        # --- Cl√©s ---
-        cle = f.get("cle", {})
-        num = cle.get("numero", "").strip()
-        if cle.get("attribuee") and num.isdigit():
-            liste_cles.append(int(num))
-
-        # --- Badges ---
-        badge = f.get("badge", {})
-        num_b = badge.get("numero", "").strip()
-        if badge.get("attribue") and num_b.isdigit():
-            liste_badges.append(int(num_b))
-
-    liste_cles = sorted(liste_cles)
-    liste_badges = sorted(liste_badges)
-
-    # ===== PLAGES TOTALES =====
-    total_cles = list(range(1, 17))  # Cl√©s 1 ‚Üí 16
-    total_badges = list(range(1, 16))     # Badges 1 ‚Üí 15
-
-    # ===== NUM√âROS DISPONIBLES =====
-    cles_dispos = [n for n in total_cles if n not in liste_cles]
-    badges_dispos = [n for n in total_badges if n not in liste_badges]
-
-    # ===== √âTAT COMPLET CL√âS & BADGES =====
-    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
-
-
-    return render_template(
-        "formateurs.html",
-        title="Contr√¥le formateurs",
-        formateurs=formateurs,
-        formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
-        profils_docs_config=profils_docs_config,
-        available_doc_labels=available_doc_labels,
-        liste_cles=liste_cles,
-        liste_badges=liste_badges,
-        cles_dispos=cles_dispos,
-        badges_dispos=badges_dispos,
-        filtre_docs=filtre_docs,
-        etat_cles=etat_cles,       # üëà ajout√©
-        etat_badges=etat_badges   # üëà ajout√©
-    )
-
-
-
-
-
-@app.route("/formateurs/add", methods=["POST"])
-def add_formateur():
-    formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
-    fid = str(uuid.uuid4())[:8]
-
-    try:
-        nub = normalize_formateur_nub(request.form.get("nub", ""))
-    except ValueError as exc:
-        flash(str(exc), "error")
-        return redirect(url_for("formateurs_home"))
-
-    formateur = {
-        "id": fid,
-        "nom": request.form.get("nom", "").strip(),
-        "prenom": request.form.get("prenom", "").strip(),
-        "nub": nub,
-        "email": request.form.get("email", "").strip(),
-        "telephone": request.form.get("telephone", "").strip(),
-        "siret": request.form.get("siret", "").strip(),
-        "adresse_postale": request.form.get("adresse_postale", "").strip(),
-        "nda": request.form.get("nda", "").strip(),
-        "tarif_journalier_ht": request.form.get("tarif_journalier_ht", "").strip(),
-        "profils": normalize_formateur_profils(request.form.getlist("profils")),
-
-        "cle": {
-            "attribuee": False,
-            "numero": "",
-            "statut": "non_attribuee"
-        },
-
-        "badge": {
-            "attribue": False,
-            "numero": "",
-            "statut": "non_attribue"
-        },
-
-        "documents": build_default_documents()
-    }
-
-    formateurs.append(formateur)
-    apply_profile_document_requirements(formateur, profils_docs_config)
-    save_formateurs(formateurs)
-    return redirect(url_for("formateur_detail", fid=fid))
-
-
-@app.route("/formateurs/<fid>/profils/update", methods=["POST"])
-def update_formateur_profils(fid):
-    formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        abort(404)
-
-    formateur["profils"] = normalize_formateur_profils(request.form.getlist("profils"))
-    apply_profile_document_requirements(formateur, profils_docs_config)
-    save_formateurs(formateurs)
-    flash("Profils formateur mis √† jour.", "ok")
-    return redirect(url_for("formateur_detail", fid=fid))
-
-
-@app.route("/formateurs/profils-docs/update", methods=["POST"])
-def update_formateur_profils_docs():
-    config = {}
-    for option in FORMATEUR_PROFILE_OPTIONS:
-        profile_key = option["key"]
-        config[profile_key] = sanitize_doc_labels(request.form.getlist(f"docs_{profile_key}"))
-
-    save_formateur_profils_docs_config(config)
-
-    formateurs = load_formateurs()
-    for formateur in formateurs:
-        apply_profile_document_requirements(formateur, config)
-    save_formateurs(formateurs)
-
-    flash("R√®gles documents par profil enregistr√©es.", "ok")
-    return redirect(url_for("formateurs_home"))
-
-
-@app.route("/formateurs/doc-labels/add", methods=["POST"])
-def add_formateur_doc_label():
-    label = (request.form.get("new_doc_label") or "").strip()
-    if not label:
-        flash("Merci de renseigner le nom du document.", "error")
-        return redirect(url_for("formateurs_home"))
-
-    selected_profiles = normalize_formateur_profils(request.form.getlist("new_doc_profiles"))
-
-    formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
-
-    for profile_key in selected_profiles:
-        docs = profils_docs_config.setdefault(profile_key, [])
-        if label not in docs:
-            docs.append(label)
-
-    for formateur in formateurs:
-        docs = formateur.setdefault("documents", [])
-        existing_labels = {(d.get("label") or "").strip() for d in docs}
-        if label not in existing_labels:
-            doc = build_doc_entry(label)
-            if selected_profiles:
-                doc["status"] = "non_concerne"
-            docs.append(doc)
-        apply_profile_document_requirements(formateur, profils_docs_config)
-
-    save_formateur_profils_docs_config(profils_docs_config)
-    save_formateurs(formateurs)
-
-    flash("Nouveau document ajout√© √† la grille.", "ok")
-    return redirect(url_for("formateurs_home"))
-
-
-@app.route("/formateurs/<fid>/identity/update", methods=["POST"])
-def update_formateur_identity(fid):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        return {"ok": False, "error": "Formateur introuvable"}, 404
-
-    try:
-        nub = normalize_formateur_nub(request.form.get("nub", ""))
-    except ValueError as exc:
-        return {"ok": False, "error": str(exc)}, 400
-
-    formateur["nub"] = nub
-    formateur["siret"] = (request.form.get("siret") or "").strip()
-    formateur["adresse_postale"] = (request.form.get("adresse_postale") or "").strip()
-    formateur["nda"] = (request.form.get("nda") or "").strip()
-    formateur["tarif_journalier_ht"] = (request.form.get("tarif_journalier_ht") or "").strip()
-    save_formateurs(formateurs)
-    return {"ok": True, "nub": nub, "siret": formateur["siret"], "adresse_postale": formateur["adresse_postale"], "nda": formateur["nda"], "tarif_journalier_ht": formateur["tarif_journalier_ht"]}
-
-
-@app.route("/formateurs/<fid>/cle/update", methods=["POST"])
-def update_formateur_cle(fid):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        return {"ok": False}, 404
-
-    cle = formateur.setdefault("cle", {})
-
-    cle["attribuee"] = request.form.get("attribuee") == "true"
-    cle["numero"] = request.form.get("numero", "").strip()
-    cle["statut"] = request.form.get("statut", "non_attribuee")
-
-    # üÜï AJOUT ‚Äî nom libre si la cl√© est donn√©e √† quelqu‚Äôun qui n‚Äôest pas formateur
-    cle["custom_nom"] = request.form.get("custom_nom", "").strip()
-
-    save_formateurs(formateurs)
-    return {"ok": True}
-
-
-@app.route("/formateurs/<fid>/badge/update", methods=["POST"])
-def update_formateur_badge(fid):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        return {"ok": False}, 404
-
-    badge = formateur.setdefault("badge", {})
-
-    badge["attribue"] = request.form.get("attribue") == "true"
-    badge["numero"] = request.form.get("numero", "").strip()
-    badge["statut"] = request.form.get("statut", "non_attribue")
-
-    save_formateurs(formateurs)
-    return {"ok": True}
-
-
-
-@app.route("/formateurs/<fid>")
-def formateur_detail(fid):
-    formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        abort(404)
-    formateur["profils"] = normalize_formateur_profils(formateur.get("profils", []))
-    apply_profile_document_requirements(formateur, profils_docs_config)
-
-    # üîëüü¶ R√âCUP√âRER TOUTES LES CL√âS / BADGES EXISTANTS
-    etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
-    last_relance_display = ""
-    raw_relance = (formateur.get("last_relance") or "").strip()
-    if raw_relance:
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-            try:
-                dt = datetime.strptime(raw_relance, fmt)
-                last_relance_display = dt.strftime("%d/%m/%Y")
-                break
-            except ValueError:
-                continue
-
-    return render_template(
-        "formateur_detail.html",
-        title=f"Contr√¥le formateur ‚Äî {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
-        formateur=formateur,
-        last_relance_display=last_relance_display,
-        formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
-        etat_cles=etat_cles,       # üëà indispensable
-        etat_badges=etat_badges    # üëà indispensable
-    )
-
-
-
-@app.route("/formateurs/<fid>/yousign/send", methods=["POST"])
-def send_formateur_contract_yousign(fid):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        abort(404)
-
-    state = normalize_yousign_state(formateur.get("yousign"))
-    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.form.get("force"):
-        flash("Une demande Yousign active existe d√©j√† pour ce formateur. Synchronisez le statut ou forcez un remplacement.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-
-    email = (formateur.get("email") or "").strip()
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        flash("Email formateur invalide ou manquant.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-    if not is_yousign_configured():
-        flash("Yousign n'est pas configur√©: renseignez YOUSIGN_API_KEY c√¥t√© serveur.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-
-    doc_id = (request.form.get("doc_id") or "").strip()
-    doc, attachment, pdf_path = latest_formateur_pdf_attachment(formateur, doc_id)
-    if not pdf_path:
-        flash("Aucun contrat PDF n'a √©t√© trouv√© dans les pi√®ces jointes du formateur.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-
-    client = YousignClient()
-    now = datetime.now().isoformat(timespec="seconds")
-    try:
-        trainer_name = formateur_full_name(formateur) or email
-        external_id = sanitize_yousign_external_id(f"formateur-{fid}", fallback="formateur-contract")
-        app.logger.info("Yousign trainer contract external_id=%s", external_id)
-        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=external_id)
-        signature_request_id = signature_request.get("id")
-        with open(pdf_path, "rb") as pdf_file:
-            document = client.upload_file(signature_request_id, pdf_file.read(), attachment.get("original_name") or "contrat.pdf")
-        document_id = document.get("id")
-        signer = client.add_signer(signature_request_id, formateur.get("prenom") or "", formateur.get("nom") or trainer_name, email, document_id=document_id)
-        activated = client.activate_signature_request(signature_request_id)
-        status = extract_yousign_status(activated) or "ongoing"
-        signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
-        update_formateur_yousign_state(formateur, {
-            "signatureRequestId": signature_request_id,
-            "externalId": external_id,
-            "documentId": document_id or "",
-            "signerId": signer.get("id") or "",
-            "status": status,
-            "signatureUrl": signature_url,
-            "sentAt": now,
-            "lastSyncedAt": now,
-            "error": None,
-        })
-        save_formateurs(formateurs)
-        flash("Contrat envoy√© √† Yousign pour signature.", "ok")
-    except YousignError as exc:
-        update_formateur_yousign_state(formateur, {"status": "error", "lastSyncedAt": now, "error": str(exc)})
-        save_formateurs(formateurs)
-        flash(f"Erreur Yousign: {exc}", "error")
-    return redirect(url_for("formateur_detail", fid=fid))
-
-
-@app.route("/formateurs/<fid>/yousign/sync", methods=["POST"])
-def sync_formateur_contract_yousign(fid):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        abort(404)
-    state = normalize_yousign_state(formateur.get("yousign"))
-    signature_request_id = state.get("signatureRequestId")
-    if not signature_request_id:
-        flash("Aucune demande Yousign √† synchroniser.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-    try:
-        now = datetime.now().isoformat(timespec="seconds")
-        updates = sync_yousign_signature_request_from_api(signature_request_id, now)
-        status = updates.get("status") or state.get("status")
-        update_formateur_yousign_state(formateur, updates)
-        save_formateurs(formateurs)
-        if updates.get("lastSyncedAt"):
-            flash("Statut Yousign synchronis√©.", "ok")
-        else:
-            flash(f"Erreur de synchronisation Yousign: {updates.get('apiError') or 'r√©ponse API inexploitable'}", "error")
-    except YousignError as exc:
-        update_formateur_yousign_state(formateur, {"apiError": str(exc), "apiHttpStatus": str(exc.status_code or "network"), "apiStatus": f"erreur {exc.status_code or 'network'}", "error": str(exc)})
-        save_formateurs(formateurs)
-        flash(f"Erreur de synchronisation Yousign: {exc}", "error")
-    return redirect(url_for("formateur_detail", fid=fid))
-
-
-@app.route("/formateurs/<fid>/yousign/download", methods=["POST"])
-def download_formateur_signed_yousign(fid):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        abort(404)
-    state = normalize_yousign_state(formateur.get("yousign"))
-    if not state.get("signatureRequestId"):
-        flash("Aucune demande Yousign disponible.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-    try:
-        content = YousignClient().download_signed_documents(state["signatureRequestId"])
-        signed_dir = os.path.join(FORMATEUR_FILES_DIR, fid, "_yousign")
-        os.makedirs(signed_dir, exist_ok=True)
-        filename = f"contrat_signe_yousign_{state['signatureRequestId']}.zip"
-        with open(os.path.join(signed_dir, filename), "wb") as f:
-            f.write(content)
-        update_formateur_yousign_state(formateur, {"signedDocumentFilename": filename, "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
-        save_formateurs(formateurs)
-        return send_from_directory(signed_dir, filename, as_attachment=True)
-    except Exception as exc:
-        flash(f"T√©l√©chargement Yousign impossible: {exc}", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
-
-
-@app.route("/webhooks/yousign", methods=["POST"])
-def yousign_webhook():
-    raw_body = request.get_data()
-    yousign_signature_header_names = [
-        "X-Yousign-Signature-256",
-        "X-Yousign-Signature",
-        "Yousign-Signature",
-        "X-Hub-Signature-256",
-    ]
-    important_headers = {
-        key: request.headers.get(key)
-        for key in ["Content-Type", "User-Agent", *yousign_signature_header_names]
-        if request.headers.get(key)
-    }
-    payload = request.get_json(silent=True) or {}
-    event_name = payload.get("event_name") or payload.get("event") or payload.get("type") or "unknown"
-    data_payload = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-    signature_request = data_payload.get("signature_request") if isinstance(data_payload.get("signature_request"), dict) else {}
-    signer = data_payload.get("signer") if isinstance(data_payload.get("signer"), dict) else {}
-    signature_request_id = (signature_request or {}).get("id") or data_payload.get("signature_request_id") or payload.get("signature_request_id") or (signer.get("signature_request") or {}).get("id")
-    signer_id = signer.get("id") or data_payload.get("signer_id") or payload.get("signer_id")
-    external_id = extract_yousign_external_id(payload)
-    logger.info(
-        "YOUSIGN WEBHOOK RECEIVED event=%s signature_request_id=%s external_id=%s",
-        event_name, signature_request_id or "missing", external_id or "missing",
-    )
-    logger.info(
-        "Yousign webhook diagnostic method=%s url=%s headers=%s body=%s signer_id=%s",
-        request.method, request.url, important_headers, raw_body.decode("utf-8", errors="replace"), signer_id or "missing",
-    )
-
-    webhook_secret = get_yousign_config().webhook_secret
-    signature_header = next((request.headers.get(key) for key in yousign_signature_header_names if request.headers.get(key)), None)
-    if webhook_secret:
-        if not signature_header:
-            logger.warning("YOUSIGN WEBHOOK IGNORED event=%s reason=missing_signature", event_name)
-            return {"ok": True, "ignored": True}
-        expected = hmac.new(webhook_secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
-        provided = signature_header.split("=", 1)[-1].strip()
-        if not hmac.compare_digest(expected, provided):
-            logger.warning("YOUSIGN WEBHOOK IGNORED event=%s reason=invalid_signature", event_name)
-            return {"ok": True, "ignored": True}
-
-    if event_name not in YOUSIGN_HANDLED_WEBHOOK_EVENTS:
-        logger.info("YOUSIGN WEBHOOK IGNORED event=%s", event_name)
-        return {"ok": True, "ignored": True}
-
-    status = YOUSIGN_EVENT_STATUS.get(event_name) or extract_yousign_status(signature_request or payload)
-    now = datetime.now().isoformat(timespec="seconds")
-    updates = {"status": status, "externalId": external_id, "lastWebhookAt": now, "lastEvent": event_name, "lastEventAt": now, "error": None}
-    if signer_id:
-        updates["signerId"] = signer_id
-    if status == "done": updates["signedAt"] = now
-    elif status == "declined": updates["declinedAt"] = now
-    elif status == "expired": updates["expiredAt"] = now
-    elif status == "canceled": updates["canceledAt"] = now
-
-    try:
-        if signature_request_id:
-            updates.update(sync_yousign_signature_request_from_api(signature_request_id, now))
-            updates.update({"lastWebhookAt": now, "lastEvent": event_name, "lastEventAt": now})
-    except YousignError as exc:
-        logger.warning("Yousign webhook API sync failed signature_request_id=%s error=%s", signature_request_id, exc)
-        updates["error"] = str(exc)
-
-    def matches_yousign_state(state):
-        normalized = normalize_yousign_state(state)
-        return any([
-            signature_request_id and normalized.get("signatureRequestId") == signature_request_id,
-            external_id and normalized.get("externalId") == external_id,
-            signer_id and normalized.get("signerId") == signer_id,
-        ])
-
-    formateurs = load_formateurs()
-    formateur = next((f for f in formateurs if matches_yousign_state(f.get("yousign"))), None)
-    if formateur:
-        update_formateur_yousign_state(formateur, updates)
-        save_formateurs(formateurs)
-        logger.info("Webhook Yousign appliqu√© au formateur id=%s status=%s", formateur.get("id"), updates.get("status"))
-        return {"ok": True, "target": "formateur"}
-
-    sessions_data = load_sessions()
-    for session_data in sessions_data.get("sessions", []):
-        for contract in session_data.get("apsTrainerContracts", []):
-            if matches_yousign_state(contract.get("yousign")) or matches_yousign_state(contract):
-                contract["yousign"] = normalize_yousign_state({**contract.get("yousign", {}), **updates})
-                mirror_yousign_state_on_contract(contract)
-                save_sessions(sessions_data)
-                logger.info("Webhook Yousign appliqu√© au contrat APS session=%s contract=%s status=%s", session_data.get("id"), contract.get("id"), updates.get("status"))
-                return {"ok": True, "target": "aps_trainer_contract"}
-
-    logger.error("YOUSIGN WEBHOOK CONTRACT NOT FOUND event=%s signature_request_id=%s signer_id=%s external_id=%s", event_name, signature_request_id, signer_id, external_id)
-    return {"ok": True, "ignored": True}
-
-
-@app.route("/formateurs/<fid>/delete", methods=["POST"])
-def delete_formateur(fid):
-    formateurs = load_formateurs()
-    formateurs = [f for f in formateurs if f.get("id") != fid]
-    save_formateurs(formateurs)
-    flash("Formateur supprim√©.", "ok")
-    return redirect(url_for("formateurs_home"))
-
-
-@app.route("/formateurs/<fid>/documents/add", methods=["POST"])
-def add_formateur_document(fid):
-    label = request.form.get("label", "").strip()
-    if not label:
-        return redirect(url_for("formateur_detail", fid=fid))
-
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        abort(404)
-
-    doc = build_doc_entry(label)
-    formateur.setdefault("documents", []).append(doc)
-    save_formateurs(formateurs)
-    return redirect(url_for("formateur_detail", fid=fid))
-
-
-@app.route("/formateurs/<fid>/documents/<doc_id>/update", methods=["POST"])
-def update_formateur_document(fid, doc_id):
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        return {"ok": False, "error": "Formateur introuvable"}, 404
-
-    docs = formateur.get("documents", [])
-    doc = next((d for d in docs if d.get("id") == doc_id), None)
-    if not doc:
-        return {"ok": False, "error": "Document introuvable"}, 404
-
-    # champs texte
-    if "expiration" in request.form:
-        doc["expiration"] = request.form.get("expiration", "").strip()
-
-    if "status" in request.form:
-        st = request.form.get("status")
-        if st in ("non_concerne", "a_controler", "conforme", "non_conforme"):
-            doc["status"] = st
-
-
-    if "commentaire" in request.form:
-        doc["commentaire"] = request.form.get("commentaire", "").strip()
-
-    # pi√®ces jointes : on conserve uniquement le dernier fichier d√©pos√©
-    files = [f for f in request.files.getlist("piece_jointe") if f.filename]
-    if files:
-        replace_formateur_attachment(fid, doc, files[-1])
-
-    if "status" not in request.form:
-        auto_update_document_status(doc)
-    save_formateurs(formateurs)
-
-    # ‚õîÔ∏è PLUS AUCUN REDIRECT
-    return {"ok": True}
-
-
-@app.route("/formateurs/<fid>/media/upload", methods=["POST"])
-def upload_formateur_media(fid):
-    media_type = request.form.get("media_type", "").strip()
-    if media_type not in ("photo", "badge_photo"):
-        return {"ok": False, "error": "Type de m√©dia invalide"}, 400
-
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        return {"ok": False, "error": "Formateur introuvable"}, 404
-
-    media_file = request.files.get("file")
-    if not media_file or not media_file.filename:
-        return {"ok": False, "error": "Aucun fichier re√ßu"}, 400
-
-    ext = os.path.splitext(media_file.filename)[1].lower()
-    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
-        return {"ok": False, "error": "Format non support√©"}, 400
-
-    storage_dir = os.path.join(FORMATEUR_FILES_DIR, fid, "_media")
-    os.makedirs(storage_dir, exist_ok=True)
-    unique_name = f"{media_type}_{uuid.uuid4().hex}{ext}"
-    file_path = os.path.join(storage_dir, unique_name)
-    media_file.save(file_path)
-
-    old_filename = formateur.get(media_type)
-    if old_filename:
-        old_path = os.path.join(storage_dir, old_filename)
-        if os.path.exists(old_path):
-            try:
-                os.remove(old_path)
-            except OSError:
-                pass
-
-    formateur[media_type] = unique_name
-    save_formateurs(formateurs)
-    return {
-        "ok": True,
-        "url": url_for("download_formateur_media", fid=fid, filename=unique_name),
-    }
-
-
-@app.route("/formateurs/<fid>/media/<filename>")
-def download_formateur_media(fid, filename):
-    subdir = os.path.join(FORMATEUR_FILES_DIR, fid, "_media")
-    return send_from_directory(subdir, filename, as_attachment=False)
-
-
-
-@app.route("/formateurs/<fid>/documents/<doc_id>/attachments/<filename>")
-def download_formateur_attachment(fid, doc_id, filename):
-    subdir = os.path.join(FORMATEUR_FILES_DIR, fid, doc_id)
-    return send_from_directory(subdir, filename, as_attachment=False)
-
-
-@app.route(
-    "/formateurs/<fid>/documents/<doc_id>/attachments/<filename>/delete",
-    methods=["POST"]
-)
-def delete_formateur_attachment(fid, doc_id, filename):
-
-    formateurs = load_formateurs()
-    formateur = find_formateur(formateurs, fid)
-    if not formateur:
-        return {"ok": False}, 404
-
-    doc = next(
-        (d for d in formateur.get("documents", [])
-         if d.get("id") == doc_id),
-        None
-    )
-    if not doc:
-        return {"ok": False}, 404
-
-    # üìÅ Suppression fichier physique
-    file_path = os.path.join(
-        FORMATEUR_FILES_DIR,
-        fid,
-        doc_id,
-        filename
-    )
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-    # üßπ Suppression dans le JSON
-    doc["attachments"] = [
-        a for a in doc.get("attachments", [])
-        if a.get("filename") != filename
-    ]
-
-    # üîÅ Si plus de PJ ‚Üí non conforme
-    if not doc["attachments"]:
-        doc["status"] = "non_conforme"
-
-    save_formateurs(formateurs)
-
-    return {"ok": True}
-
-
-
-
-# ------------------------------------------------------------
-# üìä Route JSON pour les dotations (affichage sur index)
-# ------------------------------------------------------------
-@app.route("/dotations_data.json")
-def dotations_data():
-    try:
-        data = load_dotations()
-        a_distribuer = len([d for d in data if d.get("statut") == "Dotation √† distribuer"])
-        distribuees = len([d for d in data if d.get("statut") == "Dotation distribu√©e"])
-        non_restituees = len([d for d in data if d.get("statut") == "Dotation non restitu√©e"])
-        restituees = len([d for d in data if d.get("statut") == "Dotation restitu√©e"])
-
-        payload = {
-            "a_distribuer": a_distribuer,
-            "distribuees": distribuees,
-            "non_restituees": non_restituees,
-            "restituees": restituees
-        }
-
-        headers = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
-        return json.dumps(payload, ensure_ascii=False), 200, headers
-    except Exception as e:
-        print("Erreur /dotations_data.json :", e)
-        return json.dumps({"error": str(e)}), 500, {"Access-Control-Allow-Origin": "*"}
+Y™Áäx-ÆÈ‹j◊ù¢Îi∫⁄+äßj[hëÈ‹¢ÈÌ€N=”ÑËµ©h∫⁄n∂XßzÕZ[\‹ù‹¬ö[\‹ùú€€Çö[\‹ù]ZYôúõ€HX⁄[X[[\‹ùX⁄[X[ì’Së“Só’Tö[\‹ùò\ŸMçö[\‹ù[YBö[\‹ù[\ö[Bö[\‹ùö\ö[Bö[\‹ù\⁄XÇö[\‹ùXX¬ö[\‹ù[\‹ùXãù][ö[\‹ù€]XÇö[\‹ù\õXãú\úŸBö[\‹ù\õXãúô\]Y\›ö[\‹ù\õXãô\úõ‹Çö[\‹ùôBö[\‹ù⁄][ö[\‹ù›XúõÿŸ\‹¬ö[\‹ùŸX‹ô]¬ôúõ€H[»[\‹ùû]\“S¬ôúõ€H]][YH[\‹ù]][YK[YY[K]K[YH\»›[YBôúõ€Hù[ò›€€»[\‹ù‹ò\¬ôúõ€H[XZ[õZ[YKù^[\‹ùRSQU^ôúõ€H[XZ[õZ[YKõ][\\ù[\‹ùRSQS][\\ùôúõ€H[XZ[õZ[YKò\Xÿ][€à[\‹ùRSQP\Xÿ][€Çö[\‹ùŸŸ⁄[ô¬ö[\‹ùX]ö[\‹ùôXY[ô¬Çôúõ€Hõ\⁄»[\‹ù
+àõ\⁄Àô[ô\ó›[\]Kô\]Y\›ôY\ôX›\õŸõ‹ãàXõ‹ùõ\⁄Ÿ[ôŸö[KŸ[ôŸúõ€WŸ\ôX›‹ûKŸ\‹⁄[€ãô\‹€úŸKú€€öYûK›\úô[ùÿ\äBôúõ€HŸ\öﬁô]YÀù][»[\‹ùŸX›\ôWŸö[[ò[YBÇôúõ€H[›\⁄Y€ó‹Ÿ\ùöXŸH[\‹ù[›\⁄Y€ê€Y[ù[›\⁄Y€ë\úõ‹ã]X›ﬁ[›\⁄Y€óŸ[ùö\õ€õY[ùŸ]ﬁ[›\⁄Y€óÿ€€ôöYÀ\◊ﬁ[›\⁄Y€óÿ€€ôöY›\ôYX\⁄◊‹€ôW€ù[Xô\ãõ‹õX[^ôQúô[ò⁄€ôSù[Xô\ãÿ[ö]^ôWﬁ[›\⁄Y€óŸ^\õò[⁄Y\›ﬁ[›\⁄Y€óÿ€€õôX›[€ã[›\⁄Y€óÿ€€ôöY◊ŸXY€õ‹›X‹À[›\⁄Y€ó‹Ÿ\ùöXŸWÿXÿŸ\‹◊€Y\‹ÿYŸBÇôúõ€Hõ‹‹X›[ô»[\‹ùõ‹‹X›[ô◊ÿúôúõ€HL‹‹õŸ‹ò[H[\‹ùL‘’’S“’TîÀL‘”S—STÀL‘—ì‘êíQSó’TìTÀŸ[ô\ò]PL‹ÿ⁄Y[Kò[Y]WÿL‹‹[õö[ôÀ\◊ÿL‹€õ€ó›€‹ö⁄[ô◊Ÿ^Bôúõ€H\‹‹õŸ‹ò[H[\‹ùT‘”PëST‘’’S“’TîÀT‘—SPTìíSë◊“’TîÀT‘‘ëT—SïQS“’TîÀŸ[ô\ò]WŸ\‹‹[õö[ôÀ\‹‹›[[X\ûWŸúõ€W‹[õö[ô¬Çôúõ€HŸ\ùöXŸ\ÀòYò◊Ÿúò[òŸW›ò]òZ[ÿ][ô[òŸH[\‹ù
+à\◊ÿYò◊‹Ÿ\‹⁄[€à\»ù⁄\◊ÿYò◊‹Ÿ\‹⁄[€ãà\]WÿYò◊Ÿúò[òŸW›ò]òZ[‹Ÿ][ô‹Ààÿ]ôWŸúò[òŸW›ò]òZ[⁄YÀàô]öY]»\»ô]öY]◊Ÿúò[òŸW›ò]òZ[ÿ][ô[òŸKàŸ[ô\ò]WŸúò[òŸW›ò]òZ[›€‹öÿõ€⁄ÀàÿYôWŸö[[ò[YH\»ù‹ÿYôWŸö[[ò[YKäBôúõ€HŸ\ùöXŸ\ÀòYò◊ŸŸóŸúò[òŸW›ò]òZ[Ÿ^Ÿ[[\‹ù
+àŸóŸ^Ÿ[Ÿö[[ò[YKàŸ[ô\ò]WŸŸóŸ^Ÿ[Ÿúõ€W‹€ò\⁄›àYŸWÿ€›[ùŸõ‹ó‹€ò\⁄›äBôúõ€HŸ\ùöXŸ\ÀòYò◊Ÿúò[òŸW›ò]òZ[⁄[ùõ⁄XŸWŸ^Ÿ[[\‹ù
+àùZ[Ÿù[⁄ÿZ\õ‹◊‹ôYô\ô[òŸKàùZ[⁄[ùõ⁄XŸW‹€ò\⁄›àŸ[ô\ò]W⁄[ùõ⁄XŸWŸ^Ÿ[Ÿúõ€W‹€ò\⁄›à[ùõ⁄XŸWŸ^Ÿ[Ÿö[[ò[YKàõ‹õX[^ôW⁄ÿZ\õ‹◊ÿò\ŸW‹ôYô\ô[òŸKàõ‹õX[^ôWŸŸó‹Ÿ\]Y[òŸW€ù[Xô\ãàò[Y]W⁄[ùõ⁄XŸWÿYÿZ[ú›ŸŸãäBÇÇÇà»KKH<'Â)»õ‹òŸ\àHù\ŸX]H‹òZ\ôHúò[∞ÈÿZ\»KKBõ‹Àô[ùö\õ€ñ…’â◊HH	—]\õ‹K‘\ö\…¬ö[\‹ù[YBù[YKùúŸ]
+
+BÇõŸŸ⁄[ôÀòò\⁄X–€€ôöY ]ô[[ŸŸ⁄[ôÀíSëìÀõ‹õX]HâJ\ÿ›[YJ\»	J]ô[ò[YJ\»	Jò[YJ\»	JY\‹ÿYŸJ\»äBÇò\Hõ\⁄ ◊€ò[YW◊ Bó⁄[ùõ⁄XŸWÿ‹ôX][€ó€ÿ⁄»HôXY[ôÀìÿ⁄ 
+Bò\úôY⁄\›\óÿõY\ö[ù
+õ‹‹X›[ô◊ÿú
+Bò\úŸX‹ô]⁄Ÿ^HH‹Àô[ùö\õ€ãôŸ]
+î—P‘ëU“—VHãò⁄[ôŸK[YHäBêêT—W—TàH‹Àú]ô\õò[YJ‹Àú]òXú‹]
+◊Ÿö[W◊ JBëUW—TàH‹Àô[ùö\õ€ãôŸ]
+ëUW—Tàãã€[ùŸ]HäBõ‹ÀõXZŸY\ú UW—Tã^\›€⁄œUùYJBî“‘ï’U◊—UW—TàH‹Àú]öõ⁄[äUW—Tãú⁄‹ù›]»äBî“‘ï’U◊—íSHH‹Àú]öõ⁄[ä“‘ï’U◊—UW—Tãú⁄‹ù›]Àöú€€àäBî“‘ï’U’T–Q—TàH‹Àú]öõ⁄[ä“‘ï’U◊—UW—Tãö[XYŸ\»äBìQ–P÷W‘“‘ï’U◊—íSHH‹Àú]öõ⁄[äêT—W—Tãô]Hãú⁄‹ù›]Àöú€€àäBìQ–P÷W‘“‘ï’U’T–Q—TàH‹Àú]öõ⁄[äêT—W—Tãú›]X»ãù\ÿY»ãú⁄‹ù›]»äBêS’—Q‘“‘ï’U“SPQ—W—VSî“S”î»H»úô»ãöú»ãöúY»ãô⁄YàãùŸXúüBÇõŸŸŸ\àHŸŸ⁄[ôÀôŸ]ŸŸŸ\äöù\ûK[õ›YûHäBÇû[›\⁄Y€ó‹›\ù\ŸXY€õ‹›X»H[›\⁄Y€óÿ€€ôöY◊ŸXY€õ‹›X‹ 
+BõŸŸ⁄[ôÀôŸ]ŸŸŸ\äû[›\⁄Y€àäKö[ôõ àñ[›\⁄Y€à€€ôöY›\ò][€à]X›Y[ùö\õ€õY[ùI\»ò\ŸW›\õI\»\W⁄Ÿ^OI\»€‹ö‹‹XŸW⁄Y‹ô\Ÿ[ùI\»ãà[›\⁄Y€ó‹›\ù\ŸXY€õ‹›X÷»ô[ùö\õ€õY[ùóKà[›\⁄Y€ó‹›\ù\ŸXY€õ‹›X÷»òò\ŸW›\õóKà[›\⁄Y€ó‹›\ù\ŸXY€õ‹›X÷»ò\W⁄Ÿ^HóKà[›\⁄Y€ó‹›\ù\ŸXY€õ‹›X÷»ù€‹ö‹‹XŸW⁄Y‹ô\Ÿ[ùóKäBÇôúõ€H]][YH[\‹ù[YY[BÇíT◊‘ëSëTàH‹Àô[ùö\õ€ãôŸ]
+îëSëTàãàäKõ›Ÿ\ä
+HOHùùYHÇÇà»8ß!H€€⁄⁄Y\»HŸ\‹⁄[€à[ö\]Y[Y[ùà8†&]][\ÿ]]\à⁄]ŸHôX€€õôX›\Çà»0Ë⁄\]YHõ›]ô[H›]ô\ù\ôHHò]öYÿ]]\à»õ›]ô[HŸ\‹⁄[€ãÇò\ò€€ôöYÀù\]Jà—T‘“S”ó–””““QW“”ìOUùYKà—T‘“S”ó–””““QW‘–SQT“UOHì^ãà—T‘“S”ó–””““QW‘—P’TëORT◊‘ëSëTã»8ß!HŸX›\ôHŸ][[Y[ù›\àô[ô\ÇäBÇÇÇêQRSó’T—TàH‹Àô[ùö\õ€ãôŸ]
+êQRSó’T—TàäBêQRSó‘T‘’”‘ëH‹Àô[ùö\õ€ãôŸ]
+êQRSó‘T‘’”‘ëäBêQRSó‘—T‘“S”ó’ëTî“S”àH‹Àô[ùö\õ€ãôŸ]
+êQRSó‘—T‘“S”ó’ëTî“S”àãååçãLÀLLYõ‹òŸK\ô[Ÿ⁄[ã]åàäBÇôYà⁄‹ù›]⁄[XYŸW›\õ
+ö[[ò[YJNÇàô]\õà\õŸõ‹äú⁄‹ù›]⁄[XYŸHãö[[ò[YOYö[[ò[YJBÇÇôYàõ‹õX[^ôW‹⁄‹ù›]⁄[XYŸJ⁄‹ù›]
+NÇà[XYŸHH⁄‹ù›]ôŸ]
+ö[XYŸHäH‹ààÇàö[[ò[YHH‹Àú]òò\Ÿ[ò[YJ\õXãú\úŸKù\õ\úŸJ[XYŸJKú]
+BàYàö[[ò[YNÇà⁄‹ù›]»ö[XYŸHóHH⁄‹ù›]⁄[XYŸW›\õ
+ö[[ò[YJBàô]\õà⁄‹ù›]ÇÇôYàZY‹ò]W€YÿXﬁW‹⁄‹ù›]◊‹›‹òYŸJ
+NÇàZY‹ò]YHò[ŸBÇàYà‹Àú]ô^\› Q–P÷W‘“‘ï’U’T–Q—TäNÇàõ‹à[ùûH[à‹Àúÿÿ[ô\äQ–P÷W‘“‘ï’U’T–Q—TäNÇàYàõ›[ùûKö\◊Ÿö[J
+NÇà€€ù[ùYBÇà\›[ò][€àH‹Àú]öõ⁄[ä“‘ï’U’T–Q—Tã[ùûKõò[YJBàYà‹Àú]ô^\› \›[ò][€äNÇà€€ù[ùYBÇà⁄]‹[ä[ùûKú]úòàäH\»€›\òŸWŸö[K‹[ä\›[ò][€ãùÿàäH\»\›[ò][€óŸö[NÇà\›[ò][€óŸö[Kù‹ö]J€›\òŸWŸö[KúôXY
+
+JBàZY‹ò]YHùYBÇàYà‹Àú]ô^\› Q–P÷W‘“‘ï’U◊—íSJNÇàûNÇà⁄]‹[äQ–P÷W‘“‘ï’U◊—íSKúàã[ò€Ÿ[ôœHù]ãNäH\»éÇàYÿXﬁW‹⁄‹ù›]»Hú€€ãõÿY
+äBà^Ÿ\
+ú€€ãíî””ëX€ŸQ\úõ‹ãö[Sõ›õ›[ô\úõ‹äNÇàYÿXﬁW‹⁄‹ù›]»H◊BÇàYà\⁄[ú›[òŸJYÿXﬁW‹⁄‹ù›]À\›
+NÇàõ‹õX[^ôY‹⁄‹ù›]»H◊Bàõ‹à⁄‹ù›][àYÿXﬁW‹⁄‹ù›]ŒÇàYàõ›\⁄[ú›[òŸJ⁄‹ù›]X›
+NÇà€€ù[ùYBàõ‹õX[^ôY‹⁄‹ù›]Àò\[ô
+õ‹õX[^ôW‹⁄‹ù›]⁄[XYŸJ⁄‹ù›]
+JBÇàYàõ‹õX[^ôY‹⁄‹ù›]ŒÇà⁄]‹[ä“‘ï’U◊—íSKù»ã[ò€Ÿ[ôœHù]ãNäH\»éÇàú€€ãô[\
+õ‹õX[^ôY‹⁄‹ù›]Àã[ú›\ôWÿ\ÿ⁄ZOQò[ŸK[ô[ùLäBàZY‹ò]YHùYBÇàô]\õàZY‹ò]YÇÇôYà[ú›\ôW‹⁄‹ù›]◊‹›‹òYŸJ
+NÇà‹ÀõXZŸY\ú “‘ï’U◊—UW—Tã^\›€⁄œUùYJBà‹ÀõXZŸY\ú “‘ï’U’T–Q—Tã^\›€⁄œUùYJBàYàõ›‹Àú]ô^\› “‘ï’U◊—íSJNÇàYàõ›ZY‹ò]W€YÿXﬁW‹⁄‹ù›]◊‹›‹òYŸJ
+NÇà⁄]‹[ä“‘ï’U◊—íSKù»ã[ò€Ÿ[ôœHù]ãNäH\»éÇàú€€ãô[\
+◊Kã[ú›\ôWÿ\ÿ⁄ZOQò[ŸK[ô[ùLäBÇÇôYàÿY‹⁄‹ù›] 
+NÇà[ú›\ôW‹⁄‹ù›]◊‹›‹òYŸJ
+BàûNÇà⁄]‹[ä“‘ï’U◊—íSKúàã[ò€Ÿ[ôœHù]ãNäH\»éÇà]HHú€€ãõÿY
+äBà⁄‹ù›]»H]HYà\⁄[ú›[òŸJ]K\›
+H[ŸH◊Bà^Ÿ\
+ö[Sõ›õ›[ô\úõ‹ãú€€ãíî””ëX€ŸQ\úõ‹äNÇàô]\õà◊BÇà\]YHò[ŸBàõ‹à⁄‹ù›][à⁄‹ù›]ŒÇàYàõ›\⁄[ú›[òŸJ⁄‹ù›]X›
+NÇà€€ù[ùYBàYàõ›⁄‹ù›]ôŸ]
+öYäNÇà⁄‹ù›]»öYóHH]ZYù]ZY
+
+Kö^à\]YHùYBà^\›[ô◊⁄[XYŸHH⁄‹ù›]ôŸ]
+ö[XYŸHäBàõ‹õX[^ôW‹⁄‹ù›]⁄[XYŸJ⁄‹ù›]
+BàYà⁄‹ù›]ôŸ]
+ö[XYŸHäHOH^\›[ô◊⁄[XYŸNÇà\]YHùYBÇàYà\]YÇàÿ]ôW‹⁄‹ù›] ⁄‹ù›] BÇàô]\õà⁄‹ù›]¬ÇÇôYàÿ]ôW‹⁄‹ù›] ⁄‹ù›] NÇà[ú›\ôW‹⁄‹ù›]◊‹›‹òYŸJ
+Bà⁄]‹[ä“‘ï’U◊—íSKù»ã[ò€Ÿ[ôœHù]ãNäH\»éÇàú€€ãô[\
+⁄‹ù›]Àã[ú›\ôWÿ\ÿ⁄ZOQò[ŸK[ô[ùLäBÇÇôYà[›ŸY‹⁄‹ù›]⁄[XYŸJö[[ò[YJNÇàYàãààõ›[àö[[ò[YNÇàô]\õàò[ŸBàô]\õàö[[ò[YKúú‹]
+ãàãJVÃWKõ›Ÿ\ä
+H[àS’—Q‘“‘ï’U“SPQ—W—VSî“S”î¬ÇÇî’Q“PRTëT◊—–‘◊’◊–””ïì”’TìH‹Àô[ùö\õ€ãôŸ]
+àî’Q“PRTëT◊—–‘◊’◊–””ïì”’TìãàöŒãÀŸŸ\›[€ú›Y⁄XZ\ô\À\ç[õÀõ€úô[ô\ãò€€KŸÿ‹◊›◊ÿ€€ùõ€öú€€àãäBî’Q“PRTëT◊—–‘◊‘ëUñW‘—P””ë»Håó‹›Y⁄XZ\ô\◊Ÿÿ‹◊ÿÿX⁄HH»ú^[ÿYéàõ€ôKúô]ûWÿYù\àéàåBó‹›Y⁄XZ\ô\◊Ÿÿ‹◊ÿÿX⁄W€ÿ⁄»HôXY[ôÀìÿ⁄ 
+BÇÇôYà›Y⁄XZ\ô\◊Ÿÿ‹◊‹ô\]Y\›⁄XY\ú 
+NÇàXY\ú»H¬àêXÿŸ\éàò\Xÿ][€ã⁄ú€€àãàï\Ÿ\ãPYŸ[ùéàú]Yõ‹õYYŸ\›[€ãÃKå
+
+⁄ŒãÀ‹]Yõ‹õYYŸ\›[€ãõ€úô[ô\ãò€€JHãàBà⁄Ÿ[àH
+‹Àô[ùö\õ€ãôŸ]
+î’Q“PRTëT◊—–‘◊’◊–””ïì”’“—SàäH‹ààäKú›ö\
+
+BàYà⁄Ÿ[éÇàXY\ú÷»ê]]‹ö^ò][€àóHHàêôX\ô\à›⁄Ÿ[üHÇàXY\ú÷»ñPTKRŸ^HóHH⁄Ÿ[Çàô]\õàXY\ú¬ÇÇôYàô]⁄⁄ú€€ó›\õ
+\õ[Y[›]LLXY\úœSõ€ôJNÇàô\]Y\›€ÿöàH\õXãúô\]Y\›îô\]Y\›
+à\õàXY\úœZXY\ú»‹à¬àêXÿŸ\éàò\Xÿ][€ã⁄ú€€àãàï\Ÿ\ãPYŸ[ùéàú]Yõ‹õYYŸ\›[€ãÃKå
+
+⁄ŒãÀ‹]Yõ‹õYYŸ\›[€ãõ€úô[ô\ãò€€JHãàKà
+Bà⁄]\õXãúô\]Y\›ù\õ‹[äô\]Y\›€ÿöã[Y[›]][Y[›]
+H\»ô\‹€úŸNÇà⁄\úŸ]Hô\‹€úŸKöXY\úÀôŸ]ÿ€€ù[ùÿ⁄\úŸ]
+
+H‹àù]ãNÇàõŸHHô\‹€úŸKúôXY
+
+KôX€ŸJ⁄\úŸ]
+Bàô]\õàú€€ãõÿY õŸJBÇÇôYà€›[ù‹[ô[ô◊‹›Y⁄XZ\ô\◊Ÿÿ›[Y[ù ^[ÿY
+NÇàYàõ›\⁄[ú›[òŸJ^[ÿYX›
+NÇàô]\õàÇàõ‹àŸ^H[à
+ú[ô[ô◊ÿ€›[ùãôÿ‹◊›◊ÿ€€ùõ€ãôÿ›[Y[ù◊›◊ÿ€€ùõ€ãù›[ãò€›[ùäNÇàò[YHH^[ÿYôŸ]
+Ÿ^JBàYà\⁄[ú›[òŸJò[YK
+[ùõÿ]
+JNÇàô]\õàX^
+[ù
+ò[YJK
+BàYà\⁄[ú›[òŸJò[YK›äH[ôò[YKú›ö\
+
+Kö\ŸY⁄]
+
+NÇàô]\õà[ù
+ò[YKú›ö\
+
+JBÇà][\»H^[ÿYôŸ]
+ö][\»äBàYàõ›\⁄[ú›[òŸJ][\À\›
+NÇàô]\õàÇà›[Hàõ‹à][H[à][\ŒÇàYàõ›\⁄[ú›[òŸJ][KX›
+NÇà€€ù[ùYBà[ô[ô◊ÿ€›[ùH][KôŸ]
+ú[ô[ô◊ÿ€›[ùã
+BàûNÇà›[
+œHX^
+[ù
+[ô[ô◊ÿ€›[ù
+K
+Bà^Ÿ\
+\Q\úõ‹ãò[YQ\úõ‹äNÇà€€ù[ùYBàô]\õà›[ÇÇôYà›Y⁄XZ\ô\◊Ÿÿ‹◊‹ô\‹€úŸJ^[ÿY›[OQò[ŸJNÇàô]\õà¬àõ⁄»éàùYKàú›[Héà›[Kàú[ô[ô◊ÿ€›[ùéà€›[ù‹[ô[ô◊‹›Y⁄XZ\ô\◊Ÿÿ›[Y[ù ^[ÿY
+Kàö][\»éà^[ÿYôŸ]
+ö][\»ã◊JKàBÇÇë”–êS—QêUS÷ì””W‘’SHHààÇè›[HYHô€ÿò[YYò][^õ€€HèÇà[¬àõ€€Nà	N¬àBÇà›\‹ù»õ›
+õ€€NàJH¬àõŸH¬àò[úŸõ‹õNàÿÿ[Jé
+N¬àò[úŸõ‹õK[‹öY⁄[éà‹Yù¬à⁄YàLçIN¬àZ[ãZZY⁄àLç]ö¬àBàBè‹›[OÇàààÇÇÇê\òYù\ó‹ô\]Y\›ôYà\WŸ€ÿò[ŸYò][ﬁõ€€Jô\‹€úŸJNÇàYàô\‹€úŸKõZ[Y]\HOHù^⁄[à‹àô\‹€úŸKô\ôX›‹\‹›õ›Y⁄Çàô]\õàô\‹€úŸBÇà[Hô\‹€úŸKôŸ]Ÿ]J\◊›^UùYJBàYàô€ÿò[YYò][^õ€€Hà[à[Çàô]\õàô\‹€úŸBÇàXYŸ[ôH[õ›Ÿ\ä
+Kôö[ô
+è⁄XYàäBàYàXYŸ[ôOHLNÇàô]\õàô\‹€úŸBÇà[Hàû⁄[ŒöXYŸ[ô_^—”–êS—QêUS÷ì””W‘’S_^⁄[⁄XYŸ[ôó_HÇàô\‹€úŸKúŸ]Ÿ]J[
+Bàô\‹€úŸKò€€ù[ù€[ô›H[äô\‹€úŸKôŸ]Ÿ]J
+JBàô]\õàô\‹€úŸBÇÇà»KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKBà»<'Â$UUSïQíP–US”àQRSÇà»KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKBÇôYà\◊ÿYZ[ó‹Ÿ\‹⁄[€ó›ò[Y
+
+NÇàô]\õà
+àŸ\‹⁄[€ãôŸ]
+òYZ[ó€ŸŸŸYäBà[ôŸ\‹⁄[€ãôŸ]
+òYZ[ó‹Ÿ\‹⁄[€ó›ô\ú⁄[€àäHOHQRSó‘—T‘“S”ó’ëTî“S”Çà
+BÇÇôYàô\]Z\ôWŸúô\⁄ÿYZ[ó‹Ÿ\‹⁄[€äô^‹]
+NÇàYà\◊ÿYZ[ó‹Ÿ\‹⁄[€ó›ò[Y
+
+NÇàô]\õàõ€ôBÇàŸ\‹⁄[€ãò€X\ä
+Bàô]\õàôY\ôX›
+\õŸõ‹äõŸ⁄[àãô^[ô^‹]
+JBÇÇôYàŸ⁄[ó‹ô\]Z\ôY
+äNÇà‹ò\ äBàYà‹ò\Y
+
+ò\ô‹À
+äö›ÿ\ô‹ NÇÇà»8ß!H]]‹ö\Ÿ\àHY[àõ‹õX]]\àXõX»]ôX»⁄Ÿ[ÇàYàô\]Y\›ú]ú›\ù›⁄]
+ãŸõ‹õX]]\úÀ»äH[ôã›\ÿYà[àô\]Y\›ú]Çàô]\õàä
+ò\ô‹À
+äö›ÿ\ô‹ BÇà»<'Â$∞Í\öYöXÿ][€àŸ\‹⁄[€àYZ[ÇàôY\ôX›‹ô\‹€úŸHHô\]Z\ôWŸúô\⁄ÿYZ[ó‹Ÿ\‹⁄[€äô\]Y\›ú]
+BàYàôY\ôX›‹ô\‹€úŸNÇàô]\õàôY\ôX›‹ô\‹€úŸBÇàô]\õàä
+ò\ô‹À
+äö›ÿ\ô‹ Bàô]\õà‹ò\YÇÇê\úõ›]Jã€Ÿ⁄[àãY]ŸœV»ë—Uãî‘’óJBôYàŸ⁄[ä
+NÇàYàô\]Y\›õY]ŸOHî‘’éÇà[XZ[Hô\]Y\›ôõ‹õKôŸ]
+ô[XZ[ãàäKú›ö\
+
+Bà\‹›€‹ôHô\]Y\›ôõ‹õKôŸ]
+ú\‹›€‹ôãàäKú›ö\
+
+BÇàYà[XZ[OHQRSó’T—Tà[ô\‹›€‹ôOHQRSó‘T‘’”‘ëÇàŸ\‹⁄[€ãò€X\ä
+BàŸ\‹⁄[€ãú\õX[ô[ùHò[ŸH»8ß!HŸ\‹⁄[€àò]öYÿ]]\àà\»H€€õô^[€à\ú⁄\›[ùBàŸ\‹⁄[€ñ»òYZ[ó€ŸŸŸYóHHùYBàŸ\‹⁄[€ñ»òYZ[óŸ[XZ[óHH[XZ[àŸ\‹⁄[€ñ»òYZ[ó‹Ÿ\‹⁄[€ó›ô\ú⁄[€àóHHQRSó‘—T‘“S”ó’ëTî“S”Çàô]\õàôY\ôX›
+ô\]Y\›ò\ô‹ÀôŸ]
+õô^äH‹à\õŸõ‹äö[ô^äJBÇÇàõ\⁄
+íY[ùYöX[ù›H[›H\‹ŸH[ò€‹úôX›àãô\úõ‹àäBÇàô]\õàô[ô\ó›[\]JõŸ⁄[ãö[äBÇÇê\úõ›]Jã€Ÿ€›]äBôYàŸ€›]
+
+NÇàŸ\‹⁄[€ãò€X\ä
+Bàô]\õàôY\ôX›
+\õŸõ‹äõŸ⁄[àäJBÇê\òôYõ‹ôW‹ô\]Y\›ôYàõ›X›ÿ[‹õ›]\ 
+NÇà]Hô\]Y\›ú]Çà»8ß!H]]‹ö\Ÿ\àYŸHŸ⁄[à»Ÿ€›]àYà]ú›\ù›⁄]
+ã€Ÿ⁄[àäH‹à]ú›\ù›⁄]
+ã€Ÿ€›]äNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\à\»öX⁄Y\ú»›]\]Y\»
+‹‹À⁄úÀ⁄[XYŸ\ BàYà]ú›\ù›⁄]
+ã‹›]XÀ»äNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\à\»ŸXö€⁄‹»
+ÿ[\Ÿõ‹òŸK]ÀäBàYà]ú›\ù›⁄]
+ã›ŸXö€⁄‹À»äNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\àY[àXõX»õ‹õX]]\à
+\ÿY]ôX»⁄Ÿ[äBàYà]ú›\ù›⁄]
+ãŸõ‹õX]]\úÀ»äH[ôã›\ÿYà[à]Çàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\à∞Í\€úŸ\»ù\ûH
+Y[à[XZ[
+BàYà]ú›\ù›⁄]
+ã⁄ù\ûK\ô\‹€úŸK»äNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\àY[àXõX»L‘õ‹õX]]\ÇàYà]ú›\ù›⁄]
+ã‹XõXÀÿL‹\[õö[ôÀ»äH‹à]ú›\ù›⁄]
+ãÿ\K‹XõXÀÿL‹\[õö[ôÀ»äNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\àXÿÍ»∞ÍYôX›\ôH
+]]ò\⁄X»Í\∞ÍYH[ú»Hõ›]JBàYà]ú›\ù›⁄]
+ã‹ôYôX›\ôK»äNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\à\»õ›]\»‹õ€à
+ô[ô\à‹õ€äBàYà]ú›\ù›⁄]
+ãÿ‹õ€ãHäNÇàô]\õàõ€ôBÇà»8ß!H]]‹ö\Ÿ\àõ›]\»Xõ\]Y\»][\»
+\⁄õÿ\ô»\› BàYà][à
+ã⁄X[àããŸ]Köú€€àããŸ›][€ú◊Ÿ]Köú€€àããŸõ‹õX]]\ú◊Ÿ]Köú€€àãã›ã]\›äNÇàô]\õàõ€ôBÇà»<'Â$›]Hô\›H∞ÍXŸ\‹⁄]H[ôHŸ\‹⁄[€àYZ[àúòpÎò⁄KÇà»\»Ÿ\‹⁄[€ú»‹∞ÍpÍY\»]ò[ùQRSó‘—T‘“S”ó’ëTî“S”à€€ùZ[ú⁄H0ÍX€€õôX›0ÍY\ÀÇàô]\õàô\]Z\ôWŸúô\⁄ÿYZ[ó‹Ÿ\‹⁄[€ä]
+BÇÇê\ôŸ]
+ãÿ\Kﬁ[›\⁄Y€ã⁄X[äBôYà[›\⁄Y€ó⁄X[
+
+NÇàXY€õ‹›X»H\›ﬁ[›\⁄Y€óÿ€€õôX›[€ä
+Bà›]\»H[ù
+XY€õ‹›XÀôŸ]
+ú›]\»äH‹à
+åYàXY€õ‹›XÀôŸ]
+õ⁄»äH[ŸHLäJBà‹›]\»HåYà›]\»OHå[ŸH›]\»Yà›]\»[àÕKﬂH[ŸHLÇàô]\õàú€€öYûJXY€õ‹›X K‹›]\¬ÇÇà»KKHö[ô\»ö[öòHKKBôYàõ‹õX]Ÿ]Jò[YJNÇàûNÇàH]][YKú›ú[YJò[YKâVKI[KIYäBàô]\õàú›ôù[YJâY…[K…VHäBà^Ÿ\^Ÿ\[€éÇàô]\õàò[YBò\öö[öòWŸ[ùãôö[\ú÷…Ÿ]Yúâ◊HHõ‹õX]Ÿ]BÇôYàõ‹õX]Ÿ]][YWŸúäò[YJNÇàYàõ›ò[YNÇàô]\õàò[YBàõ‹àõ][à
+âVKI[KIY	RâSNâT»ãâVKI[KIY	RâSNâT»ãâVKI[KIY	RâSNâTÀâYàãâVKI[KIYäNÇàûNÇàH]][YKú›ú[YJ›äò[YJKõ]
+Bàô]\õàú›ôù[YJâY…[K…VH	RâSHäHYàíà[àõ][ŸHú›ôù[YJâY…[K…VHäBà^Ÿ\^Ÿ\[€éÇà€€ù[ùYBàô]\õàò[YBò\öö[öòWŸ[ùãôö[\ú÷…Ÿ]][YYúâ◊HHõ‹õX]Ÿ]][YWŸúÇÇôYà◊Ÿ]][YJò[YJNÇàûNÇàô]\õà]][YKú›ú[YJò[YKâVKI[KIYäBà^Ÿ\^Ÿ\[€éÇàûNÇàô]\õà]][YKú›ú[YJò[YKâVKI[KIY	RâSNâT»äBà^Ÿ\^Ÿ\[€éÇàô]\õà]][YKõõ› 
+Bò\öö[öòWŸ[ùãôö[\ú÷…Ÿ]][YI◊HH◊Ÿ]][YBÇÇôYàŸ\‹⁄[€ó€[Ÿ[]WŸ]W‹ò[ôŸJŸ\‹⁄[€óŸ]K[Ÿ[]JNÇàààîô]\õàHö\ú›[ô\›[õö[ô»]\»õ‹àHŸ\‹⁄[€à[Ÿ[]KàààÇàYàõ›Ÿ\‹⁄[€óŸ]NÇàô]\õàõ€ôBÇàÿ[ùYH
+[Ÿ[]H‹ààäKú›ö\
+
+Kõ›Ÿ\ä
+Bà]\»H◊Bàõ‹à[õö[ô◊⁄Ÿ^H[à
+ò\‘[õö[ô—]HãòL‹[õö[ô—]HäNÇàõ‹à^H[àŸ\‹⁄[€óŸ]KôŸ]
+[õö[ô◊⁄Ÿ^JH‹à◊NÇà^WŸ]HH^KôŸ]
+ô]HäBàYàõ›^WŸ]NÇà€€ù[ùYBàõ‹à€›[à^KôŸ]
+ú€›»äH‹à◊NÇà€›€[Ÿ[]HH
+€›ôŸ]
+õ[Ÿ[]HäH‹àúô\Ÿ[ùY[äKú›ö\
+
+Kõ›Ÿ\ä
+BàYà€›€[Ÿ[]HOHÿ[ùYÇà]\Àò\[ô
+^WŸ]JBàúôXZ¬ÇàYàõ›]\ŒÇàô]\õàõ€ôBà]\»H€‹ùY
+]\ Bàô]\õà»ú›\ùéà]\÷ÃKô[ôéà]\÷ÀLW_BÇÇôYàõ‹õX]Ÿ]W‹ò[ôŸJ›\ù[ôSõ€ôJNÇàYàõ››\ùÇàô]\õà∏†%ÇàYàõ›[ô‹à[ôOH›\ùÇàô]\õàõ‹õX]Ÿ]J›\ù
+Bàô]\õààûŸõ‹õX]Ÿ]J›\ù
+_H]HŸõ‹õX]Ÿ]J[ô
+_HÇÇò\öö[öòWŸ[ùãô€ÿò[÷…‹Ÿ\‹⁄[€ó€[Ÿ[]WŸ]W‹ò[ôŸI◊HHŸ\‹⁄[€ó€[Ÿ[]WŸ]W‹ò[ôŸBò\öö[öòWŸ[ùãô€ÿò[÷…Ÿõ‹õX]Ÿ]W‹ò[ôŸI◊HHõ‹õX]Ÿ]W‹ò[ôŸBÇà»KKH[\à][\ÿXõH[ú»ö[öòHKKBôYàŸ]‹›]\◊€Xô[
+›\⁄[ô^Ÿ\‹⁄[€äNÇàààîô[ùõ⁄YH[àX›‹›]\ÀXY[ô_H\⁄XõH[ú»ö[öòHààÇà›]\ÀH›]\◊Ÿõ‹ó‹›\
+›\⁄[ô^Ÿ\‹⁄[€äBàô]\õà»ú›]\»éà›]\ÀôXY[ôHéàBÇò\öö[öòWŸ[ùãô€ÿò[÷…ŸŸ]‹›]\◊€Xô[	◊HHŸ]‹›]\◊€Xô[ÇÇà»KKH\ú⁄\›[òŸHKKBî—T‘“S”î◊—íSHH‹Àú]öõ⁄[äUW—TãúŸ\‹⁄[€úÀöú€€àäBîíP—W–QTU‘ó—íSHH‹Àú]öõ⁄[äUW—TãúöXŸWÿY\]‹ãöú€€àäBÇîíP—W–QTU‘ó—QêUS—T–”’SïHÃîíP—W–QTU‘ó—ì”’’T—VT»HåBîíP—W–QTU‘ó—ì‘ìPUS”ó‘íP—T»H¬àêT»éàMçLàêL‘éàåàë\öYŸX[ùéàÃüBîíP—W–QTU‘ó—ì‘ìPUS”ó”PëS»H¬àêT»éàêYŸ[ùH∞Í]ô[ù[€à]HÍX›\ö]0ÍH
+T HãàêL‘éàêYŸ[ùHõ›X›[€à\⁄\]YH\»\ú€€õô\»
+L‘
+Hãàë\öYŸX[ùéàë\öYŸX[ù	Ÿ[ùô\ö\ŸHHÍX›\ö]0ÍHö]∞ÍYH
+T‘
+HãüBîíP—W–QTU‘ó–S’—Q—ì‘ìPUS”î»H¬àêT»éàêT»ãàêL‘éàêL‘ãàëTíQ—PSïéàë\öYŸX[ùãüBÇà»KKKKKKKKKKKKKKKKKKKKKKBà»<'‰·H[õö[ô»à
+\àŸ\‹⁄[€äBà»KKKKKKKKKKKKKKKKKKKKKKBîSìíSë◊—TàH‹Àú]öõ⁄[äUW—Tãú[õö[ô‹»äBõ‹ÀõXZŸY\ú SìíSë◊—Tã^\›€⁄œUùYJBê””ïì––US”ó—TàH‹Àú]öõ⁄[äUW—Tãò€€ùõÿÿ][€ú»äBõ‹ÀõXZŸY\ú ””ïì––US”ó—Tã^\›€⁄œUùYJBêT◊–””ïêP’—TàH‹Àú]öõ⁄[äUW—Tãò\◊›òZ[ô\óÿ€€ùòX›»äBõ‹ÀõXZŸY\ú T◊–””ïêP’—Tã^\›€⁄œUùYJBêT◊–””ïêP’‘“Q”ëQ—TàH‹Àú]öõ⁄[äT◊–””ïêP’—Tãó‹⁄Y€ôYﬁ[›\⁄Y€àäBõ‹ÀõXZŸY\ú T◊–””ïêP’‘“Q”ëQ—Tã^\›€⁄œUùYJBñS’T“Q”ó’êRSëTó‘“Q”êUTëW’Q»Hûﬁ‹Ã_⁄Y€ò]\ô_Måå_HÇêT◊–USëSê—W—TàH‹Àú]öõ⁄[äUW—Tãò\◊ÿ][ô[òŸW‹⁄Y]»äBõ‹ÀõXZŸY\ú T◊–USëSê—W—Tã^\›€⁄œUùYJBêL‘—–◊—TàH‹Àú]öõ⁄[äUW—TãòL‹Ÿÿ›[Y[ù»äBõ‹ÀõXZŸY\ú L‘—–◊—Tã^\›€⁄œUùYJBêT◊–””ïì––US”ó’STUHH‹Àú]öõ⁄[äêT—W—TãôŸ\›[€ú›Y⁄XZ\ô\»ãù[\]\◊›€‹ôãò€€ùõÿÿ][€ò\ÀôÿﬁäBÇêT◊’’S“’Tî»HMÕBêT◊’’S”RSïUT»HT◊’’S“’Tî»
+àåêT◊—SPTìíSë◊“’Tî»HåÇêT◊—SPTìíSë◊”RSïUT»HT◊—SPTìíSë◊“’Tî»
+àåêT◊‘ëT—SïQS“’Tî»HT◊’’S“’Tî»HT◊—SPTìíSë◊“’Tî¬êT◊‘ëT—SïQS”RSïUT»HT◊‘ëT—SïQS“’Tî»
+àåêT◊”PV—RSW”RSïUT»H»
+àåêT◊—VSëQ—RSW”RSïUT»H
+àåÇî‘“PTW’’S“’Tî»Hç¬î‘“PTW’’S”RSïUT»H‘“PTW’’S“’Tî»
+àåî‘“PTW‘—TUQSê—W’’S»H¬àîKTÃHéàîKTÃàéàãàîãTÃHéàãçKîãTÃàéàãîãTÃ»éàãîãTÕéàãîãTÕHéàKçKîãTÕàéàîãTÕ»éàãîãTŒéàKàîÀTÃHéàKîÀTÃàéàãîÀTÃ»éàãîÀTÕéàKîÀTÕHéàÀàîTÃHéàKîTÃàéàKîTÃ»éàãçKîTÕéàîTÕHéàîTÕàéàîTÕ»éàKçKàîKTÃHéàLîKTÃàéàÀüBî‘“PTW‘Tï’’S»H»å\ôH\ùYHéàãåôH\ùYHéàMÀåŸH\ùYHéàKçH\ùYHéàNçYH\ùYHéàMﬂBî‘“PTW‘—TUQSê—W”PëS»H¬àîKTÃHéàìHëUHãîKTÃàéàê””T‘ïSQSïUHëUHãàîãTÃHéàîíSê“TT»H”T‘—SQSïT»0‚UPìT‘—SQSï»ãîãTÃàéàëì”ëSQSïUVUíSê“TT»‚S∞‚TêUVH‚P’TíU0‚HSê—SëQHãîãTÃ»éàëT‘—TïHT»∞‡ïSQSï»ãîãTÕéàê”“T””ìëSQSï8†&RT””US”àT»íT‘UQT»ãîãTÕHéà∞‚UêP’PUS”àHPìP»UT»––’TSï»ãîãTÕàéàë0‚T—SëïSPQ—HãîãTÕ»éà∞‚P”RTêQ—HH‚P’TíU0‚HãîãTŒéàî∞‚T—SïUS”àT»Që∞‚TëSï»S÷QSî»H—P”’Tî»ãàîÀTÃHéàíSî’SUS”î»0‚SP’íTUQT»ãîÀTÃàéàêT–—Sî—UTî»UêP—ST»ãîÀTÃ»éàíSî’SUS”î»íVT»8†&QVSê’S”àUU”PUTUQHãîÀTÕéàê”””ìëT»‚“T»USRQT»ãîÀTÕHéàî÷T’0‚QHH‚P’TíU0‚HSê—SëQHãàîTÃHéàìH—TïíP—HH‚P’TíU0‚HãîTÃàéàî∞‚T—SïUS”àT»””î“Q”ëT»H‚P’TíU0‚HUPRSà”’TêSïHãîTÃ»éàî‘’HH‚P’TíU0‚HãîTÕéàîì”ëT»H‚P’TíU0‚HU’TïëRSSê—HT»êUêUVãîTÕHéàìRT—HSà1dïUîëHT»S÷QSî»8†&QVSê’S”àãîTÕàéàêTSU∞‚P—TS”àT»—TïíP—T»PìP‘»H—P”’Tî»ãîTÕ»éàî—Sî“PíST–US”àT»––’TSï»ãàîKTÃHéàïíT“UT»TP–UUëT»ãîKTÃàéàìRT—T»Sà“UPUS”à8†&RSïTïëSïS”àãüBî‘“PTW‘Tï”PëS»H»îHéàå\ôH\ùYH8†%HëUHU—T»””î‚TUQSê—T»ãîàéàåôH\ùYH8†%‚P’TíU0‚HSê—SëQHãî»éàåŸH\ùYH8†%Sî’SUS”î»P“íTUQT»ãîéàçH\ùYH8†%∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHãîHéàçYH\ùYH8†%””ê‘∞‚UT–US”àT»P‘URT»üBî‘“PTW–””ëíQ»H»ò€ŸHéàî‘“PTHãô\ò][€í›\ú»éà‘“PTW’’S“’TîÀúŸ\]Y[òŸU›[»éà‘“PTW‘—TUQSê—W’’SÀú\ù›[»éà‘“PTW‘Tï’’SÀô^[Tô\]Z\ôYéàùYKô^[R[î[õö[ô»éàùYKô^[P][ô[òŸHéàùYKò€€ùòX›éàùYKû[›\⁄Y€àéàùY_BÇî‘“PTW–Q‘ëSQSï”SëHHêY‹∞Í[Y[ù‘“PT∞¨Ãå»0Í[]ú∞ÍH\àH∞ÍYôX›\ôHHò\à[à]HHéKÃKÃåçàÇÇî‘“PTW‘‘’’’S“’Tî»HMî‘“PTW‘ëUíT“S”ó“’Tî»H¬î‘“PTW‘ëT—Sê—W’’S“’Tî»H‘“PTW‘‘’’’S“’Tî»
+»‘“PTW’’S“’Tî»
+»‘“PTW‘ëUíT“S”ó“’Tî¬î‘“PTW‘‘’‘TïHëì‘ìPUS”à–UUëUUTà—P”’TíT’HHêUêRS8†%‘’8†%MÇî‘“PTW‘ëUíT“S”ó‘TïHî∞‚UíT“S”î»‚S∞‚TêST»U∞‚TTêUS”à0‡8†&QVSQSà‘“PTH8†%»Çî‘“PTW‘‘’—VT»H¬à»ò€ŸHéàî‘’RåHãù]Héàî‘’8†%ì’Tì∞‚QHHãö][\»éà»î∞Í\Ÿ[ù][€àHHõ‹õX][€à]H∞ÌHH‘’ãî∞Í]ô[ù[€à\»ö\‹]Y\»õŸô\‹⁄[€õô[»ãîõ›X›[€àY\0ÍYHòXŸH0Ë[ôH⁄]X][€à8†&XXÿ⁄Y[ùãë^[Y[àHHöX›[YHãïò[ú€Z\‹⁄[€àH8†&X[\ùHãîô[ZY\ú»\ô[ù\‹ÿYŸ\»\»Ÿ\›\»HŸX€›\ú»ó_Kà»ò€ŸHéàî‘’Råàãù]Héàî‘’8†%ì’Tì∞‚QHàãö][\»éà»îŸX€›\ú»Y\0Í\»]^Yô∞Í\ô[ù\»⁄]X][€ú»ãìZ\Ÿ\»[à⁄]X][€àò]\]Y\»ãêÿ\»€€ò‹ô]»ãî∞Í]ô[ù[€à[ú»8†&Y[ùô\ö\ŸHã∞‚]ò[X][€ú»Ÿ\ùYöXÿ]]ô\»‘’ó_KóBî‘“PTW‘ëUíT“S”ó“UST»H»î∞Í]ö\⁄[€à\»ö[ò⁄\[\»õ›[€ú»∞ÍY€[Y[ùZ\ô\»ãî∞Í]ö\⁄[€àH∞ÌH]\»Z\‹⁄[€ú»H8†&XYŸ[ù‘“PTHãë^⁄]][€àH‘“Hãî∞Í]ö\⁄[€à\»€€ôZ]\»0Ë[ö\àãî∞Í\\ò][€à]^0Í\ô]]ô\»0ÍX‹ö]\»]ò]\]Y\»ãî]Y\›[€úÀ\∞Í\€úŸ\»]ò[ù8†&Y^[Y[àóBÇôYà‹‹⁄X\WŸ]Z[
+€ŸK\ù€ù[Xô\ã\ù›]KŸ\]Y[òŸW€ù[Xô\ãŸ\]Y[òŸW›]K›[€Z[ù]\À€€ù[ù€Z[ù]\À€€ù[ù⁄][\À\Xÿ][€ó€Z[ù]\œL\Xÿ][€ó⁄][\œSõ€ôJNÇàô]\õà¬àò€ŸHéà€ŸKàú\ù€ù[Xô\àéà\ù€ù[Xô\ãàú\ù›]Héà\ù›]KàúŸ\]Y[òŸW€ù[Xô\àéàŸ\]Y[òŸW€ù[Xô\ãàúŸ\]Y[òŸW›]HéàŸ\]Y[òŸW›]Kàù›[Ÿ\ò][€ó€Z[ù]\»éà›[€Z[ù]\Ààò€€ù[ùŸ\ò][€ó€Z[ù]\»éà€€ù[ù€Z[ù]\Ààò€€ù[ù⁄][\»éà€€ù[ù⁄][\Ààò\Xÿ][€óŸ\ò][€ó€Z[ù]\»éà\Xÿ][€ó€Z[ù]\Ààò\Xÿ][€ó⁄][\»éà\Xÿ][€ó⁄][\»‹à◊KàBÇî‘“PTW‘—TUQSê—W—URS»H¬à‹‹⁄X\WŸ]Z[
+îKTÃHãKìHëUHU—T»””î‚TUQSê—T»ãKìHëUHãçLå»ï0Í[‹öYHHô]HàöX[ô€HHô]K€\‹Ÿ\»Hô]^]ÿ]\Ÿ\»ãìHù[pÍYH]Ÿ\»[ôŸ\ú»ãîõ‹Yÿ][€àHô]Hà€€ôX›[€ã€€ùôX›[€ãò^[€õô[Y[ù]õ⁄ôX›[€àãê€€ôZ]H0Ë[ö\àòXŸH0Ë[àÿÿ[[ôù[pÍHÿ[ú»Z\ŸH[à[ôŸ\à›\à8†&Z[ù\ùô[ò[ùóKLå»ë^\ò⁄XŸHH€‹ùYH8†&][àÿÿ[[ôù[pÍH\à\»ù[pÍY\»Ÿ‹ò[ù\Àúõ⁄Y\»]õ€àﬁ\]Y\»óJKà‹‹⁄X\WŸ]Z[
+îKTÃàãKìHëUHU—T»””î‚TUQSê—T»ããê””T‘ïSQSïUHëUHãLåLå»îö[ò⁄\HHH∞Í\⁄\›[òŸH]Hô]H\»0Í[0Í[Y[ù»H€€ú›ùX›[€àãîö[ò⁄\HHH∞ÍXX›[€à]Hô]H\»X]0Í\öX]^8†&X[pÍ[òYŸ[Y[ùãê‹ö]0Íô\»H€\‹Ÿ[Y[ùHŸ\»€€\‹ù[Y[ù»óJKà‹‹⁄X\WŸ]Z[
+îãTÃHããî‚P’TíU0‚HSê—SëQHãKîíSê“TT»H”T‘—SQSïT»0‚UPìT‘—SQSï»ãMLLå»ë0ÍYö[ö][€à8†&][àTîãë0ÍYö[ö][€àHXõX»ãëYô∞Í\ô[ù»\\»8†&pÍ]Xõ\‹Ÿ[Y[ù»ãêÿ]0ÍY€‹öY\»Ÿ[€à8†&YYôôX›Yàãë0ÍYö[ö][€àHŸ]Z[HHYHÿ]0ÍY€‹öYHãìpÍ]ŸHH0Í]\õZ[ò][€àH8†&YYôôX›Yàãë0ÍYö[ö][€à]€\‹⁄YöXÿ][€à8†&][àQ“óKÃ»ë^\ò⁄XŸ\»⁄[\\»H€\‹Ÿ[Y[ù8†&pÍ]Xõ\‹Ÿ[Y[ù»óJKà‹‹⁄X\WŸ]Z[
+îãTÃàããî‚P’TíU0‚HSê—SëQHããëì”ëSQSïUVUíSê“TT»‚S∞‚TêUVH‚P’TíU0‚HSê—SëQHãLåLå»ëõ€ô[Y[ù]^HÍX›\ö]0ÍHà0Í]òX›X][€à\»ÿÿ›\[ùÀXÿŸ\‹⁄Xö[]0ÍH]Z\ŸH[àŸ\ùöXŸH\»[ﬁY[ú»HŸX€›\ú»ãîö[ò⁄\\»Í[∞Í\ò]^à[\[ù][€ã\‹Ÿ\ùK\€€[Y[ùX]0Í\öX]^€⁄\€€õô[Y[ù[pÍ[òYŸ[Y[ù0ÍYÿYŸ[Y[ù0Í\Ÿ[ôù[XYŸK0ÍX€Z\òYŸHHÍX›\ö]0ÍH][ﬁY[ú»HŸX€›\ú»óJKà‹‹⁄X\WŸ]Z[
+îãTÃ»ããî‚P’TíU0‚HSê—SëQHãÀëT‘—TïHT»∞‡ïSQSï»ãLåL»ë\‹Ÿ\ùH]õ⁄\öY\»ãïõ⁄Y\»[ô⁄[ú»ãïõ⁄Y\»0ÍX⁄[\»ãë\‹XŸ\»Xúô\»ãêòZY\»XÿŸ\‹⁄Xõ\»óKÃ»îô\0Í\òYŸHH\‹Ÿ\ù\»]òZY\»XÿŸ\‹⁄Xõ\»›\à[ú»óJKà‹‹⁄X\WŸ]Z[
+îãTÕããî‚P’TíU0‚HSê—SëQHãê”“T””ìëSQSï8†&RT””US”àT»íT‘UQT»ãLåLå»ê€⁄\€€õô[Y[ùòY][€õô[ãîŸX›]\ú»ãê€€\\ù[Y[ù»ãìÿÿ]^0Ëö\‹]Y\»ãîôX€›\[Y[ù\»öY\»óJKà‹‹⁄X\WŸ]Z[
+îãTÕHããî‚P’TíU0‚HSê—SëQHãK∞‚UêP’PUS”àHPìP»UT»––’TSï»ãLL»ë0ÍYö[ö][€àH0ÍYÿYŸ[Y[ùãìõ›[€à8†&][ö]0ÍHH\‹ÿYŸHãêò[\ÿYŸH\»0ÍYÿYŸ[Y[ù»ãìX[±d›]úôH]0Í]ô\úõ›Z[YŸH\»\‹›Y\»ãë\‹XŸH8†&X][ùHÍX›\ö\ÍH]0Í]òX›X][€àYô∞Í\∞ÍYHóJKà‹‹⁄X\WŸ]Z[
+îãTÕàããî‚P’TíU0‚HSê—SëQHããë0‚T—SëïSPQ—HãçLå»ìÿöôX›Yú»H0Í\Ÿ[ôù[XYŸHãë0Í\Ÿ[ôù[XYŸH\»0ÍYÿYŸ[Y[ù»ãë0Í\Ÿ[ôù[XYŸH\»ÿÿ]^ãë0ÍX€[ò⁄[Y[ùX[ùY[ãë[ùô]Y[à]∞Í\öYöXÿ][€àãîô[Z\ŸH[à‹⁄][€à8†&X][ùH\»\‹‹⁄]Yú»óKLå»î∞ÍX\õY[Y[ù8†&][àõ€]8†&][à€\]›H8†&][à^]⁄\ôHóJKà‹‹⁄X\WŸ]Z[
+îãTÕ»ããî‚P’TíU0‚HSê—SëQHãÀ∞‚P”RTêQ—HH‚P’TíU0‚HãLåL»ë0ÍYö[ö][€àH8†&pÍX€Z\òYŸHHÍX›\ö]0ÍHã∞‚X€Z\òYŸH8†&pÍ]òX›X][€àã∞‚X€Z\òYŸH8†&X[XöX[òŸH›H[ùK\[ö\]YHãêõÿ‹»]]€õ€Y\»]€›\òŸ\»Ÿ[ùò[\»ãìXZ[ù[ò[òŸH]∞Í\öYöXÿ][€ú»óKÃ»íY[ùYöXÿ][€à\»Yô∞Í\ô[ù»õÿ‹»8†&pÍX€Z\òYŸH]∞Í\öYöXÿ][€à⁄[\HóJKà‹‹⁄X\WŸ]Z[
+îãTŒããî‚P’TíU0‚HSê—SëQHãî∞‚T—SïUS”àT»Që∞‚TëSï»S÷QSî»H—P”’Tî»ãåå»ì[ﬁY[ú»8†&Y^[ò›[€àãë\‹‹⁄][€ú»ö\ÿ[ù0ËòX⁄[]\à8†&XX›[€à\»ÿ\]\úÀ\€\Y\ú»ãîŸ\ùöXŸHHÍX›\ö]0ÍH[òŸ[ôYHãîﬁ\›0ÍYHHÍX›\ö]0ÍH[òŸ[ôYHãîﬁ\›0ÍYH8†&X[\ùHóJKà‹‹⁄X\WŸ]Z[
+îÀTÃHãÀíSî’SUS”î»P“íTUQT»ãKíSî’SUS”î»0‚SP’íTUQT»ãåå»í[\X›\»[ú›[][€ú»0Í[X›ö\]Y\»›\àHÍX›\ö]0ÍHãìXZ[ùY[àH8†&X[[Y[ù][€à\»[ú›[][€ú»HÍX›\ö]0ÍHã∞‚X€Z\òYŸHõ‹õX[Hô[\XŸ[Y[ù]HÍX›\ö]0ÍHãìõ›[€ú»H€›\òŸ\»HÍX›\ö]0ÍHóJKà‹‹⁄X\WŸ]Z[
+îÀTÃàãÀíSî’SUS”î»P“íTUQT»ããêT–—Sî—UTî»UêP—ST»ãLåL»ê\ÿŸ[úŸ]\ú»][€ùKX⁄\ôŸHãë\‹‹⁄]Yú»HÍX›\ö]0ÍHãê€€ôZ]H0Ë[ö\à[àÿ\»H\ú€€õôHõ‹]pÍYHãìòXŸ[\»]0Í\]Z\[Y[ù»\‹⁄[Z[0Í\»óKÃ»îõÿÍY\ôHH0ÍYÿYŸ[Y[ù]€€ú⁄Y€ô\»8†&Y^⁄]][€àóJKà‹‹⁄X\WŸ]Z[
+îÀTÃ»ãÀíSî’SUS”î»P“íTUQT»ãÀíSî’SUS”î»íVT»8†&QVSê’S”àUU”PUTUQHãLåL»îö[ò⁄\\»Hõ€ò›[€õô[Y[ùãëYô∞Í\ô[ù»\\»8†&Z[ú›[][€ú»ö^\»ãî‹›HH€€ù∞ÌHãê[\õYH]ô\‹ù8†&Z[ôõ‹õX][€àãë[ùô]Y[à]∞Í\öYöXÿ][€ú»óKÃ»ìX›\ôH8†&][à‹›HH€€ù∞ÌH]Y[ùYöXÿ][€à\»‹ôÿ[ô\»ö[ò⁄\]^óJKà‹‹⁄X\WŸ]Z[
+îÀTÕãÀíSî’SUS”î»P“íTUQT»ãê”””ìëT»‚“T»USRQT»ãåå»ê€€€õô\»Í⁄\»ãê€€€õô\»[à⁄\ôŸH›H[ZY\»ãë[\XŸ[Y[ù»]⁄Y€ò[\ÿ][€àãê[[Y[ù][€à]][\ÿ][€à\à\»Ÿ\ùöXŸ\»HŸX€›\ú»ãï∞Í\öYöXÿ][€ú»óJKà‹‹⁄X\WŸ]Z[
+îÀTÕHãÀíSî’SUS”î»P“íTUQT»ãKî÷T’0‚QHH‚P’TíU0‚HSê—SëQHãNLå»ë0ÍYö[ö][€àH‘“Hãêÿ]0ÍY€‹öY\»H‘“Hãîﬁ\›0ÍYHH0Í]X›[€à[òŸ[ôYHãêŸ[ùò[\ÿ]]\àHZ\ŸH[àÍX›\ö]0ÍH[òŸ[ôYHãë\‹‹⁄]Yú»X›[€õ∞Í\»HÍX›\ö]0ÍHãï[ö]0ÍHHŸ\›[€à8†&X[\õYHóKå»ë^⁄]][€à8†&][à‘“HHÿ]0ÍY€‹öYHH]X›\ôH\»[ôõ‹õX][€ú»]H‹›HHÍX›\ö]0ÍHóJKà‹‹⁄X\WŸ]Z[
+îTÃHãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHãKìH—TïíP—HH‚P’TíU0‚Hãåå»î∞ÌH]Z\‹⁄[€ú»HŸ\ùöXŸHHÍX›\ö]0ÍH[òŸ[ôYHãê€€\‹⁄][€àHŸ\ùöXŸHãî]X[YöXÿ][€à\»\ú€€õô[»ãìZ\‹⁄[€ú»Í[∞Í\ò[\»]\ùX›[pÍô\»óJKà‹‹⁄X\WŸ]Z[
+îTÃàãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHããî∞‚T—SïUS”àT»””î“Q”ëT»H‚P’TíU0‚HUPRSà”’TêSïHãåå»ê€€ú⁄Y€ô\»Í[∞Í\ò[\»ãê€€ú⁄Y€ô\»\ùX›[pÍô\»ãìXZ[à€›\ò[ùH][úôY⁄\›ô[Y[ù»ãïò[ú€Z\‹⁄[€à\»[ôõ‹õX][€ú»ãî∞ÍYX›[€à8†&][ôHXZ[à€›\ò[ùH0Ë\ù\à8†&][à0Í]∞Í[ô[Y[ù⁄[\HóJKà‹‹⁄X\WŸ]Z[
+îTÃ»ãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHãÀî‘’HH‚P’TíU0‚HãMLL»ì‹ôÿ[ö\ÿ][€àH‹›HHÍX›\ö]0ÍHãëÿ›[Y[ù»∞Í\Ÿ[ù»]H‹›Hãî∞ÍXŸ\[€à]òZ][Y[ù\»[\õY\»ãì[ﬁY[ú»H€€[][öXÿ][€àãëŸ\›[€à\»€0Í\»][ﬁY[ú»8†&XXÿÍ»óKå»ë^⁄]][€àH‹›HHÍX›\ö]0ÍH]òZ][Y[ù8†&][ôH[\õYHóJKà‹‹⁄X\WŸ]Z[
+îTÕãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHãîì”ëT»H‚P’TíU0‚HU’TïëRSSê—HT»êUêUVãçLå»ìÿöôX›Yú»HHõ€ôHãí][∞Í\òZ\ô\»]⁄[ù»H€€ù∞ÌHãê[õ€X[Y\»]Y\›\ô\»€€úŸ\ùò]⁄\ô\»ãî\õZ\»Hô]Hãî›\ùôZ[[òŸH\»ò]ò]^\à⁄[ù»⁄]Y»óKLå»îõ€ôH]ôX»∞Í\€€][€à8†&X[õ€X[Y\»]€€ù∞ÌH8†&][à\õZ\»Hô]HóJKà‹‹⁄X\WŸ]Z[
+îTÕHãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHãKìRT—HSà1dïUîëHT»S÷QSî»8†&QVSê’S”àãçå»ëYô∞Í\ô[ù»[ﬁY[ú»8†&Y^[ò›[€àãêYŸ[ù»^[ò›]\ú»ãî∞Í€\»HÍX›\ö]0ÍH‹ú»H8†&X]\]YH8†&][àô]HóKN»ë^[ò›[€àHô]^∞ÍY[»›H⁄[][0Í\»]H[ﬁY[à8†&Y^[ò›]\ú»Y\0Í\»ãìZ\ŸH[à1d›]úôH8†&][àõÿö[ô]8†&Z[òŸ[ôYH\õpÍHóJKà‹‹⁄X\WŸ]Z[
+îTÕàãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHããêTSU∞‚P—TS”àT»—TïíP—T»PìP‘»H—P”’Tî»ãçL»ëYô∞Í\ô[ù»[ﬁY[ú»8†&X[\ùHãìY\‹ÿYŸH8†&X[\ùHãêXÿ›YZ[]›ZYYŸH\»ŸX€›\ú»ãìZ\ŸH0Ë\‹‹⁄][€à\»[ôõ‹õX][€ú»][\»óKML»ë^\ò⁄XŸ\»8†&X\[\»ŸX€›\ú»ãìZ\ŸH[à⁄]X][€à8†&XXÿ›YZ[]H›ZYYŸH\»ŸX€›\ú»óJKà‹‹⁄X\WŸ]Z[
+îTÕ»ãî∞ÂHURT‘“S”î»T»Q—Sï»H‚P’TíU0‚HSê—SëQHãÀî—Sî“PíST–US”àT»––’TSï»ãLå»í[ôõ‹õX][€à\»ÿÿ›\[ù»ãêX›[€ú»H∞Í]ô[ù[€àãê€€ôZ]H0Ë[ö\à[àÿ\»8†&X[\õYHãêY\][€àHY\‹ÿYŸH]HXõX»óKÃ»î∞Í\Ÿ[ù][€à‹ò[H8†&][ôH€€ú⁄Y€ôHHÍX›\ö]0ÍH0Ë\»ÿÿ›\[ù»óJKà‹‹⁄X\WŸ]Z[
+îKTÃHãKê””ê‘∞‚UT–US”àT»P‘URT»ãKïíT“UT»TP–UUëT»ãå◊Kå»ïö\⁄]H\Xÿ]]ôH8†&X]H[⁄[ú»]^0Í]Xõ\‹Ÿ[Y[ù»ôXŸ]ò[ùHXõX»ãíY[ùYöXÿ][€à\»ö\‹]Y\»]\»\‹‹⁄][€ú»HÍX›\ö]0ÍHãîô\0Í\òYŸH\»0ÍYÿYŸ[Y[ùÀ0Í\Ÿ[ôù[XYŸK‘“H][ﬁY[ú»HŸX€›\ú»ãìX›\ôHH[ú»]ÿ›[Y[ù»HÍX›\ö]0ÍHóJKà‹‹⁄X\WŸ]Z[
+îKTÃàãKê””ê‘∞‚UT–US”àT»P‘URT»ããìRT—T»Sà“UPUS”à8†&RSïTïëSïS”àãå◊Kå»ìZ\Ÿ\»[à⁄]X][€à8†&Z[ù\ùô[ù[€à›\à0Í\\ùHô]Hãê\Xÿ][€à\»€€ú⁄Y€ô\»]]∞ÍYHH›]HãëŸ\›[€à8†&][ôH0Í]òX›X][€àãê[\ùKXÿ›YZ[]›ZYYŸH\»ŸX€›\ú»ãë^⁄]][€àH‘“H]HHXZ[à€›\ò[ùHóJKóBî‘“PTW‘—TUQSê—W—URS–ñW–”—HH⁄][V»ò€ŸHóNà][Hõ‹à][H[à‘“PTW‘—TUQSê—W—URSﬂBÇêT◊—VP’Q’Uó’’S»H¬àïUåHéàMàïUåàéàåãàïUå»éàMàïUçéàÀàïUçHéàÀàïUçàéàÀàïUç»éàLÀàïUééàKàïUéHéàÀàïUåLéàÀàïUåLHéàLKàïUåLàéàÀàïUåL»éàÀàïUåMéàÀüBÇêT◊’Uó”PëS»H¬àïUåHéàîŸX€›\ö\›Hÿ]]ô]]\àHò]òZ[
+‘’
+HãàïUåàéàë[ùö\õ€õô[Y[ùù\öY\]YHHHÍX›\ö]0ÍHö]∞ÍYHãàïUå»éàëŸ\›[€à\»€€ôõ]»ãàïUçéàî›ò]0ÍY⁄\]YHãàïUçHéàî∞Í]ô[ù[€à\»ö\‹]Y\»[òŸ[ôYHãàïUçàéàê\∞ÍZ[ú⁄[€à]H€›\ú»H8†&Y^\ò⁄XŸHãàïUç»éàîö\‹]Y\»\úõ‹ö\›\»ãàïUééàîõŸô\‹⁄[€õô[ãàïUéHéàî[][€àHÍX›\ö]0ÍH][ú‹X›[€àö\›Y[H\»òYÿYŸ\»ãàïUåLéàî›\ùôZ[[òŸH\à[ﬁY[ú»0Í[X›õ€ö\]Y\»ãàïUåLHéàëŸ\›[€à\»ö\‹]Y\»ãàïUåLàéà∞‚]∞Í[ô[Y[ùY[‹0ÍX⁄Yö\]YHãàïUåL»éàëŸ\›[€à\»⁄]X][€ú»€€ôõX›Y[\»0ÍY‹òY0ÍY\»ãàïUåMéàí[ô\›öY[‹0ÍX⁄Yö\]YHãüBÇêT◊”Q–S”SëT»H¬àì‘ë–SíT”QHHì‘ìPUS”à—TïQíp‚HUPSS‘HãàìHŸ\ùYöXÿ][€à]X[]0ÍHH0Í]0ÍH0Í[]ú∞ÍYH]H]ôHHH›H\»ÿ]0ÍY€‹öY\»8†&XX›[€ú»›Z]ò[ù\»àX›[€ú»Hõ‹õX][€ãX›[€ú»Hõ‹õX][€à\à\ô[ù\‹ÿYŸKàãàê]]‹ö\ÿ][€à	Ÿ^\ò⁄XŸH”êT»∞¨ì‘ãLÀLåçÀLãLLååÕMLLÕHãàêY‹∞Í[Y[ùQQàT»àÃåÃçÃHHY‹∞Í[Y[ùQQàL‘àÃåLLLåHãóBÇêT◊”S—ST»H¬à
+ïUåàSïíTì”ìëSQSïïTíQTUQHHH‚P’TíU0‚HíU∞‚QHãåäKà
+ïUéì—ëT‘“S”ìëSãäKà
+ïUåMSëT’íQS‘0‚P“QíTUQHã Kà
+ïUåH—P”’TíT’H–UUëUUTàHêUêRS
+‘’
+HãM
+Kà
+ïUç»íT‘UQT»Tîì‘íT’T»ãL Kà
+ïUéì—ëT‘“S”ìëSãJKà
+ïUéHSUS”àH‚P’TíU0‚HUSî‘P’S”àíT’QSHT»êQ–Q—T»ã Kà
+ïUå»—T’S”àT»””ëìU»ãM
+Kà
+ïUç’êU0‚Q“TUQHã Kà
+ïUçàT∞‚RSî“S”àUH”’Tî»H8†&QVTê“P—Hã Kà
+ïUçH∞‚UëSïS”àT»íT‘UQT»Sê—SëQHã Kà
+ïUåL’TïëRSSê—HTàS÷QSî»0‚SP’ì”íTUQT»ã Kà
+ïUåLà0‚U∞‚SëSQSïQS‘0‚P“QíTUQHã Kà
+ïUåLH—T’S”àT»íT‘UQT»ãLJKà
+ïUéì—ëT‘“S”ìëSãÃJKà
+ïUåL»—T’S”àT»“UPUS”î»””ëìP’QST»0‚Q‘êQ0‚QT»ã Kà
+ïUéì—ëT‘“S”ìëSã KóBÇÇêT◊—SPTìíSë◊‘ëT—SïQS”S—ST»H¬à»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUåàãù]Héàë[ùö\õ€õô[Y[ùù\öY\]YHHHÍX›\ö]0ÍHö]∞ÍYHãô\ò][€ìZ[ù]\»éàM»
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUå»ãù]HéàëŸ\›[€à\»ö\‹]Y\»]⁄]X][€ú»€€ôõX›Y[\»ãô\ò][€ìZ[ù]\»éàH
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUçãù]Héàïò[ú€Z\‹⁄[€à\»€€ú⁄Y€ô\»][ôõ‹õX][€ú»ãô\ò][€ìZ[ù]\»éàH
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUåàãù]Héàë[ùö\õ€õô[Y[ùù\öY\]YHHHÍX›\ö]0ÍHö]∞ÍYHãô\ò][€ìZ[ù]\»éà»
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUåLHãù]HéàëŸ\›[€à\»ö\‹]Y\»»€€õòZ\‹ÿ[òŸ\»\»ôX›]\ú»8†&Z[òŸ[ôYHãô\ò][€ìZ[ù]\»éàH
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUç»ãù]Héàî∞Í]ô[ù[€à\»ö\‹]Y\»\úõ‹ö\›\»ãô\ò][€ìZ[ù]\»éàà
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUåHãù]HéàîŸX€›\ö\àãô\ò][€ìZ[ù]\»éàH
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUåLãù]Héàê€€õòZ\‹ÿ[òŸHH8†&[›][[ôõ‹õX]\]YH»ò[ú€Z\‹⁄[€àãô\ò][€ìZ[ù]\»éàà
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUéãù]Héàî›\ùôZ[[òŸH]ÿ\ôY[õòYŸHãô\ò][€ìZ[ù]\»éà»
+àåKà»ú\ùéàî0‚TíS—HH8†%KSPTìíSë»»T’Sê“QS8†%åöãõ[Ÿ[]Héàô[X\õö[ô»ãù]àéàïUåLàãù]Héà∞‚]∞Í[ô[Y[ùY[ãô\ò][€ìZ[ù]\»éà»
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUåHãù]HéàëŸ\›[€à\»ô[ZY\ú»ŸX€›\ú»ãô\ò][€ìZ[ù]\»éàM
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUåàãù]Héàë[ùö\õ€õô[Y[ùù\öY\]YHHHÍX›\ö]0ÍHö]∞ÍYHãô\ò][€ìZ[ù]\»éàà
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUçHãù]HéàëŸ\›[€à\»ö\‹]Y\»»€€õòZ\‹ÿ[òŸ\»\»ôX›]\ú»8†&Z[òŸ[ôYHãô\ò][€ìZ[ù]\»éàMà
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUç»ãù]Héàî∞Í]ô[ù[€à\»ö\‹]Y\»\úõ‹ö\›\»ãô\ò][€ìZ[ù]\»éàçÃKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUåHãù]HéàîŸX€›\ö\àãô\ò][€ìZ[ù]\»éàLKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUå»ãù]HéàëŸ\›[€à\»ö\‹]Y\»]\»⁄]X][€ú»€€ôõX›Y[\»ãô\ò][€ìZ[ù]\»éàH
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUåL»ãù]HéàëŸ\›[€à\»ö\‹]Y\»H⁄]X][€ú»€€ôõX›Y[\»0ÍY‹òY0ÍY\»ãô\ò][€ìZ[ù]\»éà»
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUéãù]Héàî›\ùôZ[[òŸH]ÿ\ôY[õòYŸHãô\ò][€ìZ[ù]\»éàH
+àåKà»ú\ùéàî0‚TíS—Hà8†%∞‚T—SïQSUH—SïëH8†%LL⁄ãõ[Ÿ[]Héàúô\Ÿ[ùY[ãù]àéàïUåLàãù]Héà∞‚]∞Í[ô[Y[ùY[ãô\ò][€ìZ[ù]\»éàM
+àåKóBÇêT◊‘ëP–T‘ì’‘»H¬à
+ïUåHãîŸX€›\ö\›Hÿ]]ô]]\àHò]òZ[
+‘’
+HäKà
+ïUåàãë[ùö\õ€õô[Y[ùù\öY\]YHHHÍX›\ö]0ÍHö]∞ÍYHäKà
+ïUå»ãëŸ\›[€à\»€€ôõ]»äKà
+ïUçãî›ò]0ÍY⁄\]YHäKà
+ïUçHãî∞Í]ô[ù[€à\»ö\‹]Y\»[òŸ[ôYHäKà
+ïUçàãê\∞ÍZ[ú⁄[€à]H€›\ú»H8†&Y^\ò⁄XŸHäKà
+ïUç»ãîö\‹]Y\»\úõ‹ö\›\»äKà
+ïUéãîõŸô\‹⁄[€õô[äKà
+ïUéHãî[][€àHÍX›\ö]0ÍH][ú‹X›[€àö\›Y[H\»òYÿYŸ\»äKà
+ïUåLãî›\ùôZ[[òŸH\à[ﬁY[ú»0Í[X›õ€ö\]Y\»äKà
+ïUåLHãëŸ\›[€à\»ö\‹]Y\»äKà
+ïUåLàã∞‚]∞Í[ô[Y[ùY[‹0ÍX⁄Yö\]YHäKà
+ïUåL»ãëŸ\›[€à\»⁄]X][€ú»€€ôõX›Y[\»0ÍY‹òY0ÍY\»äKà
+ïUåMãí[ô\›öY[‹0ÍX⁄Yö\]YHäKóBÇôYàX\›\óŸ]JYX\äNÇàààîô]›\õôHH]HH[X[ò⁄HH0Ëú]Y\»
+[€‹ö]YHHYY]\À“õ€ô\À–ù]⁄\äKàààÇàHHYX\à	HNBààHYX\àÀ»Là»HYX\à	HLàHàÀ»àHHà	HààH
+à
+»
+HÀ»çBà»H
+àHà
+»JHÀ»¬àH
+NH
+àH
+»àHH»
+»MJH	HÃàHH»À»à»H»	HàH
+Ãà
+»à
+àH
+»à
+àHHH H	H¬àHH
+H
+»LH
+à
+»åà
+à
+HÀ»LBà[€ùH
+
+»H»
+àH
+»LM
+HÀ»ÃBà^HH
+
+
+»H»
+àH
+»LM
+H	HÃJH
+»Bàô]\õà]JYX\ã[€ù^JBÇôYàúô[ò⁄⁄€Y^\ YX\äNÇàX\›\àHX\›\óŸ]JYX\äBàô]\õà¬àX\›\à
+»[YY[J^\œLJKà]JYX\ãKJKà]JYX\ãK
+KàX\›\à
+»[YY[J^\œLŒJKàX\›\à
+»[YY[J^\œML
+Kà]JYX\ãÀM
+Kà]JYX\ãMJKà]JYX\ãLKJKà]JYX\ãLKLJKà]JYX\ãLãçJKàBÇôYà\◊Ÿúô[ò⁄›€‹ö⁄[ô◊Ÿ^J^JNÇàô]\õà^KùŸYZŸ^J
+HH[ô^Hõ›[àúô[ò⁄⁄€Y^\ ^KûYX\äBÇôYà\◊€ÿÿ[Ÿ]W⁄\€ ò[YJNÇàààîô]\õàHVVVKSSKQ›ö[ô»⁄]›][Y^õ€ôH€€ùô\ú⁄[€ãàààÇàYàõ›ò[YNÇàô]\õààÇàYà\⁄[ú›[òŸJò[YK]][YJNÇàô]\õàò[YKú›ôù[YJâVKI[KIYäBàYà\⁄[ú›[òŸJò[YK]JNÇàô]\õàò[YKö\€Ÿõ‹õX]
+
+Bà^H›äò[YJKú›ö\
+
+Bà\úŸYH\úŸWŸ]J^
+Bàô]\õà\úŸYú›ôù[YJâVKI[KIYäHYà\úŸY[ŸH^ŒåLBÇôYà\◊ÿ\◊›òZ[ö[ô◊Ÿ^J^K^[W⁄\€œHàäNÇàô]\õà\◊Ÿúô[ò⁄›€‹ö⁄[ô◊Ÿ^J^JH[ô^Kö\€Ÿõ‹õX]
+
+HOH^[W⁄\€¬ÇôYàô^ÿ\◊›òZ[ö[ô◊Ÿ^J^K^[W⁄\€œHàäNÇà^H
+œH[YY[J^\œLJBà⁄[Hõ›\◊ÿ\◊›òZ[ö[ô◊Ÿ^J^K^[W⁄\€ NÇà^H
+œH[YY[J^\œLJBàô]\õà^BÇôYàY⁄›\ú◊›◊›[YJ›\ù›[YK›\ú NÇàò\ŸHH]][YKò€€Xö[ôJ]KùŸ^J
+K›\ù›[YJBàô]\õà
+ò\ŸH
+»[YY[J›\úœZ›\ú JKù[YJ
+BÇôYàY€Z[ù]\◊›◊›[YJ›\ù›[YKZ[ù]\ NÇàò\ŸHH]][YKò€€Xö[ôJ]KùŸ^J
+K›\ù›[YJBàô]\õà
+ò\ŸH
+»[YY[JZ[ù]\œ[Z[ù]\ JKù[YJ
+BÇôYàô^Ÿúô[ò⁄›€‹ö⁄[ô◊Ÿ^J^JNÇà^H
+œH[YY[J^\œLJBà⁄[Hõ›\◊Ÿúô[ò⁄›€‹ö⁄[ô◊Ÿ^J^JNÇà^H
+œH[YY[J^\œLJBàô]\õà^BÇôYàõ‹õX]Ÿ\ò][€óŸúõ€W€Z[ù]\ Z[ù]\ NÇà›\ú»HZ[ù]\»À»åàô\›HZ[ù]\»	Håàô]\õààû⁄›\úŒôﬂZàYàô\›OH[ŸHàû⁄›\úŒôﬂZ‹ô\›åôHÇÇôYà\◊‹‹⁄X\WŸ^[W‹\ù
+\ù
+NÇàô]\õà
+\ù‹ààäKú›ö\
+
+Kù\\ä
+HOHëVSQSà‘“PTHÇÇôYà\◊›€‹ö⁄[ô◊Ÿ^\◊ÿô]ŸY[ä›\ùŸ]K[ôŸ]K^[W⁄\€œHàäNÇàYàõ››\ùŸ]H‹àõ›[ôŸ]H‹à›\ùŸ]Hà[ôŸ]NÇàô]\õà◊Bà^\»H◊Bà›\úô[ùH›\ùŸ]Bà⁄[H›\úô[ùH[ôŸ]NÇàYà\◊ÿ\◊›òZ[ö[ô◊Ÿ^J›\úô[ù^[W⁄\€ NÇà^\Àò\[ô
+›\úô[ù
+Bà›\úô[ù
+œH[YY[J^\œLJBàô]\õà^\¬ÇôYà\◊⁄[\‹‹⁄XõW‹\ö[Ÿ€Y\‹ÿYŸJ›\ùŸ]K[ôŸ]K]òZ[XõW€Z[ù]\Àô\]Z\ôY€Z[ù]\À^[ôY€Z[ù]\œSõ€ôJNÇàYà^[ôY€Z[ù]\»\»õ›õ€ôNÇàô]\õà
+àí[\‹‹⁄XõHHÍ[∞Í\ô\àH[õö[ô»àÇààûÿ]òZ[XõW€Z[ù]\»»åôﬂH]\ô\»\‹€öXõ\»0Ë⁄⁄õ›\àÇààäŸ^[ôY€Z[ù]\»»åôﬂH]\ô\»X^[][H0Ë⁄õ›\äH[ùôHHŸõ‹õX]Ÿ]J›\ùŸ]J_HÇààô]HŸõ‹õX]Ÿ]J[ôŸ]J_KXZ\»‹ô\]Z\ôY€Z[ù]\»»åôﬂH]\ô\»∞ÍXŸ\‹ÿZ\ô\ÀàÇà
+Bàô]\õà
+àí[\‹‹⁄XõHHÍ[∞Í\ô\àH[õö[ô»àÇààûÿ]òZ[XõW€Z[ù]\»»åôﬂH]\ô\»\‹€öXõ\»[ùôHHŸõ‹õX]Ÿ]J›\ùŸ]J_HÇààô]HŸõ‹õX]Ÿ]J[ôŸ]J_KXZ\»‹ô\]Z\ôY€Z[ù]\»»åôﬂH]\ô\»∞ÍXŸ\‹ÿZ\ô\ÀàÇà
+BÇôYàŸ◊ÿ\◊ŸŸ[ô\ò][€óŸXY€õ‹›X‹ Ÿ\‹⁄[€ó⁄YSõ€ôK[õö[ô◊€[ŸOHôù[‹ô\Ÿ[ùY[ã›\ùŸ]OSõ€ôK[ôŸ]OSõ€ôK^[W⁄\€œHàã]òZ[XõWŸ^\œL]òZ[XõW€Z[ù]\œL[X\õö[ô◊€Z[ù]\œLô\Ÿ[ùY[€Z[ù]\œL›[€Z[ù]\œL^[ôY€Z[ù]\œSõ€ôK[€ôÿ]YŸ^\œL^WŸ\›öXù][€èSõ€ôK]ô[Hô\úõ‹àäNÇàŸŸŸ\àH\õŸŸŸ\ãô\úõ‹àYà]ô[OHô\úõ‹àà[ŸH\õŸŸŸ\ãö[ôõ¬àŸŸŸ\äàëXY€õ‹›X»[õö[ô»T»Ÿ\‹⁄[€ó⁄YI\»[õö[ô◊€[ŸOI\»›\ùŸ]OI\»[ôŸ]OI\»^[W⁄\€œI\»]\ô\◊€ôXŸ\‹ÿZ\ô\œI\»õ›\ú◊Ÿ\‹€öXõ\œI\»ÿ\X⁄]WÕ⁄I\»ÿ\X⁄]WŒI\»]\ô\◊Ÿ[X\õö[ôœI\»]\ô\◊‹ô\Ÿ[ùY[I\»›[⁄]\ô\◊ÿ][ôOI\»õ›\õôY\◊ÿ[€ôŸY\œI\»ô\\ù][€ó⁄]\ô\◊‹\ó⁄õ›\èI\»ãàŸ\‹⁄[€ó⁄Yà[õö[ô◊€[ŸKà›\ùŸ]Kö\€Ÿõ‹õX]
+
+HYà\ÿ]ä›\ùŸ]Kö\€Ÿõ‹õX]äH[ŸH›\ùŸ]Kà[ôŸ]Kö\€Ÿõ‹õX]
+
+HYà\ÿ]ä[ôŸ]Kö\€Ÿõ‹õX]äH[ŸH[ôŸ]Kà^[W⁄\€Ààô\Ÿ[ùY[€Z[ù]\»»åYà[õö[ô◊€[ŸHOHô[X\õö[ô◊‹ô\Ÿ[ùY[à[ŸH›[€Z[ù]\»»åà]òZ[XõWŸ^\Àà]òZ[XõW€Z[ù]\»»åà
+^[ôY€Z[ù]\»Yà^[ôY€Z[ù]\»\»õ›õ€ôH[ŸH]òZ[XõW€Z[ù]\ H»åà[X\õö[ô◊€Z[ù]\»»åàô\Ÿ[ùY[€Z[ù]\»»åà›[€Z[ù]\»»åà[€ôÿ]YŸ^\Àà^WŸ\›öXù][€à‹à◊Kà
+BÇôYàùZ[ÿ\◊‹[õö[ô ›\ùŸ]K[ôŸ]OSõ€ôK^[W⁄\€œHàäNÇà[Ÿ[\»Hﬁ»õò[YHéàò[YKö›\ú»éàõÿ]
+›\ú Kúô[XZ[ö[ô»éàõÿ]
+›\ú _Hõ‹àò[YK›\ú»[àT◊”S—ST◊Bà[Ÿ[W⁄YHà^\»H◊Bà›[»HﬂBà›[⁄›\ú»Håà›\úô[ùŸ^HH›\ùŸ]BÇà⁄[Hõ›[ô
+›[⁄›\úÀäHT◊’’S“’TîŒÇàYà[ôŸ]H[ô›\úô[ùŸ^Hà[ôŸ]NÇàòZ\ŸHò[YQ\úõ‹äìH0Í\ö[ŸH\‹€öXõH]ò[ù8†&Y^[Y[àôH\õY]\»HXŸ\à›]\»\»]\ô\»Hõ‹õX][€àTÀàY\ò⁄H8†&X]ò[òŸ\àH]HH0ÍXù]›HHôX›[\àH]H8†&Y^[Y[ãàäBàYàõ›\◊ÿ\◊›òZ[ö[ô◊Ÿ^J›\úô[ùŸ^K^[W⁄\€ NÇà›\úô[ùŸ^H
+œH[YY[J^\œLJBà€€ù[ùYBÇà^Wÿõÿ⁄‹»H◊Bàõ‹à€›‹›\ù€›⁄›\ú»[à
+
+›[YJÃ
+Kå
+K
+›[YJLÀÃ
+KÀå
+JNÇà›\ú€‹àH€›‹›\ùàô[XZ[ö[ô◊‹€›H€›⁄›\ú¬à⁄[Hô[XZ[ö[ô◊‹€›à[ô[Ÿ[W⁄Y[ä[Ÿ[\ NÇà[Ÿ[HH[Ÿ[\÷€[Ÿ[W⁄YBà\ò][€àHZ[äô[XZ[ö[ô◊‹€›[Ÿ[V»úô[XZ[ö[ô»óJBà[ô›[YHHY⁄›\ú◊›◊›[YJ›\ú€‹ã\ò][€äBà^Wÿõÿ⁄‹Àò\[ô
+¬àù]àéà[Ÿ[V»õò[YHóKàú›\ùéà›\ú€‹ãàô[ôéà[ô›[YKàö›\ú»éà\ò][€ãàJBà[Ÿ[V»úô[XZ[ö[ô»óHHõ›[ô
+[Ÿ[V»úô[XZ[ö[ô»óHH\ò][€ãäBàô[XZ[ö[ô◊‹€›Hõ›[ô
+ô[XZ[ö[ô◊‹€›H\ò][€ãäBà›[⁄›\ú»Hõ›[ô
+›[⁄›\ú»
+»\ò][€ãäBà›[÷€[Ÿ[V»õò[YHóWHHõ›[ô
+›[ÀôŸ]
+[Ÿ[V»õò[YHóK
+H
+»\ò][€ãäBà›\ú€‹àH[ô›[YBàYà[Ÿ[V»úô[XZ[ö[ô»óHOHÇà[Ÿ[W⁄Y
+œHBàYàõ›[ô
+›[⁄›\úÀäHOHT◊’’S“’TîŒÇàúôXZ¬àYàõ›[ô
+›[⁄›\úÀäHOHT◊’’S“’TîŒÇàúôXZ¬àYà^Wÿõÿ⁄‹ŒÇà^\Àò\[ô
+»ô]Héà›\úô[ùŸ^Kòõÿ⁄‹»éà^Wÿõÿ⁄‹ﬂJBà›\úô[ùŸ^H
+œH[YY[J^\œLJBÇàô]\õà^\À›[À›[⁄›\ú¬ÇÇôYàõ‹õX[^ôWŸõ‹õX][€óÿ€ŸJò[YJNÇàô]\õàôKú›Xäàñ◊êKVåNWHãàã›äò[YH‹ààäKù\\ä
+JBÇÇïSî’T‘ïQ’êRSíSë◊’TW”QT‘–Q—HHí[\‹‹⁄XõHHÍ[∞Í\ô\àHÿ›[Y[ùàH\HHõ‹õX][€àHŸ]HŸ\‹⁄[€à∏†&Y\›\»ôX€€õùKàÇïêRSíSë◊–”—W–SPT—T»H¬àêQê–T‘‘“PTéàêQê◊–T◊‘‘“PTãàêQê–T‘‘“PTHéàêQê◊–T◊‘‘“PTãàêQê–—îêSê—UêUêRST‘‘“PTéàêQê◊–T◊‘‘“PTãàêQê◊–T◊‘‘“PTéàêQê◊–T◊‘‘“PTãàêT»éàêT»ãàêL‘éàêL‘ãàî‘“PTéàî‘“PTHãàî‘“PTHéàî‘“PTHãàëTíQ—PSïéàëT‘ãàëT‘éàëT‘ãüBÇÇôYàõ‹õX[^ôW›òZ[ö[ô◊ÿ€ŸJŸ\‹⁄[€óŸ]JNÇàààîô]\õàH›XõHù\⁄[ô\‹»òZ[ö[ô»€ŸKô]ô\à[ôô\úôYúõ€H\‹^H]KàààÇàŸ\‹⁄[€óŸ]HHŸ\‹⁄[€óŸ]H‹àﬂBàõ‹àŸ^H[à
+ùòZ[ö[ô◊ÿ€ŸHãôõ‹õX][€ó›\HãúõŸ‹ò[Wÿ€ŸHãôõ‹õX][€àäNÇàò]»HŸ\‹⁄[€óŸ]KôŸ]
+Ÿ^JBàYàò]»[à
+õ€ôKàäNÇà€€ù[ùYBà€ŸHHõ‹õX[^ôWŸõ‹õX][€óÿ€ŸJò] BàYà€ŸH[àêRSíSë◊–”—W–SPT—TıÔèt‚⁄$z{-ÆÈ‹j◊ù{"Access-Control-Allow-Origin": "*"}
 
 # ------------------------------------------------------------
 # üìä Route JSON Formateurs (pour tuile dashboard)
@@ -11327,6 +1571,22 @@ def studio_media_file(filename):
 def api_social_visuals_generate():
     payload = request.get_json(silent=True) or {}
     return jsonify({"ok": True, "content": generate_content_from_topic(payload.get("topic") or "")})
+
+
+@app.post("/api/admin/studio/ai-transform")
+def api_studio_ai_transform():
+    from services.studio_ai_service import transform_design_from_prompt
+
+    payload = request.get_json(silent=True) or {}
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify({"ok": False, "error": "D√©crivez la transformation visuelle souhait√©e."}), 400
+    design = transform_design_from_prompt(
+        prompt,
+        formation=payload.get("formation"),
+        template_id=payload.get("templateId"),
+    )
+    return jsonify({"ok": True, "design": design})
 
 @app.get("/sessions/<sid>/social-post/new")
 def create_social_post_from_session(sid):

@@ -128,5 +128,31 @@
       "grille",
       "premium"
     ]
+  },
+  "OR": {
+    "primary": "#B87900",
+    "secondary": "#F5B82E",
+    "accent": "#F9E6A6",
+    "background": "#FBF6EA",
+    "backgroundAlt": "#EFE2C3",
+    "surface": "#FFFDF8",
+    "surfaceDark": "#18140C",
+    "text": "#17130D",
+    "textMuted": "#6F6248",
+    "border": "#DDC58B",
+    "shadow": "rgba(184,121,0,.22)",
+    "danger": "#9F3C2F",
+    "success": "#34735A",
+    "positioning": "Communication institutionnelle Intégrale",
+    "variants": [
+      "or clair",
+      "or profond",
+      "éditorial",
+      "premium",
+      "institutionnel",
+      "minimal",
+      "grille",
+      "événementiel"
+    ]
   }
 }

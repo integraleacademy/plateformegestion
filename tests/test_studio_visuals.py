@@ -286,9 +286,23 @@ def test_new_template_chrome_overrides_legacy_insets_and_reserves_logo_space():
     assert "el.style.setProperty('--studio-logo-size'" in renderer
     assert "el.style.setProperty('--studio-chrome-logo-size'" in renderer
     assert 'data-layout-role="brand-${brandLayout}"' in renderer
+    assert "main.dataset.layoutFitMode='art-directed'" in renderer
     assert "var(--studio-chrome-logo-size" in styles
 
     # Vertical side signatures use their own line and height measurements.
     assert "startsWith('vertical')" in fitting
     assert "vertical?rect.left:rect.top" in fitting
     assert "Math.min(520,parentHeight-40)" in fitting
+    assert "main.dataset.layoutFitMode==='art-directed'" in fitting
+    assert "getComputedStyle(element).position!=='absolute'" in fitting
+
+
+def test_new_template_validation_checks_internal_content_clipping():
+    validation = (ROOT / "static/studio_visuals/js/studio-validation.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-new-templates.css").read_text()
+
+    assert ".new-design [data-content-key]" in validation
+    assert "function isOutsideRegion" in validation
+    assert "sort de sa zone de composition" in validation
+    assert ".new-calendar-strip footer .new-date" in styles
+    assert ".new-calendar-strip footer .new-location" in styles

@@ -21,6 +21,11 @@ export function isOutsideCanvas(element,canvas){
   return e.left<c.left-t||e.top<c.top-t||e.right>c.right+t||e.bottom>c.bottom+t;
 }
 
+function isOutsideRegion(element,region){
+  const e=element.getBoundingClientRect(),r=region.getBoundingClientRect(),t=2;
+  return e.left<r.left-t||e.top<r.top-t||e.right>r.right+t||e.bottom>r.bottom+t;
+}
+
 function overflowMessage(el,canvas){
   const e=el.getBoundingClientRect(),c=canvas.getBoundingClientRect();
   const name=el.dataset.elementName||el.dataset.contentKey||el.dataset.layoutRole||'Élément';
@@ -61,7 +66,7 @@ export function validateStudioSlide(slideNode,options={}){
   if(!canvas.textContent.includes('Faites le premier pas vers votre futur métier'))blockingErrors.push({message:'Slogan obligatoire absent.',element:canvas});
   if(!canvas.querySelector('.sv-brand__formation'))blockingErrors.push({message:'Repère couleur de la formation absent.',element:canvas});
 
-  for(const element of canvas.querySelectorAll('.sv-brand__slogan,.sv-brand__formation,.sv-footer__place,.sv-footer__site,.sv-footer__phone,.sv-footer__cta')){
+  for(const element of canvas.querySelectorAll('.sv-brand__slogan,.sv-brand__formation,.sv-footer__place,.sv-footer__site,.sv-footer__phone,.sv-footer__cta,.new-design [data-content-key]')){
     if(isVisible(element)&&isTextClipped(element))blockingErrors.push({message:`Le texte « ${element.dataset.elementName||element.textContent.trim()||'identité'} » est coupé.`,element});
   }
 
@@ -78,6 +83,11 @@ export function validateStudioSlide(slideNode,options={}){
   }
 
   const brand=canvas.querySelector('[data-region="brand"]'),content=canvas.querySelector('[data-region="content"]'),footer=canvas.querySelector('[data-region="footer"]');
+  if(content?.dataset.layoutFitMode==='art-directed'){
+    for(const element of content.querySelectorAll('[data-content-key]')){
+      if(isVisible(element)&&isOutsideRegion(element,content))blockingErrors.push({message:`Le contenu « ${element.dataset.elementName||element.dataset.contentKey||'élément'} » sort de sa zone de composition.`,element});
+    }
+  }
   if(regionOverlap(canvas,brand,content))blockingErrors.push({message:'Le contenu chevauche la zone du logo.',element:content});
   if(regionOverlap(canvas,content,footer))blockingErrors.push({message:'Le contenu chevauche le pied de page.',element:content});
   if(regionOverlap(canvas,brand,footer))blockingErrors.push({message:'Le logo chevauche le pied de page.',element:brand});

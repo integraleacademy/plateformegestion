@@ -69,13 +69,17 @@ export function fitLayoutFrame(root){
   main.removeAttribute('data-layout-scale');
   const frame=main.getBoundingClientRect();
   if(!frame.width||!frame.height)return 1;
-  const rects=[...main.children].filter(visibleElement).map(element=>element.getBoundingClientRect());
+  const artDirected=main.dataset.layoutFitMode==='art-directed';
+  const rects=[...main.children]
+    .filter(visibleElement)
+    .filter(element=>!artDirected||getComputedStyle(element).position!=='absolute')
+    .map(element=>element.getBoundingClientRect());
   const left=Math.min(frame.left,...rects.map(rect=>rect.left));
   const top=Math.min(frame.top,...rects.map(rect=>rect.top));
   const right=Math.max(frame.right,...rects.map(rect=>rect.right));
   const bottom=Math.max(frame.bottom,...rects.map(rect=>rect.bottom));
-  const requiredWidth=Math.max(main.scrollWidth,right-left);
-  const requiredHeight=Math.max(main.scrollHeight,bottom-top);
+  const requiredWidth=artDirected?right-left:Math.max(main.scrollWidth,right-left);
+  const requiredHeight=artDirected?bottom-top:Math.max(main.scrollHeight,bottom-top);
   const scale=Math.min(1,frame.width/Math.max(1,requiredWidth),frame.height/Math.max(1,requiredHeight));
   if(scale<.995){
     const fitted=Math.max(.72,scale);

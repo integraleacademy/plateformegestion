@@ -50,7 +50,11 @@ function article(ctx,cls,roles,body,footer='horizontal'){
   const logoHtml=project.branding?.logoVisible!==false?`<span class="studio-brand-logo" data-logo-id="brand-logo" data-element-name="Logo" style="--studio-logo-size:${logoSize}px;opacity:${logoOpacity}"><img class="studio-brand-footer__logo" src="${esc(logo)}" alt="Intégrale Academy" crossorigin="anonymous">${resizeHandle}</span>`:'';
   el.innerHTML=`<div class="sv-safe"><header data-layout-role="brand-${brandLayout}" data-region="brand" data-element-name="Identité de marque" class="sv-brand sv-brand--${footer}">${logoHtml}<span class="sv-brand__formation">${esc(project.formation||'FORMATION')}</span><span class="sv-brand__slogan" data-fit="badge" data-element-name="Slogan">${esc(brandSignature.slogan)}</span></header>${body}<footer data-layout-role="footer-${footer}" data-region="footer" class="sv-footer sv-footer--${footer}"><span class="sv-footer__identity"><i></i><span><strong>INTÉGRALE ACADEMY</strong><small class="sv-footer__place">${esc(displayLocation)}</small></span></span><span class="sv-footer__contacts"><span class="sv-footer__site"><b>↗</b><span data-studio-text-slot="site">${esc(displayWebsite)}</span></span><span class="sv-footer__phone"><b>☎</b><span data-studio-text-slot="phone">${esc(phone)}</span></span></span><span class="sv-footer__cta"><span data-studio-text-slot="cta">${esc(ctaLabel)}</span><b>→</b></span></footer>${renderAddedElements(slide)}${renderMode==='preview'&&slide.options?.showSafeMargins!==false?'<div class="social-studio-safe" data-editor-only="true"></div>':''}</div>`;
   const main=el.querySelector?.('.sv-safe > main');
-  if(main){main.dataset.region='content';main.dataset.elementName=template.name||template.id;}
+  if(main){
+    main.dataset.region='content';
+    main.dataset.elementName=template.name||template.id;
+    if(template.isNew)main.dataset.layoutFitMode='art-directed';
+  }
   decorateEditableElements(el,slide,{renderMode});
   return el;
 }

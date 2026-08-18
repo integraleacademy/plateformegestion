@@ -9,7 +9,15 @@ export async function waitForStudioFonts(){
 }
 
 function renderedLineCount(element,fontSize,lineHeight){
-  return Math.max(1,Math.round(element.scrollHeight/(fontSize*lineHeight)));
+  if(document.createRange){
+    const range=document.createRange();
+    range.selectNodeContents(element);
+    const tops=[...range.getClientRects()].filter(rect=>rect.width>0&&rect.height>0).map(rect=>Math.round(rect.top));
+    if(tops.length)return new Set(tops).size;
+  }
+  const style=getComputedStyle(element);
+  const padding=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
+  return Math.max(1,Math.round(Math.max(0,element.scrollHeight-padding)/(fontSize*lineHeight)));
 }
 
 export async function fitText({element,minFontSize,maxFontSize,maxLines,maxHeight,lineHeight}){
@@ -38,14 +46,47 @@ function fitOptions(element,canvas){
   const kind=element.dataset.fit;
   const canvasHeight=canvas.clientHeight||parseFloat(canvas.style.height)||1080;
   const parentHeight=element.parentElement?.clientHeight||canvasHeight;
+  if(kind==='badge')return {minFontSize:10,maxFontSize:14,maxLines:1,maxHeight:54,lineHeight:1};
   if(kind==='title')return {minFontSize:36,maxFontSize:96,maxLines:4,maxHeight:Math.min(330,Math.max(150,parentHeight*.48)),lineHeight:.96};
   if(kind==='cta')return {minFontSize:18,maxFontSize:30,maxLines:2,maxHeight:84,lineHeight:1.12};
   return {minFontSize:18,maxFontSize:32,maxLines:6,maxHeight:Math.min(250,Math.max(100,parentHeight*.42)),lineHeight:1.2};
+}
+
+function visibleElement(element){
+  const style=getComputedStyle(element),rect=element.getBoundingClientRect();
+  return style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0;
+}
+
+export function fitLayoutFrame(root){
+  const main=root.querySelector?.('[data-region="content"]');
+  if(!main)return 1;
+  main.style.transform='';
+  main.removeAttribute('data-layout-scale');
+  const frame=main.getBoundingClientRect();
+  if(!frame.width||!frame.height)return 1;
+  const rects=[...main.children].filter(visibleElement).map(element=>element.getBoundingClientRect());
+  const left=Math.min(frame.left,...rects.map(rect=>rect.left));
+  const top=Math.min(frame.top,...rects.map(rect=>rect.top));
+  const right=Math.max(frame.right,...rects.map(rect=>rect.right));
+  const bottom=Math.max(frame.bottom,...rects.map(rect=>rect.bottom));
+  const requiredWidth=Math.max(main.scrollWidth,right-left);
+  const requiredHeight=Math.max(main.scrollHeight,bottom-top);
+  const scale=Math.min(1,frame.width/Math.max(1,requiredWidth),frame.height/Math.max(1,requiredHeight));
+  if(scale<.995){
+    const fitted=Math.max(.72,scale);
+    main.style.transform=`scale(${fitted.toFixed(4)})`;
+    main.dataset.layoutScale=fitted.toFixed(3);
+    return fitted;
+  }
+  return 1;
 }
 
 export async function fitSlide(root){
   const canvas=root.matches?.('.social-studio-slide')?root:root.querySelector?.('.social-studio-slide')||root;
   await waitForStudioFonts();
   const jobs=[...root.querySelectorAll('[data-fit]')].map(element=>fitText({element,...fitOptions(element,canvas)}));
-  return Promise.all(jobs);
+  const results=await Promise.all(jobs);
+  await new Promise(resolve=>(globalThis.requestAnimationFrame||setTimeout)(resolve));
+  fitLayoutFrame(root);
+  return results;
 }

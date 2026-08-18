@@ -152,13 +152,13 @@
   --integrale-sand:#EBE1CF;
   --integrale-ink:#17130D;
   --integrale-muted:#655D54;
-  --integrale-gold:#F2BB31;
-  --integrale-gold-group:#F4C45A;
-  --integrale-gold-soft:#F9E6B2;
-  --integrale-gold-strong:#8B5812;
-  --integrale-night:#020611;
-  --integrale-navy:#081626;
-  --integrale-panel:#0D2036;
+  --integrale-gold:var(--formation-primary,#8A5A00);
+  --integrale-gold-group:var(--formation-secondary,#D39B12);
+  --integrale-gold-soft:var(--formation-accent,#FFE08A);
+  --integrale-gold-strong:var(--formation-primary,#8A5A00);
+  --integrale-night:color-mix(in srgb,var(--formation-dark,#241700) 78%,#020611);
+  --integrale-navy:var(--formation-dark,#241700);
+  --integrale-panel:color-mix(in srgb,var(--formation-dark,#241700) 82%,white);
   --integrale-blue:#123F64;
   --integrale-card-radius:30px;
   --integrale-block-radius:40px;
@@ -167,8 +167,8 @@
   color:var(--integrale-ink);
   font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
   background:
-    radial-gradient(circle at 50% -22%,rgba(244,196,90,.22),transparent 48%),
-    linear-gradient(180deg,var(--integrale-cream),#F1EBDD);
+    radial-gradient(circle at 50% -22%,color-mix(in srgb,var(--formation-primary) 24%,transparent),transparent 48%),
+    linear-gradient(180deg,color-mix(in srgb,var(--formation-background) 42%,var(--integrale-cream)),color-mix(in srgb,var(--formation-background-alt) 18%,#F1EBDD));
   isolation:isolate;
 }
 .studio-v2:before{
@@ -499,3 +499,163 @@
 .studio-format-linkedin_landscape .sv-footer{border-radius:18px}
 .studio-format-instagram_story .poster-center mark{font-size:74px}
 .studio-format-instagram_story .final{padding-inline:58px}
+
+/* Geometry and formation identity correction -----------------------------
+   Nothing critical is ellipsised: each region gets a real track and every
+   formation keeps the Academy layout while owning a recognisable colour. */
+.studio-v2{
+  background:
+    radial-gradient(circle at 50% -20%,color-mix(in srgb,var(--formation-secondary) 25%,transparent),transparent 46%),
+    linear-gradient(180deg,color-mix(in srgb,var(--formation-background) 52%,#F6F0E4),color-mix(in srgb,var(--formation-background-alt) 22%,#F1EBDD));
+}
+.studio-v2:after{
+  border-color:color-mix(in srgb,var(--formation-primary) 18%,transparent);
+  box-shadow:0 0 0 96px color-mix(in srgb,var(--formation-secondary) 4%,transparent),0 0 0 192px color-mix(in srgb,var(--formation-primary) 2%,transparent);
+}
+.studio-v2 .sv-safe{
+  grid-template-rows:max-content minmax(0,1fr) max-content;
+  gap:14px;
+  padding:36px 52px;
+}
+.studio-v2 .sv-brand{
+  display:grid!important;
+  grid-template-columns:max-content max-content minmax(0,1fr);
+  align-items:center;
+  gap:14px;
+  min-height:0;
+}
+.studio-v2 .sv-brand:not(:has(.studio-brand-logo)){grid-template-columns:max-content minmax(0,1fr)}
+.studio-v2 .studio-brand-logo{
+  border-color:color-mix(in srgb,var(--formation-primary) 24%,transparent);
+  box-shadow:0 16px 40px color-mix(in srgb,var(--formation-dark) 15%,transparent),inset 0 1px 0 #fff;
+}
+.studio-v2[data-formation] .studio-brand-logo:after{background:var(--formation-secondary)}
+.studio-v2 .sv-brand__formation{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:46px;
+  padding:0 17px;
+  border:1px solid color-mix(in srgb,var(--formation-primary) 34%,transparent);
+  border-radius:999px;
+  background:linear-gradient(135deg,var(--formation-primary),var(--formation-secondary));
+  color:#fff;
+  font-size:15px;
+  font-weight:950;
+  letter-spacing:.12em;
+  line-height:1;
+  text-transform:uppercase;
+  white-space:nowrap;
+  box-shadow:0 12px 26px color-mix(in srgb,var(--formation-primary) 18%,transparent);
+}
+.studio-v2 .sv-brand__slogan{
+  justify-self:end;
+  justify-content:center;
+  width:min(100%,620px);
+  max-width:620px;
+  min-width:0;
+  min-height:46px;
+  padding:10px 15px;
+  border-color:color-mix(in srgb,var(--formation-primary) 23%,transparent);
+  color:var(--formation-primary);
+  font-size:14px;
+  line-height:1;
+  letter-spacing:.105em;
+  text-align:center;
+  white-space:nowrap;
+  overflow:visible;
+  overflow-wrap:normal;
+}
+.studio-v2 .sv-brand__slogan:before{width:12px;height:12px;background:var(--formation-secondary);box-shadow:0 0 0 5px color-mix(in srgb,var(--formation-secondary) 13%,transparent)}
+
+.studio-v2 .sv-footer{
+  grid-template-columns:minmax(190px,.82fr) minmax(305px,1.2fr) max-content;
+  gap:10px!important;
+  width:100%!important;
+  max-width:100%;
+  min-height:76px;
+  padding:9px 11px!important;
+  border-color:color-mix(in srgb,var(--formation-secondary) 28%,transparent)!important;
+  background:
+    radial-gradient(circle at 92% 0,color-mix(in srgb,var(--formation-secondary) 22%,transparent),transparent 42%),
+    linear-gradient(135deg,var(--integrale-night),var(--integrale-navy) 58%,var(--integrale-panel))!important;
+}
+.studio-v2 .sv-footer__identity{gap:8px}
+.studio-v2 .sv-footer__identity>i{width:10px;background:linear-gradient(180deg,var(--formation-accent),var(--formation-secondary));box-shadow:0 0 20px color-mix(in srgb,var(--formation-secondary) 38%,transparent)}
+.studio-v2 .sv-footer__identity strong{font-size:12px;letter-spacing:.1em}
+.studio-v2 .sv-footer__place{max-width:none;font-size:9px;letter-spacing:.09em;text-overflow:clip;overflow:visible}
+.studio-v2 .sv-footer__contacts{grid-template-columns:minmax(156px,1.08fr) minmax(132px,.92fr);gap:6px}
+.studio-v2 .sv-footer__site,.studio-v2 .sv-footer__phone{
+  min-width:0;
+  padding:8px 9px;
+  font-size:10px;
+  overflow:visible;
+  text-overflow:clip;
+}
+.studio-v2 .sv-footer__cta{
+  min-height:48px;
+  padding:10px 14px;
+  background:linear-gradient(135deg,var(--formation-accent),var(--formation-secondary));
+  color:var(--formation-dark);
+  font-size:12px;
+  box-shadow:0 10px 24px color-mix(in srgb,var(--formation-primary) 22%,transparent);
+}
+.studio-v2 .sv-footer__cta b{background:var(--formation-dark)}
+
+.studio-v2 .sv-safe>main{
+  transform-origin:center center;
+  will-change:transform;
+}
+.studio-v2 .sv-safe>main>*{min-width:0;max-width:100%;box-sizing:border-box}
+.studio-v2 .sv-safe>main :is(h1,h2,h3,p,blockquote,strong,small,span,li){box-sizing:border-box}
+.studio-v2 .poster-center{
+  grid-template-rows:auto auto auto auto;
+  justify-items:center;
+  align-content:center;
+  gap:16px;
+  padding:32px 48px!important;
+  border-color:color-mix(in srgb,var(--formation-primary) 16%,transparent);
+  background:color-mix(in srgb,var(--formation-background) 34%,rgba(255,253,248,.78));
+}
+.studio-v2 .poster-center:before{border-color:color-mix(in srgb,var(--formation-primary) 16%,transparent);background:radial-gradient(circle,color-mix(in srgb,var(--formation-secondary) 10%,transparent),transparent 61%)}
+.studio-v2 .poster-center:after{display:none!important}
+.studio-v2 .poster-center h1{width:min(100%,860px);text-align:center}
+.studio-v2 .poster-center p{color:var(--formation-primary);border-color:color-mix(in srgb,var(--formation-primary) 22%,transparent)}
+.studio-v2 .poster-center mark{color:var(--formation-secondary)}
+.studio-v2 .poster-center time{background:var(--formation-dark);border-color:color-mix(in srgb,var(--formation-primary) 24%,transparent)}
+
+.studio-v2 .poster-offset .ghost,.studio-v2 .big-number>strong,.studio-v2 .mk-mega strong,.studio-v2 .mk-soldout strong,.studio-v2 .mk-count p,.studio-v2 .mk-booking time,.studio-v2 .mk-datebig time,.studio-v2 .mk-capacity strong,.studio-v2 .mk-battery strong,.studio-v2 .mk-agenda b{color:var(--formation-secondary)}
+.studio-v2 .poster-offset h1{width:calc(100% - 300px)}
+.studio-v2 .poster-offset aside,.studio-v2 .calendar aside{background:linear-gradient(145deg,var(--integrale-night),var(--integrale-navy))}
+.studio-v2 .split>section{background:radial-gradient(circle at 88% 8%,color-mix(in srgb,var(--formation-secondary) 38%,transparent),transparent 38%),linear-gradient(145deg,var(--integrale-night),var(--integrale-navy) 68%,var(--integrale-panel))}
+.studio-v2 :is(.split>aside>[data-layout-role]:nth-child(1),.dashboard section:nth-of-type(2),.timeline-h li:nth-child(2),.modules section:nth-of-type(1),.modules section:nth-of-type(5),.index li:nth-child(2),.faq article:nth-of-type(3),.mk-wall section:nth-child(2),.mk-proofgrid section:nth-child(2),.mk-tiles section:nth-child(2),.mk-modules section:nth-child(1),.mk-modules section:nth-child(5),.mk-ladder li:nth-child(3),.mk-month span:nth-child(6),.mk-month span:nth-child(12)){background:var(--formation-accent)}
+.studio-v2 :is(.split>aside>[data-layout-role]:nth-child(2),.dashboard section:nth-of-type(3),.timeline-h li:nth-child(3),.modules section:nth-of-type(3),.faq article:nth-of-type(2),.mk-wall section:nth-child(3),.mk-proofgrid section:nth-child(3),.mk-tiles section:nth-child(3),.mk-ladder li:nth-child(2)){background:color-mix(in srgb,var(--formation-accent) 46%,#FFFDF8)}
+.studio-v2 .countdown>strong,.studio-v2 .truefalse strong,.studio-v2 .constellation div,.studio-v2 .mk-alert,.studio-v2 .mk-boarding,.studio-v2 .mk-price b,.studio-v2 .mk-goldticket,.studio-v2 .mk-orbits div{background:linear-gradient(135deg,var(--formation-accent),var(--formation-secondary));color:var(--formation-dark)}
+.studio-v2 .calgrid .hot{background:var(--formation-secondary);color:#fff}
+.studio-v2 :is(.dashboard i,.bars i,.mk-growth i,.mk-battery i){background:linear-gradient(90deg,var(--formation-primary),var(--formation-secondary))}
+.studio-v2 .route path,.studio-v2 .mk-map path{stroke:var(--formation-secondary)}
+.studio-v2 .timeline-h ol:before{background:var(--formation-secondary)}
+.studio-v2 .mk-rail ol{border-color:var(--formation-secondary)}
+.studio-v2 .stairs div:nth-of-type(even){background:linear-gradient(135deg,var(--formation-primary),var(--formation-secondary));color:#fff}
+.studio-v2 .dial{background:conic-gradient(var(--formation-secondary) 0 280deg,color-mix(in srgb,var(--formation-accent) 16%,rgba(255,255,255,.10)) 0)}
+.studio-v2 .mk-ring>div{background:conic-gradient(var(--formation-secondary) 0 292deg,var(--integrale-surface) 0)}
+.studio-v2 .mk-ribbon aside{background:linear-gradient(135deg,var(--formation-primary),var(--formation-secondary));color:#fff}
+.studio-v2 .mk-capacity meter{accent-color:var(--formation-primary)}
+.studio-v2 .mk-battery>div{border-color:var(--formation-primary)}
+.studio-v2 .mk-slash:before{background:linear-gradient(135deg,var(--formation-primary),var(--formation-dark))}
+.studio-v2 .social-studio-safe{border-color:color-mix(in srgb,var(--formation-primary) 24%,transparent)!important}
+
+/* Portrait/story canvases have room for the full chrome; landscape gets a
+   deliberately compact but still complete lockup. */
+.studio-format-instagram_portrait .sv-safe,.studio-format-instagram_story .sv-safe{padding-inline:58px}
+.studio-format-linkedin_landscape .sv-safe{grid-template-rows:max-content minmax(0,1fr) max-content;gap:7px;padding:20px 36px}
+.studio-format-linkedin_landscape .sv-brand{grid-template-columns:max-content max-content minmax(0,1fr);gap:9px;min-height:72px}
+.studio-format-linkedin_landscape .studio-brand-logo{width:min(var(--studio-logo-size,150px),72px);height:min(var(--studio-logo-size,150px),72px)}
+.studio-format-linkedin_landscape .sv-brand__formation{min-height:32px;padding:0 11px;font-size:10px}
+.studio-format-linkedin_landscape .sv-brand__slogan{width:min(100%,500px);max-width:500px;min-height:32px;padding:6px 10px;font-size:10px;letter-spacing:.075em}
+.studio-format-linkedin_landscape .sv-brand__slogan:before{width:8px;height:8px;box-shadow:none}
+.studio-format-linkedin_landscape .sv-footer{grid-template-columns:minmax(175px,.75fr) minmax(300px,1.15fr) max-content;min-height:54px;padding:6px 8px!important}
+.studio-format-linkedin_landscape .sv-footer__identity strong{font-size:9px}.studio-format-linkedin_landscape .sv-footer__place{font-size:7px}
+.studio-format-linkedin_landscape .sv-footer__site,.studio-format-linkedin_landscape .sv-footer__phone{padding:5px 7px;font-size:8px}
+.studio-format-linkedin_landscape .sv-footer__cta{min-height:34px;padding:6px 10px;font-size:9px}
+.studio-format-linkedin_landscape .poster-center{padding:8px 54px!important}

@@ -39,6 +39,36 @@ def test_export_dimensions_contract():
     assert EXPORT_DIMENSIONS["story"] == (1080, 1920)
 
 
+def test_all_templates_share_the_same_geometry_and_overflow_contract():
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-templates.css").read_text()
+    fitting = (ROOT / "static/studio_visuals/js/studio-text-fit.js").read_text()
+    validation = (ROOT / "static/studio_visuals/js/studio-validation.js").read_text()
+
+    assert "data-region=\"brand\"" in renderer
+    assert "data-region=\"footer\"" in renderer
+    assert "data-fit=\"${fit}\"" in renderer
+    assert "grid-template-rows:68px minmax(0,1fr) 30px" in styles
+    assert ".sv-safe>main" in styles
+    assert ".studio-format-instagram_portrait" in styles
+    assert ".studio-format-instagram_story" in styles
+    assert ".studio-format-linkedin_landscape" in styles
+    assert "querySelectorAll('[data-fit]')" in fitting
+    assert "querySelectorAll('[data-layout-role]')" in validation
+    assert "regionOverlap(canvas,brand,content)" in validation
+
+
+def test_export_checks_dimensions_ratio_and_black_edge_band():
+    exporter = (ROOT / "static/studio_visuals/js/studio-exporter.js").read_text()
+    editor = (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+
+    assert "Math.abs(ratioX-ratioY)>.001" in exporter
+    assert "assertNoBlackBand(dataUrl,outputWidth,outputHeight)" in exporter
+    assert 'data-action="exportHd"' in editor
+    assert "await doExport(2)" in app
+
+
 def test_studio_sidebar_panels_are_exclusive_and_use_expected_ids():
     html = (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
     js = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()

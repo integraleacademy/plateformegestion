@@ -48,7 +48,7 @@ def test_all_templates_share_the_same_geometry_and_overflow_contract():
     assert "data-region=\"brand\"" in renderer
     assert "data-region=\"footer\"" in renderer
     assert "data-fit=\"${fit}\"" in renderer
-    assert "grid-template-rows:68px minmax(0,1fr) 30px" in styles
+    assert "grid-template-rows:auto minmax(0,1fr) auto" in styles
     assert ".sv-safe>main" in styles
     assert ".studio-format-instagram_portrait" in styles
     assert ".studio-format-instagram_story" in styles
@@ -114,3 +114,27 @@ def test_studio_sidebar_panels_are_exclusive_and_use_expected_ids():
         visible_panels = visible_panels_after_open(panel_id)
         assert len(visible_panels) == 1
         assert visible_panels[0] == panel_id
+
+
+def test_zoom_logo_and_conversion_footer_controls_are_explicit():
+    html = (ROOT / "templates/admin/studio_visuals/editor.html").read_text()
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    store = (ROOT / "static/studio_visuals/js/studio-store.js").read_text()
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    shell = (ROOT / "static/studio_visuals/css/studio-shell.css").read_text()
+    templates = (ROOT / "static/studio_visuals/css/studio-templates.css").read_text()
+
+    assert 'id="zoomRange"' in html
+    assert 'data-action="zoomOut"' in html
+    assert 'data-action="zoomIn"' in html
+    assert 'data-action="zoomFit"' in html
+    assert 'id="zoomSelect"' not in html
+    assert "function setZoomPercent(" in app
+    assert "function getSlideLogo(" in app
+    assert "DEFAULT_LOGO_SETTINGS" in store
+    assert 'class="studio-brand-logo"' in renderer
+    assert 'data-logo-resize="true"' in renderer
+    assert 'class="sv-footer__cta"' in renderer
+    assert ".studio-zoom-control" in shell
+    assert ".studio-brand-logo" in templates
+    assert ".sv-footer__cta" in templates

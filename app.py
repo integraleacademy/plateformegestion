@@ -11224,6 +11224,12 @@ def social_visuals_studio():
             prefill = session_to_social_prefill(source)
     from services.studio_template_service import load_studio_config
     config = load_studio_config(current_app.root_path)
+    available_template_ids = {item.get("id") for item in config["templates"] if item.get("status") == "ready"}
+    requested_template_id = prefill.get("templateId") or prefill.get("template")
+    if requested_template_id not in available_template_ids:
+        fallback_template_id = "new_manifesto_highlight" if "new_manifesto_highlight" in available_template_ids else next(iter(available_template_ids), "typographic_poster_center")
+        prefill["template"] = fallback_template_id
+        prefill["templateId"] = fallback_template_id
     config.update({"defaultSlide": prefill, "sourceSessionId": source_session_id, "bootstrap": {"officialLogoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier", "website": "www.integraleacademy.com", "phone": "04 22 47 07 68", "defaultBranding": {"logoUrl": url_for("static", filename="img/logo-integrale.png"), "slogan": "Faites le premier pas vers votre futur métier"}}})
     return render_template(
         "admin/studio_visuals/editor.html",

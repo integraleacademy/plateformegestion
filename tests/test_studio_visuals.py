@@ -161,14 +161,20 @@ def test_zoom_logo_and_conversion_footer_controls_are_explicit():
     assert 'data-action="zoomOut"' in html
     assert 'data-action="zoomIn"' in html
     assert 'data-action="zoomFit"' in html
+    assert 'id="canvasZoomFrame"' in html
     assert 'id="zoomSelect"' not in html
     assert "function setZoomPercent(" in app
+    assert "function bindCanvasResizeObserver(" in app
+    assert "store.project.ui.zoomMode='fit'" in app
+    assert "frame.style.height=`${Math.ceil(p.format.height*scale)}px`" in app
     assert "function getSlideLogo(" in app
     assert "DEFAULT_LOGO_SETTINGS" in store
     assert 'class="studio-brand-logo"' in renderer
     assert 'data-logo-resize="true"' in renderer
     assert 'class="sv-footer__cta"' in renderer
     assert ".studio-zoom-control" in shell
+    assert ".social-studio__canvas-frame" in shell
+    assert "transform-origin:top left" in shell
     assert ".studio-brand-logo" in templates
     assert ".sv-footer__cta" in templates
 

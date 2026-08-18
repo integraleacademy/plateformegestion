@@ -138,3 +138,31 @@ def test_zoom_logo_and_conversion_footer_controls_are_explicit():
     assert ".studio-zoom-control" in shell
     assert ".studio-brand-logo" in templates
     assert ".sv-footer__cta" in templates
+
+
+def test_templates_use_the_integrale_web_identity_system():
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-templates.css").read_text()
+
+    official_tokens = {
+        "#F6F0E4",  # Academy cream
+        "#FFFDF8",  # Academy / Group surface
+        "#F2BB31",  # Academy gold
+        "#F4C45A",  # Group gold
+        "#081626",  # Academy navy
+        "#020611",  # Group night
+        "#0D2036",  # Group panel
+    }
+    for token in official_tokens:
+        assert token.upper() in styles.upper()
+
+    assert "Intégrale web identity" in styles
+    assert ".studio-v2 .sv-brand__slogan:before" in styles
+    assert ".studio-v2 .poster-center" in styles
+    assert ".studio-v2 .split>section" in styles
+    assert ".studio-v2 .mk:before" in styles
+    assert ".studio-v2 .mk-modal dialog" in styles
+    assert "font-weight:950" in styles
+    assert "el.dataset.formation=project.formation" in renderer
+    assert "--formation-primary" in renderer
+    assert "--theme-background','#F6F0E4'" in renderer

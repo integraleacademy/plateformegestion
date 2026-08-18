@@ -13,7 +13,24 @@ function isVisible(element){
 }
 
 function isTextClipped(element){
-  return element.scrollWidth>element.clientWidth+1||element.scrollHeight>element.clientHeight+1;
+  const tolerance=3,style=getComputedStyle(element),clipsSelf=[style.overflow,style.overflowX,style.overflowY].some(value=>['hidden','clip','auto','scroll'].includes(value));
+  if(clipsSelf&&(element.scrollWidth>element.clientWidth+tolerance||element.scrollHeight>element.clientHeight+tolerance))return true;
+  if(!document.createRange)return false;
+  try{
+    const range=document.createRange();
+    range.selectNodeContents(element);
+    const textRect=range.getBoundingClientRect();
+    let ancestor=element.parentElement;
+    while(ancestor&&ancestor!==element.closest('.social-studio-slide')){
+      const ancestorStyle=getComputedStyle(ancestor);
+      if([ancestorStyle.overflow,ancestorStyle.overflowX,ancestorStyle.overflowY].some(value=>['hidden','clip'].includes(value))){
+        const rect=ancestor.getBoundingClientRect();
+        if(textRect.left<rect.left-tolerance||textRect.top<rect.top-tolerance||textRect.right>rect.right+tolerance||textRect.bottom>rect.bottom+tolerance)return true;
+      }
+      ancestor=ancestor.parentElement;
+    }
+  }catch(_error){return false}
+  return false;
 }
 
 export function isOutsideCanvas(element,canvas){

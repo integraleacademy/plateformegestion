@@ -10,7 +10,7 @@ const EDITABLE_SELECTOR=[
   '.sv-footer__site',
   '.sv-footer__phone',
   '.sv-footer__cta',
-  '.studio-added-icon',
+  '.studio-added-element',
   '.studio-added-icon em',
   '.sv-footer strong','.sv-footer small','.sv-footer b','.sv-footer i',
   'main h1','main h2','main h3','main h4','main p','main blockquote','main strong','main small','main span','main b','main em','main time','main button','main a','main cite','main mark',

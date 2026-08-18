@@ -11328,6 +11328,22 @@ def api_social_visuals_generate():
     payload = request.get_json(silent=True) or {}
     return jsonify({"ok": True, "content": generate_content_from_topic(payload.get("topic") or "")})
 
+
+@app.post("/api/admin/studio/ai-transform")
+def api_studio_ai_transform():
+    from services.studio_ai_service import transform_design_from_prompt
+
+    payload = request.get_json(silent=True) or {}
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify({"ok": False, "error": "Décrivez la transformation visuelle souhaitée."}), 400
+    design = transform_design_from_prompt(
+        prompt,
+        formation=payload.get("formation"),
+        template_id=payload.get("templateId"),
+    )
+    return jsonify({"ok": True, "design": design})
+
 @app.get("/sessions/<sid>/social-post/new")
 def create_social_post_from_session(sid):
     return redirect(url_for("social_visuals_studio", session_id=sid))

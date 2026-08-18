@@ -23,6 +23,10 @@ function article(ctx,cls,roles,body,footer='horizontal'){
   const logo=project.branding?.logoUrl||brandSignature.logo;
   const logoSize=Math.max(60,Math.min(320,Number(slide.logo?.width)||150));
   const logoOpacity=Math.max(.2,Math.min(1,Number.isFinite(Number(slide.logo?.opacity))?Number(slide.logo.opacity):1));
+
+  const artDirection=slide.options?.aiArtDirection||{};
+
+  const formationBadge=project.formation==='OR'?'INTÉGRALE':project.formation||'FORMATION';
   const el=document.createElement('article');
   const brandLayout=template.brandLayout||footer||'top-left';
   el.className=`social-studio-slide studio-v2 studio-format-${formatId} ${cls} brand-${brandLayout} bg-${BACKGROUND_VARIANTS[slide.options?.backgroundVariant]?slide.options.backgroundVariant:'gradient_glow'} social-studio-render-${renderMode}`;
@@ -37,7 +41,9 @@ function article(ctx,cls,roles,body,footer='horizontal'){
   el.style.height=dims.height+'px';
   el.style.setProperty('--studio-logo-size',`${logoSize}px`);
   el.style.setProperty('--studio-chrome-logo-size',`${formatId==='linkedin_landscape'?Math.min(96,logoSize):logoSize}px`);
-  applyThemeVars(el,theme);
+  if(artDirection.id){el.classList.add(`ai-art-${String(artDirection.id).replace(/[^a-z0-9-]/gi,'-').toLowerCase()}`);el.dataset.aiArtDirection=artDirection.id;}
+
+  applyThemeVars(el,{...theme,...(artDirection.palette||{})});
   const footerContent=slide.content?.footer||{};
   const website=footerContent.website||brandSignature.website;
   const phone=footerContent.phone||brandSignature.phone;
@@ -48,7 +54,7 @@ function article(ctx,cls,roles,body,footer='horizontal'){
   const ctaLabel=rawCta&&rawCta.length<=32?rawCta:'Candidater maintenant';
   const resizeHandle=renderMode==='preview'?'<i class="studio-logo-resize" data-logo-resize="true" data-editor-only="true" title="Redimensionner le logo"></i>':'';
   const logoHtml=project.branding?.logoVisible!==false?`<span class="studio-brand-logo" data-logo-id="brand-logo" data-element-name="Logo" style="--studio-logo-size:${logoSize}px;opacity:${logoOpacity}"><img class="studio-brand-footer__logo" src="${esc(logo)}" alt="Intégrale Academy" crossorigin="anonymous">${resizeHandle}</span>`:'';
-  el.innerHTML=`<div class="sv-safe"><header data-layout-role="brand-${brandLayout}" data-region="brand" data-element-name="Identité de marque" class="sv-brand sv-brand--${footer}">${logoHtml}<span class="sv-brand__formation">${esc(project.formation||'FORMATION')}</span><span class="sv-brand__slogan" data-fit="badge" data-element-name="Slogan">${esc(brandSignature.slogan)}</span></header>${body}<footer data-layout-role="footer-${footer}" data-region="footer" class="sv-footer sv-footer--${footer}"><span class="sv-footer__identity"><i></i><span><strong>INTÉGRALE ACADEMY</strong><small class="sv-footer__place">${esc(displayLocation)}</small></span></span><span class="sv-footer__contacts"><span class="sv-footer__site"><b>↗</b><span data-studio-text-slot="site">${esc(displayWebsite)}</span></span><span class="sv-footer__phone"><b>☎</b><span data-studio-text-slot="phone">${esc(phone)}</span></span></span><span class="sv-footer__cta"><span data-studio-text-slot="cta">${esc(ctaLabel)}</span><b>→</b></span></footer>${renderAddedElements(slide)}${renderMode==='preview'&&slide.options?.showSafeMargins!==false?'<div class="social-studio-safe" data-editor-only="true"></div>':''}</div>`;
+  el.innerHTML=`<div class="sv-safe"><header data-layout-role="brand-${brandLayout}" data-region="brand" data-element-name="Identité de marque" class="sv-brand sv-brand--${footer}">${logoHtml}<span class="sv-brand__formation">${esc(formationBadge)}</span><span class="sv-brand__slogan" data-fit="badge" data-element-name="Slogan">${esc(brandSignature.slogan)}</span></header>${body}<footer data-layout-role="footer-${footer}" data-region="footer" class="sv-footer sv-footer--${footer}"><span class="sv-footer__identity"><i></i><span><strong>INTÉGRALE ACADEMY</strong><small class="sv-footer__place">${esc(displayLocation)}</small></span></span><span class="sv-footer__contacts"><span class="sv-footer__site"><b>↗</b><span data-studio-text-slot="site">${esc(displayWebsite)}</span></span><span class="sv-footer__phone"><b>☎</b><span data-studio-text-slot="phone">${esc(phone)}</span></span></span><span class="sv-footer__cta"><span data-studio-text-slot="cta">${esc(ctaLabel)}</span><b>→</b></span></footer>${renderAddedElements(slide)}${renderMode==='preview'&&slide.options?.showSafeMargins!==false?'<div class="social-studio-safe" data-editor-only="true"></div>':''}</div>`;
   const main=el.querySelector?.('.sv-safe > main');
   if(main){
     main.dataset.region='content';
@@ -58,7 +64,7 @@ function article(ctx,cls,roles,body,footer='horizontal'){
   decorateEditableElements(el,slide,{renderMode});
   return el;
 }
-function renderAddedElements(slide){return (slide.elements||[]).map((element,i)=>{if(element.type!=='icon')return '';const glyph=iconGlyph(element.label);const x=Number.isFinite(Number(element.x))?Number(element.x):120+i*24;const y=Number.isFinite(Number(element.y))?Number(element.y):120+i*24;return `<span class="studio-added-icon" data-exportable="true" data-element-name="${esc(element.label||'Pictogramme')}" data-element-id="${esc(element.id||`icon-${i}`)}" style="left:${x}px;top:${y}px">${glyph}<em>${esc(element.label||'')}</em></span>`}).join('')}
+function renderAddedElements(slide){return (slide.elements||[]).map((element,i)=>{const x=Number.isFinite(Number(element.x))?Number(element.x):120+i*24,y=Number.isFinite(Number(element.y))?Number(element.y):120+i*24,id=esc(element.id||`element-${i}`),name=esc(element.label||'Élément ajouté');if(element.type==='emoji'){const size=Math.max(24,Math.min(180,Number(element.fontSize)||72));return `<span class="studio-added-element studio-added-emoji" data-exportable="true" data-element-name="${name}" data-element-id="${id}" style="left:${x}px;top:${y}px;font-size:${size}px">${esc(element.glyph||'✨')}</span>`}if(element.type==='image'){const width=Math.max(80,Math.min(600,Number(element.width)||260));return `<figure class="studio-added-element studio-added-image" data-exportable="true" data-element-name="${name}" data-element-id="${id}" style="left:${x}px;top:${y}px;width:${width}px"><img src="${esc(element.url||'')}" alt="${name}" crossorigin="anonymous"></figure>`}if(element.type!=='icon')return '';const glyph=iconGlyph(element.label);return `<span class="studio-added-element studio-added-icon" data-exportable="true" data-element-name="${name}" data-element-id="${id}" style="left:${x}px;top:${y}px">${glyph}<em>${esc(element.label||'')}</em></span>`}).join('')}
 function iconGlyph(label=''){const key=String(label).toLowerCase();if(key.includes('incendie'))return '🔥';if(key.includes('mobilité'))return '🚘';if(key.includes('calendrier'))return '📅';if(key.includes('finance'))return '€';if(key.includes('localisation'))return '📍';if(key.includes('certification'))return '✓';if(key.includes('emploi'))return '💼';if(key.includes('documents'))return '▣';if(key.includes('progression'))return '↗';if(key.includes('alerte'))return '!';if(key.includes('validation'))return '✓';if(key.includes('direction'))return '★';if(key.includes('formation'))return '✦';return '◆'}
 function editable(k,v,tag='div',cl=''){const fit=k==='title'||tag==='h1'?'title':k==='cta'?'cta':['introduction','quote','explanation','question'].includes(k)?'body':'';return `<${tag} class="studio-editable-text ${cl}" data-content-key="${k}" data-layout-role="${k}" data-element-name="${esc(k)}"${fit?` data-fit="${fit}"`:''}>${esc(v)}</${tag}>`}
 function renderLabelValue({label,value,orientation='vertical'}){return `<div class="label-value label-value--${orientation}"><span class="label-value__label">${esc(label)}</span><span class="label-value__value">${esc(value)}</span></div>`}

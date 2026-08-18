@@ -2,7 +2,7 @@ function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&am
 function val(content,key,fallback=''){return content?.[key]||content?.data?.[key]||content?.dates?.[key]||fallback}
 function list(value,fallback=[]){return Array.isArray(value)&&value.length?value:fallback}
 function edit(key,value,tag='span',className=''){
-  const fit=key==='title'?'title':key==='cta'?'cta':['introduction','quote','question','explanation'].includes(key)?'body':'';
+  const fit=key==='title'?'title':key==='cta'?'cta':key==='availability'?'metric':['startDate','date','location'].includes(key)?'meta':['introduction','quote','question','explanation'].includes(key)?'body':'';
   return `<${tag} class="studio-editable-text ${className}" data-content-key="${key}" data-layout-role="new-${key}" data-element-name="${key}"${fit?` data-fit="${fit}"`:''}>${esc(value)}</${tag}>`;
 }
 function contentStats(content){return list(content.stats,[{label:'Durée',value:val(content,'duration','175 h')},{label:'Lieu',value:val(content,'location','Puget-sur-Argens')},{label:'Financement',value:val(content,'financing','CPF')},{label:'Certification',value:val(content,'highlightedText','APS')}])}
@@ -17,7 +17,8 @@ export const NEW_TEMPLATE_IDS=[
   'new_date_portal','new_calendar_strip','new_ticket_cut','new_countdown_flip','new_date_podium','new_route_launch','new_session_board','new_date_window','new_time_capsule','new_schedule_wave',
   'new_bento_benefits','new_module_mosaic','new_steps_snake','new_program_tabs','new_skill_radar','new_pathway_cards','new_checklist_big','new_acronym_grid','new_process_columns','new_learning_map',
   'new_number_monolith','new_dashboard_glass','new_proof_rings','new_metric_tower','new_success_stamp','new_barcode_stats','new_review_quote','new_result_spectrum','new_data_wave','new_badge_wall',
-  'new_cta_launchpad','new_application_card','new_last_places','new_phone_mockup','new_arrow_story','new_contact_poster','new_enroll_steps','new_final_door','new_question_hook','new_future_card'
+  'new_cta_launchpad','new_application_card','new_last_places','new_phone_mockup','new_arrow_story','new_contact_poster','new_enroll_steps','new_final_door','new_question_hook','new_future_card',
+  'new_giant_a3p','new_giant_aps','new_giant_desp','new_giant_ssiap','new_giant_vtc'
 ];
 
 export function renderNewTemplateBody(ctx){
@@ -85,7 +86,13 @@ export function renderNewTemplateBody(ctx){
     new_enroll_steps:`<main class="new-design new-enroll" data-layout-role="new-enroll-steps"><header>${title}</header><ol>${stepCards(content,'new-enroll-step',3)}</ol><button>${cta}</button></main>`,
     new_final_door:`<main class="new-design new-door" data-layout-role="new-final-door"><div><i></i><span>ENTREZ</span></div><section>${title}${intro}<button>${cta}</button></section></main>`,
     new_question_hook:`<main class="new-design new-hook" data-layout-role="new-question-hook"><span>?</span>${edit('question',val(content,'question','Prêt à changer de métier ?'),'h1','new-title')}${intro}<button>${cta}</button></main>`,
-    new_future_card:`<main class="new-design new-future" data-layout-role="new-future-card"><span>VOTRE PROCHAINE ÉTAPE</span>${title}<div>${date}${location}</div><button>${cta}<b>→</b></button></main>`
+    new_future_card:`<main class="new-design new-future" data-layout-role="new-future-card"><span>VOTRE PROCHAINE ÉTAPE</span>${title}<div>${date}${location}</div><button>${cta}<b>→</b></button></main>`,
+
+    new_giant_a3p:`<main class="new-design new-giant new-giant-a3p" data-layout-role="new-giant-a3p"><b class="new-giant-word">A3P</b><section>${title}${intro}<button>${cta}<b>→</b></button></section></main>`,
+    new_giant_aps:`<main class="new-design new-giant new-giant-aps" data-layout-role="new-giant-aps"><div class="new-giant-panels">${[...'APS'].map((letter,index)=>`<b data-layout-role="new-giant-aps-letter-${index}">${letter}</b>`).join('')}</div><section>${title}${places}<button>${cta}</button></section></main>`,
+    new_giant_desp:`<main class="new-design new-giant new-giant-desp" data-layout-role="new-giant-desp"><b class="new-giant-outline">DESP</b><section><span>DIRECTION · EXPERTISE · SÉCURITÉ PRIVÉE</span>${title}${intro}<button>${cta}</button></section></main>`,
+    new_giant_ssiap:`<main class="new-design new-giant new-giant-ssiap" data-layout-role="new-giant-ssiap"><div class="new-giant-alarm"><i></i><b>SSIAP</b></div><section>${date}${title}${intro}<button>${cta}</button></section></main>`,
+    new_giant_vtc:`<main class="new-design new-giant new-giant-vtc" data-layout-role="new-giant-vtc"><div class="new-giant-speed"><i></i><i></i><i></i><b>VTC</b></div><section>${title}${intro}${location}<button>${cta}<b>↗</b></button></section></main>`
   };
   return bodies[id]||bodies.new_manifesto_highlight;
 }

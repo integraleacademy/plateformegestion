@@ -12,8 +12,9 @@ function renderedLineCount(element,fontSize,lineHeight){
   if(document.createRange){
     const range=document.createRange();
     range.selectNodeContents(element);
-    const tops=[...range.getClientRects()].filter(rect=>rect.width>0&&rect.height>0).map(rect=>Math.round(rect.top));
-    if(tops.length)return new Set(tops).size;
+    const vertical=String(getComputedStyle(element).writingMode||'').startsWith('vertical');
+    const lineOffsets=[...range.getClientRects()].filter(rect=>rect.width>0&&rect.height>0).map(rect=>Math.round(vertical?rect.left:rect.top));
+    if(lineOffsets.length)return new Set(lineOffsets).size;
   }
   const style=getComputedStyle(element);
   const padding=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
@@ -46,7 +47,11 @@ function fitOptions(element,canvas){
   const kind=element.dataset.fit;
   const canvasHeight=canvas.clientHeight||parseFloat(canvas.style.height)||1080;
   const parentHeight=element.parentElement?.clientHeight||canvasHeight;
-  if(kind==='badge')return {minFontSize:10,maxFontSize:14,maxLines:1,maxHeight:54,lineHeight:1};
+  if(kind==='badge'){
+    const vertical=String(getComputedStyle(element).writingMode||'').startsWith('vertical');
+    if(vertical)return {minFontSize:8,maxFontSize:12,maxLines:1,maxHeight:Math.max(180,Math.min(520,parentHeight-40)),lineHeight:1};
+    return {minFontSize:10,maxFontSize:14,maxLines:1,maxHeight:54,lineHeight:1};
+  }
   if(kind==='title')return {minFontSize:36,maxFontSize:96,maxLines:4,maxHeight:Math.min(330,Math.max(150,parentHeight*.48)),lineHeight:.96};
   if(kind==='cta')return {minFontSize:18,maxFontSize:30,maxLines:2,maxHeight:84,lineHeight:1.12};
   return {minFontSize:18,maxFontSize:32,maxLines:6,maxHeight:Math.min(250,Math.max(100,parentHeight*.42)),lineHeight:1.2};

@@ -217,6 +217,8 @@ def test_every_rendered_element_can_be_selected_moved_resized_and_styled():
     assert "decorateEditableElements(el,slide,{renderMode})" in renderer
     assert "elementOverrides" in store
     assert "data-studio-element-id" in editor
+    assert "activeTemplatePrefix" in editor
+    assert "id.startsWith(activeTemplatePrefix)" in editor
     assert "dataset.studioTextEditable" in app
     assert 'data-element-prop="scale"' in app
     assert 'data-element-prop="fontSize"' in app
@@ -247,3 +249,46 @@ def test_new_templates_have_their_own_renderer_and_site_inspired_visual_system()
     assert ".brand-bottom-right" in styles
     assert ".new-manifesto" in styles
     assert ".new-future" in styles
+
+
+def test_new_template_chrome_overrides_legacy_insets_and_reserves_logo_space():
+    renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
+    fitting = (ROOT / "static/studio_visuals/js/studio-text-fit.js").read_text()
+    styles = (ROOT / "static/studio_visuals/css/studio-new-templates.css").read_text()
+
+    # The legacy Studio stylesheet uses `inset:auto!important` on the brand
+    # block. Every NEW placement therefore needs an explicit important edge.
+    assert "inset:auto!important;" in styles
+    assert "top:var(--new-brand-top)!important;" in styles
+    assert "left:50%!important;" in styles
+    assert "left:38px!important" in styles
+    assert "right:38px!important" in styles
+    assert "bottom:112px!important;" in styles
+    assert "inset:max(170px,calc(58px + var(--new-logo-size))) var(--new-edge) var(--new-footer-clearance)!important;" in styles
+    assert "inset:auto var(--new-edge) var(--new-footer-bottom)!important;" in styles
+
+    for placement in (
+        "top-left",
+        "top-center",
+        "top-right",
+        "side-left",
+        "side-right",
+        "floating-left",
+        "floating-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right",
+    ):
+        assert f"brand-{placement}" in styles
+
+    # Logo resizing must change both the visible logo and the space reserved
+    # around it; the inspector role must describe the actual NEW placement.
+    assert "el.style.setProperty('--studio-logo-size'" in renderer
+    assert "el.style.setProperty('--studio-chrome-logo-size'" in renderer
+    assert 'data-layout-role="brand-${brandLayout}"' in renderer
+    assert "var(--studio-chrome-logo-size" in styles
+
+    # Vertical side signatures use their own line and height measurements.
+    assert "startsWith('vertical')" in fitting
+    assert "vertical?rect.left:rect.top" in fitting
+    assert "Math.min(520,parentHeight-40)" in fitting

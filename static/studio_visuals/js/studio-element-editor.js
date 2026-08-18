@@ -100,7 +100,8 @@ export function applyElementOverride(node,override={}){
 export function decorateEditableElements(root,slide,{renderMode='preview'}={}){
   if(!root?.querySelectorAll)return [];
   const overrides=ensureElementOverrides(slide);
-  const hasManualLayout=Object.values(overrides).some(override=>override&&['x','y','scale','rotation','fontSize'].some(key=>override[key]!==undefined));
+  const activeTemplatePrefix=`${slug(slide?.templateId||'template')}--`;
+  const hasManualLayout=Object.entries(overrides).some(([id,override])=>id.startsWith(activeTemplatePrefix)&&override&&['x','y','scale','rotation','fontSize'].some(key=>override[key]!==undefined));
   if(root.dataset)root.dataset.studioManualLayout=String(hasManualLayout);
   const nodes=[...new Set(root.querySelectorAll(EDITABLE_SELECTOR))].filter(node=>!node.matches?.('[data-editor-only],svg *')&&!node.closest?.('[data-editor-only]'));
   const used=new Map();

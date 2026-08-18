@@ -179,6 +179,47 @@ def test_zoom_logo_and_conversion_footer_controls_are_explicit():
     assert ".sv-footer__cta" in templates
 
 
+def test_legacy_template_ids_are_migrated_before_the_first_render():
+    defaults = (ROOT / "social_visuals.py").read_text()
+    app = (ROOT / "static/studio_visuals/js/studio-app.js").read_text()
+    server = (ROOT / "app.py").read_text()
+    cfg = load_studio_config(ROOT)
+    ready_ids = {template["id"] for template in cfg["templates"] if template["status"] == "ready"}
+
+    assert '"template":"new_manifesto_highlight"' in defaults
+    assert "new_manifesto_highlight" in ready_ids
+    assert "hero_editorial:'new_manifesto_highlight'" in app
+    assert "function migrateProjectTemplates()" in app
+    assert "migrateProjectTemplates();" in app
+    assert "else if(fallback)slide.templateId=fallback" in app
+    assert "requested_template_id not in available_template_ids" in server
+    assert 'fallback_template_id = "new_manifesto_highlight"' in server
+
+
+def test_studio_route_bootstraps_a_ready_template_instead_of_legacy_hero():
+    import html as html_lib
+    import json
+    import re
+
+    import app as application
+
+    client = application.app.test_client()
+    with client.session_transaction() as session:
+        session["admin_logged"] = True
+        session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+
+    response = client.get("/admin/studio-visuels")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    match = re.search(r'<script id="studio-config" type="application/json">(.*?)</script>', page, re.S)
+    assert match
+    config = json.loads(html_lib.unescape(match.group(1)))
+    ready_ids = {template["id"] for template in config["templates"] if template["status"] == "ready"}
+    default_template = config["defaultSlide"].get("templateId") or config["defaultSlide"].get("template")
+    assert default_template == "new_manifesto_highlight"
+    assert default_template in ready_ids
+
+
 def test_templates_use_the_integrale_web_identity_system():
     renderer = (ROOT / "static/studio_visuals/js/studio-renderer.js").read_text()
     styles = (ROOT / "static/studio_visuals/css/studio-templates.css").read_text()

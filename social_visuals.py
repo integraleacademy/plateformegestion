@@ -23,7 +23,7 @@ VISUAL_THEMES = {
 }
 
 DEFAULT_SLIDE = {
-    "template":"hero_editorial","formation":"A3P","category_label":"FORMATION PROFESSIONNELLE","eyebrow":"A3P • SESSION 2026",
+    "template":"new_manifesto_highlight","formation":"A3P","category_label":"FORMATION PROFESSIONNELLE","eyebrow":"A3P • SESSION 2026",
     "title":"Devenez agent de protection physique des personnes.","highlight_text":"protection physique",
     "intro":"Une formation complète pour accéder aux métiers de la protection rapprochée.",
     "text":"Un visuel premium, lisible et prêt pour vos réseaux sociaux.",

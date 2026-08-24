@@ -344,6 +344,7 @@
   const tarifInput = document.getElementById("formateur-tarif-journalier");
   let nubSaveTimeout = null;
   let identitySaveTimeout = null;
+  let documentSaveQueue = Promise.resolve();
   let lastSavedNub = nubInput ? nubInput.value : "";
 
   // 🎯 Auto-détection expiration
@@ -517,15 +518,37 @@ function updateSelectColor(selectEl) {
       });
     }
 
-    fetch(url, {
-      method: "POST",
-      body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-      showToast();
-    })
-    .catch(err => console.error("Erreur sauvegarde :", err));
+    // Sérialiser les sauvegardes évite qu'une réponse plus ancienne écrase
+    // un changement effectué juste après sur une autre ligne.
+    documentSaveQueue = documentSaveQueue
+      .catch(() => undefined)
+      .then(async () => {
+        const response = await fetch(url, {
+          method: "POST",
+          body: formData
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "La sauvegarde a échoué");
+        }
+        return data;
+      })
+      .then(data => {
+        const savedDocument = data.document || {};
+        if (statusSelect && savedDocument.status) {
+          statusSelect.value = savedDocument.status;
+          row.dataset.status = savedDocument.status;
+          row.classList.toggle("non-concerne", savedDocument.status === "non_concerne");
+          updateSelectColor(statusSelect);
+        }
+        if (fileInput) fileInput.value = "";
+        showToast();
+      })
+      .catch(err => {
+        console.error("Erreur sauvegarde :", err);
+      });
+
+    return documentSaveQueue;
   }
 
   document.querySelectorAll("tr[data-doc-id]").forEach(row => {
@@ -534,22 +557,23 @@ function updateSelectColor(selectEl) {
     const commentaireArea = row.querySelector("textarea[name='commentaire']");
     const fileInput       = row.querySelector("input[name='piece_jointe']");
 
-    ["change", "blur"].forEach(evt => {
-      if (expirationInput)
-        expirationInput.addEventListener(evt, () => {
-          checkExpiration(row);
-          sendUpdate(row);
-        });
+    if (expirationInput) {
+      expirationInput.addEventListener("change", () => {
+        checkExpiration(row);
+        sendUpdate(row);
+      });
+    }
 
-      if (statusSelect)
-        statusSelect.addEventListener(evt, () => {
-          updateSelectColor(statusSelect);
-          sendUpdate(row);
-        });
+    if (statusSelect) {
+      statusSelect.addEventListener("change", () => {
+        updateSelectColor(statusSelect);
+        sendUpdate(row);
+      });
+    }
 
-      if (commentaireArea)
-        commentaireArea.addEventListener(evt, () => sendUpdate(row));
-    });
+    if (commentaireArea) {
+      commentaireArea.addEventListener("change", () => sendUpdate(row));
+    }
 
     if (fileInput) {
       fileInput.addEventListener("change", () => {
@@ -800,7 +824,6 @@ if (!window.__mediaLightboxEscBound) {
 
 </body>
 </html>
-
 
 
 

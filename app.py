@@ -9460,7 +9460,9 @@ def formateurs_home():
 
     for f in formateurs:
         f["profils"] = normalize_formateur_profils(f.get("profils", []))
-        apply_profile_document_requirements(f, profils_docs_config)
+        # Les règles profil/documents sont appliquées lors de leur modification,
+        # puis sauvegardées. Ne pas les rejouer pendant un simple affichage :
+        # cela écraserait les statuts choisis manuellement par l'administrateur.
         if "cle" not in f:
             f["cle"] = {
                 "attribuee": False,
@@ -9724,12 +9726,10 @@ def update_formateur_badge(fid):
 @app.route("/formateurs/<fid>")
 def formateur_detail(fid):
     formateurs = load_formateurs()
-    profils_docs_config = load_formateur_profils_docs_config()
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
     formateur["profils"] = normalize_formateur_profils(formateur.get("profils", []))
-    apply_profile_document_requirements(formateur, profils_docs_config)
 
     # 🔑🟦 RÉCUPÉRER TOUTES LES CLÉS / BADGES EXISTANTS
     etat_cles, etat_badges = get_etat_cles_badges(formateurs, 16, 15)
@@ -10008,9 +10008,10 @@ def update_formateur_document(fid, doc_id):
         doc["expiration"] = request.form.get("expiration", "").strip()
 
     if "status" in request.form:
-        st = request.form.get("status")
-        if st in ("non_concerne", "a_controler", "conforme", "non_conforme"):
-            doc["status"] = st
+        st = request.form.get("status", "").strip()
+        if st not in ("non_concerne", "a_controler", "conforme", "non_conforme"):
+            return {"ok": False, "error": "Statut de document invalide"}, 400
+        doc["status"] = st
 
 
     if "commentaire" in request.form:
@@ -10026,7 +10027,15 @@ def update_formateur_document(fid, doc_id):
     save_formateurs(formateurs)
 
     # ⛔️ PLUS AUCUN REDIRECT
-    return {"ok": True}
+    return {
+        "ok": True,
+        "document": {
+            "id": doc.get("id"),
+            "expiration": doc.get("expiration", ""),
+            "status": doc.get("status", ""),
+            "commentaire": doc.get("commentaire", ""),
+        },
+    }
 
 
 @app.route("/formateurs/<fid>/media/upload", methods=["POST"])

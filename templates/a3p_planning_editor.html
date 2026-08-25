@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    :root{--ink:#172033;--muted:#667085;--line:#e7e2d8;--paper:#fff;--bg:#f5f2eb;--gold:#e6b94f;--gold-dark:#ba8924;--ok:#15803d;--warn:#c2410c;--danger:#b42318;--navy:#111827}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:1540px;margin:0 auto;padding:28px}.panel,.day{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 30px rgba(23,32,51,.05)}.panel{padding:22px}.topbar,.actions,.day-head,.day-tools,.summary-grid{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.topbar,.day-head{justify-content:space-between}h1,h2,h3,p{margin-top:0}.eyebrow{font-size:12px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-dark);margin-bottom:6px}.muted{color:var(--muted)}.rule{display:inline-flex;align-items:center;gap:8px;margin-top:7px;padding:8px 12px;border-radius:999px;background:#fff7df;color:#7a5511;font-size:13px;font-weight:800}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;background:#e9edf3;color:var(--ink)}.btn:hover{filter:brightness(.98)}.btn:disabled{opacity:.5;cursor:not-allowed}.btn-primary{background:var(--navy);color:#fff}.btn-gold{background:var(--gold);color:#221a09}.btn-small{padding:8px 11px;font-size:12px}.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));margin:20px 0 14px}.metric{border:1px solid #e7eaf0;border-radius:14px;padding:14px;background:#fbfcfe}.metric span{display:block;color:var(--muted);font-size:12px;font-weight:700}.metric strong{display:block;margin-top:5px;font-size:24px}.metric.good{border-color:#bbf7d0;background:#f0fdf4}.metric.bad{border-color:#fecaca;background:#fef2f2}.notice{display:none;margin:14px 0;padding:13px 15px;border-radius:12px;line-height:1.45}.notice.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}.notice.success{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}.notice.warning{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}.module-summary{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}.module-grid{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:9px}.module-chip{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}.module-chip strong,.module-chip span{display:block}.module-chip span{margin-top:4px;font-size:12px;color:var(--muted)}.module-chip.good{border-color:#bbf7d0;background:#f0fdf4}.module-chip.bad{border-color:#fecaca;background:#fff7f7}.day{margin-top:18px;overflow:hidden}.day-head{padding:15px 18px;background:linear-gradient(135deg,#111827,#26344d);color:#fff}.day-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.day-title h2{margin:0;font-size:18px}.day-meta{font-size:12px;color:#d7deea;margin-top:3px}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:850}.badge-ok{background:#dcfce7;color:#166534}.badge-warn{background:#ffedd5;color:#9a3412}.badge-error{background:#fee2e2;color:#991b1b}.day-tools{padding:13px 18px;background:#fafafa;border-bottom:1px solid #eceff3}.day-tools label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800}.day-tools input{min-width:220px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1160px}th,td{padding:9px 10px;border-bottom:1px solid #eceff3;vertical-align:middle;text-align:left}th{background:#f8fafc;color:#667085;font-size:11px;text-transform:uppercase;letter-spacing:.04em}td{font-size:13px}input,select{width:100%;border:1px solid #cfd5df;border-radius:8px;background:#fff;padding:8px;color:var(--ink)}input[type=date],input[type=time]{min-width:120px}.time-pair{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:245px}.duration{font-weight:850;white-space:nowrap}.slot-mode{font-size:11px;color:var(--muted)}.footer-actions{position:sticky;bottom:0;margin-top:22px;padding:14px 18px;background:rgba(255,255,255,.96);backdrop-filter:blur(9px);border:1px solid var(--line);border-radius:16px;box-shadow:0 -6px 24px rgba(23,32,51,.08);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.loading{padding:42px;text-align:center;color:var(--muted)}
+    @media(max-width:1100px){.summary-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}.module-grid{grid-template-columns:repeat(2,minmax(150px,1fr))}}@media(max-width:650px){.wrap{padding:14px}.panel{padding:16px}.summary-grid,.module-grid{grid-template-columns:1fr}.actions{width:100%}.actions .btn{flex:1}.day-tools label{width:100%;display:grid;grid-template-columns:1fr}.day-tools input{min-width:0}.footer-actions .actions{width:100%}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <section class="panel">
+    <div class="topbar">
+      <div>
+        <div class="eyebrow">Planning de formation</div>
+        <h1>Modifier le planning A3P</h1>
+        <p class="muted">Modifiez les horaires, le module, la salle ou le formateur pour chaque créneau.</p>
+        <span class="rule">Règle A3P : 3 modules différents maximum par journée</span>
+      </div>
+      <div class="actions">
+        <a class="btn" href="{{ url_for('session_detail', sid=s.id) }}">Retour à la session</a>
+        <button class="btn btn-primary" type="button" data-save>Enregistrer</button>
+        <button class="btn btn-gold" type="button" data-save-pdf>Enregistrer et régénérer le PDF</button>
+      </div>
+    </div>
+
+    <div id="error" class="notice error" role="alert"></div>
+    <div id="success" class="notice success" role="status"></div>
+    <div id="stale" class="notice warning">Le planning enregistré a été modifié : le PDF doit encore être régénéré.</div>
+
+    <div class="summary-grid">
+      <div class="metric"><span>Volume réglementaire</span><strong>328 h</strong></div>
+      <div class="metric" id="plannedMetric"><span>Heures planifiées</span><strong id="plannedHours">—</strong></div>
+      <div class="metric" id="daysMetric"><span>Journées</span><strong id="daysCount">—</strong></div>
+      <div class="metric" id="rulesMetric"><span>Journées conformes à la règle des 3 modules</span><strong id="rulesCount">—</strong></div>
+    </div>
+
+    <section class="module-summary">
+      <h3>Répartition des heures par module</h3>
+      <div id="moduleSummary" class="module-grid"></div>
+    </section>
+  </section>
+
+  <datalist id="trainerOptions"></datalist>
+  <div id="editor"><div class="loading">Chargement du planning A3P…</div></div>
+
+  <div class="footer-actions">
+    <span class="muted">Les durées sont recalculées automatiquement à partir des horaires.</span>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('session_detail', sid=s.id) }}">Annuler</a>
+      <button class="btn btn-primary" type="button" data-save>Enregistrer</button>
+      <button class="btn btn-gold" type="button" data-save-pdf>Enregistrer et régénérer le PDF</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const sid={{ s.id|tojson }};
+const REQUIRED_MINUTES=328*60;
+let planning=[];
+let modules=[];
+let trainerOptions=[];
+let maxDistinctModulesPerDay=3;
+let needsRegeneration=false;
+
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+const minutes=value=>{const match=String(value||'').match(/^(\d{2}):(\d{2})$/);if(!match)return NaN;const h=Number(match[1]),m=Number(match[2]);return h<24&&m<60?h*60+m:NaN};
+const formatHours=value=>{const total=Math.round(Number(value)||0);return total%60?`${Math.floor(total/60)} h ${String(total%60).padStart(2,'0')}`:`${Math.floor(total/60)} h`;};
+const formatDate=iso=>{const match=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return match?`${match[3]}/${match[2]}/${match[1]}`:iso||'—';};
+const dayName=iso=>{const date=new Date(`${iso}T12:00:00`);return Number.isNaN(date.getTime())?'Date invalide':new Intl.DateTimeFormat('fr-FR',{weekday:'long'}).format(date).replace(/^./,char=>char.toUpperCase());};
+const slotMinutes=slot=>{const value=minutes(slot.end)-minutes(slot.start);return Number.isFinite(value)&&value>0?value:0;};
+const distinctCodes=day=>new Set((day.slots||[]).map(slot=>slot.code).filter(Boolean));
+const dayMinutes=day=>(day.slots||[]).reduce((total,slot)=>total+slotMinutes(slot),0);
+
+function showNotice(id,message){const element=$(id);element.textContent=message;element.style.display='block';element.scrollIntoView({behavior:'smooth',block:'center'});}
+function hideNotices(){['error','success'].forEach(id=>{$(id).style.display='none';$(id).textContent='';});}
+
+function moduleTotals(){const totals=Object.fromEntries(modules.map(module=>[module.code,0]));planning.forEach(day=>(day.slots||[]).forEach(slot=>{if(slot.code in totals)totals[slot.code]+=slotMinutes(slot);}));return totals;}
+
+function clientErrors(){
+  const errors=[];
+  const seenDates=new Set();
+  planning.forEach(day=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(day.date||''))errors.push('Une date du planning est invalide.');
+    if(seenDates.has(day.date))errors.push(`La date ${formatDate(day.date)} apparaît plusieurs fois.`);
+    seenDates.add(day.date);
+    const intervals=[];
+    (day.slots||[]).forEach(slot=>{
+      const start=minutes(slot.start),end=minutes(slot.end);
+      if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){errors.push(`Horaire invalide le ${formatDate(day.date)} : ${slot.start||'—'}-${slot.end||'—'}.`);return;}
+      if(intervals.some(([existingStart,existingEnd])=>start<existingEnd&&end>existingStart))errors.push(`Deux cours se chevauchent le ${formatDate(day.date)}.`);
+      intervals.push([start,end]);
+    });
+    const codes=distinctCodes(day);
+    if(codes.size>maxDistinctModulesPerDay)errors.push(`Le ${formatDate(day.date)} contient ${codes.size} modules différents (${[...codes].join(', ')}). Le maximum est de ${maxDistinctModulesPerDay}.`);
+    if(dayMinutes(day)>480)errors.push(`Le ${formatDate(day.date)} dépasse 8 h de formation.`);
+  });
+  const total=planning.reduce((sum,day)=>sum+dayMinutes(day),0);
+  if(total!==REQUIRED_MINUTES)errors.push(`Le planning doit totaliser exactement 328 h (actuel : ${formatHours(total)}).`);
+  const totals=moduleTotals();
+  modules.forEach(module=>{const expected=Number(module.hours)*60;if(totals[module.code]!==expected)errors.push(`${module.code} — ${module.title} doit totaliser ${module.hours} h (actuel : ${formatHours(totals[module.code])}).`);});
+  return [...new Set(errors)];
+}
+
+function renderSummary(){
+  const total=planning.reduce((sum,day)=>sum+dayMinutes(day),0);
+  const conforming=planning.filter(day=>distinctCodes(day).size<=maxDistinctModulesPerDay).length;
+  $('plannedHours').textContent=formatHours(total);
+  $('daysCount').textContent=String(planning.length);
+  $('rulesCount').textContent=`${conforming} / ${planning.length}`;
+  $('plannedMetric').className=`metric ${total===REQUIRED_MINUTES?'good':'bad'}`;
+  $('rulesMetric').className=`metric ${conforming===planning.length?'good':'bad'}`;
+  $('daysMetric').className='metric';
+  const totals=moduleTotals();
+  $('moduleSummary').innerHTML=modules.map(module=>{
+    const expected=Number(module.hours)*60,actual=totals[module.code]||0,ok=actual===expected;
+    return `<div class="module-chip ${ok?'good':'bad'}"><strong>${esc(module.code)} — ${esc(module.title)}</strong><span>${formatHours(actual)} planifiées / ${module.hours} h attendues</span></div>`;
+  }).join('');
+  $('stale').style.display=needsRegeneration?'block':'none';
+}
+
+function commonDayValue(day,field){const values=[...new Set((day.slots||[]).map(slot=>String(slot[field]||'').trim()).filter(Boolean))];return values.length===1?values[0]:'';}
+
+function render(){
+  const moduleOptions=modules.map(module=>`<option value="${esc(module.code)}">${esc(module.code)} — ${esc(module.title)}</option>`).join('');
+  $('editor').innerHTML=planning.map((day,dayIndex)=>{
+    const codes=distinctCodes(day),total=dayMinutes(day),valid=codes.size<=maxDistinctModulesPerDay&&total<=480;
+    const rows=(day.slots||[]).map((slot,slotIndex)=>`<tr>
+      <td><input type="date" data-day="${dayIndex}" data-day-field="date" value="${esc(day.date)}"></td>
+      <td><div class="time-pair"><input type="time" data-day="${dayIndex}" data-slot="${slotIndex}" data-field="start" value="${esc(slot.start)}"><input type="time" data-day="${dayIndex}" data-slot="${slotIndex}" data-field="end" value="${esc(slot.end)}"></div></td>
+      <td><select data-day="${dayIndex}" data-slot="${slotIndex}" data-field="code">${moduleOptions.replace(`value="${esc(slot.code)}"`,`value="${esc(slot.code)}" selected`)}</select></td>
+      <td class="duration">${formatHours(slotMinutes(slot))}</td>
+      <td><input list="trainerOptions" data-day="${dayIndex}" data-slot="${slotIndex}" data-field="trainer" value="${esc(slot.trainer)}" placeholder="Choisir ou saisir un formateur"></td>
+      <td><input data-day="${dayIndex}" data-slot="${slotIndex}" data-field="room" value="${esc(slot.room)}" placeholder="Salle / lieu"></td>
+      <td><span class="slot-mode">${esc(slot.placementMode||(slot.locked?'manuel':'automatique'))}</span></td>
+    </tr>`).join('');
+    return `<section class="day" id="day-${esc(day.date)}">
+      <div class="day-head"><div class="day-title"><div><h2>${dayName(day.date)} ${formatDate(day.date)}</h2><div class="day-meta">${formatHours(total)} · ${codes.size} module${codes.size>1?'s':''} différent${codes.size>1?'s':''}</div></div></div><span class="badge ${valid?'badge-ok':'badge-error'}">${valid?'Journée conforme':codes.size>maxDistinctModulesPerDay?'Trop de modules':'Plus de 8 h'}</span></div>
+      <div class="day-tools">
+        <label>Formateur de la journée <input list="trainerOptions" data-day-trainer="${dayIndex}" value="${esc(commonDayValue(day,'trainer'))}" placeholder="Plusieurs formateurs ou aucun"></label>
+        <button class="btn btn-small" type="button" data-apply-day="${dayIndex}" data-apply-field="trainer">Appliquer à la journée</button>
+        <label>Salle de la journée <input data-day-room="${dayIndex}" value="${esc(commonDayValue(day,'room'))}" placeholder="Plusieurs salles ou aucune"></label>
+        <button class="btn btn-small" type="button" data-apply-day="${dayIndex}" data-apply-field="room">Appliquer à la journée</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Horaires</th><th>Module</th><th>Durée</th><th>Formateur</th><th>Salle</th><th>Placement initial</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </section>`;
+  }).join('')||'<div class="loading">Aucune journée disponible.</div>';
+
+  document.querySelectorAll('[data-field]').forEach(input=>input.addEventListener('change',event=>{
+    const day=planning[Number(event.target.dataset.day)],slot=day?.slots?.[Number(event.target.dataset.slot)];if(!slot)return;
+    const field=event.target.dataset.field;slot[field]=event.target.value;
+    if(field==='code'){const module=modules.find(item=>item.code===slot.code);if(module)slot.title=module.title;}
+    render();
+  }));
+  document.querySelectorAll('[data-day-field]').forEach(input=>input.addEventListener('change',event=>{planning[Number(event.target.dataset.day)][event.target.dataset.dayField]=event.target.value;render();}));
+  document.querySelectorAll('[data-apply-day]').forEach(button=>button.addEventListener('click',()=>{
+    const dayIndex=Number(button.dataset.applyDay),field=button.dataset.applyField;
+    const input=document.querySelector(field==='trainer'?`[data-day-trainer="${dayIndex}"]`:`[data-day-room="${dayIndex}"]`);
+    (planning[dayIndex].slots||[]).forEach(slot=>slot[field]=input?.value||'');render();
+  }));
+  renderSummary();
+}
+
+async function persist(regeneratePdf){
+  hideNotices();
+  const errors=clientErrors();
+  if(errors.length){showNotice('error',errors.join(' '));return;}
+  document.querySelectorAll('[data-save],[data-save-pdf]').forEach(button=>button.disabled=true);
+  try{
+    const response=await fetch(`/api/sessions/${sid}/a3p-planning`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({planningData:planning,regeneratePdf})});
+    const payload=await response.json();
+    if(!response.ok||!payload.ok)throw new Error((payload.errors||[payload.error||'Enregistrement impossible.']).join(' '));
+    planning=payload.planningData||planning;needsRegeneration=!!payload.needsRegeneration;render();
+    showNotice('success',regeneratePdf?'Modifications enregistrées et PDF A3P régénéré.':'Modifications enregistrées. Le PDF pourra être régénéré après vos autres changements.');
+    if(regeneratePdf&&payload.pdfUrl)window.open(payload.pdfUrl,'_blank','noopener');
+  }catch(error){showNotice('error',error.message||'Enregistrement impossible.');}
+  finally{document.querySelectorAll('[data-save],[data-save-pdf]').forEach(button=>button.disabled=false);}
+}
+
+async function loadPlanning(){
+  try{
+    const response=await fetch(`/api/sessions/${sid}/a3p-planning`),payload=await response.json();
+    if(!response.ok||!payload.ok)throw new Error(payload.error||'Chargement impossible.');
+    planning=payload.planningData||[];modules=payload.modules||[];trainerOptions=payload.trainerOptions||[];maxDistinctModulesPerDay=payload.maxDistinctModulesPerDay||3;needsRegeneration=!!payload.needsRegeneration;
+    $('trainerOptions').innerHTML=trainerOptions.map(name=>`<option value="${esc(name)}"></option>`).join('');
+    render();
+    if((payload.validationErrors||[]).length)showNotice('error',(payload.validationErrors||[]).join(' '));
+  }catch(error){$('editor').innerHTML='';showNotice('error',error.message||'Chargement impossible.');}
+}
+
+document.querySelectorAll('[data-save]').forEach(button=>button.addEventListener('click',()=>persist(false)));
+document.querySelectorAll('[data-save-pdf]').forEach(button=>button.addEventListener('click',()=>persist(true)));
+loadPlanning();
+</script>
+</body>
+</html>

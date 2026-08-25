@@ -1,7 +1,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import pytest
-from a3p_program import generateA3pSchedule, validate_a3p_planning, A3P_FORBIDDEN_TERMS
+from a3p_program import generateA3pSchedule, validate_a3p_planning, A3P_FORBIDDEN_TERMS, A3P_MAX_DISTINCT_MODULES_PER_DAY
 
 def days(n=48):
     import datetime as dt
@@ -33,6 +33,10 @@ def test_a3p_schedule_totals_and_locked_modules():
     assert s["moduleTotals"]["UV2"] == 22
     assert not validate_a3p_planning(result["planning"], config()["examDate"])[0]
     assert result["planning"][0]["dayLabel"] == "Lundi 05/01/2026"
+    assert all(
+        len({slot["code"] for slot in day["slots"]}) <= A3P_MAX_DISTINCT_MODULES_PER_DAY
+        for day in result["planning"]
+    )
 
 def test_a3p_rejects_bad_total_and_bad_locked_module():
     bad=config(); bad["days"]=bad["days"][:-20]
@@ -113,6 +117,17 @@ def test_a3p_validation_rejects_days_over_eight_hours():
     planning = [{"date":"2026-01-05","slots":[{"code":"UV2","start":"08:30","end":"17:31","durationMinutes":481}]}]
     errors, _ = validate_a3p_planning(planning)
     assert any("dépasse 8h" in error for error in errors)
+
+
+def test_a3p_validation_rejects_more_than_three_distinct_modules_in_one_day():
+    planning = [{"date":"2026-01-05","slots":[
+        {"code":"UV1","start":"08:30","end":"09:30","durationMinutes":60},
+        {"code":"UV2","start":"09:30","end":"10:30","durationMinutes":60},
+        {"code":"UV3","start":"10:30","end":"11:30","durationMinutes":60},
+        {"code":"UV4","start":"11:30","end":"12:30","durationMinutes":60},
+    ]}]
+    errors, _ = validate_a3p_planning(planning)
+    assert any("4 modules différents" in error and "maximum autorisé est de 3" in error for error in errors)
 
 
 def test_a3p_attendance_pdf_uses_aps_signature_template(tmp_path):
@@ -221,6 +236,8 @@ def test_a3p_planning_pdf_day_titles_include_exact_dates(tmp_path):
     text = "\n".join(page.extract_text() or "" for page in pypdf.PdfReader(str(output)).pages)
     assert "Lundi 05/01/2026 — 7h" in text
     assert "Lundi — 7h" not in text
+    assert "Période 2" not in text
+    assert "Programme" in text
 
 
 def test_a3p_july_14_2026_is_excluded_and_schedule_reaches_august_4():

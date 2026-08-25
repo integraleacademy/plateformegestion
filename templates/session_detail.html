@@ -930,7 +930,9 @@ a.back:hover{ background:#d9a848 !important; }
       {% elif planning_pdf %}
         <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
       {% endif %}
-      {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] and planning_pdf and s.apsPlanningData %}
+      {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') and s.a3pPlanningData %}
+        <a class="btn small gold" href="{{ url_for('edit_a3p_planning_page', sid=s.id) }}">✏️ Modifier le planning généré</a>
+      {% elif s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] and planning_pdf and s.apsPlanningData %}
         <a class="btn small gold" href="{{ url_for('edit_aps_planning_page', sid=s.id) }}">✏️ Modifier le planning généré</a>
       {% endif %}
       {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
@@ -2600,7 +2602,6 @@ document.addEventListener('DOMContentLoaded',init);
 
 </body>
 </html>
-
 
 
 

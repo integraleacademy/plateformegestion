@@ -69,6 +69,11 @@ def test_a3p_editor_page_exposes_day_trainer_controls_and_session_button():
     detail = Path("templates/session_detail.html").read_text(encoding="utf-8")
     assert "Formateur de la journée" in editor
     assert "data-apply-field=\"trainer\"" in editor
+    assert "＋ Ajouter un formateur" in editor
+    assert "id=\"trainerDialog\"" in editor
+    assert "name=\"trainerDays\"" in editor
+    assert "Affecter au planning" in editor
+    assert "data-open-trainer-day" in editor
     assert "3 modules différents maximum par journée" in editor
     assert "Enregistrer et régénérer le PDF" in editor
     assert "edit_a3p_planning_page" in detail

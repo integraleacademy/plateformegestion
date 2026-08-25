@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime, date, timedelta
 
 A3P_TOTAL_HOURS = 328
+A3P_MAX_DISTINCT_MODULES_PER_DAY = 3
 A3P_FORBIDDEN_TERMS = ("APS", "e-learning", "distanciel", "175h")
 A3P_MODULES = [
     {"code":"UV1","title":"SST","hours":14,"locked":True},
@@ -107,14 +108,29 @@ def is_a3p_training_day(day: date) -> bool:
 
 def validate_a3p_planning(planning, exam_date=None):
     summary = a3p_summary_from_planning(planning); errors=list(summary["errors"])
+    seen_dates = set()
     for day in planning or []:
         day_iso = day.get("date")
+        if day_iso in seen_dates:
+            errors.append(f"La date {day_iso} apparaît plusieurs fois dans le planning.")
+        seen_dates.add(day_iso)
         try:
             parsed_day = datetime.strptime(day_iso, "%Y-%m-%d").date()
             if is_a3p_non_working_day(parsed_day):
                 errors.append(f"La journée du {day_iso} est un jour non travaillé (week-end ou jour férié français).")
         except Exception:
             errors.append(f"Date invalide: {day_iso}")
+        distinct_codes = {
+            slot.get("code")
+            for slot in day.get("slots", [])
+            if slot.get("code") in A3P_MODULE_BY_CODE
+        }
+        if len(distinct_codes) > A3P_MAX_DISTINCT_MODULES_PER_DAY:
+            errors.append(
+                f"La journée du {day_iso} contient {len(distinct_codes)} modules différents "
+                f"({', '.join(sorted(distinct_codes))}). Le maximum autorisé est de "
+                f"{A3P_MAX_DISTINCT_MODULES_PER_DAY}."
+            )
         daily_minutes = sum(int(slot.get("durationMinutes") or _slot_minutes(slot.get("start"), slot.get("end"))) for slot in day.get("slots", []))
         if daily_minutes > 8 * 60:
             errors.append(f"La journée du {day.get('date')} dépasse 8h de formation (actuel: {daily_minutes/60:g}h).")

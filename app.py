@@ -36,7 +36,7 @@ from werkzeug.utils import secure_filename
 from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
-from a3p_program import A3P_TOTAL_HOURS, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
+from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
 from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
 
 from services.afc_france_travail_attendance import (
@@ -3065,6 +3065,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             if modality_ranges.get("presentiel"):
                 date_lines.append(f"SSIAP 1 : {aps_format_range(modality_ranges.get('presentiel'))}")
             date_lines.append(f"Examen SSIAP 1 : le {format_date(session_data.get('date_exam'))}")
+        elif document_profile.get("validate") == "a3p":
+            date_lines.append(f"Dates de formation : {aps_format_range(modality_ranges.get('presentiel'))}")
         else:
             if document_profile.get("validate") == "afc_aps_ssiap":
                 date_lines.append(period)
@@ -3166,7 +3168,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     def summary_table_header(y, continued=False):
         c.setFont("Helvetica-Bold", 10); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "B. Récapitulatif détaillé" + (" — suite" if continued else ""))
         y -= 14
-        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Partie"); c.drawString(margin+92, y, "Module"); c.drawString(width-margin-140, y, "Modalité"); c.drawRightString(width-margin, y, "Heures")
+        first_column_label = "Programme" if document_profile.get("validate") == "a3p" else "Partie"
+        c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, first_column_label); c.drawString(margin+92, y, "Module"); c.drawString(width-margin-140, y, "Modalité"); c.drawRightString(width-margin, y, "Heures")
         c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, y-4, width-margin, y-4)
         return y - 12
 
@@ -3264,7 +3267,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = height - 122; continued = True; y = summary_table_header(y, continued=True)
             c.setFont("Helvetica", 6.4); c.setFillColor(colors.HexColor("#111827"))
             modality = row.get("modality") or ("elearning" if "Distanciel" in str(row.get("label")) else "presentiel")
-            part_label = ("Parcours" if document_profile.get("validate") == "afc_aps_ssiap" else (f"Partie {str(row.get('uv')).split('-')[0][1:]}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else ("Période 1" if modality == "elearning" else "Période 2")))
+            part_label = ("A3P" if document_profile.get("validate") == "a3p" else ("Parcours" if document_profile.get("validate") == "afc_aps_ssiap" else (f"Partie {str(row.get('uv')).split('-')[0][1:]}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else ("Période 1" if modality == "elearning" else "Période 2"))))
             c.drawString(margin, y, part_label)
             draw_wrapped_text(c, module_text, margin+92, y, width - margin - 300, "Helvetica", 7.2, 8)
             c.drawString(width-margin-140, y, "E-learning" if modality == "elearning" else "Présentiel")
@@ -8210,6 +8213,179 @@ def view_a3p_document(sid, kind):
         "contract": f"contrat_formateur_a3p_{sid}.pdf",
     }
     return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=download_names[kind])
+
+
+def _a3p_editor_time_minutes(value):
+    match = re.fullmatch(r"(\d{2}):(\d{2})", str(value or ""))
+    if not match:
+        raise ValueError(f"Horaire invalide : {value or 'vide'}.")
+    hours, minutes = (int(part) for part in match.groups())
+    if hours > 23 or minutes > 59:
+        raise ValueError(f"Horaire invalide : {value}.")
+    return hours * 60 + minutes
+
+
+def normalize_a3p_editor_planning(planning_data):
+    """Normalize all browser-editable A3P fields before validation/persistence."""
+    if not isinstance(planning_data, list):
+        raise ValueError("planningData est obligatoire.")
+    module_by_code = {module["code"]: module for module in A3P_MODULES}
+    normalized = []
+    for raw_day in planning_data:
+        if not isinstance(raw_day, dict):
+            raise ValueError("Une journée du planning A3P est invalide.")
+        date_value = str(raw_day.get("date") or "").strip()
+        slots = []
+        for raw_slot in raw_day.get("slots") or []:
+            if not isinstance(raw_slot, dict):
+                raise ValueError(f"Un créneau du {date_value or 'planning'} est invalide.")
+            code = str(raw_slot.get("code") or raw_slot.get("uv") or "").strip().upper()
+            module = module_by_code.get(code)
+            if not module:
+                raise ValueError(f"Module A3P inconnu : {code or 'vide'}.")
+            start = str(raw_slot.get("start") or "").strip()
+            end = str(raw_slot.get("end") or "").strip()
+            start_minutes = _a3p_editor_time_minutes(start)
+            end_minutes = _a3p_editor_time_minutes(end)
+            if end_minutes <= start_minutes:
+                raise ValueError(f"Horaire invalide le {date_value} : {start}-{end}.")
+            duration_minutes = end_minutes - start_minutes
+            slots.append({
+                "start": start,
+                "end": end,
+                "durationMinutes": duration_minutes,
+                "code": code,
+                "title": module["title"],
+                "locked": bool(raw_slot.get("locked")),
+                "placementMode": raw_slot.get("placementMode") or ("manuel" if raw_slot.get("locked") else "automatique"),
+                "trainer": str(raw_slot.get("trainer") or "").strip(),
+                "room": str(raw_slot.get("room") or "").strip(),
+            })
+        slots.sort(key=lambda slot: _a3p_editor_time_minutes(slot["start"]))
+        normalized.append({"date": date_value, "dayLabel": _a3p_full_day_label(date_value), "slots": slots})
+    normalized.sort(key=lambda day: day.get("date") or "")
+    return normalized
+
+
+def a3p_editor_trainer_options(session_data):
+    names = {
+        (slot.get("trainer") or "").strip()
+        for day in session_data.get("a3pPlanningData") or []
+        for slot in day.get("slots") or []
+        if (slot.get("trainer") or "").strip()
+    }
+    for formateur in load_formateurs():
+        name = formateur_full_name(formateur)
+        if name:
+            names.add(name)
+    return sorted(names, key=str.casefold)
+
+
+@app.get("/sessions/<sid>/a3p-planning/edit")
+def edit_a3p_planning_page(sid):
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        abort(404)
+    if (session_data.get("formation") or "").upper() != "A3P":
+        abort(404)
+    if not session_data.get("a3pPlanningData"):
+        flash("Générez d’abord le planning A3P avant de le modifier.", "error")
+        return redirect(url_for("session_detail", sid=sid))
+    return render_template("a3p_planning_editor.html", title="Modifier le planning A3P", s=session_data)
+
+
+@app.get("/api/sessions/<sid>/a3p-planning")
+def get_a3p_planning_api(sid):
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "A3P":
+        return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
+    planning_data = session_data.get("a3pPlanningData") or []
+    errors, summary = validate_a3p_planning(planning_data, session_data.get("date_exam"))
+    return jsonify({
+        "ok": True,
+        "planningData": planning_data,
+        "a3pPlanningData": planning_data,
+        "summary": summary,
+        "validationErrors": errors,
+        "modules": A3P_MODULES,
+        "trainerOptions": a3p_editor_trainer_options(session_data),
+        "maxDistinctModulesPerDay": A3P_MAX_DISTINCT_MODULES_PER_DAY,
+        "pdfUrl": url_for("view_a3p_document", sid=sid, kind="planning") if a3p_document_exists(session_data, "planning") else None,
+        "needsRegeneration": bool(session_data.get("a3pPlanningNeedsRegeneration")),
+    })
+
+
+@app.put("/api/sessions/<sid>/a3p-planning")
+def update_a3p_planning_api(sid):
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        return jsonify({"ok": False, "error": "Session introuvable."}), 404
+    if (session_data.get("formation") or "").upper() != "A3P":
+        return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
+    payload = request.get_json(silent=True) or {}
+    try:
+        planning_data = normalize_a3p_editor_planning(payload.get("planningData"))
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc), "errors": [str(exc)]}), 400
+    errors, summary = validate_a3p_planning(planning_data, session_data.get("date_exam"))
+    if errors:
+        return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400
+
+    session_data["a3pPlanningData"] = planning_data
+    session_data["a3pPlanningSummary"] = summary
+    session_data["planning_modified_at"] = append_planning_history(session_data, "planning A3P modifié")
+    session_data["a3pPlanningNeedsRegeneration"] = not bool(payload.get("regeneratePdf"))
+    builder_state = session_data.get("a3pPlanningBuilder") or session_data.get("a3pPlanningDraftJson") or {}
+    if isinstance(builder_state, dict):
+        builder_state = dict(builder_state)
+        builder_state["preview"] = planning_data
+        session_data["a3pPlanningBuilder"] = builder_state
+
+    pdf_url = url_for("view_a3p_document", sid=sid, kind="planning") if a3p_document_exists(session_data, "planning") else None
+    if payload.get("regeneratePdf"):
+        filename = f"planning_a3p_session_{sid}.pdf"
+        output_path = os.path.join(A3P_DOC_DIR, filename)
+        temp_file = tempfile.NamedTemporaryFile(prefix="planning_a3p_", suffix=".tmp.pdf", dir=A3P_DOC_DIR, delete=False)
+        temp_path = temp_file.name
+        temp_file.close()
+        try:
+            generate_a3p_planning_pdf(session_data, temp_path)
+            os.replace(temp_path, output_path)
+        except (OSError, RuntimeError, ValueError) as exc:
+            app.logger.exception("Régénération du planning A3P impossible session=%s", sid)
+            return jsonify({"ok": False, "error": f"Impossible de régénérer le PDF : {exc}"}), 400
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        session_data["a3pPlanningPdfUrl"] = url_for("view_a3p_document", sid=sid, kind="planning")
+        session_data["a3pPlanningFilename"] = filename
+        session_data["a3pPlanningPdfFilename"] = filename
+        session_data["a3pPlanningGeneratedAt"] = now
+        session_data["a3pPlanningNeedsRegeneration"] = False
+        session_data.setdefault("a3p_documents", {})["planning"] = {"path": output_path, "generated_at": now}
+        session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF A3P régénéré")
+        pdf_url = session_data["a3pPlanningPdfUrl"]
+
+    save_sessions(data)
+    return jsonify({
+        "ok": True,
+        "planningData": planning_data,
+        "a3pPlanningData": planning_data,
+        "summary": summary,
+        "pdfUrl": pdf_url,
+        "needsRegeneration": session_data.get("a3pPlanningNeedsRegeneration", False),
+        "modifiedAt": session_data.get("planning_modified_at"),
+    })
+
 
 @app.get("/sessions/<sid>/aps-planning/edit")
 def edit_aps_planning_page(sid):

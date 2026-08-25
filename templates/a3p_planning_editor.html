@@ -7,7 +7,8 @@
   <style>
     :root{--ink:#172033;--muted:#667085;--line:#e7e2d8;--paper:#fff;--bg:#f5f2eb;--gold:#e6b94f;--gold-dark:#ba8924;--ok:#15803d;--warn:#c2410c;--danger:#b42318;--navy:#111827}
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:1540px;margin:0 auto;padding:28px}.panel,.day{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 30px rgba(23,32,51,.05)}.panel{padding:22px}.topbar,.actions,.day-head,.day-tools,.summary-grid{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.topbar,.day-head{justify-content:space-between}h1,h2,h3,p{margin-top:0}.eyebrow{font-size:12px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-dark);margin-bottom:6px}.muted{color:var(--muted)}.rule{display:inline-flex;align-items:center;gap:8px;margin-top:7px;padding:8px 12px;border-radius:999px;background:#fff7df;color:#7a5511;font-size:13px;font-weight:800}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;background:#e9edf3;color:var(--ink)}.btn:hover{filter:brightness(.98)}.btn:disabled{opacity:.5;cursor:not-allowed}.btn-primary{background:var(--navy);color:#fff}.btn-gold{background:var(--gold);color:#221a09}.btn-small{padding:8px 11px;font-size:12px}.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));margin:20px 0 14px}.metric{border:1px solid #e7eaf0;border-radius:14px;padding:14px;background:#fbfcfe}.metric span{display:block;color:var(--muted);font-size:12px;font-weight:700}.metric strong{display:block;margin-top:5px;font-size:24px}.metric.good{border-color:#bbf7d0;background:#f0fdf4}.metric.bad{border-color:#fecaca;background:#fef2f2}.notice{display:none;margin:14px 0;padding:13px 15px;border-radius:12px;line-height:1.45}.notice.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}.notice.success{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}.notice.warning{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}.module-summary{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}.module-grid{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:9px}.module-chip{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}.module-chip strong,.module-chip span{display:block}.module-chip span{margin-top:4px;font-size:12px;color:var(--muted)}.module-chip.good{border-color:#bbf7d0;background:#f0fdf4}.module-chip.bad{border-color:#fecaca;background:#fff7f7}.day{margin-top:18px;overflow:hidden}.day-head{padding:15px 18px;background:linear-gradient(135deg,#111827,#26344d);color:#fff}.day-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.day-title h2{margin:0;font-size:18px}.day-meta{font-size:12px;color:#d7deea;margin-top:3px}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:850}.badge-ok{background:#dcfce7;color:#166534}.badge-warn{background:#ffedd5;color:#9a3412}.badge-error{background:#fee2e2;color:#991b1b}.day-tools{padding:13px 18px;background:#fafafa;border-bottom:1px solid #eceff3}.day-tools label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800}.day-tools input{min-width:220px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1160px}th,td{padding:9px 10px;border-bottom:1px solid #eceff3;vertical-align:middle;text-align:left}th{background:#f8fafc;color:#667085;font-size:11px;text-transform:uppercase;letter-spacing:.04em}td{font-size:13px}input,select{width:100%;border:1px solid #cfd5df;border-radius:8px;background:#fff;padding:8px;color:var(--ink)}input[type=date],input[type=time]{min-width:120px}.time-pair{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:245px}.duration{font-weight:850;white-space:nowrap}.slot-mode{font-size:11px;color:var(--muted)}.footer-actions{position:sticky;bottom:0;margin-top:22px;padding:14px 18px;background:rgba(255,255,255,.96);backdrop-filter:blur(9px);border:1px solid var(--line);border-radius:16px;box-shadow:0 -6px 24px rgba(23,32,51,.08);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.loading{padding:42px;text-align:center;color:var(--muted)}
-    @media(max-width:1100px){.summary-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}.module-grid{grid-template-columns:repeat(2,minmax(150px,1fr))}}@media(max-width:650px){.wrap{padding:14px}.panel{padding:16px}.summary-grid,.module-grid{grid-template-columns:1fr}.actions{width:100%}.actions .btn{flex:1}.day-tools label{width:100%;display:grid;grid-template-columns:1fr}.day-tools input{min-width:0}.footer-actions .actions{width:100%}}
+    .trainer-summary{margin-top:18px;border-top:1px solid var(--line);padding-top:18px}.trainer-summary-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.trainer-summary-head h3{margin-bottom:4px}.trainer-summary-head p{margin:0}.trainer-list{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}.trainer-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #dbe2ec;border-radius:999px;background:#f8fafc;font-size:13px;font-weight:800}.trainer-chip::before{content:'👤';font-size:12px}.empty-trainers{padding:11px 13px;border:1px dashed #cfd5df;border-radius:11px;color:var(--muted);background:#fafafa}.btn-outline-gold{background:#fff7df;color:#7a5511;border:1px solid #e6b94f}.trainer-dialog{width:min(760px,calc(100vw - 28px));max-height:min(820px,calc(100vh - 28px));padding:0;border:0;border-radius:18px;color:var(--ink);box-shadow:0 28px 80px rgba(15,23,42,.28)}.trainer-dialog::backdrop{background:rgba(15,23,42,.58);backdrop-filter:blur(3px)}.dialog-head,.dialog-body,.dialog-actions{padding:18px 20px}.dialog-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:1px solid var(--line)}.dialog-head h2{margin-bottom:4px}.dialog-head p{margin:0}.dialog-close{border:0;background:#eef1f5;border-radius:999px;width:36px;height:36px;font-size:21px;cursor:pointer}.dialog-body{display:grid;gap:17px}.dialog-body>label{display:grid;gap:7px;font-size:13px;font-weight:850}.dialog-help{font-size:12px;color:var(--muted);font-weight:500}.day-choice-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.day-choice-head strong{font-size:13px}.text-button{border:0;background:transparent;color:#805b13;font-weight:850;cursor:pointer;padding:5px}.day-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:350px;overflow:auto;padding:3px}.day-choice{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #dce1e8;border-radius:11px;background:#fff;cursor:pointer}.day-choice:has(input:checked){border-color:#d2a43c;background:#fff8e6}.day-choice input{width:auto;margin-top:2px}.day-choice span{display:grid;gap:2px}.day-choice strong{font-size:12px}.day-choice small{font-size:11px;color:var(--muted)}.dialog-error{display:none;padding:10px 12px;border-radius:10px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:13px}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);background:#fafafa}.day-add-trainer{margin-left:auto}
+    @media(max-width:1100px){.summary-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}.module-grid{grid-template-columns:repeat(2,minmax(150px,1fr))}.day-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.wrap{padding:14px}.panel{padding:16px}.summary-grid,.module-grid,.day-choices{grid-template-columns:1fr}.actions{width:100%}.actions .btn{flex:1}.day-tools label{width:100%;display:grid;grid-template-columns:1fr}.day-tools input{min-width:0}.footer-actions .actions{width:100%}.trainer-summary-head .btn{width:100%}.dialog-actions{flex-direction:column-reverse}.dialog-actions .btn{width:100%}.day-add-trainer{margin-left:0;width:100%}}
   </style>
 </head>
 <body>
@@ -42,6 +43,17 @@
       <h3>Répartition des heures par module</h3>
       <div id="moduleSummary" class="module-grid"></div>
     </section>
+
+    <section class="trainer-summary" aria-labelledby="planningTrainersTitle">
+      <div class="trainer-summary-head">
+        <div>
+          <h3 id="planningTrainersTitle">Formateurs du planning</h3>
+          <p class="muted">Ajoutez un formateur puis choisissez la ou les journées auxquelles l’affecter.</p>
+        </div>
+        <button class="btn btn-outline-gold" id="openTrainerDialog" type="button">＋ Ajouter un formateur</button>
+      </div>
+      <div id="planningTrainers" class="trainer-list" aria-live="polite"></div>
+    </section>
   </section>
 
   <datalist id="trainerOptions"></datalist>
@@ -56,6 +68,38 @@
     </div>
   </div>
 </main>
+
+<dialog class="trainer-dialog" id="trainerDialog" aria-labelledby="trainerDialogTitle">
+  <form id="addTrainerForm">
+    <div class="dialog-head">
+      <div>
+        <h2 id="trainerDialogTitle">Ajouter un formateur au planning</h2>
+        <p class="muted">Sélectionnez un formateur existant ou saisissez un nouveau nom.</p>
+      </div>
+      <button class="dialog-close" type="button" data-close-trainer-dialog aria-label="Fermer">×</button>
+    </div>
+    <div class="dialog-body">
+      <label>
+        Formateur
+        <input id="trainerName" list="trainerOptions" required autocomplete="off" placeholder="Nom et prénom du formateur">
+        <span class="dialog-help">Les formateurs déjà enregistrés sont proposés automatiquement.</span>
+      </label>
+      <div>
+        <div class="day-choice-head">
+          <strong>Journée(s) à lui affecter</strong>
+          <span><button class="text-button" id="selectAllTrainerDays" type="button">Tout sélectionner</button><button class="text-button" id="clearTrainerDays" type="button">Tout effacer</button></span>
+        </div>
+        <div id="trainerDayChoices" class="day-choices"></div>
+      </div>
+      <div class="dialog-help">L’affectation remplace le formateur actuel sur tous les créneaux des journées cochées. Pour partager une même journée entre plusieurs formateurs, modifiez ensuite la colonne « Formateur » du créneau concerné.</div>
+      <div id="trainerDialogError" class="dialog-error" role="alert"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" type="button" data-close-trainer-dialog>Annuler</button>
+      <button class="btn btn-gold" type="submit">Affecter au planning</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 const sid={{ s.id|tojson }};
@@ -120,6 +164,8 @@ function renderSummary(){
     const expected=Number(module.hours)*60,actual=totals[module.code]||0,ok=actual===expected;
     return `<div class="module-chip ${ok?'good':'bad'}"><strong>${esc(module.code)} — ${esc(module.title)}</strong><span>${formatHours(actual)} planifiées / ${module.hours} h attendues</span></div>`;
   }).join('');
+  const trainers=[...new Set(planning.flatMap(day=>(day.slots||[]).map(slot=>String(slot.trainer||'').trim())).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+  $('planningTrainers').innerHTML=trainers.length?trainers.map(name=>`<span class="trainer-chip">${esc(name)}</span>`).join(''):'<div class="empty-trainers">Aucun formateur n’est encore affecté au planning.</div>';
   $('stale').style.display=needsRegeneration?'block':'none';
 }
 
@@ -145,6 +191,7 @@ function render(){
         <button class="btn btn-small" type="button" data-apply-day="${dayIndex}" data-apply-field="trainer">Appliquer à la journée</button>
         <label>Salle de la journée <input data-day-room="${dayIndex}" value="${esc(commonDayValue(day,'room'))}" placeholder="Plusieurs salles ou aucune"></label>
         <button class="btn btn-small" type="button" data-apply-day="${dayIndex}" data-apply-field="room">Appliquer à la journée</button>
+        <button class="btn btn-small btn-outline-gold day-add-trainer" type="button" data-open-trainer-day="${dayIndex}">＋ Ajouter / changer le formateur</button>
       </div>
       <div class="table-wrap"><table><thead><tr><th>Date</th><th>Horaires</th><th>Module</th><th>Durée</th><th>Formateur</th><th>Salle</th><th>Placement initial</th></tr></thead><tbody>${rows}</tbody></table></div>
     </section>`;
@@ -162,8 +209,30 @@ function render(){
     const input=document.querySelector(field==='trainer'?`[data-day-trainer="${dayIndex}"]`:`[data-day-room="${dayIndex}"]`);
     (planning[dayIndex].slots||[]).forEach(slot=>slot[field]=input?.value||'');render();
   }));
+  document.querySelectorAll('[data-open-trainer-day]').forEach(button=>button.addEventListener('click',()=>openTrainerDialog(Number(button.dataset.openTrainerDay))));
   renderSummary();
 }
+
+function syncTrainerOptions(){
+  trainerOptions=[...new Set(trainerOptions.map(name=>String(name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+  $('trainerOptions').innerHTML=trainerOptions.map(name=>`<option value="${esc(name)}"></option>`).join('');
+}
+
+function renderTrainerDayChoices(preselectedDayIndex=null){
+  $('trainerDayChoices').innerHTML=planning.map((day,dayIndex)=>`<label class="day-choice"><input type="checkbox" name="trainerDays" value="${dayIndex}" ${dayIndex===preselectedDayIndex?'checked':''}><span><strong>${dayName(day.date)} ${formatDate(day.date)}</strong><small>${formatHours(dayMinutes(day))} · ${distinctCodes(day).size} module${distinctCodes(day).size>1?'s':''}</small></span></label>`).join('');
+}
+
+function openTrainerDialog(preselectedDayIndex=null){
+  const dialog=$('trainerDialog');
+  $('addTrainerForm').reset();
+  $('trainerDialogError').style.display='none';
+  $('trainerDialogError').textContent='';
+  renderTrainerDayChoices(preselectedDayIndex);
+  dialog.showModal();
+  window.setTimeout(()=>$('trainerName').focus(),0);
+}
+
+function closeTrainerDialog(){$('trainerDialog').close();}
 
 async function persist(regeneratePdf){
   hideNotices();
@@ -186,7 +255,7 @@ async function loadPlanning(){
     const response=await fetch(`/api/sessions/${sid}/a3p-planning`),payload=await response.json();
     if(!response.ok||!payload.ok)throw new Error(payload.error||'Chargement impossible.');
     planning=payload.planningData||[];modules=payload.modules||[];trainerOptions=payload.trainerOptions||[];maxDistinctModulesPerDay=payload.maxDistinctModulesPerDay||3;needsRegeneration=!!payload.needsRegeneration;
-    $('trainerOptions').innerHTML=trainerOptions.map(name=>`<option value="${esc(name)}"></option>`).join('');
+    syncTrainerOptions();
     render();
     if((payload.validationErrors||[]).length)showNotice('error',(payload.validationErrors||[]).join(' '));
   }catch(error){$('editor').innerHTML='';showNotice('error',error.message||'Chargement impossible.');}
@@ -194,6 +263,25 @@ async function loadPlanning(){
 
 document.querySelectorAll('[data-save]').forEach(button=>button.addEventListener('click',()=>persist(false)));
 document.querySelectorAll('[data-save-pdf]').forEach(button=>button.addEventListener('click',()=>persist(true)));
+$('openTrainerDialog').addEventListener('click',()=>openTrainerDialog());
+document.querySelectorAll('[data-close-trainer-dialog]').forEach(button=>button.addEventListener('click',closeTrainerDialog));
+$('selectAllTrainerDays').addEventListener('click',()=>document.querySelectorAll('input[name="trainerDays"]').forEach(input=>input.checked=true));
+$('clearTrainerDays').addEventListener('click',()=>document.querySelectorAll('input[name="trainerDays"]').forEach(input=>input.checked=false));
+$('addTrainerForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  const name=$('trainerName').value.trim();
+  const selectedDays=[...document.querySelectorAll('input[name="trainerDays"]:checked')].map(input=>Number(input.value)).filter(Number.isInteger);
+  const error=$('trainerDialogError');
+  if(!name||!selectedDays.length){error.textContent=!name?'Choisissez ou saisissez un formateur.':'Sélectionnez au moins une journée.';error.style.display='block';return;}
+  selectedDays.forEach(dayIndex=>(planning[dayIndex]?.slots||[]).forEach(slot=>slot.trainer=name));
+  if(!trainerOptions.some(option=>option.localeCompare(name,'fr',{sensitivity:'base'})===0))trainerOptions.push(name);
+  syncTrainerOptions();
+  needsRegeneration=true;
+  closeTrainerDialog();
+  render();
+  showNotice('success',`${name} a été affecté à ${selectedDays.length} journée${selectedDays.length>1?'s':''}. Enregistrez le planning pour conserver la modification.`);
+});
+$('trainerDialog').addEventListener('click',event=>{if(event.target===$('trainerDialog'))closeTrainerDialog();});
 loadPlanning();
 </script>
 </body>

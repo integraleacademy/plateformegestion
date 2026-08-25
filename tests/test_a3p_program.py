@@ -1,7 +1,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import pytest
-from a3p_program import generateA3pSchedule, validate_a3p_planning, A3P_FORBIDDEN_TERMS, A3P_MAX_DISTINCT_MODULES_PER_DAY
+from a3p_program import generateA3pSchedule, merge_adjacent_a3p_slots, validate_a3p_planning, A3P_FORBIDDEN_TERMS, A3P_MAX_DISTINCT_MODULES_PER_DAY
 
 def days(n=48):
     import datetime as dt
@@ -104,6 +104,33 @@ def test_a3p_auto_completion_extends_standard_days_up_to_eight_hours():
         for slot in day["slots"]
     )
     assert all(sum(slot["durationMinutes"] for slot in day["slots"]) <= 480 for day in result["planning"])
+    assert all(
+        not (
+            previous["end"] == current["start"]
+            and previous["code"] == current["code"]
+            and previous.get("trainer") == current.get("trainer")
+            and previous.get("room") == current.get("room")
+        )
+        for day in result["planning"]
+        for previous, current in zip(day["slots"], day["slots"][1:])
+    )
+
+
+def test_a3p_adjacent_identical_slots_are_merged_without_merging_different_trainers():
+    slots = [
+        {"code": "UV8", "title": "Gestion des risques", "start": "13:30", "end": "17:00", "durationMinutes": 210, "trainer": "Alice Martin", "room": "Salle 1", "locked": False},
+        {"code": "UV8", "title": "Gestion des risques", "start": "17:00", "end": "18:00", "durationMinutes": 60, "trainer": "Alice Martin", "room": "Salle 1", "locked": False},
+        {"code": "UV8", "title": "Gestion des risques", "start": "18:00", "end": "19:00", "durationMinutes": 60, "trainer": "Bruno Dupont", "room": "Salle 1", "locked": False},
+    ]
+
+    merged = merge_adjacent_a3p_slots(slots)
+
+    assert len(merged) == 2
+    assert merged[0]["start"] == "13:30"
+    assert merged[0]["end"] == "18:00"
+    assert merged[0]["durationMinutes"] == 270
+    assert merged[1]["trainer"] == "Bruno Dupont"
+    assert slots[0]["end"] == "17:00"
 
 
 def test_a3p_final_error_reports_missing_hours_after_eight_hour_capacity():
@@ -219,6 +246,15 @@ def test_a3p_planning_pdf_day_titles_include_exact_dates(tmp_path):
     # Simulate an older stored planning whose dayLabel only contains the weekday:
     # the PDF must still use the exact ISO date from the generated A3P slots.
     result["planning"][0]["dayLabel"] = "Lundi"
+    split_day = next(day for day in result["planning"] if any(slot["durationMinutes"] >= 120 for slot in day["slots"]))
+    split_index = next(index for index, slot in enumerate(split_day["slots"]) if slot["durationMinutes"] >= 120)
+    original_slot = split_day["slots"][split_index]
+    original_start, original_end = original_slot["start"], original_slot["end"]
+    split_minute = __import__("a3p_program")._minutes(original_start) + 37
+    split_time = hhmm_for_test(split_minute)
+    first_half = {**original_slot, "end": split_time, "durationMinutes": 37}
+    second_half = {**original_slot, "start": split_time, "durationMinutes": original_slot["durationMinutes"] - 37}
+    split_day["slots"][split_index:split_index + 1] = [first_half, second_half]
     output = tmp_path / "planning_a3p.pdf"
 
     generate_a3p_planning_pdf({
@@ -238,6 +274,9 @@ def test_a3p_planning_pdf_day_titles_include_exact_dates(tmp_path):
     assert "Lundi — 7h" not in text
     assert "Période 2" not in text
     assert "Programme" in text
+    assert f"{original_start} - {original_end}" in text
+    assert f"{original_start} - {split_time}" not in text
+    assert f"{split_time} - {original_end}" not in text
 
 
 def test_a3p_july_14_2026_is_excluded_and_schedule_reaches_august_4():

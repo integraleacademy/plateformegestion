@@ -34,6 +34,51 @@ def _slot_minutes(start: str, end: str) -> int:
         raise ValueError(f"Horaire invalide: {start}-{end}")
     return e - s
 
+
+def _a3p_slot_merge_key(slot):
+    """Return the teaching identity that must stay unchanged across a merged slot."""
+    locked = bool(slot.get("locked"))
+    placement_mode = slot.get("placementMode") or ("manuel" if locked else "automatique")
+    return (
+        str(slot.get("code") or slot.get("uv") or "").strip().upper(),
+        str(slot.get("trainer") or "").strip(),
+        str(slot.get("room") or "").strip(),
+        locked,
+        placement_mode,
+    )
+
+
+def merge_adjacent_a3p_slots(slots):
+    """Merge contiguous A3P rows when they describe the exact same teaching block."""
+    merged = []
+    for raw_slot in slots or []:
+        slot = dict(raw_slot)
+        previous = merged[-1] if merged else None
+        if (
+            previous
+            and previous.get("end") == slot.get("start")
+            and _a3p_slot_merge_key(previous) == _a3p_slot_merge_key(slot)
+        ):
+            previous["end"] = slot.get("end")
+            previous["durationMinutes"] = _slot_minutes(previous.get("start"), previous.get("end"))
+            if "duration" in previous or "duration" in slot:
+                previous["duration"] = round(previous["durationMinutes"] / 60, 2)
+            if not previous.get("title") and slot.get("title"):
+                previous["title"] = slot.get("title")
+            continue
+        merged.append(slot)
+    return merged
+
+
+def compact_a3p_planning(planning):
+    """Return a non-mutating copy of a planning with redundant adjacent rows merged."""
+    compacted = []
+    for raw_day in planning or []:
+        day = dict(raw_day)
+        day["slots"] = merge_adjacent_a3p_slots(raw_day.get("slots") or [])
+        compacted.append(day)
+    return compacted
+
 def _day_label(iso: str) -> str:
     d = datetime.strptime(iso, "%Y-%m-%d").date()
     weekday = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"][d.weekday()]
@@ -308,6 +353,7 @@ def generateA3pSchedule(config):
     if any(m["remaining"] for m in modules):
         missing = round(_remaining_minutes(modules) / 60, 2)
         raise ValueError(f"Impossible de générer entièrement le planning : il manque {missing:g} heures. Ajoutez des dates disponibles ou libérez des créneaux.")
+    planning = compact_a3p_planning(planning)
     errors, summary = validate_a3p_planning(planning, config.get("examDate"))
     if errors: raise ValueError(" ".join(errors))
     return {"planning": planning, "summary": summary}

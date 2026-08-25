@@ -36,7 +36,7 @@ from werkzeug.utils import secure_filename
 from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
-from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, generateA3pSchedule, validate_a3p_planning, is_a3p_non_working_day
+from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, compact_a3p_planning, generateA3pSchedule, merge_adjacent_a3p_slots, validate_a3p_planning, is_a3p_non_working_day
 from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
 
 from services.afc_france_travail_attendance import (
@@ -1541,7 +1541,7 @@ def _a3p_full_day_label(iso_date):
 
 def _a3p_planning_as_aps_data(planning):
     converted = []
-    for day in planning or []:
+    for day in compact_a3p_planning(planning):
         converted.append({"date": day.get("date"), "dayLabel": _a3p_full_day_label(day.get("date")), "slots": [_a3p_slot_to_aps_slot(slot) for slot in day.get("slots", [])]})
     return converted
 
@@ -1568,7 +1568,7 @@ def _a3p_session_for_shared_docs(session_data):
     return copied, converted
 
 def generate_a3p_planning_pdf(session_data, output_path):
-    planning = session_data.get("a3pPlanningData") or []
+    planning = compact_a3p_planning(session_data.get("a3pPlanningData") or [])
     errors, summary = validate_a3p_planning(planning, session_data.get("date_exam"))
     if errors:
         raise ValueError(" ".join(errors))
@@ -8262,6 +8262,7 @@ def normalize_a3p_editor_planning(planning_data):
                 "room": str(raw_slot.get("room") or "").strip(),
             })
         slots.sort(key=lambda slot: _a3p_editor_time_minutes(slot["start"]))
+        slots = merge_adjacent_a3p_slots(slots)
         normalized.append({"date": date_value, "dayLabel": _a3p_full_day_label(date_value), "slots": slots})
     normalized.sort(key=lambda day: day.get("date") or "")
     return normalized
@@ -8303,7 +8304,7 @@ def get_a3p_planning_api(sid):
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
     if (session_data.get("formation") or "").upper() != "A3P":
         return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
-    planning_data = session_data.get("a3pPlanningData") or []
+    planning_data = compact_a3p_planning(session_data.get("a3pPlanningData") or [])
     errors, summary = validate_a3p_planning(planning_data, session_data.get("date_exam"))
     return jsonify({
         "ok": True,

@@ -113,6 +113,33 @@ def test_a3p_editor_api_persists_per_slot_trainer_and_recalculates_duration(monk
     assert session["a3pPlanningNeedsRegeneration"] is True
 
 
+def test_a3p_editor_api_compacts_adjacent_identical_slots_from_existing_planning(monkeypatch):
+    session = _session("a3p-adjacent-slots")
+    day = next(day for day in session["a3pPlanningData"] if any(slot["durationMinutes"] >= 120 for slot in day["slots"]))
+    index = next(index for index, slot in enumerate(day["slots"]) if slot["durationMinutes"] >= 120)
+    original = day["slots"][index]
+    split_minutes = app._a3p_editor_time_minutes(original["start"]) + 45
+    split = f"{split_minutes // 60:02d}:{split_minutes % 60:02d}"
+    day["slots"][index:index + 1] = [
+        {**original, "end": split, "durationMinutes": 45},
+        {**original, "start": split, "durationMinutes": original["durationMinutes"] - 45},
+    ]
+    data = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(app, "load_sessions", lambda: data)
+    monkeypatch.setattr(app, "load_formateurs", lambda: [])
+
+    app.app.config.update(TESTING=True, SECRET_KEY="test")
+    with app.app.test_client() as client:
+        _login(client)
+        response = client.get("/api/sessions/a3p-adjacent-slots/a3p-planning")
+
+    assert response.status_code == 200
+    returned_day = next(item for item in response.get_json()["planningData"] if item["date"] == day["date"])
+    merged = next(slot for slot in returned_day["slots"] if slot["start"] == original["start"])
+    assert merged["end"] == original["end"]
+    assert merged["durationMinutes"] == original["durationMinutes"]
+
+
 def test_a3p_editor_api_rejects_four_distinct_modules_on_one_day(monkeypatch):
     session = _session("a3p-four-modules")
     original = deepcopy(session["a3pPlanningData"])

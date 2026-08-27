@@ -1586,7 +1586,10 @@ def generate_a3p_attendance_pdf(session_data, output_path):
 
 def _a3p_trainer_contract_data(session_data, contract):
     shared_session, converted = _a3p_session_for_shared_docs(session_data)
-    trainer_name = session_data.get("a3pTrainerName") or contract.get("trainerName") or ""
+    # A3P peut désormais avoir plusieurs formateurs dans un même planning.
+    # Le nom porté par le contrat doit donc primer sur l'ancien formateur global
+    # de la session, conservé uniquement comme valeur de repli.
+    trainer_name = contract.get("planningName") or contract.get("trainerName") or session_data.get("a3pTrainerName") or ""
     contract = merge_formateur_contract_defaults(contract, find_formateur_by_identity(name=trainer_name, email=contract.get("trainerEmail") or contract.get("email") or contract.get("trainerEmail")))
     interventions = aps_trainer_interventions(converted, trainer_name)
     daily = float(contract.get("dailyRate") or 0)
@@ -6622,6 +6625,7 @@ def session_detail(sid):
     ensure_global_jury_defaults(data)
     sync_global_jurys(data)
     sync_steps(session)
+    migrate_legacy_a3p_trainer_contract(session)
     save_sessions(data)
 
     statuses = []
@@ -7380,23 +7384,169 @@ def generate_aps_planning_route(sid):
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+TRAINER_CONTRACT_SUPPORTED_FORMATIONS = {"APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"}
+
+
+def is_trainer_contract_session(session_data):
+    formation = (session_data.get("formation") or "").upper()
+    return formation in TRAINER_CONTRACT_SUPPORTED_FORMATIONS or is_ssiap1_session(session_data)
+
+
+def trainer_contract_formation_label(session_data):
+    formation = (session_data.get("formation") or "").upper()
+    if formation == "A3P":
+        return "A3P"
+    if is_ssiap1_session(session_data):
+        return "SSIAP 1"
+    if formation == "AFC_APS_SSIAP":
+        return "AFC APS + SSIAP"
+    return formation or "formation"
+
+
+def trainer_contract_planning_data(session_data):
+    if (session_data.get("formation") or "").upper() == "A3P":
+        _shared_session, converted = _a3p_session_for_shared_docs(session_data)
+        return converted
+    return session_data.get("apsPlanningData") or []
+
+
+def trainer_contract_planning_ready(session_data):
+    planning_data = trainer_contract_planning_data(session_data)
+    if (session_data.get("formation") or "").upper() == "A3P":
+        return bool(session_data.get("a3pPlanningData") and planning_data)
+    return bool(session_data.get("planning_pdf") and planning_data)
+
+
+def trainer_contracts_key(session_data):
+    return "a3pTrainerContracts" if (session_data.get("formation") or "").upper() == "A3P" else "apsTrainerContracts"
+
+
+def session_trainer_contracts(session_data):
+    return session_data.get(trainer_contracts_key(session_data)) or []
+
+
+def find_session_trainer_contract(session_data, contract_id):
+    return next((contract for contract in session_trainer_contracts(session_data) if contract.get("id") == contract_id), None)
+
+
+def trainer_contract_directory(session_data):
+    return A3P_DOC_DIR if (session_data.get("formation") or "").upper() == "A3P" else APS_CONTRACT_DIR
+
+
+def trainer_contract_pdf_prefix(session_data):
+    return "contrat_formateur_a3p" if (session_data.get("formation") or "").upper() == "A3P" else "contrat_formateur_aps"
+
+
+def generate_session_trainer_contract_pdf(session_data, contract, output_path):
+    if (session_data.get("formation") or "").upper() == "A3P":
+        return generate_a3p_trainer_contract_pdf(session_data, contract, output_path)
+    return generate_aps_trainer_contract_pdf(session_data, contract, output_path)
+
+
+def trainer_contract_defaults_for_session(session_data, trainer_name):
+    defaults = formateur_contract_defaults(find_formateur_by_identity(name=trainer_name))
+    if (session_data.get("formation") or "").upper() != "A3P":
+        return defaults
+    builder_state = session_data.get("a3pPlanningBuilder") or session_data.get("a3pPlanningDraftJson") or {}
+    draft = builder_state.get("scheduleConfig") or builder_state
+    session_defaults = {
+        "email": draft.get("trainerEmail") or session_data.get("a3pTrainerEmail"),
+        "phone": draft.get("trainerPhone") or session_data.get("a3pTrainerPhone"),
+        "address": draft.get("trainerAddress"),
+        "siret": draft.get("trainerCompany"),
+        "dailyRate": draft.get("dailyRate"),
+    }
+    return {**defaults, **{key: value for key, value in session_defaults.items() if value not in (None, "")}}
+
+
+def ensure_trainer_contract_planning_pdf(session_data):
+    if (session_data.get("formation") or "").upper() != "A3P":
+        planning_name = session_data.get("planning_pdf")
+        planning_path = os.path.join(PLANNING_DIR, os.path.basename(planning_name or ""))
+        if not planning_name or not os.path.exists(planning_path):
+            raise FileNotFoundError("PDF planning complet introuvable.")
+        return planning_path
+
+    planning_path = a3p_document_path(session_data, "planning")
+    if planning_path and os.path.exists(planning_path):
+        return planning_path
+    filename = os.path.basename(session_data.get("a3pPlanningFilename") or f"planning_a3p_session_{session_data.get('id') or 'session'}.pdf")
+    planning_path = os.path.join(A3P_DOC_DIR, filename)
+    generate_a3p_planning_pdf(session_data, planning_path)
+    session_data["a3pPlanningFilename"] = filename
+    session_data["a3pPlanningPdfUrl"] = url_for("view_a3p_document", sid=session_data.get("id"), kind="planning")
+    session_data.setdefault("a3p_documents", {})["planning"] = {
+        "path": planning_path,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    return planning_path
+
+
+def migrate_legacy_a3p_trainer_contract(session_data):
+    """Expose l'ancien contrat A3P simple dans le cycle complet APS/Yousign."""
+    if (session_data.get("formation") or "").upper() != "A3P":
+        return False
+    legacy = session_data.get("a3pTrainerContract")
+    if not isinstance(legacy, dict) or not legacy:
+        return False
+
+    contract_id = legacy.get("id") or str(uuid.uuid4())
+    legacy["id"] = contract_id
+    contracts = session_data.setdefault("a3pTrainerContracts", [])
+    if any(contract.get("id") == contract_id for contract in contracts):
+        return False
+
+    trainer_name = (legacy.get("planningName") or legacy.get("trainerName") or session_data.get("a3pTrainerName") or "").strip()
+    draft_defaults = trainer_contract_defaults_for_session(session_data, trainer_name)
+    seed = dict(legacy)
+    seed.update({
+        "trainerName": trainer_name,
+        "planningName": trainer_name,
+        "trainerEmail": legacy.get("trainerEmail") or session_data.get("a3pTrainerEmail") or draft_defaults.get("email") or "",
+        "trainerPhone": legacy.get("trainerPhone") or draft_defaults.get("phone") or "",
+        "address": legacy.get("address") or draft_defaults.get("address") or "",
+        "siret": legacy.get("siret") or draft_defaults.get("siret") or "",
+        "dailyRate": legacy.get("dailyRate") or draft_defaults.get("dailyRate") or 0,
+    })
+    _shared_session, payload = _a3p_trainer_contract_data(session_data, seed)
+    interventions = payload.get("interventions") or []
+    document_path = a3p_document_path(session_data, "contract")
+    state_source = {**legacy, **(legacy.get("yousign") or {})}
+    contract = {
+        **payload,
+        "id": contract_id,
+        "trainerName": trainer_name,
+        "planningName": trainer_name,
+        "trainerEmail": (seed.get("trainerEmail") or payload.get("trainerEmail") or payload.get("email") or "").strip(),
+        "trainerPhone": (seed.get("trainerPhone") or payload.get("trainerPhone") or payload.get("phone") or "").strip(),
+        "calendarDays": len({row.get("date") for row in interventions if row.get("date")}),
+        "pdfFilename": legacy.get("pdfFilename") or (os.path.basename(document_path) if document_path else ""),
+        "pdfUrl": url_for("view_aps_trainer_contract", sid=session_data.get("id"), contract_id=contract_id),
+        "generatedAt": legacy.get("generatedAt") or session_data.get("a3pDocumentsGeneratedAt") or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "sentAt": legacy.get("sentAt"),
+        "yousign": normalize_yousign_state(state_source),
+    }
+    mirror_yousign_state_on_contract(contract)
+    contracts.append(contract)
+    return True
+
+
 @app.get("/api/sessions/<sid>/aps-trainer-contracts/preview")
 def preview_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    planning_data = session_data.get("apsPlanningData") or []
-    if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
+    if not is_trainer_contract_session(session_data): return jsonify({"ok": False, "error": "Cette session ne permet pas de générer un contrat formateur."}), 400
+    planning_data = trainer_contract_planning_data(session_data)
+    if not trainer_contract_planning_ready(session_data): return jsonify({"ok": False, "error": "Veuillez générer le planning avant de générer un contrat formateur."}), 400
     trainers = []
     for name in aps_detect_trainers(planning_data):
         calc = aps_trainer_interventions(planning_data, name)
-        formateur = find_formateur_by_identity(name=name)
-        trainers.append({"name": name, **calc, "defaults": formateur_contract_defaults(formateur)})
+        trainers.append({"name": name, **calc, "defaults": trainer_contract_defaults_for_session(session_data, name)})
     return jsonify({"ok": True, "trainers": trainers})
 
 
 def ensure_aps_trainer_contract_pdf(session_data, contract):
-    """Return the local APS trainer contract PDF path, regenerating it if needed.
+    """Return the local trainer contract PDF path, regenerating it if needed.
 
     Render's filesystem can be reset between deployments/restarts while the
     session metadata remains in persistent storage. In that case, existing
@@ -7404,12 +7554,13 @@ def ensure_aps_trainer_contract_pdf(session_data, contract):
     """
     filename = os.path.basename(contract.get("pdfFilename") or "")
     if not filename:
-        filename = f"contrat_formateur_aps_{session_data.get('id') or 'session'}_{contract.get('id') or uuid.uuid4()}.pdf"
+        filename = f"{trainer_contract_pdf_prefix(session_data)}_{session_data.get('id') or 'session'}_{contract.get('id') or uuid.uuid4()}.pdf"
         contract["pdfFilename"] = filename
-    path = os.path.join(APS_CONTRACT_DIR, filename)
+    contract_dir = trainer_contract_directory(session_data)
+    path = os.path.join(contract_dir, filename)
     if not os.path.exists(path):
-        os.makedirs(APS_CONTRACT_DIR, exist_ok=True)
-        generate_aps_trainer_contract_pdf(session_data, contract, path)
+        os.makedirs(contract_dir, exist_ok=True)
+        generate_session_trainer_contract_pdf(session_data, contract, path)
     return path
 
 
@@ -7417,13 +7568,15 @@ def ensure_aps_trainer_contract_pdf(session_data, contract):
 def view_aps_trainer_contract(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: abort(404)
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: abort(404)
     try:
         path = ensure_aps_trainer_contract_pdf(session_data, contract)
     except Exception:
-        app.logger.exception("Régénération contrat APS impossible session=%s contrat=%s", sid, contract_id)
+        app.logger.exception("Régénération contrat formateur impossible session=%s contrat=%s", sid, contract_id)
         abort(404)
+    save_sessions(data)
     return send_file(path, mimetype="application/pdf", as_attachment=False)
 
 
@@ -7431,11 +7584,12 @@ def view_aps_trainer_contract(sid, contract_id):
 def generate_aps_trainer_contracts(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    if (session_data.get("formation") or "").upper() not in {"APS", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"} and not is_ssiap1_session(session_data): return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
+    if not is_trainer_contract_session(session_data): return jsonify({"ok": False, "error": "Cette session ne permet pas de générer un contrat formateur."}), 400
+    migrate_legacy_a3p_trainer_contract(session_data)
     if not parse_date(session_data.get("date_debut")):
         return jsonify({"ok": False, "error": "Impossible de générer le contrat : la date officielle de début de session est absente ou invalide."}), 400
-    planning_data = session_data.get("apsPlanningData") or []
-    if not session_data.get("planning_pdf") or not planning_data: return jsonify({"ok": False, "error": "Veuillez générer le planning APS avant de générer un contrat formateur."}), 400
+    planning_data = trainer_contract_planning_data(session_data)
+    if not trainer_contract_planning_ready(session_data): return jsonify({"ok": False, "error": "Veuillez générer le planning avant de générer un contrat formateur."}), 400
     payload = request.get_json(silent=True) or {}; trainers = payload.get("trainers") or []
     if not trainers: return jsonify({"ok": False, "error": "Aucun formateur sélectionné."}), 400
     saved = []
@@ -7451,25 +7605,31 @@ def generate_aps_trainer_contracts(sid):
         exam_trainer_amount = round(float(trainer.get("examTrainerAmount") or trainer.get("exam_trainer_amount") or (exam_trainer_hours * exam_trainer_rate) or 0), 2) if trainer_attends_exam else 0.0
         vat_enabled = bool(trainer.get("vatEnabled")); vat_rate = float(trainer.get("vatRate") or 20)
         total_ht = round((billed_days * daily_rate) + exam_trainer_amount, 2); vat_amount = round(total_ht * vat_rate / 100, 2) if vat_enabled else 0; total_ttc = round(total_ht + vat_amount, 2)
-        contract_id = str(uuid.uuid4()); filename = f"contrat_formateur_aps_{sid}_{contract_id}.pdf"; path = os.path.join(APS_CONTRACT_DIR, filename)
+        contract_id = str(uuid.uuid4()); filename = f"{trainer_contract_pdf_prefix(session_data)}_{sid}_{contract_id}.pdf"; path = os.path.join(trainer_contract_directory(session_data), filename)
         trainer = merge_formateur_contract_defaults(trainer, find_formateur_by_identity(name=name, email=trainer.get("email")))
-        contract = {"id": contract_id, "trainerName": name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "trainerAttendsExam": trainer_attends_exam, "examTrainerHours": exam_trainer_hours, "examTrainerRate": exam_trainer_rate, "examTrainerAmount": exam_trainer_amount, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
-        generate_aps_trainer_contract_pdf(session_data, contract, path)
-        existing_contracts = session_data.setdefault("apsTrainerContracts", [])
+        contract = {"id": contract_id, "trainerName": name, "planningName": planning_name, "trainerEmail": (trainer.get("email") or "").strip(), "trainerPhone": (trainer.get("phone") or "").strip(), "dailyRate": daily_rate, "calculatedHours": calc["totalHours"], "calendarDays": calc["calendarDays"], "calculatedDays": calc["calculatedDays"], "billedDays": billed_days, "trainerAttendsExam": trainer_attends_exam, "examTrainerHours": exam_trainer_hours, "examTrainerRate": exam_trainer_rate, "examTrainerAmount": exam_trainer_amount, "totalHT": total_ht, "vatEnabled": vat_enabled, "vatRate": vat_rate, "vatAmount": vat_amount, "totalTTC": total_ttc, "address": (trainer.get("address") or "").strip(), "siret": (trainer.get("siret") or "").strip(), "status": (trainer.get("status") or "").strip(), "commercialName": (trainer.get("commercialName") or "").strip(), "activityDeclaration": (trainer.get("activityDeclaration") or "").strip(), "vatNumber": (trainer.get("vatNumber") or "").strip(), "vatMention": (trainer.get("vatMention") or "").strip(), "rcPro": (trainer.get("rcPro") or "").strip(), "urssafVigilance": (trainer.get("urssafVigilance") or "").strip(), "rneKbis": (trainer.get("rneKbis") or "").strip(), "rib": (trainer.get("rib") or "").strip(), "diplomas": (trainer.get("diplomas") or "").strip(), "cv": (trainer.get("cv") or "").strip(), "interventions": calc["interventions"], "pdfFilename": filename, "pdfUrl": url_for("view_aps_trainer_contract", sid=sid, contract_id=contract_id), "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sentAt": None}
+        contract["yousign"] = normalize_yousign_state()
+        mirror_yousign_state_on_contract(contract)
+        generate_session_trainer_contract_pdf(session_data, contract, path)
+        contracts_key = trainer_contracts_key(session_data)
+        existing_contracts = session_data.setdefault(contracts_key, [])
         kept_contracts = []
         for existing in existing_contracts:
             existing_planning_name = (existing.get("planningName") or existing.get("trainerName") or "").strip()
             if existing_planning_name == planning_name:
-                old_path = os.path.join(APS_CONTRACT_DIR, os.path.basename(existing.get("pdfFilename") or ""))
+                old_path = os.path.join(trainer_contract_directory(session_data), os.path.basename(existing.get("pdfFilename") or ""))
                 if old_path != path and os.path.exists(old_path):
                     try:
                         os.remove(old_path)
                     except OSError:
-                        app.logger.warning("Suppression ancien contrat APS impossible: %s", old_path)
+                        app.logger.warning("Suppression ancien contrat formateur impossible: %s", old_path)
             else:
                 kept_contracts.append(existing)
         kept_contracts.append(contract)
-        session_data["apsTrainerContracts"] = kept_contracts
+        session_data[contracts_key] = kept_contracts
+        if (session_data.get("formation") or "").upper() == "A3P":
+            session_data["a3pTrainerContract"] = contract
+            session_data.setdefault("a3p_documents", {})["contract"] = {"path": path, "generated_at": contract["generatedAt"]}
         saved.append(contract)
     save_sessions(data)
     return jsonify({"ok": True, "contracts": saved})
@@ -7479,17 +7639,21 @@ def generate_aps_trainer_contracts(sid):
 def send_aps_trainer_contract(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     if not contract.get("trainerEmail"): return jsonify({"ok": False, "error": "Email formateur manquant."}), 400
     try:
         contract_path = ensure_aps_trainer_contract_pdf(session_data, contract)
     except Exception as exc:
-        app.logger.exception("Régénération contrat APS impossible avant envoi mail session=%s contrat=%s", sid, contract_id)
+        app.logger.exception("Régénération contrat formateur impossible avant envoi mail session=%s contrat=%s", sid, contract_id)
         return jsonify({"ok": False, "error": f"PDF contrat introuvable et régénération impossible: {exc}"}), 400
-    planning_name = session_data.get("planning_pdf"); planning_path = os.path.join(PLANNING_DIR, os.path.basename(planning_name or ""))
-    if not planning_name or not os.path.exists(planning_path): return jsonify({"ok": False, "error": "PDF planning APS complet introuvable."}), 400
-    payload = request.get_json(silent=True) or {}; subject = payload.get("emailSubject") or "Contrat d’intervention formateur — Session APS"; body = payload.get("emailBody") or ""
+    try:
+        planning_path = ensure_trainer_contract_planning_pdf(session_data)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"PDF planning complet introuvable: {exc}"}), 400
+    formation_label = trainer_contract_formation_label(session_data)
+    payload = request.get_json(silent=True) or {}; subject = payload.get("emailSubject") or f"Contrat d’intervention formateur — Session {formation_label}"; body = payload.get("emailBody") or ""
     ok, message = send_email_with_attachments(contract["trainerEmail"], subject, body, [(contract_path, os.path.basename(contract_path)), (planning_path, os.path.basename(planning_path))])
     if not ok: return jsonify({"ok": False, "error": message}), 500
     contract["sentAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); save_sessions(data)
@@ -7520,7 +7684,7 @@ YOUSIGN_APS_TRAINER_NO_FIELD_ERROR = "Le signataire Yousign a été créé mais 
 def yousign_trainer_signature_page(pdf_info):
     page_count = int(pdf_info.get("page_count") or 0)
     if page_count < 1:
-        raise YousignError("Nombre de pages du PDF APS introuvable: activation Yousign refusée.")
+        raise YousignError("Nombre de pages du contrat formateur introuvable: activation Yousign refusée.")
     return page_count
 
 
@@ -7542,7 +7706,8 @@ def validate_aps_trainer_signature_field(field_payload, page_count):
 def send_aps_trainer_contract_yousign(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     email = (contract.get("trainerEmail") or "").strip()
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email): return jsonify({"ok": False, "error": "Email formateur invalide ou manquant."}), 400
@@ -7555,21 +7720,24 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
     try:
         contract_path = ensure_aps_trainer_contract_pdf(session_data, contract)
     except Exception as exc:
-        app.logger.exception("Régénération contrat APS impossible avant envoi Yousign session=%s contrat=%s", sid, contract_id)
+        app.logger.exception("Régénération contrat formateur impossible avant envoi Yousign session=%s contrat=%s", sid, contract_id)
         return jsonify({"ok": False, "error": f"PDF contrat introuvable et régénération impossible: {exc}"}), 400
 
     client = YousignClient()
     now = datetime.now().isoformat(timespec="seconds")
     try:
         trainer_name = contract.get("trainerName") or email
-        external_id = sanitize_yousign_external_id(f"aps-trainer-contract-{contract_id}")
-        app.logger.info("Yousign APS trainer contract external_id=%s", external_id)
-        signature_request = client.create_signature_request(f"Contrat formateur APS - {trainer_name}", external_id=external_id)
+        formation_label = trainer_contract_formation_label(session_data)
+        external_prefix = "a3p" if formation_label == "A3P" else "aps"
+        external_id = sanitize_yousign_external_id(f"{external_prefix}-trainer-contract-{contract_id}")
+        app.logger.info("Yousign trainer contract formation=%s external_id=%s", formation_label, external_id)
+        signature_request = client.create_signature_request(f"Contrat formateur {formation_label} - {trainer_name}", external_id=external_id)
         signature_request_id = signature_request.get("id")
         try:
             pdf_info = inspect_yousign_pdf_before_upload(contract_path)
             app.logger.info(
-                "Yousign APS trainer PDF before upload path=%s size=%s signature_tag_present=%s page_count=%s",
+                "Yousign trainer PDF before upload formation=%s path=%s size=%s signature_tag_present=%s page_count=%s",
+                formation_label,
                 pdf_info["path"], pdf_info["size"], pdf_info["signature_tag_present"], pdf_info["page_count"]
             )
         except Exception as exc:
@@ -7578,7 +7746,7 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
         with open(contract_path, "rb") as pdf_file:
             document = client.upload_file(signature_request_id, pdf_file.read(), os.path.basename(contract_path), parse_anchors=False)
         document_id = document.get("id")
-        app.logger.info("Yousign APS trainer document uploaded document_id=%s", document_id)
+        app.logger.info("Yousign trainer document uploaded formation=%s document_id=%s", formation_label, document_id)
         name_parts = str(trainer_name).split()
         first_name = name_parts[0] if len(name_parts) > 1 else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else trainer_name
@@ -7641,7 +7809,8 @@ def send_aps_trainer_contract_yousign(sid, contract_id):
 def sync_aps_trainer_contract_yousign(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     state = normalize_yousign_state(contract.get("yousign"))
     signature_request_id = state.get("signatureRequestId")
@@ -7693,13 +7862,15 @@ def save_yousign_signed_document(content, target_dir, base_filename):
 def download_aps_trainer_signed_yousign(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     state = normalize_yousign_state(contract.get("yousign"))
     if not state.get("signatureRequestId"): return jsonify({"ok": False, "error": "Aucune demande Yousign disponible."}), 400
     try:
         content = YousignClient().download_signed_documents(state["signatureRequestId"])
-        filename = save_yousign_signed_document(content, APS_CONTRACT_SIGNED_DIR, f"contrat_aps_signe_yousign_{state['signatureRequestId']}")
+        formation_prefix = "a3p" if (session_data.get("formation") or "").upper() == "A3P" else "aps"
+        filename = save_yousign_signed_document(content, APS_CONTRACT_SIGNED_DIR, f"contrat_{formation_prefix}_signe_yousign_{state['signatureRequestId']}")
         contract["yousign"] = normalize_yousign_state({**state, "signedDocumentFilename": filename, "signedDocumentUrl": url_for("download_aps_trainer_signed_yousign_file", filename=filename), "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
         mirror_yousign_state_on_contract(contract)
         save_sessions(data)
@@ -7717,7 +7888,8 @@ def download_aps_trainer_signed_yousign_file(filename):
 def update_aps_trainer_contract_email(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     payload = request.get_json(silent=True) or {}
     email = (payload.get("email") or "").strip()
@@ -7737,7 +7909,8 @@ def update_aps_trainer_contract_email(sid, contract_id):
 def update_aps_trainer_contract_phone(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contract = next((c for c in session_data.get("apsTrainerContracts", []) if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contract = find_session_trainer_contract(session_data, contract_id)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     payload = request.get_json(silent=True) or {}
     phone = (payload.get("phone") or "").strip()
@@ -7755,12 +7928,17 @@ def update_aps_trainer_contract_phone(sid, contract_id):
 def delete_aps_trainer_contract(sid, contract_id):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
-    contracts = session_data.get("apsTrainerContracts", []); contract = next((c for c in contracts if c.get("id") == contract_id), None)
+    migrate_legacy_a3p_trainer_contract(session_data)
+    contracts_key = trainer_contracts_key(session_data)
+    contracts = session_data.get(contracts_key, []); contract = next((c for c in contracts if c.get("id") == contract_id), None)
     if not contract: return jsonify({"ok": False, "error": "Contrat introuvable."}), 404
     if contract.get("pdfFilename"):
-        try: os.remove(os.path.join(APS_CONTRACT_DIR, os.path.basename(contract["pdfFilename"])))
+        try: os.remove(os.path.join(trainer_contract_directory(session_data), os.path.basename(contract["pdfFilename"])))
         except FileNotFoundError: pass
-    session_data["apsTrainerContracts"] = [c for c in contracts if c.get("id") != contract_id]
+    session_data[contracts_key] = [c for c in contracts if c.get("id") != contract_id]
+    if (session_data.get("formation") or "").upper() == "A3P" and (session_data.get("a3pTrainerContract") or {}).get("id") == contract_id:
+        session_data.pop("a3pTrainerContract", None)
+        (session_data.get("a3p_documents") or {}).pop("contract", None)
     save_sessions(data)
     return jsonify({"ok": True})
 
@@ -8052,27 +8230,24 @@ def generate_a3p_documents(sid):
         else:
             result=generateA3pSchedule(cfg); planning=result["planning"]; summary=result["summary"]
         trainer=((cfg.get("trainerFirstName") or "")+" "+(cfg.get("trainerLastName") or "")).strip() or cfg.get("trainerName") or session_data.get("a3pTrainerName") or ""
-        if not trainer: return jsonify({"ok":False,"error":"Nom et prénom du formateur obligatoires pour le contrat formateur."}),400
+        if not trainer: return jsonify({"ok":False,"error":"Nom et prénom du formateur obligatoires pour le planning."}),400
         session_data.update({"a3pPlanningData":planning,"a3pPlanningSummary":summary,"a3pTrainerName":trainer,"a3pRoom":cfg.get("room") or session_data.get("a3pRoom") or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS","date_debut":cfg.get("startDate") or session_data.get("date_debut"),"date_fin":cfg.get("endDate") or session_data.get("date_fin"),"date_exam":cfg.get("examDate") or session_data.get("date_exam")})
         app.logger.info("Génération documents A3P session_id=%s lignes_planning=%s", sid, sum(len(d.get("slots", [])) for d in planning))
         now=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         docs=[]
-        a3p_documents = {}
+        # Le contrat suit désormais le même cycle autonome que pour APS. Une
+        # régénération du planning ne doit jamais écraser un contrat déjà signé.
+        existing_contract_document = (session_data.get("a3p_documents") or {}).get("contract")
+        a3p_documents = {"contract": existing_contract_document} if existing_contract_document else {}
         for kind, key, fname in (("planning","a3pPlanningPdfUrl",f"planning_a3p_session_{sid}.pdf"),("attendance","a3pAttendanceSheetsPdfUrl",f"feuilles_presence_a3p_{sid}.pdf")):
             path=os.path.join(A3P_DOC_DIR,fname); generate_a3p_planning_pdf(session_data, path) if kind == "planning" else generate_a3p_attendance_pdf(session_data, path)
             session_data[key]=url_for("view_a3p_document", sid=sid, kind=kind); session_data[key.replace("Url","Filename")]=fname
             a3p_documents[kind] = {"path": path, "generated_at": now}
             docs.append({"kind":kind,"path":path})
-        contract_payload=payload.get("contract") or cfg
-        cid=str(uuid.uuid4()); cf=f"contrat_formateur_a3p_{sid}_{cid}.pdf"; cp=os.path.join(A3P_DOC_DIR,cf)
-        generate_a3p_trainer_contract_pdf(session_data, contract_payload, cp)
-        session_data["a3pTrainerContract"]={"id":cid,"pdfFilename":cf,"pdfUrl":url_for("view_a3p_document",sid=sid,kind="contract"),"generatedAt":now,"dailyRate":contract_payload.get("dailyRate"),"vatEnabled":bool(contract_payload.get("vatEnabled"))}
-        a3p_documents["contract"] = {"path": cp, "generated_at": now}
-        docs.append({"kind":"contract","path":cp})
         session_data["a3p_documents"] = a3p_documents
         session_data["a3pDocumentsGeneratedAt"]=now; save_sessions(data)
         app.logger.info("Documents A3P créés session_id=%s documents=%s chemins_sauvegardés=%s", sid, [d["kind"] for d in docs], docs)
-        return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"],"contractUrl":session_data["a3pTrainerContract"]["pdfUrl"]})
+        return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"]})
     except ValueError as exc:
         app.logger.warning("Erreur validation génération documents A3P session_id=%s erreur=%s", sid, exc)
         return jsonify({"ok":False,"error":str(exc)}),400
@@ -8103,7 +8278,16 @@ def a3p_document_exists(session_data, kind):
 
 @app.context_processor
 def inject_a3p_trainer_helpers():
-    return {"a3p_trainer_status": a3p_trainer_status, "a3p_document_exists": a3p_document_exists, "aps_detect_trainers": aps_detect_trainers, "is_ssiap1_session": is_ssiap1_session}
+    return {
+        "a3p_trainer_status": a3p_trainer_status,
+        "a3p_document_exists": a3p_document_exists,
+        "aps_detect_trainers": aps_detect_trainers,
+        "is_ssiap1_session": is_ssiap1_session,
+        "trainer_contract_planning_data": trainer_contract_planning_data,
+        "trainer_contract_planning_ready": trainer_contract_planning_ready,
+        "trainer_contract_formation_label": trainer_contract_formation_label,
+        "session_trainer_contracts": session_trainer_contracts,
+    }
 
 @app.post("/api/admin/sessions/<sid>/a3p/trainer-link")
 def generate_a3p_trainer_link(sid):
@@ -10130,13 +10314,16 @@ def yousign_webhook():
 
     sessions_data = load_sessions()
     for session_data in sessions_data.get("sessions", []):
-        for contract in session_data.get("apsTrainerContracts", []):
-            if matches_yousign_state(contract.get("yousign")) or matches_yousign_state(contract):
-                contract["yousign"] = normalize_yousign_state({**contract.get("yousign", {}), **updates})
-                mirror_yousign_state_on_contract(contract)
-                save_sessions(sessions_data)
-                logger.info("Webhook Yousign appliqué au contrat APS session=%s contract=%s status=%s", session_data.get("id"), contract.get("id"), updates.get("status"))
-                return {"ok": True, "target": "aps_trainer_contract"}
+        migrate_legacy_a3p_trainer_contract(session_data)
+        for contracts_key in ("apsTrainerContracts", "a3pTrainerContracts"):
+            for contract in session_data.get(contracts_key, []):
+                if matches_yousign_state(contract.get("yousign")) or matches_yousign_state(contract):
+                    contract["yousign"] = normalize_yousign_state({**contract.get("yousign", {}), **updates})
+                    mirror_yousign_state_on_contract(contract)
+                    save_sessions(sessions_data)
+                    logger.info("Webhook Yousign appliqué au contrat formateur session=%s contract=%s status=%s", session_data.get("id"), contract.get("id"), updates.get("status"))
+                    target = "a3p_trainer_contract" if contracts_key == "a3pTrainerContracts" else "aps_trainer_contract"
+                    return {"ok": True, "target": target}
 
     logger.error("YOUSIGN WEBHOOK CONTRACT NOT FOUND event=%s signature_request_id=%s signer_id=%s external_id=%s", event_name, signature_request_id, signer_id, external_id)
     return {"ok": True, "ignored": True}

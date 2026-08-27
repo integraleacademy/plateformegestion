@@ -1391,31 +1391,6 @@ a.back:hover{ background:#d9a848 !important; }
 
 
 {% if s.formation == "A3P" %}
-<section class="planning-box" id="a3p-contracts-section">
-  <div class="planning-header">
-    <div>
-      <h2 style="margin:0;">📝 Contrats formateurs</h2>
-      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention A3P.</p>
-    </div>
-    <button type="button" class="btn small gold" data-regen-a3p-docs>Générer contrat formateur</button>
-  </div>
-  {% if a3p_document_exists(s, 'contract') and s.a3pTrainerContract %}
-    {% set contract = s.a3pTrainerContract %}
-    <div class="contract-card" data-contract-id="{{ contract.id }}">
-      <strong>{{ s.a3pTrainerName or 'Formateur A3P' }}</strong>{% if contract.dailyRate %} — tarif journalier {{ contract.dailyRate }} € HT{% endif %}
-      <div class="muted">Généré le {{ contract.generatedAt|datetimefr }}</div>
-      <div class="planning-actions" style="margin-top:10px;">
-        <a class="btn small" href="{{ url_for('view_a3p_document', sid=s.id, kind='contract') }}" target="_blank">Voir contrat</a>
-        <button type="button" class="btn small gold" data-regen-a3p-docs>Régénérer contrat</button>
-      </div>
-    </div>
-  {% elif s.a3pDocumentsGeneratedAt %}
-    <div class="flash error" style="display:inline-block;margin-top:8px;">Document introuvable, veuillez régénérer les documents A3P.</div>
-  {% else %}
-    <p class="muted" style="margin-top:10px;">Aucun contrat formateur généré.</p>
-  {% endif %}
-</section>
-
 <div class="modal a3p-builder-modal" id="a3pModal" aria-hidden="true"><div class="modal-content a3p-builder">
   <div class="modal-header a3p-modal-head"><div><h3 style="margin:0;">Planning builder A3P</h3><p class="muted">Assistant professionnel en 4 étapes avec sauvegarde automatique serveur.</p></div><button class="modal-close" type="button" id="closeA3pModal" data-modal-close aria-label="Fermer">×</button></div>
   <form id="a3pForm">
@@ -1432,26 +1407,28 @@ a.back:hover{ background:#d9a848 !important; }
 </div></div>
 {% endif %}
 
-{% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
-<section class="planning-box" id="aps-contracts-section">
+{% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
+{% set current_contract_planning = trainer_contract_planning_data(s) %}
+{% set current_trainer_contracts = session_trainer_contracts(s) %}
+<section class="planning-box" id="{{ 'a3p-contracts-section' if s.formation == 'A3P' else 'aps-contracts-section' }}">
   <div class="planning-header">
     <div>
       <h2 style="margin:0;">📝 Contrats formateurs</h2>
-      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention. Les heures e-learning sont exclues sauf affectation explicite.</p>
+      <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention.{% if s.formation != 'A3P' %} Les heures e-learning sont exclues sauf affectation explicite.{% endif %}</p>
     </div>
-    {% if planning_pdf and s.apsPlanningData %}
+    {% if trainer_contract_planning_ready(s) %}
       <button type="button" class="btn small gold" id="openApsContractModal">Générer contrat formateur</button>
     {% else %}
       <button type="button" class="btn small gold" disabled title="Veuillez générer le planning avant de générer un contrat formateur.">Générer contrat formateur</button>
     {% endif %}
   </div>
-  {% if not planning_pdf or not s.apsPlanningData %}
+  {% if not trainer_contract_planning_ready(s) %}
     <div class="flash warning" style="margin-top:12px;">Veuillez générer le planning avant de générer un contrat formateur.</div>
   {% endif %}
-  {% set aps_contract_trainers = aps_detect_trainers(s.apsPlanningData or []) if s.apsPlanningData else [] %}
+  {% set aps_contract_trainers = aps_detect_trainers(current_contract_planning or []) if current_contract_planning else [] %}
   {% for trainer_name in aps_contract_trainers %}
     {% set found = namespace(contract=None) %}
-    {% for existing_contract in s.apsTrainerContracts or [] %}
+    {% for existing_contract in current_trainer_contracts %}
       {% if (existing_contract.planningName or existing_contract.trainerName) == trainer_name %}
         {% set found.contract = existing_contract %}
       {% endif %}
@@ -2318,7 +2295,8 @@ document.getElementById("saveAfcFranceTravailSettings")?.addEventListener("click
 document.getElementById("saveAfcFranceTravailIds")?.addEventListener("click", async()=>{ const ids={}; document.querySelectorAll(".ft-student-id").forEach(i=>{ ids[i.dataset.studentId||i.dataset.studentIndex]=i.value; ids[i.dataset.studentIndex]=i.value; }); try{ const r=await fetch(`/api/sessions/{{ s.id }}/afc-france-travail/ids`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})}); const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||"Enregistrement impossible."); showPlanningToast("Identifiants France Travail enregistrés.","success"); }catch(e){ showPlanningToast(e.message,"error"); }});
 document.getElementById("previewAfcFranceTravail")?.addEventListener("click", async()=>{ const box=document.getElementById("afcFranceTravailPreview"); try{ const r=await fetch(`/api/sessions/{{ s.id }}/afc-france-travail/preview`); const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||"Prévisualisation impossible."); const p=j.preview; box.style.display="block"; box.className=(p.missingIdCount||p.missingSettings.length)?"flash warning":"flash success"; box.innerHTML=`<h3>Prévisualisation France Travail</h3><p><strong>${p.sessionName||"Session"}</strong><br>Dates : ${p.dateStart||""} au ${p.dateEnd||""}<br>Semaines : ${p.weekCount} (${p.sheetNames.join(", ")})<br>Stagiaires : ${p.studentCount}<br>Formateurs détectés : ${p.trainerCount}<br>Total prévisionnel : ${p.totalPlannedHours} h-stagiaires</p><p>Marché : ${p.settings.marche_afc||"—"} · BRS : ${p.settings.brs||"—"} · Convention : ${p.settings.convention||"—"} · Bon de commande : ${p.settings.bon_commande||"—"} · Type : ${p.settings.type_session||"—"} · Intitulé : ${p.settings.intitule||"—"}</p>${p.missingSettings.length?`<p><strong>Informations manquantes :</strong> ${p.missingSettings.join(", ")}</p>`:""}${p.missingIdCount?`<p><strong>${p.missingIdCount} stagiaire(s) sans identifiant France Travail :</strong> ${p.missingIds.join(", ")}</p>`:""}<div class="planning-actions"><button type="button" class="btn" id="backAfcFtConfig">Retour à la configuration</button><button type="button" class="btn gold" id="downloadAfcFtExcel">Générer le fichier Excel</button></div>`; document.getElementById("backAfcFtConfig").onclick=()=>{ if(afcFtConfig) afcFtConfig.style.display="block"; }; document.getElementById("downloadAfcFtExcel").onclick=()=>{ window.location.href=`/api/sessions/{{ s.id }}/afc-france-travail/generate`; }; }catch(e){ box.style.display="block"; box.className="flash error"; box.textContent=e.message; }});
 
-// Contrats formateurs APS
+// Contrats formateurs APS / A3P / SSIAP / DESP
+const trainerContractFormationLabel = {{ trainer_contract_formation_label(s)|tojson }};
 const apsContractModal = document.getElementById("apsContractModal");
 const openApsContractModal = document.getElementById("openApsContractModal");
 const closeApsContractModal = document.getElementById("closeApsContractModal");
@@ -2404,7 +2382,7 @@ async function loadContractModal(preselectedTrainer = null){
     const payload = await response.json();
     if(!response.ok || !payload.ok) throw new Error(payload.error || "Prévisualisation impossible.");
     apsContractTrainers = payload.trainers || [];
-    if(!apsContractTrainers.length){ apsContractTrainerList.innerHTML = '<div class="flash error">Aucun formateur détecté dans apsPlanningData.</div>'; return; }
+    if(!apsContractTrainers.length){ apsContractTrainerList.innerHTML = '<div class="flash error">Aucun formateur détecté dans le planning.</div>'; return; }
     const selectedIndex = Math.max(0, apsContractTrainers.findIndex(t => t.name === preselectedTrainer));
     renderSelectedContractTrainer(selectedIndex);
   }catch(error){ apsContractTrainerList.innerHTML = ""; apsContractError.textContent = error.message; apsContractError.style.display = "block"; }
@@ -2539,7 +2517,7 @@ const sendContractModal = document.getElementById("sendContractModal");
 const sendContractForm = document.getElementById("sendContractForm");
 function closeSendModal(){ sendContractModal?.classList.remove("open"); sendContractModal?.setAttribute("aria-hidden", "true"); }
 document.getElementById("closeSendContractModal")?.addEventListener("click", closeSendModal); document.getElementById("cancelSendContract")?.addEventListener("click", closeSendModal);
-document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListener("click", () => { const card = btn.closest("[data-contract-id]"); currentSendContractId = card.dataset.contractId; document.getElementById("sendContractRecipient").textContent = card.dataset.contractEmail; document.getElementById("sendContractSubject").value = "Contrat d’intervention formateur — Session APS"; document.getElementById("sendContractBody").value = `Bonjour ${card.dataset.contractName},\n\nVous trouverez en pièce jointe votre contrat d’intervention pour la session APS, ainsi que le planning de formation correspondant.\n\nMerci de nous retourner le contrat signé dès que possible.\n\nBien cordialement,\n\nIntégrale Academy\n04 22 47 07 68`; sendContractModal?.classList.add("open"); sendContractModal?.setAttribute("aria-hidden", "false"); }));
+document.querySelectorAll(".send-contract-btn").forEach(btn => btn.addEventListener("click", () => { const card = btn.closest("[data-contract-id]"); currentSendContractId = card.dataset.contractId; document.getElementById("sendContractRecipient").textContent = card.dataset.contractEmail; document.getElementById("sendContractSubject").value = `Contrat d’intervention formateur — Session ${trainerContractFormationLabel}`; document.getElementById("sendContractBody").value = `Bonjour ${card.dataset.contractName},\n\nVous trouverez en pièce jointe votre contrat d’intervention pour la session ${trainerContractFormationLabel}, ainsi que le planning de formation correspondant.\n\nMerci de nous retourner le contrat signé dès que possible.\n\nBien cordialement,\n\nIntégrale Academy\n04 22 47 07 68`; sendContractModal?.classList.add("open"); sendContractModal?.setAttribute("aria-hidden", "false"); }));
 sendContractForm?.addEventListener("submit", async (event) => { event.preventDefault(); const err = document.getElementById("sendContractError"); err.style.display = "none"; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${currentSendContractId}/send`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({emailSubject:document.getElementById("sendContractSubject").value, emailBody:document.getElementById("sendContractBody").value})}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi impossible."); closeSendModal(); showPlanningToast("Contrat envoyé par mail.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ err.textContent = error.message; err.style.display = "block"; } });
 document.querySelectorAll(".yousign-contract-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); const phoneInput = card.querySelector(".contract-phone-input"); const editedPhone = phoneInput?.value.trim() || ""; if(editedPhone !== (card.dataset.contractPhone || "")){ showPlanningToast("Enregistrez le téléphone avant d’envoyer le code Yousign.", "error"); return; } const ongoing = card.dataset.yousignStatus === "ongoing"; const msg = ongoing ? "Une demande de signature est déjà en cours. Voulez-vous vraiment en envoyer une nouvelle ?" : `Envoyer le contrat de ${card.dataset.contractName} en signature électronique Yousign ?`; if(!(await SaasDialog.confirm(msg, { title: "Signature électronique Yousign" }))) return; btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Envoi Yousign..."; try{ const url = `/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/send${ongoing ? '?force=1' : ''}`; const r = await fetch(url, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Envoi Yousign impossible."); showPlanningToast("Contrat envoyé en signature Yousign.", "success"); setTimeout(()=>window.location.reload(), 800); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
 document.querySelectorAll(".yousign-sync-btn").forEach(btn => btn.addEventListener("click", async () => { const card = btn.closest("[data-contract-id]"); btn.disabled = true; const previousLabel = btn.textContent; btn.textContent = "Actualisation..."; try{ const r = await fetch(`/api/sessions/{{ s.id }}/aps-trainer-contracts/${card.dataset.contractId}/yousign/sync`, {method:"POST"}); const p = await r.json(); if(!r.ok || !p.ok) throw new Error(p.error || "Actualisation impossible."); showPlanningToast(`Statut Yousign actualisé : ${p.statusLabel || p.status}`, "success"); setTimeout(()=>window.location.reload(), 700); }catch(error){ showPlanningToast(error.message, "error"); btn.disabled = false; btn.textContent = previousLabel; } }));
@@ -2592,7 +2570,7 @@ function applyState(st){if(!hasUsefulState(st))return false; const r=getA3pRefs(
 async function saveNow(){const r=getA3pRefs(); try{if(r.saveStatus)r.saveStatus.textContent='Sauvegarde…'; const st=state(); if(!hasUsefulState(st))return; localStorage.setItem('a3pBuilder-{{ s.id }}',JSON.stringify(st)); const resp=await fetch(`/api/admin/sessions/{{ s.id }}/a3p-planning-builder`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:st})}); const j=await resp.json(); if(!resp.ok||!j.ok)throw new Error(j.error||'Erreur sauvegarde'); if(r.saveStatus)r.saveStatus.textContent='Sauvegardé'}catch(e){if(r.saveStatus)r.saveStatus.textContent='Sauvegardé localement'; console.warn(e)}} function scheduleSave(){if(a3pHydrating)return; clearTimeout(a3pSaveTimer); a3pSaveTimer=setTimeout(saveNow,650)}
 async function loadState(){if(loadedOnce)return; loadedOnce=true; try{const resp=await fetch(`/api/admin/sessions/{{ s.id }}/a3p-planning-builder`); const j=await resp.json(); if(j.ok&&applyState(j.state))return}catch(e){console.warn(e)} try{const l=localStorage.getItem('a3pBuilder-{{ s.id }}'); if(l&&applyState(JSON.parse(l)))return}catch(e){} rebuildDays()}
 async function autoFill(){try{hideError(); if(!manualReady())throw new Error('Les 4 modules manuels doivent être complets avant le placement automatique.'); const resp=await fetch(`/api/sessions/{{ s.id }}/a3p-documents/preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())}); const j=await resp.json(); if(!resp.ok||!j.ok)throw new Error(j.error||'Placement impossible : capacité insuffisante, dates verrouillées trop nombreuses ou horaires invalides.'); a3pPreview=j.planning||[]; renderA3p(); await saveNow(); window.showPlanningToast?.('Planning A3P généré : total 328h.','success')}catch(e){showError(e)}}
-function docsMissingReasons(){const fd=new FormData(getA3pRefs().form); const reasons=[]; if(!areA3pManualModulesComplete())reasons.push('modules imposés incomplets'); if(!canGenerateA3pDocuments())reasons.push('planning incomplet'); if(!(((fd.get('trainerFirstName')||'')+' '+(fd.get('trainerLastName')||'')).trim()||fd.get('trainerName')))reasons.push('nom/prénom formateur requis pour le contrat'); return reasons}
+ function docsMissingReasons(){const fd=new FormData(getA3pRefs().form); const reasons=[]; if(!areA3pManualModulesComplete())reasons.push('modules imposés incomplets'); if(!canGenerateA3pDocuments())reasons.push('planning incomplet'); if(!(((fd.get('trainerFirstName')||'')+' '+(fd.get('trainerLastName')||'')).trim()||fd.get('trainerName')))reasons.push('nom/prénom formateur requis pour le planning'); return reasons}
 function validateDocsButton(){const r=getA3pRefs(); const reasons=docsMissingReasons(); if(r.submit){r.submit.disabled=!!reasons.length||a3pGenerating; r.submit.textContent=a3pGenerating?'Génération…':'Générer les documents A3P'} if(r.missingReason){r.missingReason.textContent=reasons.length?'Manquant : '+reasons.join(', '):'Modules imposés validés — prêt pour les documents.'; r.missingReason.className=reasons.length?'muted':'a3p-status badge-ok'}} function goStep(n){a3pCurrentStep=Math.max(0,Math.min(3,n));renderA3p()} window.cancelA3p=function(){const r=getA3pRefs(); r.modal?.classList.remove('open'); r.modal?.setAttribute('aria-hidden','true'); document.body.classList.remove('modal-open')};
 async function init(){const r=getA3pRefs(); if(!r.form)return; r.open?.addEventListener('click',()=>{r.modal?.classList.add('open'); r.modal?.setAttribute('aria-hidden','false'); document.body.classList.add('modal-open'); loadState()}); document.querySelectorAll('[data-regen-a3p-docs]').forEach(b=>b.addEventListener('click',()=>r.open?.click())); r.close?.addEventListener('click',window.cancelA3p); r.closePicker?.addEventListener('click',closePicker); [r.start,r.end].forEach(x=>x?.addEventListener('change',rebuildDays)); r.exam?.addEventListener('change',renderA3p); r.apply?.addEventListener('click',()=>{a3pDays=a3pDays.map(d=>({...d,dayStart:r.defaultStart?.value||'08:30',dayEnd:r.defaultEnd?.value||'17:30'}));a3pPreview=[];renderA3p()}); r.addDay?.addEventListener('click',()=>{a3pDays.push(normalizeDay({date:nextEditableA3pDate()}));renderA3p()}); r.removeWeekends?.addEventListener('click',()=>{showWeekends=false;rebuildDays()}); r.showWeekends?.addEventListener('click',()=>{showWeekends=true;rebuildDays()}); r.autoFill?.addEventListener('click',autoFill); r.autoFillRest?.addEventListener('click',autoFill); r.save?.addEventListener('click',saveNow); r.editPlanning?.addEventListener('click',()=>{a3pEditBackup=JSON.stringify(a3pPreview);a3pEditing=true;r.editPlanning.style.display='none';r.savePlanning.style.display='';r.cancelPlanning.style.display='';renderPreview()}); r.savePlanning?.addEventListener('click',async()=>{a3pEditing=false;await saveNow();r.editPlanning.style.display='';r.savePlanning.style.display='none';r.cancelPlanning.style.display='none';renderPreview()}); r.cancelPlanning?.addEventListener('click',()=>{if(a3pEditBackup)a3pPreview=JSON.parse(a3pEditBackup);a3pEditing=false;r.editPlanning.style.display='';r.savePlanning.style.display='none';r.cancelPlanning.style.display='none';renderA3p()}); r.prev?.addEventListener('click',()=>goStep(a3pCurrentStep-1)); r.next?.addEventListener('click',()=>goStep(a3pCurrentStep+1)); r.form.addEventListener('input',scheduleSave); r.form.addEventListener('change',renderA3p); async function generateDocs(){console.info('[A3P] clic génération documents A3P'); try{hideError(); const data=payload(); console.info('[A3P] données envoyées API',data); a3pGenerating=true; validateDocsButton(); const resp=await fetch(`/api/sessions/{{ s.id }}/a3p-documents/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); const j=await resp.json(); console.info('[A3P] réponse API',j); if(!resp.ok||!j.ok)throw new Error(j.error||'Erreur génération'); location.reload()}catch(err){console.error('[A3P] erreur API génération',err); showError(err)}finally{a3pGenerating=false; validateDocsButton()}} r.form.addEventListener('submit',e=>e.preventDefault()); r.submit?.addEventListener('click',generateDocs); r.genLink?.addEventListener('click',async()=>{try{const resp=await fetch(`/api/admin/sessions/{{ s.id }}/a3p/trainer-link`,{method:'POST'});const j=await resp.json();if(!resp.ok||!j.ok)throw new Error(j.error); if(r.trainerLink)r.trainerLink.value=j.url||''; if(r.trainerStatus)r.trainerStatus.textContent=j.status?.label||'En attente'}catch(e){showError(e)}}); r.copyLink?.addEventListener('click',()=>navigator.clipboard?.writeText(r.trainerLink?.value||'')); r.sendLink?.addEventListener('click',async()=>{try{const resp=await fetch(`/api/admin/sessions/{{ s.id }}/a3p/trainer-link/send`,{method:'POST'});const j=await resp.json();if(!resp.ok||!j.ok)throw new Error(j.error); if(r.trainerStatus)r.trainerStatus.textContent=j.status?.label||'Envoyé'}catch(e){showError(e)}}); r.validateTrainer?.addEventListener('click',async()=>{try{const resp=await fetch(`/api/admin/sessions/{{ s.id }}/a3p/trainer-modules/validate`,{method:'POST'});const j=await resp.json();if(!resp.ok||!j.ok)throw new Error((j.errors||[]).join('\n')||j.error); if(r.trainerStatus)r.trainerStatus.textContent=j.status?.label||'Validé'; await loadState();}catch(e){showError(e)}}); await loadState();}
 document.addEventListener('DOMContentLoaded',init);
@@ -2602,11 +2580,6 @@ document.addEventListener('DOMContentLoaded',init);
 
 </body>
 </html>
-
-
-
-
-
 
 
 

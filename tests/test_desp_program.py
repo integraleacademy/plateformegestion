@@ -56,6 +56,23 @@ def test_desp_elearning_25_days_are_24_full_and_one_six_hour_day():
     assert sum(day_minutes) == 174 * 60
 
 
+def test_desp_elearning_uses_8_hour_days_only_when_needed():
+    planning = generate_desp_planning(
+        date(2026, 9, 24), date(2026, 10, 27),
+        date(2026, 10, 28), date(2026, 11, 9),
+    )
+    summary = desp_summary_from_planning(planning)
+    elearning_days = [d for d in planning if d["slots"][0]["modality"] == "elearning"]
+    day_minutes = [_minutes(d) for d in elearning_days]
+
+    assert summary["errors"] == []
+    assert len(elearning_days) == 24
+    assert day_minutes.count(480) == 6
+    assert day_minutes.count(420) == 18
+    assert max(day_minutes) == 8 * 60
+    assert sum(day_minutes) == 174 * 60
+
+
 def test_desp_presentiel_accepts_70_hours_on_9_weekdays_without_saturday():
     planning = _valid_planning(allow_saturday=False)
     presentiel_days = [d for d in planning if d["slots"][0]["modality"] == "presentiel"]

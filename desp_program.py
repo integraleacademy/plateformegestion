@@ -6,7 +6,8 @@ DESP_LABEL = "Dirigeant d’une société de sécurité privée (DESP)"
 DESP_ELEARNING_HOURS = 174
 DESP_PRESENTIEL_HOURS = 70
 DESP_TOTAL_HOURS = 244
-DESP_ELEARNING_MAX_DAILY_MINUTES = 7 * 60
+DESP_ELEARNING_STANDARD_DAILY_MINUTES = 7 * 60
+DESP_ELEARNING_MAX_DAILY_MINUTES = 8 * 60
 DESP_PRESENTIEL_MAX_DAILY_MINUTES = 8 * 60
 DESP_MAX_DAILY_MINUTES = DESP_PRESENTIEL_MAX_DAILY_MINUTES
 DESP_MORNING_MINUTES = 4 * 60
@@ -118,15 +119,30 @@ def _period_capacity_message(label, start, end, required_minutes, max_daily_minu
             f"à {max_daily_minutes // 60}h/jour entre le {start.strftime('%d/%m/%Y')} "
             f"et le {end.strftime('%d/%m/%Y')}. Modifiez les dates ou autorisez une journée supplémentaire.")
 
-def _daily_minutes_for_period(days_count: int, required_minutes: int, max_daily_minutes: int) -> list[int]:
+def _daily_minutes_for_period(days_count: int, required_minutes: int, max_daily_minutes: int, preferred_daily_minutes: int | None = None) -> list[int]:
     if days_count * max_daily_minutes < required_minutes:
         return []
-    if max_daily_minutes == DESP_ELEARNING_MAX_DAILY_MINUTES:
-        full_days, remainder = divmod(required_minutes, max_daily_minutes)
-        values = [max_daily_minutes] * full_days
+    if preferred_daily_minutes:
+        full_days, remainder = divmod(required_minutes, preferred_daily_minutes)
+        values = [preferred_daily_minutes] * full_days
         if remainder:
             values.append(remainder)
-        return values if len(values) <= days_count else []
+        if len(values) <= days_count:
+            return values
+
+        # Conserve des journées de 7h en distanciel tant que la période le
+        # permet, puis ajoute uniquement les heures nécessaires, sans jamais
+        # dépasser le plafond de 8h.
+        values = [preferred_daily_minutes] * days_count
+        remaining_minutes = required_minutes - sum(values)
+        extra_per_day = max_daily_minutes - preferred_daily_minutes
+        for index in range(days_count):
+            extra_minutes = min(extra_per_day, remaining_minutes)
+            values[index] += extra_minutes
+            remaining_minutes -= extra_minutes
+            if remaining_minutes == 0:
+                return values
+        return []
 
     required_hours, leftover_minutes = divmod(required_minutes, 60)
     if leftover_minutes:
@@ -158,7 +174,8 @@ def generate_desp_planning(elearning_start: date, elearning_end: date, presentie
             raise ValueError(_period_capacity_message("distanciel" if modality == "elearning" else "présentiel", start, end, required, max_daily_minutes, exam_iso, allow_saturday if modality == "presentiel" else False))
         seqs = [dict(s, remainingMinutes=s["durationMinutes"]) for s in desp_sequences(modality)]
         idx=0; remaining_total=required
-        daily_minutes = _daily_minutes_for_period(len(days), required, max_daily_minutes)
+        preferred_daily_minutes = DESP_ELEARNING_STANDARD_DAILY_MINUTES if modality == "elearning" else None
+        daily_minutes = _daily_minutes_for_period(len(days), required, max_daily_minutes, preferred_daily_minutes)
         for day, target_minutes in zip(days, daily_minutes):
             if remaining_total <= 0: break
             slots=[]

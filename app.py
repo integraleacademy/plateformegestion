@@ -2127,6 +2127,14 @@ def afc_nth_working_day(start_date, interruptions=None, count=57):
         day += timedelta(days=1)
     return None
 
+def afc_next_working_day(day, interruptions=None):
+    if not day:
+        return None
+    candidate = day + timedelta(days=1)
+    while not is_afc_working_day(candidate, interruptions or []):
+        candidate += timedelta(days=1)
+    return candidate
+
 def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interruptions=None, contractual_end_date=None):
     """Génère le parcours AFC APS + SSIAP en réservant d'abord les blocs métier indivisibles."""
     interruptions = interruptions or [(date(2026, 12, 23), date(2027, 1, 4))]
@@ -2176,12 +2184,10 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     exam_ssiap = atomic(dict(next(m for m in raw if m["category"] == "EXAM_SSIAP1")), "EXAM_SSIAP1", "EXAM_SSIAP1", 420)
     bilan = atomic(dict(next(m for m in raw if m["category"] == "BILAN")), "BILAN", "BILAN", 210)
 
-    # Blocs indivisibles réservés avant le remplissage APS/SSIAP.
+    # Blocs indépendants réservés avant le calcul des dates d'examen APS et H0B0.
     reserve_full_day(end_date, exam_ssiap)
-    reserve_full_day(date(2027, 1, 25), exam_aps)
-    reserve_full_day(date(2027, 1, 26), h0b0)
-    sp_dates = [date(2026,12,4), date(2026,12,11), date(2026,12,18), date(2026,12,22), date(2027,1,8), date(2027,1,15), date(2027,1,22), date(2027,1,29), date(2027,2,5)]
-    paf_dates = [date(2027,1,14), date(2027,1,21), date(2027,1,28), date(2027,2,11)]
+    sp_dates = [date(2026,12,4), date(2026,12,11), date(2026,12,18), date(2026,12,22), date(2027,1,8), date(2027,1,15), date(2027,1,29), date(2027,2,5), date(2027,2,11)]
+    paf_dates = [date(2027,1,14), date(2027,1,22), date(2027,1,28), date(2027,2,9)]
     for d in sp_dates: reserve_support(d, "SP", f"SP-{d.isocalendar().year}-W{d.isocalendar().week:02d}")
     for d in paf_dates: reserve_support(d, "PAF", f"PAF-{d.isocalendar().year}-W{d.isocalendar().week:02d}")
 
@@ -2198,6 +2204,37 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     free_intervals[accueil_day] = [(12*60, 12*60+30), (13*60+30, 16*60+30)]
     add(date(2027,2,12), 8*60+30, 210, bilan)
     free_intervals[date(2027,2,12)] = [(12*60, 12*60+30), (13*60+30, 16*60+30)]
+
+    # L'examen APS suit toujours la dernière journée nécessaire pour atteindre les 175h APS.
+    aps_minutes_remaining = AFC_APS_SSIAP_EXPECTED_MINUTES["APS"]
+    aps_end_date = None
+    for d in eligible_dates:
+        for start, end in free_intervals.get(d, []):
+            if aps_minutes_remaining <= 0:
+                break
+            allocated = min(aps_minutes_remaining, end - start)
+            if allocated > 0:
+                aps_minutes_remaining -= allocated
+                aps_end_date = d
+        if aps_minutes_remaining <= 0:
+            break
+    if aps_minutes_remaining or not aps_end_date:
+        raise ValueError("Impossible de déterminer la fin des 175h de formation APS.")
+
+    exam_aps_date = afc_next_working_day(aps_end_date, interruptions)
+    exam_free_minutes = sum(end - start for start, end in free_intervals.get(exam_aps_date, []))
+    if exam_aps_date not in eligible_dates or exam_free_minutes != 7 * 60:
+        raise ValueError("Le lendemain de la formation APS doit rester entièrement disponible pour l’examen APS.")
+    reserve_full_day(exam_aps_date, exam_aps)
+
+    # Le H0B0 reste une journée indivisible et prend la première journée complète après l'examen APS.
+    h0b0_date = next((
+        d for d in eligible_dates
+        if d > exam_aps_date and sum(end - start for start, end in free_intervals.get(d, [])) == 7 * 60
+    ), None)
+    if not h0b0_date:
+        raise ValueError("Impossible de placer la journée H0B0 après l’examen APS.")
+    reserve_full_day(h0b0_date, h0b0)
 
     sequence = [dict(m, remainingMinutes=m["durationMinutes"]) for m in raw if m["category"] in {"APS", "SSIAP1"}]
     idx = 0
@@ -2327,7 +2364,9 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
     for week, slots in weekly_ordered.items():
         sp_slots = [slot for slot in slots if slot[3] == "SP"]
         paf_slots = [slot for slot in slots if slot[3] == "PAF"]
-        if sp_slots and slots[-len(sp_slots):] != sp_slots:
+        # La semaine de clôture fait exception : le Bilan doit rester après le dernier SP.
+        has_bilan = any(slot[3] == "BILAN" for slot in slots)
+        if sp_slots and slots[-len(sp_slots):] != sp_slots and not has_bilan:
             errors.append(f"La semaine {week} ne place pas le bloc SP dans les 5 dernières heures.")
         if paf_slots and sp_slots and max((d, e) for d, _st, e, _cat, _slot in paf_slots) >= min((d, st) for d, st, _e, _cat, _slot in sp_slots):
             errors.append(f"La semaine {week} doit placer la PAF avant le SP.")
@@ -2401,6 +2440,12 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         first_exam = min(_dt_tuple(d, st) for d, st, _e, _slot, _m in exam_aps_slots)
         aps_before = sum(m for d, _st, e, _slot, m in aps_slots if _dt_tuple(d, e) <= first_exam)
         if aps_before != AFC_APS_SSIAP_EXPECTED_MINUTES["APS"]: errors.append("L’examen APS ne peut commencer qu’après les 175h d’APS.")
+        last_aps_date = max(d for d, _st, _e, _slot, _m in aps_slots)
+        parsed_last_aps = parse_date(last_aps_date)
+        expected_exam_date = afc_next_working_day(parsed_last_aps.date(), interruptions) if parsed_last_aps else None
+        actual_exam_dates = {d for d, _st, _e, _slot, _m in exam_aps_slots}
+        if expected_exam_date and actual_exam_dates != {expected_exam_date.isoformat()}:
+            errors.append("L’examen APS doit être placé le lendemain de la dernière journée de formation APS (ou le prochain jour admissible).")
     h0b0_slots = _cat_slots("H0B0")
     if exam_aps_slots and h0b0_slots and min(d for d, *_ in h0b0_slots) <= max(d for d, *_ in exam_aps_slots): errors.append("Le H0B0 doit être postérieur à la journée d’examen APS.")
     for cat, expected, label in (("ACCUEIL", 210, "L’Accueil"), ("BILAN", 210, "Le Bilan")):

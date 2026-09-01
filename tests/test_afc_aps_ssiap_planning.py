@@ -45,6 +45,8 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     def day_minutes(cat):
         return {day["date"]: sum(slot["durationMinutes"] for slot in day["slots"] if slot["afcCategory"] == cat) for day in planning if any(slot["afcCategory"] == cat for slot in day["slots"])}
     assert sum(day_minutes("APS").values()) == AFC_APS_SSIAP_EXPECTED_MINUTES["APS"]
+    assert max(day_minutes("APS")) == "2027-01-20"
+    assert list(day_minutes("EXAM_APS")) == ["2027-01-21"]
     sst_days = [day for day in planning if any(slot["uv"] == "UV1" and "SST" in slot["title"] for slot in day["slots"])]
     assert sst_days
     assert sum(day_minutes("EXAM_APS").values()) == 420
@@ -134,14 +136,14 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
         (2026, 52),
         (2027, 1),
         (2027, 2),
-        (2027, 3),
         (2027, 4),
         (2027, 5),
+        (2027, 6),
     ]
     assert [week for week, bucket in support_weeks.items() if bucket["PAF"]] == [(2027, 2), (2027, 3), (2027, 4), (2027, 6)]
 
     paf_dates = [day["date"] for day in planning if any(slot["afcCategory"] == "PAF" for slot in day["slots"])]
-    assert paf_dates == ["2027-01-14", "2027-01-21", "2027-01-28", "2027-02-11"]
+    assert paf_dates == ["2027-01-14", "2027-01-22", "2027-01-28", "2027-02-09"]
     assert len(paf_dates) == 4
     assert sum(day_minutes("PAF").values()) == 20 * 60
     assert sum(day_minutes("SP").values()) == 45 * 60
@@ -227,6 +229,8 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "November" not in text and "March" not in text
     assert set(AFC_CATEGORY_COLORS) == set(AFC_APS_SSIAP_EXPECTED_MINUTES)
     assert "RAN" in text and "PAF" in text and "Bilan" in text
+    assert "Examen APS : 21/01/2027" in text
+    assert "Examen APS : 25/01/2027" not in text
     last = reader.pages[-1].mediabox
     assert float(last.width) > float(last.height)
 
@@ -409,3 +413,14 @@ def test_afc_validation_rejects_incomplete_support_blocks():
     errors = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))["errors"]
     assert any("SP-2027-W05" in error and "5h" in error for error in errors)
     assert any("PAF-2027-W06" in error and "5h" in error for error in errors)
+
+
+def test_afc_validation_rejects_exam_aps_not_scheduled_after_last_aps_day():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
+    exam_day = next(day for day in planning if any(slot["afcCategory"] == "EXAM_APS" for slot in day["slots"]))
+    exam_day["date"] = "2027-01-22"
+
+    errors = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))["errors"]
+
+    assert any("lendemain de la dernière journée de formation APS" in error for error in errors)

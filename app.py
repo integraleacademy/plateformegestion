@@ -1655,6 +1655,7 @@ AFC_APS_SSIAP_LABELS = {
 AFC_DAY_SEGMENTS = ((8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30))
 AFC_TECHNICAL_CODES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
 AFC_ACCOMPANIMENT_CODES = {"SP", "PAF"}
+AFC_EXAM_CATEGORIES = {"EXAM_APS", "EXAM_SSIAP1"}
 AFC_CATEGORY_COLORS = {
     "RAN": "#bfdbfe",
     "ACCUEIL": "#5eead4",
@@ -1667,6 +1668,27 @@ AFC_CATEGORY_COLORS = {
     "PAF": "#86efac",
     "BILAN": "#374151",
 }
+
+
+def is_afc_exam_slot(slot):
+    """Return whether a planning slot is one of the two AFC exam days."""
+    category = str(
+        (slot or {}).get("afcCategory")
+        or (slot or {}).get("category")
+        or (slot or {}).get("uv")
+        or ""
+    ).strip().upper()
+    return category in AFC_EXAM_CATEGORIES
+
+
+def normalize_afc_exam_trainers(planning_data):
+    """AFC examiners are not the course trainer and must not be billed as such."""
+    for day in planning_data or []:
+        day["slots"] = [
+            {**slot, "trainer": ""} if is_afc_exam_slot(slot) else slot
+            for slot in day.get("slots", [])
+        ]
+    return planning_data
 
 
 DSF_DIR = os.path.join(DATA_DIR, "afc_dsf")
@@ -2100,7 +2122,8 @@ def afc_build_main_sequence():
 
 def afc_slot_from_module(day, start, end, module, trainer, room):
     minutes = end - start
-    slot = {"start": afc_minutes_to_hhmm(start), "end": afc_minutes_to_hhmm(end), "duration": round(minutes/60,2), "durationMinutes": minutes, "uv": module.get("uv") or module["code"], "sequence": module.get("sequence") or module.get("uv") or module["code"], "part": module.get("part") or AFC_APS_SSIAP_LABELS.get(module.get("category") or module["code"], module.get("title")), "title": module.get("title"), "content": module.get("content") or module.get("title"), "room": room, "trainer": trainer, "modality": "presentiel", "afcKind": module.get("afcKind"), "afcCategory": module.get("category") or module["code"]}
+    category = module.get("category") or module["code"]
+    slot = {"start": afc_minutes_to_hhmm(start), "end": afc_minutes_to_hhmm(end), "duration": round(minutes/60,2), "durationMinutes": minutes, "uv": module.get("uv") or module["code"], "sequence": module.get("sequence") or module.get("uv") or module["code"], "part": module.get("part") or AFC_APS_SSIAP_LABELS.get(category, module.get("title")), "title": module.get("title"), "content": module.get("content") or module.get("title"), "room": room, "trainer": "" if category in AFC_EXAM_CATEGORIES else trainer, "modality": "presentiel", "afcKind": module.get("afcKind"), "afcCategory": category}
     for key in ("partNumber", "sequenceNumber", "sequenceTitle", "totalSequenceDurationMinutes", "subpartItems", "blockId", "blockType", "blockTotalMinutes", "is_atomic", "can_split", "required_same_date"):
         if module.get(key) is not None: slot[key] = module[key]
     return slot
@@ -2910,6 +2933,14 @@ def planning_slot_title(slot):
     return f"{slot.get('uv')} — {slot.get('title')}"
 
 
+def planning_slot_metadata(slot, fallback_room="—", trainer_first=False):
+    room = slot.get("room") or fallback_room
+    if is_afc_exam_slot(slot):
+        return f"Salle : {room}"
+    trainer = slot.get("trainer") or "—"
+    return f"Formateur : {trainer} • Salle : {room}" if trainer_first else f"Salle : {room} • Formateur : {trainer}"
+
+
 def planning_card_height(slot, printable_width):
     if slot.get("partNumber") and slot.get("sequenceNumber"):
         text_w = printable_width - 32
@@ -2918,7 +2949,7 @@ def planning_card_height(slot, printable_width):
         for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
             items_h += max(1, len(wrap_text_lines(f"• {item}", text_w - 14, "Helvetica", 8.7))) * 10
         progress_h = 10 if slot.get("subpartProgressLabel") else 0
-        meta_lines = max(1, len(wrap_text_lines(f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or '—'}", text_w, "Helvetica", 7.8)))
+        meta_lines = max(1, len(wrap_text_lines(planning_slot_metadata(slot, trainer_first=True), text_w, "Helvetica", 7.8)))
         return max(90, 16 + title_lines * 11 + 13 + 16 + progress_h + 8 + items_h + 8 + meta_lines * 9 + 8)
     title_w = printable_width - 225
     title_lines = max(1, len(wrap_text_lines(planning_slot_title(slot), title_w, "Helvetica-Bold", 8.2)))
@@ -3009,7 +3040,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
     edited = datetime.now().strftime("%d/%m/%Y à %H:%M")
     computed_end = (planning_data[-1].get("date") if planning_data else session_data.get("date_fin"))
     period = f"Du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin') or computed_end) if (session_data.get('date_fin') or computed_end) else '—'}"
-    trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and (slot.get("trainer") or "").strip()})
+    trainers = sorted({(slot.get("trainer") or "").strip() for day in planning_data for slot in day.get("slots", []) if (slot.get("modality") or "presentiel") == "presentiel" and not is_afc_exam_slot(slot) and (slot.get("trainer") or "").strip()})
     trainer_label = ", ".join(trainers[:4]) + ("…" if len(trainers) > 4 else "") if trainers else "—"
     modality_ranges = aps_modality_ranges(planning_data)
     if document_profile.get("validate") == "ssiap1":
@@ -3173,7 +3204,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                     else:
                         modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
                     c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
-                    modality_label = "Examen" if slot.get("modality") == "exam" else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
+                    modality_label = "Examen" if slot.get("modality") == "exam" or is_afc_exam_slot(slot) else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
 
                     def draw_modality_badge(badge_x, badge_y):
                         c.setFillColor(colors.HexColor(modality_color))
@@ -3197,7 +3228,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                             item_y = draw_wrapped_text(c, slot.get("subpartProgressLabel"), text_x + 8, item_y, text_w - 12, "Helvetica-Oblique", 7.6, 9)
                         for item in slot.get("subpartDisplayItems") or slot.get("subpartItems") or []:
                             item_y = draw_wrapped_text(c, f"• {item}", text_x + 8, item_y, text_w - 12, "Helvetica", 8.7, 10)
-                        draw_wrapped_text(c, f"Formateur : {slot.get('trainer') or '—'} • Salle : {slot.get('room') or salle}", text_x, y - h + 19, text_w - 112, "Helvetica", 7.8, 9)
+                        draw_wrapped_text(c, planning_slot_metadata(slot, salle, trainer_first=True), text_x, y - h + 19, text_w - 112, "Helvetica", 7.8, 9)
                         draw_modality_badge(width - margin - 86, y - h + 14)
                     else:
                         title_w = printable_width - 225
@@ -3207,7 +3238,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                         draw_modality_badge(width - margin - 86, y - h + 14)
                         if slot.get("modality") != "elearning":
                             c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica", 8)
-                            draw_wrapped_text(c, f"Salle : {slot.get('room') or salle} • Formateur : {slot.get('trainer') or '—'}", margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
+                            draw_wrapped_text(c, planning_slot_metadata(slot, salle), margin + 14, y - h + 19, printable_width - 112, "Helvetica", 8, 9)
                     y -= h + 5
                 y -= 2
             page_no += 1
@@ -3472,6 +3503,8 @@ def is_in_person_slot(slot):
 
 
 def aps_is_contract_billable_slot(slot):
+    if is_afc_exam_slot(slot):
+        return False
     normalized = _normalized_slot_value(slot, "modality", "delivery_mode", "period_type")
     if normalized in {"elearning", "e-learning", "distanciel", "distance", "asynchronous", "examen", "exam"}:
         return False
@@ -3992,6 +4025,11 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
     planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
     students = session_data.get("apsAttendanceStudents") or []
     is_afc = training_type == "AFC_APS_SSIAP"
+    if is_afc:
+        planning_data = normalize_afc_exam_trainers([
+            {**day, "slots": [dict(slot) for slot in day.get("slots", [])]}
+            for day in planning_data
+        ])
     default_student_start_date = session_data.get("date_debut") or ""
 
     def students_for_day(day_date):
@@ -4012,6 +4050,16 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         for day in planning_data:
             training_slots = [slot for slot in (day.get("slots") or []) if is_in_person_slot(slot) or _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"sst", "revision"}]
             exam_slots = [slot for slot in (day.get("slots") or []) if _normalized_slot_value(slot, "modality", "delivery_mode", "period_type") in {"exam", "examen"} or (slot.get("uv") or "").upper() == "EXAMEN"]
+            if training_slots:
+                copied = dict(day); copied["slots"] = training_slots; presentiel_days.append(copied)
+            if exam_slots:
+                copied = dict(day); copied["slots"] = exam_slots; exam_days.append(copied)
+    elif is_afc:
+        presentiel_days = []
+        exam_days = []
+        for day in planning_data:
+            training_slots = [slot for slot in (day.get("slots") or []) if is_in_person_slot(slot) and not is_afc_exam_slot(slot)]
+            exam_slots = [slot for slot in (day.get("slots") or []) if is_afc_exam_slot(slot)]
             if training_slots:
                 copied = dict(day); copied["slots"] = training_slots; presentiel_days.append(copied)
             if exam_slots:
@@ -4091,7 +4139,7 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         trainers = sorted({(s.get("trainer") or "").strip() for s in slots if (s.get("trainer") or "").strip()}) or ["—"]
         room = (slots[0].get("room") if slots else "") or session_data.get("exam_room") or session_data.get("salle") or "—"
         am = period_amplitude(slots, True); pm = period_amplitude(slots, False)
-        rows = [("Session", session_name, "Date de l’examen" if exam else "Date", date_label), ("Responsable(s) / intervenant(s)" if exam else "Formateur", ", ".join(trainers), "Lieu / salle", room), ("Période de formation", f"du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", "Date d’examen", format_date(session_data.get('date_exam'))), ("Horaires du matin", am if am != "—" else "", "Horaires de l’après-midi", pm if pm != "—" else "")]
+        rows = [("Session", session_name, "Date de l’examen" if exam else "Date", date_label), ("Responsable(s) / intervenant(s)" if exam else "Formateur", ", ".join(trainers), "Lieu / salle", room), ("Période de formation", f"du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}", "Date d’examen", date_label if exam else format_date(session_data.get('date_exam'))), ("Horaires du matin", am if am != "—" else "", "Horaires de l’après-midi", pm if pm != "—" else "")]
         col_w = (width - 2 * margin - 12) / 2; label_w = 112; row_h = 21
         # No filled background box here: DESP must use the same readable APS text flow,
         # without a pale rectangle covering or tinting the session information.
@@ -4237,8 +4285,12 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
 
     def draw_summary(y):
         c.setFillColor(colors.HexColor("#f9fafb")); c.rect(margin,y-92,width-2*margin,92,fill=1,stroke=1); c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica-Bold",10); c.drawString(margin+8,y-14,"Synthèse des feuilles de présence SSIAP 1" if is_ssiap1 else "Synthèse des feuilles de présence")
-        total_hours = SSIAP1_TOTAL_HOURS if is_ssiap1 else round(sum(float(slot.get("duration") or 0) for day in presentiel_days for slot in day.get("slots", [])), 2)
-        vals=[f"Nombre total de stagiaires : {len(students)}",(f"Nombre de journées de formation : {len(presentiel_days)}" if is_ssiap1 else f"Nombre de journées présentielles : {len(presentiel_days)}"),(f"Total formation : {total_hours:g} h" if is_ssiap1 else f"Nombre total d’heures présentielles : {total_hours:g}h"),f"Période de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}",f"Date d’examen : {format_date(session_data.get('date_exam'))}",("Modalité : présentiel" if is_ssiap1 else "Modalité : Présentiel au centre")]
+        if is_ssiap1:
+            total_hours = SSIAP1_TOTAL_HOURS
+        else:
+            total_hours = round(sum(float(slot.get("duration") or 0) for day in presentiel_days + exam_days for slot in day.get("slots", [])), 2)
+        day_count = len(presentiel_days) + (len(exam_days) if is_afc else 0)
+        vals=[f"Nombre total de stagiaires : {len(students)}",(f"Nombre de journées de formation : {len(presentiel_days)}" if is_ssiap1 else f"Nombre de journées présentielles : {day_count}"),(f"Total formation : {total_hours:g} h" if is_ssiap1 else f"Nombre total d’heures présentielles : {total_hours:g}h"),f"Période de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}",f"Date d’examen : {format_date(session_data.get('date_exam'))}",("Modalité : présentiel" if is_ssiap1 else "Modalité : Présentiel au centre")]
         c.setFont("Helvetica",8.5); yy=y-30
         for i,v in enumerate(vals): c.drawString(margin+10+(i%2)*250, yy-(i//2)*16, v)
         return y-102
@@ -4276,9 +4328,12 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
         footer(page_no); c.showPage(); page_no+=1
 
     for exam_day in exam_days:
-        slots=exam_day.get("slots") or []; date_label=format_date(exam_day.get("date")); y=draw_header("FEUILLE DE PRÉSENCE - EXAMEN SSIAP 1", date_label, slots, page_no, exam=True)
+        slots=exam_day.get("slots") or []
+        date_label=format_date(exam_day.get("date"))
+        exam_name = "APS" if any((slot.get("afcCategory") or "").upper() == "EXAM_APS" for slot in slots) else "SSIAP 1"
+        y=draw_header(f"FEUILLE DE PRÉSENCE - EXAMEN {exam_name}", date_label, slots, page_no, exam=True)
         c.setFont("Helvetica-Bold",8.8); c.drawString(margin,y,"Épreuve(s) d’examen"); y-=12
-        for slot in slots: y=draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or 'EXAMEN SSIAP 1'}", margin+8, y, width-2*margin-8, "Helvetica", 8.5, 10)
+        for slot in slots: y=draw_wrapped_text(c, f"{_hhmm_to_fr(slot.get('start'))} - {_hhmm_to_fr(slot.get('end'))} : {slot.get('title') or f'EXAMEN {exam_name}'}", margin+8, y, width-2*margin-8, "Helvetica", 8.5, 10)
         day_students = students_for_day(exam_day.get("date"))
         y-=8; layout=attendance_bottom_layout(y, len(day_students), 2); y=draw_people_table(y, day_students, True, True, layout["row_h"]); y=draw_signature_blocks(layout["signatures_y"], slots, exam=True, block_h=layout["signature_h"])
         if is_ssiap1 and len(students)<=6 and y-102>footer_top_y+10: y=draw_summary(y)
@@ -7644,7 +7699,7 @@ def generate_aps_trainer_contracts(sid):
         calc = aps_trainer_interventions(planning_data, planning_name)
         if not calc["interventions"]: return jsonify({"ok": False, "error": f"Aucun créneau trouvé pour {planning_name}."}), 400
         billed_days = float(trainer.get("billedDays") or calc["calculatedDays"] or 0)
-        trainer_attends_exam = bool(trainer.get("trainerAttendsExam") or trainer.get("trainer_attends_exam"))
+        trainer_attends_exam = bool(trainer.get("trainerAttendsExam") or trainer.get("trainer_attends_exam")) and normalize_training_code(session_data) != "AFC_APS_SSIAP"
         exam_trainer_hours = float(trainer.get("examTrainerHours") or trainer.get("exam_trainer_hours") or 0) if trainer_attends_exam else 0.0
         exam_trainer_rate = float(trainer.get("examTrainerRate") or trainer.get("exam_trainer_rate") or 0) if trainer_attends_exam else 0.0
         exam_trainer_amount = round(float(trainer.get("examTrainerAmount") or trainer.get("exam_trainer_amount") or (exam_trainer_hours * exam_trainer_rate) or 0), 2) if trainer_attends_exam else 0.0
@@ -8640,6 +8695,8 @@ def get_aps_planning_api(sid):
     if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
     planning_data = visible_planning_data(session_data.get("apsPlanningData") or [], include_empty=True)
+    if is_afc:
+        planning_data = normalize_afc_exam_trainers(planning_data)
     if formation == "APS":
         # This is intentionally performed from persisted data (including empty
         # placeholders) so a support investigation can see the exact legacy
@@ -8683,6 +8740,8 @@ def update_aps_planning_api(sid):
     # Discard malformed legacy placeholders submitted by older clients while
     # retaining intentional APS availability slots (``isEmpty``).
     planning_data = visible_planning_data(planning_data, include_empty=True)
+    if is_afc:
+        planning_data = normalize_afc_exam_trainers(planning_data)
     if formation == "APS":
         # Never trust a duration sent by the browser: persist the duration
         # calculated from the two editable time fields.
@@ -8690,7 +8749,7 @@ def update_aps_planning_api(sid):
         log_aps_planning_diagnostics({**session_data, "apsPlanningData": planning_data})
     planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
-    if exam_iso and not is_ssiap1_session(session_data) and any(day.get("date") == exam_iso for day in planning_data):
+    if exam_iso and not is_ssiap1_session(session_data) and not is_afc and any(day.get("date") == exam_iso for day in planning_data):
         return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
     if is_ssiap1_session(session_data):
         summary = ssiap1_summary_from_data(planning_data)

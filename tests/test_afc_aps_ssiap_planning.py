@@ -8,7 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import (
     AFC_APS_SSIAP_EXPECTED_MINUTES,
     AFC_CATEGORY_COLORS,
+    AFC_EXAM_CATEGORIES,
     AFC_TECHNICAL_CODES,
+    aps_detect_trainers,
+    aps_trainer_interventions,
     build_afc_aps_ssiap_planning_data,
     afc_aps_ssiap_summary_from_data,
     calculate_actual_afc_hours,
@@ -53,6 +56,10 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert sum(day_minutes("H0B0").values()) == 420
     assert list(day_minutes("EXAM_SSIAP1").values()) == [420]
     assert next(iter(day_minutes("EXAM_SSIAP1"))) == planning[-1]["date"]
+    exam_slots = [slot for day in planning for slot in day["slots"] if slot["afcCategory"] in AFC_EXAM_CATEGORIES]
+    training_slots = [slot for day in planning for slot in day["slots"] if slot["afcCategory"] not in AFC_EXAM_CATEGORIES]
+    assert exam_slots and all(slot["trainer"] == "" for slot in exam_slots)
+    assert training_slots and all(slot["trainer"] == "Formateur" for slot in training_slots)
     assert all("None" not in str(slot) for day in planning for slot in day["slots"])
 
     eligible = [day["date"] for day in planning]
@@ -153,6 +160,22 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert calculate_actual_afc_hours(planning) == {code: minutes / 60 for code, minutes in AFC_APS_SSIAP_EXPECTED_MINUTES.items()}
 
 
+def test_afc_trainer_contract_excludes_both_exam_days_even_for_legacy_planning():
+    interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
+    for day in planning:
+        for slot in day["slots"]:
+            if slot["afcCategory"] in AFC_EXAM_CATEGORIES:
+                slot["trainer"] = "Formateur"
+
+    assert aps_detect_trainers(planning) == ["Formateur"]
+    calculation = aps_trainer_interventions(planning, "Formateur")
+    assert calculation["totalHours"] == 379
+    assert calculation["calendarDays"] == 55
+    assert calculation["calculatedDays"] == 54.14
+    assert all("EXAM_APS" not in row["module"] and "EXAM_SSIAP1" not in row["module"] for row in calculation["interventions"])
+
+
 def test_afc_rejects_old_ssiap_85_paf_5_distribution_even_when_total_is_393():
     interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
     planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
@@ -231,6 +254,7 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "RAN" in text and "PAF" in text and "Bilan" in text
     assert "Examen APS : 21/01/2027" in text
     assert "Examen APS : 25/01/2027" not in text
+    assert "Formateur : —" not in text
     last = reader.pages[-1].mediabox
     assert float(last.width) > float(last.height)
 
@@ -350,6 +374,52 @@ def test_afc_attendance_pdf_hides_students_before_individual_start_date(tmp_path
     assert "RETARD" not in first_day_text
     assert "PREMIER" in second_day_text
     assert "RETARD" in second_day_text
+
+
+def test_afc_exam_attendance_pages_use_responsible_role_not_trainer(tmp_path):
+    from pypdf import PdfReader
+    from app import generate_aps_attendance_pdf
+
+    def attendance_slot(category, title, trainer="Formateur Test"):
+        return {
+            "start": "08:30", "end": "16:30", "duration": 7, "durationMinutes": 420,
+            "uv": category, "afcCategory": category, "title": title, "content": title,
+            "trainer": trainer, "room": "Salle AFC", "modality": "presentiel",
+        }
+
+    output = tmp_path / "afc_exam_attendance.pdf"
+    session = {
+        "id": "afc-exam-attendance",
+        "formation": "AFC_APS_SSIAP",
+        "training_code": "AFC_APS_SSIAP",
+        "display_name": "AFC Test",
+        "date_debut": "2027-01-20",
+        "date_fin": "2027-02-15",
+        "date_exam": "2027-02-15",
+        "salle": "Salle AFC",
+        "apsPlanningMode": "full_presentiel",
+        "apsPlanningData": [
+            {"date": "2027-01-20", "slots": [attendance_slot("APS", "Formation APS")]},
+            {"date": "2027-01-21", "slots": [attendance_slot("EXAM_APS", "Examen APS")]},
+            {"date": "2027-02-15", "slots": [attendance_slot("EXAM_SSIAP1", "Examen SSIAP 1")]},
+        ],
+        "apsAttendanceStudents": [{"lastName": "DUPONT", "firstName": "Alice"}],
+    }
+
+    generate_aps_attendance_pdf(session, str(output))
+
+    reader = PdfReader(str(output))
+    aps_exam_text = reader.pages[1].extract_text() or ""
+    ssiap_exam_text = reader.pages[2].extract_text() or ""
+    for text in (aps_exam_text, ssiap_exam_text):
+        assert "Responsable(s) / intervenant(s)" in text
+        assert "Signature responsable / intervenant" in text
+        assert "Signature formateur" not in text
+        assert "Formateur Test" not in text
+    assert "EXAMEN APS" in aps_exam_text
+    assert "21/01/2027" in aps_exam_text
+    assert "EXAMEN SSIAP 1" in ssiap_exam_text
+    assert "15/02/2027" in ssiap_exam_text
 
 
 def _slot(cat, start, end, minutes, block_id=None):

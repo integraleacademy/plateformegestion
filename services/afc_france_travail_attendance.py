@@ -20,6 +20,7 @@ GREY_FILL = PatternFill("solid", fgColor="D9D9D9")
 WHITE_FILL = PatternFill(fill_type=None)
 AFC_CODE_MAP = {"SP": "S", "S": "S", "RAN": "RAN", "PAF": "PAF", "E": "E", "DIS": "DIS"}
 FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN", "FT"}
+AFC_EXAM_CATEGORIES = {"EXAM_APS", "EXAM_SSIAP1"}
 
 @dataclass
 class SlotInfo:
@@ -96,6 +97,10 @@ def slot_module(slot):
     if cat in FT_CATEGORIES: return "FT"
     return AFC_CODE_MAP.get(cat, cat if cat in {"RAN","PAF","E","DIS","S"} else "FT")
 
+def slot_trainer(slot):
+    category = str(slot.get("afcCategory") or slot.get("category") or slot.get("uv") or "").upper()
+    return "" if category in AFC_EXAM_CATEGORIES else (slot.get("trainer") or slot.get("formateur") or "")
+
 def minutes(slot): return int(slot.get("durationMinutes") or round(float(slot.get("duration") or 0) * 60))
 def time_to_minutes(value):
     h, m = map(int, str(value or "00:00")[:5].split(":"))
@@ -134,7 +139,7 @@ def build_week_schedule(session, week):
                 m = piece_end - piece_start
                 if m<=0: continue
                 col = day_to_col[d][1 if part=="am" else 2]
-                slots.append(SlotInfo(d,col,part,minutes_to_time(piece_start),minutes_to_time(piece_end),m,slot_module(sl),sl.get("trainer") or sl.get("formateur") or "",slot_student_ids(sl)))
+                slots.append(SlotInfo(d,col,part,minutes_to_time(piece_start),minutes_to_time(piece_end),m,slot_module(sl),slot_trainer(sl),slot_student_ids(sl)))
     return slots
 
 def applicable(student, d):

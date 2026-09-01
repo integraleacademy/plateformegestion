@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 from services.afc_france_travail_attendance import (
     is_afc_session, update_afc_france_travail_settings, save_france_travail_ids,
     preview, generate_france_travail_workbook, build_session_weeks, build_week_schedule,
-    get_week_trainees, attendance_students
+    get_week_trainees, get_week_trainers, attendance_students
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +57,26 @@ def test_preview_warns_missing_ids_and_settings_and_counts_three_weeks_trainers(
     assert p["missingIdCount"] == 1 and "NOM2 Prenom2" in p["missingIds"]
     assert "brs" in p["missingSettings"]
     assert p["trainerCount"] == 2
+
+def test_exam_slots_keep_trainee_hours_without_counting_a_trainer():
+    s = sample_session(2)
+    exam_date = date.fromisoformat(s["apsPlanningData"][0]["date"])
+    s["date_debut"] = exam_date.isoformat()
+    s["date_fin"] = exam_date.isoformat()
+    s["apsPlanningData"] = [{
+        "date": exam_date.isoformat(),
+        "slots": [
+            slot("08:30", "12:30", "EXAM_APS", "Ancien formateur"),
+            slot("13:30", "16:30", "EXAM_APS", "Ancien formateur"),
+        ],
+    }]
+
+    week = build_session_weeks(s)[0]
+    schedule = build_week_schedule(s, week)
+    assert sum(item.minutes for item in schedule) == 420
+    assert {item.module for item in schedule} == {"FT"}
+    assert all(item.trainer == "" for item in schedule)
+    assert get_week_trainers(schedule) == []
 
 def test_workbook_generation_keeps_template_intact_removes_old_sheets_and_opens():
     template = ROOT/"static/upload/tableau.xlsx"; before=sha(template)

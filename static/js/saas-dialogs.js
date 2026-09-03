@@ -105,10 +105,10 @@
     event.stopImmediatePropagation();
     show('confirm', match[2], { danger: /supprimer|réinitialiser|delete/i.test(match[2]) }).then((ok) => {
       if (!ok) return;
-      form.dataset.saasConfirmed = '1';
-      if (form.requestSubmit) form.requestSubmit();
-      else form.submit();
-      setTimeout(() => delete form.dataset.saasConfirmed, 0);
+      // requestSubmit() rejouerait le onsubmit en ligne et ouvrirait une
+      // deuxième confirmation. La soumission native poursuit directement
+      // l'action que l'utilisateur vient de confirmer.
+      HTMLFormElement.prototype.submit.call(form);
     });
   }, true);
 }());

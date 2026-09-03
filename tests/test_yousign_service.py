@@ -278,7 +278,7 @@ def test_yousign_add_signer_force_sms_otp(monkeypatch):
 
     def fake_request(method, path, payload=None, headers=None):
         captured.update({"method": method, "path": path, "payload": payload})
-        return {"id": "signer_1"}
+        return {"id": "signer_1", "signature_authentication_mode": "otp_sms"}
 
     monkeypatch.setattr(client, "request", fake_request)
     client.add_signer("sr_1", "Jean", "Dupont", "jean@example.com", use_text_tags=True, phone_number="06 83 81 82 01", force_sms_otp=True)
@@ -288,6 +288,56 @@ def test_yousign_add_signer_force_sms_otp(monkeypatch):
     assert captured["payload"]["delivery_mode"] == "email"
     assert captured["payload"]["info"]["phone_number"].startswith("+33")
     assert captured["payload"]["info"]["phone_number"] == "+33683818201"
+
+
+def test_yousign_add_signer_rejects_explicit_sms_otp_downgrade(monkeypatch):
+    import pytest
+
+    from yousign_service import YousignClient, YousignConfig, YousignError
+
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test"))
+    monkeypatch.setattr(
+        client,
+        "request",
+        lambda *_args, **_kwargs: {
+            "id": "signer_1",
+            "signature_authentication_mode": "no_otp",
+        },
+    )
+
+    with pytest.raises(YousignError, match="code SMS"):
+        client.add_signer(
+            "sr_1",
+            "Jean",
+            "Dupont",
+            "jean@example.com",
+            use_text_tags=True,
+            phone_number="06 83 81 82 01",
+            force_sms_otp=True,
+        )
+
+
+def test_yousign_cancel_signature_request_uses_document_error_reason(monkeypatch):
+    from yousign_service import YousignClient, YousignConfig
+
+    captured = {}
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test"))
+
+    def fake_request(method, path, payload=None, headers=None):
+        captured.update({"method": method, "path": path, "payload": payload})
+        return {}
+
+    monkeypatch.setattr(client, "request", fake_request)
+    client.cancel_signature_request("sr_1", "Remplacement du contrat")
+
+    assert captured == {
+        "method": "POST",
+        "path": "signature_requests/sr_1/cancel",
+        "payload": {
+            "reason": "errors_in_document",
+            "custom_note": "Remplacement du contrat",
+        },
+    }
 
 def test_sanitize_yousign_external_id_removes_forbidden_chars():
     from yousign_service import sanitize_yousign_external_id

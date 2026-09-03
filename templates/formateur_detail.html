@@ -158,11 +158,12 @@
       {% set yousign = formateur.yousign|default({}, true) %}
       {% set ys_status = yousign.status|default('draft', true) %}
       {% set ys_active = yousign.signatureRequestId and ys_status in ['draft', 'approval', 'ongoing', 'partially_signed'] %}
+      {% set ys_legacy_center_request = ys_active and yousign.centerSignerId %}
       <section class="profile-update-card framework-contract-card">
         <div class="framework-contract-card__heading">
           <div>
             <div class="profile-update-card__title">Contrat cadre de sous-traitance</div>
-            <p>Génération depuis la fiche et double signature électronique.</p>
+            <p>Signature et tampon du centre intégrés au PDF, puis signature électronique du formateur avec code SMS.</p>
           </div>
           <span class="framework-contract-status framework-contract-status--{{ ys_status }}">
             {% if yousign.signatureRequestId %}{{ yousign_status_label(ys_status) }}{% elif framework_contract.filename %}Prêt à envoyer{% else %}À générer{% endif %}
@@ -181,7 +182,7 @@
         {% if framework_contract.filename %}
           <p class="framework-contract-meta">
             PDF de 15 pages généré{% if framework_contract.generatedAt %} le {{ framework_contract.generatedAt|datetimefr }}{% endif %}.
-            {% if framework_contract.sentAt %}<br>Envoyé le {{ framework_contract.sentAt|datetimefr }} à {{ yousign.recipientEmail or formateur.email }} et {{ yousign.centerRecipientEmail or 'Intégrale Academy' }}.{% endif %}
+            {% if framework_contract.sentAt %}<br>Envoyé le {{ framework_contract.sentAt|datetimefr }} au formateur {{ yousign.recipientEmail or formateur.email }} avec vérification par code SMS.{% endif %}
           </p>
         {% else %}
           <p class="framework-contract-meta">Le nom, l’adresse, la date de naissance, le NDA et le SIRET seront repris automatiquement.</p>
@@ -198,10 +199,10 @@
           {% if framework_contract.filename %}
             <a href="{{ url_for('view_formateur_framework_contract', fid=formateur.id) }}" target="_blank" rel="noopener" class="btn-premium btn-premium--dark">Voir le contrat</a>
           {% endif %}
-          {% if not ys_active and ys_status not in ['done', 'signed'] %}
-          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('Générer si nécessaire puis envoyer le contrat au formateur et à Intégrale Academy pour signature électronique ?');">
+          {% if (not ys_active or ys_legacy_center_request) and ys_status not in ['done', 'signed'] %}
+          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('{% if ys_legacy_center_request %}L’ancienne demande à deux signataires sera annulée et remplacée. Continuer ?{% else %}Générer si nécessaire puis envoyer le contrat au formateur pour signature électronique avec code SMS ?{% endif %}');">
             <button type="submit" id="framework-contract-send-button" class="btn-premium btn-premium--primary" data-recipient-complete="{{ 'true' if formateur.email and formateur.telephone else 'false' }}" {% if framework_contract_missing_fields or not formateur.email or not formateur.telephone %}disabled{% endif %}>
-              {% if ys_status == 'error' %}Réessayer l’envoi Yousign{% elif framework_contract.filename and not framework_contract_stale %}Envoyer pour signature électronique{% else %}Générer et envoyer pour signature{% endif %}
+              {% if ys_legacy_center_request %}Remplacer la demande de signature{% elif ys_status == 'error' %}Réessayer l’envoi Yousign{% elif framework_contract.filename and not framework_contract_stale %}Envoyer pour signature électronique{% else %}Générer et envoyer pour signature{% endif %}
             </button>
           </form>
           {% endif %}
@@ -910,6 +911,4 @@ if (!window.__mediaLightboxEscBound) {
 
 </body>
 </html>
-
-
 

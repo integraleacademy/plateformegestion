@@ -236,7 +236,15 @@ class YousignClient:
         if document_id and not use_text_tags:
             # Champ attendu par l'API v3 pour positionner une signature visible simple.
             payload["fields"] = [{"document_id": document_id, "type": "signature", "page": 1, "x": 420, "y": 700}]
-        return self.request("POST", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers", payload)
+        signer = self.request("POST", f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers", payload)
+        if force_sms_otp and isinstance(signer, dict):
+            returned_mode = (signer.get("signature_authentication_mode") or "").strip()
+            if returned_mode and returned_mode != "otp_sms":
+                raise YousignError(
+                    "Yousign n'a pas confirmé l'authentification du formateur par code SMS.",
+                    payload=signer,
+                )
+        return signer
 
     def add_signature_field(
         self,
@@ -280,6 +288,16 @@ class YousignClient:
 
     def activate_signature_request(self, signature_request_id: str) -> Any:
         return self.request("POST", f"signature_requests/{urllib.parse.quote(signature_request_id)}/activate")
+
+    def cancel_signature_request(self, signature_request_id: str, custom_note: str = "") -> Any:
+        payload = {"reason": "errors_in_document"}
+        if custom_note:
+            payload["custom_note"] = custom_note[:500]
+        return self.request(
+            "POST",
+            f"signature_requests/{urllib.parse.quote(signature_request_id)}/cancel",
+            payload,
+        )
 
     def get_signature_request(self, signature_request_id: str) -> Any:
         return self.request("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}")

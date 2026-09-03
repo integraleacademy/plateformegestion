@@ -9884,7 +9884,7 @@ def is_yousign_sandbox():
 def normalize_yousign_state(state=None):
     defaults = {
         "signatureRequestId": "", "documentId": "", "signerId": "", "fieldId": "", "centerSignerId": "", "centerFieldId": "", "externalId": "", "status": "draft", "statusLabel": "Brouillon",
-        "signatureUrl": "", "sentAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
+        "signatureUrl": "", "sentAt": "", "lastReminderAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
         "lastEvent": "", "lastEventAt": "", "lastSyncedAt": "", "lastWebhookAt": "",
         "apiStatus": "", "apiSignerStatus": "", "apiHttpStatus": "", "apiError": "", "apiRawResponse": "",
         "recipientEmail": "", "centerRecipientEmail": "", "signatureAuthenticationMode": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
@@ -10724,6 +10724,54 @@ def send_formateur_contract_yousign(fid):
         })
         save_formateurs(formateurs)
         flash(f"Erreur Yousign : {yousign_service_access_message(exc.status_code, exc.payload)}", "error")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.post("/formateurs/<fid>/yousign/remind")
+def remind_formateur_contract_yousign(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    state = normalize_yousign_state(formateur.get("yousign"))
+    signature_request_id = state.get("signatureRequestId")
+    signer_id = state.get("signerId")
+    if not signature_request_id or not signer_id:
+        flash("Aucune invitation Yousign active ne peut être renvoyée.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    if state.get("status") not in {"ongoing", "partially_signed"}:
+        flash("La demande Yousign n'est plus en attente de signature.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    if not is_yousign_configured():
+        flash("Yousign n'est pas configuré: renseignez YOUSIGN_API_KEY côté serveur.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    now = datetime.now().isoformat(timespec="seconds")
+    try:
+        YousignClient().send_signer_reminder(signature_request_id, signer_id)
+        update_formateur_yousign_state(formateur, {
+            "lastReminderAt": now,
+            "lastEvent": "signer.reminder.sent",
+            "lastEventAt": now,
+            "apiError": "",
+            "error": None,
+        })
+        save_formateurs(formateurs)
+        recipient = state.get("recipientEmail") or formateur.get("email") or "au formateur"
+        flash(f"Invitation de signature renvoyée à {recipient}.", "ok")
+    except YousignError as exc:
+        error_message = yousign_service_access_message(exc.status_code, exc.payload)
+        update_formateur_yousign_state(formateur, {
+            "lastEvent": "signer.reminder.error",
+            "lastEventAt": now,
+            "apiHttpStatus": str(exc.status_code or "network"),
+            "apiError": str(exc),
+            "error": error_message,
+            "errorPayload": exc.payload,
+        })
+        save_formateurs(formateurs)
+        flash(f"Relance Yousign impossible : {error_message}", "error")
     return redirect(url_for("formateur_detail", fid=fid))
 
 

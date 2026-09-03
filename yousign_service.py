@@ -299,6 +299,13 @@ class YousignClient:
             payload,
         )
 
+    def send_signer_reminder(self, signature_request_id: str, signer_id: str) -> Any:
+        return self.request(
+            "POST",
+            f"signature_requests/{urllib.parse.quote(signature_request_id)}/signers/"
+            f"{urllib.parse.quote(signer_id)}/send_reminder",
+        )
+
     def get_signature_request(self, signature_request_id: str) -> Any:
         return self.request("GET", f"signature_requests/{urllib.parse.quote(signature_request_id)}")
 

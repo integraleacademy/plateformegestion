@@ -339,6 +339,26 @@ def test_yousign_cancel_signature_request_uses_document_error_reason(monkeypatch
         },
     }
 
+
+def test_yousign_send_signer_reminder_uses_manual_reminder_endpoint(monkeypatch):
+    from yousign_service import YousignClient, YousignConfig
+
+    captured = {}
+    client = YousignClient(YousignConfig(api_key="key", base_url="https://example.test"))
+
+    def fake_request(method, path, payload=None, headers=None):
+        captured.update({"method": method, "path": path, "payload": payload})
+        return {}
+
+    monkeypatch.setattr(client, "request", fake_request)
+    client.send_signer_reminder("sr_1", "signer_1")
+
+    assert captured == {
+        "method": "POST",
+        "path": "signature_requests/sr_1/signers/signer_1/send_reminder",
+        "payload": None,
+    }
+
 def test_sanitize_yousign_external_id_removes_forbidden_chars():
     from yousign_service import sanitize_yousign_external_id
 

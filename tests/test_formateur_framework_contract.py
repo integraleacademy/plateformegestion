@@ -72,7 +72,10 @@ def test_identity_update_persists_birth_date(monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.get_json()["date_naissance"] == "1988-04-02"
+    payload = response.get_json()
+    assert payload["date_naissance"] == "1988-04-02"
+    assert payload["framework_contract_missing_fields"] == []
+    assert payload["framework_contract_stale"] is False
     assert formateur["date_naissance"] == "1988-04-02"
     assert saved["data"] == [formateur]
 
@@ -156,8 +159,11 @@ def test_formateur_detail_shows_framework_contract_actions(monkeypatch):
     response = authenticated_client().get("/formateurs/dfff0664")
 
     assert response.status_code == 200
-    assert "Contrat cadre de sous-traitance" in response.get_data(as_text=True)
-    assert "Générer et envoyer pour signature" in response.get_data(as_text=True)
+    html = response.get_data(as_text=True)
+    assert "Contrat cadre de sous-traitance" in html
+    assert "Générer et envoyer pour signature" in html
+    assert 'id="framework-contract-missing-fields"' in html
+    assert 'id="framework-contract-generate-button"' in html
 
 
 def test_center_signer_webhook_keeps_trainer_signer_and_marks_partial(monkeypatch):

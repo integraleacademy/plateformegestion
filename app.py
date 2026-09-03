@@ -10403,7 +10403,17 @@ def update_formateur_identity(fid):
     formateur["nda"] = (request.form.get("nda") or "").strip()
     formateur["tarif_journalier_ht"] = (request.form.get("tarif_journalier_ht") or "").strip()
     save_formateurs(formateurs)
-    return {"ok": True, "nub": nub, "date_naissance": birth_date, "siret": formateur["siret"], "adresse_postale": formateur["adresse_postale"], "nda": formateur["nda"], "tarif_journalier_ht": formateur["tarif_journalier_ht"]}
+    return {
+        "ok": True,
+        "nub": nub,
+        "date_naissance": birth_date,
+        "siret": formateur["siret"],
+        "adresse_postale": formateur["adresse_postale"],
+        "nda": formateur["nda"],
+        "tarif_journalier_ht": formateur["tarif_journalier_ht"],
+        "framework_contract_missing_fields": formateur_framework_contract_missing_fields(formateur),
+        "framework_contract_stale": formateur_framework_contract_is_stale(formateur),
+    }
 
 
 @app.route("/formateurs/<fid>/cle/update", methods=["POST"])

@@ -169,19 +169,15 @@
           </span>
         </div>
 
-        {% if framework_contract_missing_fields %}
-          <div class="framework-contract-alert framework-contract-alert--error">
+          <div id="framework-contract-missing-fields" class="framework-contract-alert framework-contract-alert--error"{% if not framework_contract_missing_fields %} hidden{% endif %}>
             À compléter avant génération : {{ framework_contract_missing_fields|join(', ') }}.
           </div>
-        {% endif %}
         {% if not formateur.email or not formateur.telephone %}
           <div class="framework-contract-alert">
             L’email et le téléphone portable du formateur sont nécessaires pour l’envoi Yousign avec code SMS.
           </div>
         {% endif %}
-        {% if framework_contract_stale %}
-          <div class="framework-contract-alert">Les informations ont changé : le PDF sera régénéré avant le prochain envoi.</div>
-        {% endif %}
+          <div id="framework-contract-stale-alert" class="framework-contract-alert"{% if not framework_contract_stale %} hidden{% endif %}>Les informations ont changé : le PDF sera régénéré avant le prochain envoi.</div>
         {% if framework_contract.filename %}
           <p class="framework-contract-meta">
             PDF de 15 pages généré{% if framework_contract.generatedAt %} le {{ framework_contract.generatedAt|datetimefr }}{% endif %}.
@@ -195,7 +191,7 @@
 
         <div class="detail-actions framework-contract-actions">
           <form method="POST" action="{{ url_for('generate_formateur_framework_contract', fid=formateur.id) }}" onsubmit="return confirm('{% if ys_active %}Une signature est en cours. Le contrat ne pourra pas être régénéré.{% elif yousign.signatureRequestId %}Créer une nouvelle version du contrat cadre ?{% else %}Générer le contrat cadre avec les informations de cette fiche ?{% endif %}');">
-            <button type="submit" class="btn-premium btn-premium--soft" {% if framework_contract_missing_fields or ys_active %}disabled{% endif %}>
+            <button type="submit" id="framework-contract-generate-button" class="btn-premium btn-premium--soft" data-yousign-active="{{ 'true' if ys_active else 'false' }}" {% if framework_contract_missing_fields or ys_active %}disabled{% endif %}>
               {% if framework_contract.filename %}Régénérer le contrat{% else %}Générer le contrat{% endif %}
             </button>
           </form>
@@ -204,7 +200,7 @@
           {% endif %}
           {% if not ys_active and ys_status not in ['done', 'signed'] %}
           <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('Générer si nécessaire puis envoyer le contrat au formateur et à Intégrale Academy pour signature électronique ?');">
-            <button type="submit" class="btn-premium btn-premium--primary" {% if framework_contract_missing_fields or not formateur.email or not formateur.telephone %}disabled{% endif %}>
+            <button type="submit" id="framework-contract-send-button" class="btn-premium btn-premium--primary" data-recipient-complete="{{ 'true' if formateur.email and formateur.telephone else 'false' }}" {% if framework_contract_missing_fields or not formateur.email or not formateur.telephone %}disabled{% endif %}>
               {% if ys_status == 'error' %}Réessayer l’envoi Yousign{% elif framework_contract.filename and not framework_contract_stale %}Envoyer pour signature électronique{% else %}Générer et envoyer pour signature{% endif %}
             </button>
           </form>
@@ -395,6 +391,10 @@
   const adresseInput = document.getElementById("formateur-adresse-postale");
   const ndaInput = document.getElementById("formateur-nda");
   const tarifInput = document.getElementById("formateur-tarif-journalier");
+  const frameworkMissingFieldsAlert = document.getElementById("framework-contract-missing-fields");
+  const frameworkStaleAlert = document.getElementById("framework-contract-stale-alert");
+  const frameworkGenerateButton = document.getElementById("framework-contract-generate-button");
+  const frameworkSendButton = document.getElementById("framework-contract-send-button");
   let nubSaveTimeout = null;
   let identitySaveTimeout = null;
   let documentSaveQueue = Promise.resolve();
@@ -463,6 +463,33 @@ function updateSelectColor(selectEl) {
     return (value || "").replace(/\D/g, "").slice(0, 7);
   }
 
+  function refreshFrameworkContractAvailability(data) {
+    const missingFields = Array.isArray(data.framework_contract_missing_fields)
+      ? data.framework_contract_missing_fields
+      : [];
+
+    if (frameworkMissingFieldsAlert) {
+      frameworkMissingFieldsAlert.textContent = missingFields.length
+        ? `À compléter avant génération : ${missingFields.join(", ")}.`
+        : "";
+      frameworkMissingFieldsAlert.hidden = missingFields.length === 0;
+    }
+
+    if (frameworkGenerateButton) {
+      frameworkGenerateButton.disabled = missingFields.length > 0
+        || frameworkGenerateButton.dataset.yousignActive === "true";
+    }
+
+    if (frameworkSendButton) {
+      frameworkSendButton.disabled = missingFields.length > 0
+        || frameworkSendButton.dataset.recipientComplete !== "true";
+    }
+
+    if (frameworkStaleAlert) {
+      frameworkStaleAlert.hidden = !data.framework_contract_stale;
+    }
+  }
+
   function saveNub(force = false) {
     if (!nubInput) return;
 
@@ -509,7 +536,12 @@ function updateSelectColor(selectEl) {
       }
       lastSavedNub = data.nub || "";
       nubInput.value = lastSavedNub;
+      if (siretInput) siretInput.value = data.siret || "";
+      if (adresseInput) adresseInput.value = data.adresse_postale || "";
+      if (ndaInput) ndaInput.value = data.nda || "";
+      if (tarifInput) tarifInput.value = data.tarif_journalier_ht || "";
       setNubError("");
+      refreshFrameworkContractAvailability(data);
       showToast();
     })
     .catch(err => {
@@ -878,7 +910,6 @@ if (!window.__mediaLightboxEscBound) {
 
 </body>
 </html>
-
 
 
 

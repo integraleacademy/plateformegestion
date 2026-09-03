@@ -9288,6 +9288,15 @@ FORMATEURS_FILE = os.path.join(DATA_DIR, "formateurs.json")
 FORMATEURS_LOCK = FORMATEURS_FILE + ".lock"
 FORMATEUR_FILES_DIR = os.path.join(DATA_DIR, "formateurs_files")
 FORMATEUR_PROFILS_DOCS_FILE = os.path.join(DATA_DIR, "formateur_profils_docs.json")
+FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE = os.path.join(
+    BASE_DIR,
+    "static",
+    "documents",
+    "contrat_cadre_sous_traitance_template.pdf",
+)
+FORMATEUR_FRAMEWORK_CONTRACT_DIRNAME = "_contrats_cadres"
+YOUSIGN_FRAMEWORK_CENTER_SIGNATURE_FIELD = {"x": 101, "y": 662, "width": 174, "height": 45}
+YOUSIGN_FRAMEWORK_TRAINER_SIGNATURE_FIELD = {"x": 337, "y": 662, "width": 174, "height": 45}
 os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
 
 DEFAULT_DOC_LABELS = [
@@ -9468,6 +9477,272 @@ def normalize_formateur_nub(value):
     return value
 
 
+def normalize_formateur_birth_date(value):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    for date_format in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(value, date_format).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    raise ValueError("La date de naissance du formateur est invalide.")
+
+
+def formateur_framework_contract_display_name(formateur):
+    first_name = (formateur.get("prenom") or "").strip()
+    last_name = (formateur.get("nom") or "").strip().upper()
+    return " ".join(part for part in (first_name, last_name) if part)
+
+
+def formateur_framework_contract_payload(formateur):
+    try:
+        birth_date = normalize_formateur_birth_date(
+            formateur.get("date_naissance") or formateur.get("birth_date") or ""
+        )
+    except ValueError:
+        birth_date = ""
+    siret_digits = re.sub(r"\D", "", formateur.get("siret") or "")
+    return {
+        "name": formateur_framework_contract_display_name(formateur),
+        "address": " ".join(
+            (formateur.get("adresse_postale") or formateur.get("adresse") or "")
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .split()
+        ),
+        "birthDate": birth_date,
+        "activityDeclaration": (formateur.get("nda") or "").strip(),
+        "siret": siret_digits,
+    }
+
+
+def formateur_framework_contract_missing_fields(formateur):
+    payload = formateur_framework_contract_payload(formateur)
+    missing = []
+    if not payload["name"]:
+        missing.append("nom et prénom")
+    if not payload["address"]:
+        missing.append("adresse postale")
+    if len(payload["siret"]) != 14:
+        missing.append("SIRET valide à 14 chiffres")
+    return missing
+
+
+def formateur_framework_contract_source_hash(formateur):
+    serialized = json.dumps(
+        formateur_framework_contract_payload(formateur),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def formateur_framework_contract_is_stale(formateur):
+    contract = formateur.get("frameworkContract") or {}
+    return bool(contract.get("filename")) and contract.get("sourceHash") != formateur_framework_contract_source_hash(formateur)
+
+
+def format_formateur_contract_birth_date(value):
+    normalized = normalize_formateur_birth_date(value)
+    return datetime.strptime(normalized, "%Y-%m-%d").strftime("%d/%m/%Y") if normalized else "Non renseignée"
+
+
+def format_french_contract_date(value=None):
+    if value is None:
+        value = datetime.now().date()
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, str):
+        value = datetime.strptime(value[:10], "%Y-%m-%d").date()
+    weekdays = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+    months = (
+        "janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+    )
+    return f"{weekdays[value.weekday()]} {value.day} {months[value.month - 1]} {value.year}"
+
+
+def format_formateur_contract_siret(value):
+    digits = re.sub(r"\D", "", value or "")
+    if len(digits) != 14:
+        return digits or "Non renseigné"
+    return f"{digits[:3]} {digits[3:6]} {digits[6:9]} {digits[9:]}"
+
+
+def generate_formateur_framework_contract_pdf(formateur, output_path, contract_date=None):
+    """Génère le contrat cadre depuis le modèle neutre fourni par la direction."""
+    missing = formateur_framework_contract_missing_fields(formateur)
+    if missing:
+        raise ValueError("Informations manquantes : " + ", ".join(missing) + ".")
+    if not os.path.exists(FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE):
+        raise FileNotFoundError("Le modèle du contrat cadre de sous-traitance est introuvable.")
+
+    try:
+        import reportlab
+        from pypdf import PdfReader, PdfWriter
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.utils import simpleSplit
+    except ImportError as exc:
+        raise RuntimeError("Les dépendances PDF du contrat cadre sont indisponibles.") from exc
+
+    payload = formateur_framework_contract_payload(formateur)
+    regular_font = "FrameworkContractVera"
+    bold_font = "FrameworkContractVeraBold"
+    reportlab_font_dir = os.path.join(os.path.dirname(reportlab.__file__), "fonts")
+    if regular_font not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(regular_font, os.path.join(reportlab_font_dir, "Vera.ttf")))
+    if bold_font not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(bold_font, os.path.join(reportlab_font_dir, "VeraBd.ttf")))
+    template_reader = PdfReader(FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE)
+    if len(template_reader.pages) != 15:
+        raise RuntimeError("Le modèle du contrat cadre doit contenir exactement 15 pages.")
+
+    def page_overlay(page_number, page_width, page_height):
+        packet = BytesIO()
+        pdf_canvas = canvas.Canvas(packet, pagesize=(page_width, page_height))
+        pdf_canvas.setTitle("Contrat cadre de sous-traitance")
+        pdf_canvas.setAuthor("Intégrale Academy")
+
+        if page_number == 1:
+            font_size = 10.5
+            line_height = 15.4
+            start_x = 93.4
+            current_y = 238.0
+            max_right = 520.0
+
+            def draw_labelled_value(label, value, y_position, continuation_x=139.0):
+                value = str(value or "Non renseigné")
+                pdf_canvas.setFont(bold_font, font_size)
+                pdf_canvas.drawString(start_x, y_position, label)
+                label_width = pdfmetrics.stringWidth(label + " ", bold_font, font_size)
+                value_x = start_x + label_width
+                first_width = max_right - value_x
+                lines = simpleSplit(value, regular_font, font_size, first_width) or ["Non renseigné"]
+                pdf_canvas.setFont(regular_font, font_size)
+                pdf_canvas.drawString(value_x, y_position, lines[0])
+                next_y = y_position - line_height
+                for line in lines[1:]:
+                    continuation_lines = simpleSplit(line, regular_font, font_size, max_right - continuation_x) or [line]
+                    for continuation in continuation_lines:
+                        pdf_canvas.drawString(continuation_x, next_y, continuation)
+                        next_y -= line_height
+                return next_y
+
+            current_y = draw_labelled_value("Formateur :", payload["name"], current_y)
+            current_y = draw_labelled_value("Adresse :", payload["address"], current_y)
+            current_y = draw_labelled_value("Né(e) le :", format_formateur_contract_birth_date(payload["birthDate"]), current_y)
+            current_y = draw_labelled_value("NDA :", payload["activityDeclaration"] or "Non renseigné", current_y)
+            draw_labelled_value("SIRET :", format_formateur_contract_siret(payload["siret"]), current_y)
+
+        if page_number == 15:
+            pdf_canvas.setFillColorRGB(0, 0, 0)
+            pdf_canvas.setFont(bold_font, 10.5)
+            pdf_canvas.drawString(
+                93.4,
+                230.0,
+                f"Fait à Puget sur Argens le {format_french_contract_date(contract_date)},",
+            )
+            pdf_canvas.drawString(93.4, 180.0, "Signatures électroniques des parties :")
+
+            box_y = 78.0
+            box_height = 58.0
+            box_width = 190.0
+            left_x = 93.4
+            right_x = 328.6
+            pdf_canvas.setFont(bold_font, 8.8)
+            pdf_canvas.drawString(left_x + 5, 144.0, "Pour Intégrale Academy - Clément VAILLANT")
+            pdf_canvas.drawString(right_x + 5, 144.0, f"Pour le formateur - {payload['name']}")
+            pdf_canvas.setStrokeColorRGB(0.65, 0.65, 0.65)
+            pdf_canvas.setLineWidth(0.6)
+            pdf_canvas.rect(left_x, box_y, box_width, box_height, stroke=1, fill=0)
+            pdf_canvas.rect(right_x, box_y, box_width, box_height, stroke=1, fill=0)
+
+        pdf_canvas.save()
+        packet.seek(0)
+        return PdfReader(packet).pages[0]
+
+    writer = PdfWriter()
+    for page_index, template_page in enumerate(template_reader.pages, start=1):
+        if page_index in {1, 15}:
+            template_page.merge_page(
+                page_overlay(
+                    page_index,
+                    float(template_page.mediabox.width),
+                    float(template_page.mediabox.height),
+                )
+            )
+        writer.add_page(template_page)
+
+    writer.add_metadata({
+        "/Title": f"Contrat cadre de sous-traitance - {payload['name']}",
+        "/Author": "Intégrale Academy",
+        "/Subject": "Contrat cadre de sous-traitance formateur",
+        "/Creator": "Plateforme Gestion - Intégrale Academy",
+    })
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    temporary_path = f"{output_path}.{uuid.uuid4().hex}.tmp"
+    try:
+        with open(temporary_path, "wb") as output_file:
+            writer.write(output_file)
+        os.replace(temporary_path, output_path)
+    finally:
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
+    return output_path
+
+
+def formateur_framework_contract_directory(fid):
+    return os.path.join(FORMATEUR_FILES_DIR, fid, FORMATEUR_FRAMEWORK_CONTRACT_DIRNAME)
+
+
+def create_formateur_framework_contract(formateur, generated_at=None):
+    state = normalize_yousign_state(formateur.get("yousign"))
+    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing", "partially_signed"}:
+        raise ValueError("Une demande de signature est déjà en cours pour ce contrat.")
+
+    missing = formateur_framework_contract_missing_fields(formateur)
+    if missing:
+        raise ValueError("Informations manquantes : " + ", ".join(missing) + ".")
+
+    previous_contract = formateur.get("frameworkContract") or {}
+    if previous_contract.get("filename") and state.get("signatureRequestId"):
+        history = formateur.setdefault("frameworkContractHistory", [])
+        history.append({"contract": dict(previous_contract), "yousign": dict(state)})
+        del history[:-20]
+
+    generated_at = generated_at or datetime.now()
+    safe_name = secure_filename(formateur_framework_contract_display_name(formateur)) or formateur.get("id") or "formateur"
+    filename = (
+        f"contrat_cadre_sous_traitance_{safe_name}_"
+        f"{generated_at.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.pdf"
+    )
+    contract_dir = formateur_framework_contract_directory(formateur.get("id") or "formateur")
+    output_path = os.path.join(contract_dir, filename)
+    generate_formateur_framework_contract_pdf(formateur, output_path, generated_at.date())
+    formateur["frameworkContract"] = {
+        "filename": filename,
+        "generatedAt": generated_at.isoformat(timespec="seconds"),
+        "contractDate": generated_at.date().isoformat(),
+        "sourceHash": formateur_framework_contract_source_hash(formateur),
+        "pageCount": 15,
+    }
+    formateur["yousign"] = normalize_yousign_state({})
+    return output_path
+
+
+def ensure_formateur_framework_contract_pdf(formateur):
+    contract = formateur.get("frameworkContract") or {}
+    filename = os.path.basename(contract.get("filename") or "")
+    path = os.path.join(formateur_framework_contract_directory(formateur.get("id") or "formateur"), filename) if filename else ""
+    if path and os.path.exists(path) and not formateur_framework_contract_is_stale(formateur):
+        return path
+    return create_formateur_framework_contract(formateur)
+
+
 def normalize_formateur_profils(values):
     profils = []
     for value in values or []:
@@ -9539,30 +9814,6 @@ def apply_profile_document_requirements(formateur, profils_docs_config):
 
 
 
-def find_formateur_document(formateur, doc_id):
-    return next((d for d in formateur.get("documents", []) if d.get("id") == doc_id), None)
-
-
-def latest_formateur_pdf_attachment(formateur, preferred_doc_id=""):
-    docs = formateur.get("documents", [])
-    ordered_docs = []
-    if preferred_doc_id:
-        preferred = find_formateur_document(formateur, preferred_doc_id)
-        if preferred:
-            ordered_docs.append(preferred)
-    contract_docs = [d for d in docs if d not in ordered_docs and "contrat" in (d.get("label") or "").lower()]
-    other_docs = [d for d in docs if d not in ordered_docs and d not in contract_docs]
-    for doc in ordered_docs + contract_docs + other_docs:
-        for attachment in reversed(doc.get("attachments", [])):
-            original = attachment.get("original_name") or attachment.get("filename") or ""
-            filename = attachment.get("filename") or ""
-            if original.lower().endswith(".pdf") or filename.lower().endswith(".pdf"):
-                path = os.path.join(FORMATEUR_FILES_DIR, formateur.get("id", ""), doc.get("id", ""), os.path.basename(filename))
-                if os.path.exists(path):
-                    return doc, attachment, path
-    return None, None, None
-
-
 YOUSIGN_STATUS_LABELS = {
     "draft": "Brouillon", "approval": "En préparation", "ongoing": "En attente de signature",
     "done": "Signé", "signed": "Signé", "partially_signed": "Partiellement signé", "declined": "Refusé", "expired": "Expiré", "canceled": "Annulé",
@@ -9578,6 +9829,7 @@ YOUSIGN_EVENT_STATUS = {
 YOUSIGN_HANDLED_WEBHOOK_EVENTS = {
     "signature_request.activated", "signer.done", "signature_request.done",
     "signer.declined", "signature_request.expired", "signature_request.canceled",
+    "signer.notification_delivery_failed", "signer.error",
 }
 
 def yousign_status_label(status):
@@ -9588,11 +9840,11 @@ def is_yousign_sandbox():
 
 def normalize_yousign_state(state=None):
     defaults = {
-        "signatureRequestId": "", "documentId": "", "signerId": "", "fieldId": "", "externalId": "", "status": "draft", "statusLabel": "Brouillon",
+        "signatureRequestId": "", "documentId": "", "signerId": "", "fieldId": "", "centerSignerId": "", "centerFieldId": "", "externalId": "", "status": "draft", "statusLabel": "Brouillon",
         "signatureUrl": "", "sentAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
         "lastEvent": "", "lastEventAt": "", "lastSyncedAt": "", "lastWebhookAt": "",
         "apiStatus": "", "apiSignerStatus": "", "apiHttpStatus": "", "apiError": "", "apiRawResponse": "",
-        "recipientEmail": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
+        "recipientEmail": "", "centerRecipientEmail": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
     }
     legacy = {
         "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
@@ -10024,6 +10276,7 @@ def add_formateur():
 
     try:
         nub = normalize_formateur_nub(request.form.get("nub", ""))
+        birth_date = normalize_formateur_birth_date(request.form.get("date_naissance", ""))
     except ValueError as exc:
         flash(str(exc), "error")
         return redirect(url_for("formateurs_home"))
@@ -10035,6 +10288,7 @@ def add_formateur():
         "nub": nub,
         "email": request.form.get("email", "").strip(),
         "telephone": request.form.get("telephone", "").strip(),
+        "date_naissance": birth_date,
         "siret": request.form.get("siret", "").strip(),
         "adresse_postale": request.form.get("adresse_postale", "").strip(),
         "nda": request.form.get("nda", "").strip(),
@@ -10138,16 +10392,18 @@ def update_formateur_identity(fid):
 
     try:
         nub = normalize_formateur_nub(request.form.get("nub", ""))
+        birth_date = normalize_formateur_birth_date(request.form.get("date_naissance", ""))
     except ValueError as exc:
         return {"ok": False, "error": str(exc)}, 400
 
     formateur["nub"] = nub
+    formateur["date_naissance"] = birth_date
     formateur["siret"] = (request.form.get("siret") or "").strip()
     formateur["adresse_postale"] = (request.form.get("adresse_postale") or "").strip()
     formateur["nda"] = (request.form.get("nda") or "").strip()
     formateur["tarif_journalier_ht"] = (request.form.get("tarif_journalier_ht") or "").strip()
     save_formateurs(formateurs)
-    return {"ok": True, "nub": nub, "siret": formateur["siret"], "adresse_postale": formateur["adresse_postale"], "nda": formateur["nda"], "tarif_journalier_ht": formateur["tarif_journalier_ht"]}
+    return {"ok": True, "nub": nub, "date_naissance": birth_date, "siret": formateur["siret"], "adresse_postale": formateur["adresse_postale"], "nda": formateur["nda"], "tarif_journalier_ht": formateur["tarif_journalier_ht"]}
 
 
 @app.route("/formateurs/<fid>/cle/update", methods=["POST"])
@@ -10214,11 +10470,51 @@ def formateur_detail(fid):
         title=f"Contrôle formateur — {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
         formateur=formateur,
         last_relance_display=last_relance_display,
+        framework_contract_missing_fields=formateur_framework_contract_missing_fields(formateur),
+        framework_contract_stale=formateur_framework_contract_is_stale(formateur),
         formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
         etat_cles=etat_cles,       # 👈 indispensable
         etat_badges=etat_badges    # 👈 indispensable
     )
 
+
+
+@app.post("/formateurs/<fid>/contrat-cadre/generate")
+def generate_formateur_framework_contract(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+    try:
+        create_formateur_framework_contract(formateur)
+        save_formateurs(formateurs)
+        flash("Contrat cadre de sous-traitance généré.", "ok")
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        flash(f"Génération du contrat impossible : {exc}", "error")
+    return redirect(url_for("formateur_detail", fid=fid))
+
+
+@app.get("/formateurs/<fid>/contrat-cadre/view")
+def view_formateur_framework_contract(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+    contract = formateur.get("frameworkContract") or {}
+    filename = os.path.basename(contract.get("filename") or "")
+    if not filename:
+        flash("Aucun contrat cadre n'a encore été généré.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    path = os.path.join(formateur_framework_contract_directory(fid), filename)
+    if not os.path.exists(path):
+        flash("Le fichier du contrat est introuvable. Régénérez-le depuis la fiche formateur.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+    return send_file(
+        path,
+        mimetype="application/pdf",
+        as_attachment=request.args.get("download") == "1",
+        download_name=os.path.basename(path),
+    )
 
 
 @app.route("/formateurs/<fid>/yousign/send", methods=["POST"])
@@ -10229,36 +10525,114 @@ def send_formateur_contract_yousign(fid):
         abort(404)
 
     state = normalize_yousign_state(formateur.get("yousign"))
-    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing"} and not request.form.get("force"):
-        flash("Une demande Yousign active existe déjà pour ce formateur. Synchronisez le statut ou forcez un remplacement.", "error")
+    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing", "partially_signed"}:
+        flash("Une demande Yousign active existe déjà pour ce contrat. Actualisez son statut avant tout nouvel envoi.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
     email = (formateur.get("email") or "").strip()
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         flash("Email formateur invalide ou manquant.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
+    try:
+        trainer_phone = normalizeFrenchPhoneNumber(formateur.get("telephone") or "")
+    except YousignError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("formateur_detail", fid=fid))
     if not is_yousign_configured():
         flash("Yousign n'est pas configuré: renseignez YOUSIGN_API_KEY côté serveur.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
-    doc_id = (request.form.get("doc_id") or "").strip()
-    doc, attachment, pdf_path = latest_formateur_pdf_attachment(formateur, doc_id)
-    if not pdf_path:
-        flash("Aucun contrat PDF n'a été trouvé dans les pièces jointes du formateur.", "error")
+    center_first_name = (os.environ.get("YOUSIGN_CENTER_SIGNER_FIRST_NAME") or "Clément").strip()
+    center_last_name = (os.environ.get("YOUSIGN_CENTER_SIGNER_LAST_NAME") or "VAILLANT").strip()
+    center_email = (os.environ.get("YOUSIGN_CENTER_SIGNER_EMAIL") or "ecole@integraleacademy.com").strip()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", center_email):
+        flash("Email du signataire Intégrale Academy invalide. Vérifiez YOUSIGN_CENTER_SIGNER_EMAIL.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    try:
+        if state.get("signatureRequestId"):
+            pdf_path = create_formateur_framework_contract(formateur)
+        else:
+            pdf_path = ensure_formateur_framework_contract_pdf(formateur)
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        flash(f"Génération du contrat impossible : {exc}", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
     client = YousignClient()
     now = datetime.now().isoformat(timespec="seconds")
+    signature_request_id = ""
+    document_id = ""
     try:
-        trainer_name = formateur_full_name(formateur) or email
-        external_id = sanitize_yousign_external_id(f"formateur-{fid}", fallback="formateur-contract")
-        app.logger.info("Yousign trainer contract external_id=%s", external_id)
-        signature_request = client.create_signature_request(f"Contrat formateur - {trainer_name}", external_id=external_id)
+        trainer_name = formateur_framework_contract_display_name(formateur) or email
+        external_id = sanitize_yousign_external_id(f"formateur-framework-contract-{fid}-{uuid.uuid4().hex[:8]}", fallback="formateur-framework-contract")
+        app.logger.info("Yousign framework trainer contract external_id=%s", external_id)
+        signature_request = client.create_signature_request(
+            f"Contrat cadre de sous-traitance - {trainer_name}",
+            external_id=external_id,
+        )
         signature_request_id = signature_request.get("id")
+        if not signature_request_id:
+            raise YousignError("Yousign n'a pas retourné d'identifiant de demande de signature.")
+        pdf_info = inspect_yousign_pdf_before_upload(pdf_path)
+        page_count = int(pdf_info.get("page_count") or 0)
+        if page_count != 15:
+            raise YousignError("Le contrat cadre doit contenir exactement 15 pages avant signature.")
         with open(pdf_path, "rb") as pdf_file:
-            document = client.upload_file(signature_request_id, pdf_file.read(), attachment.get("original_name") or "contrat.pdf")
+            document = client.upload_file(
+                signature_request_id,
+                pdf_file.read(),
+                os.path.basename(pdf_path),
+                parse_anchors=False,
+            )
         document_id = document.get("id")
-        signer = client.add_signer(signature_request_id, formateur.get("prenom") or "", formateur.get("nom") or trainer_name, email, document_id=document_id)
+        if not document_id:
+            raise YousignError("Yousign n'a pas retourné d'identifiant pour le contrat envoyé.")
+
+        signer = client.add_signer(
+            signature_request_id,
+            formateur.get("prenom") or "",
+            formateur.get("nom") or trainer_name,
+            email,
+            document_id=document_id,
+            use_text_tags=True,
+            phone_number=trainer_phone,
+            force_sms_otp=True,
+        )
+        signer_id = signer.get("id") or ""
+        if not signer_id:
+            raise YousignError("Yousign n'a pas retourné d'identifiant pour le formateur signataire.")
+
+        center_signer = client.add_signer(
+            signature_request_id,
+            center_first_name,
+            center_last_name,
+            center_email,
+            document_id=document_id,
+            use_text_tags=True,
+        )
+        center_signer_id = center_signer.get("id") or ""
+        if not center_signer_id:
+            raise YousignError("Yousign n'a pas retourné d'identifiant pour le signataire Intégrale Academy.")
+
+        trainer_field = client.add_signature_field(
+            signature_request_id,
+            document_id,
+            signer_id,
+            page=page_count,
+            **YOUSIGN_FRAMEWORK_TRAINER_SIGNATURE_FIELD,
+        )
+        center_field = client.add_signature_field(
+            signature_request_id,
+            document_id,
+            center_signer_id,
+            page=page_count,
+            **YOUSIGN_FRAMEWORK_CENTER_SIGNATURE_FIELD,
+        )
+        trainer_field_id = trainer_field.get("id") if isinstance(trainer_field, dict) else ""
+        center_field_id = center_field.get("id") if isinstance(center_field, dict) else ""
+        if not trainer_field_id or not center_field_id:
+            raise YousignError("Les deux champs de signature n'ont pas pu être ajoutés au contrat.")
+
         activated = client.activate_signature_request(signature_request_id)
         status = extract_yousign_status(activated) or "ongoing"
         signature_url = signer.get("signature_link") or signer.get("signature_url") or activated.get("signature_link") or ""
@@ -10266,19 +10640,39 @@ def send_formateur_contract_yousign(fid):
             "signatureRequestId": signature_request_id,
             "externalId": external_id,
             "documentId": document_id or "",
-            "signerId": signer.get("id") or "",
+            "signerId": signer_id,
+            "fieldId": trainer_field_id,
+            "centerSignerId": center_signer_id,
+            "centerFieldId": center_field_id,
             "status": status,
             "signatureUrl": signature_url,
             "sentAt": now,
             "lastSyncedAt": now,
+            "lastEvent": "signature_request.activated",
+            "lastEventAt": now,
+            "recipientEmail": email,
+            "centerRecipientEmail": center_email,
             "error": None,
         })
+        formateur.setdefault("frameworkContract", {})["sentAt"] = now
+        formateur["frameworkContract"]["signatureRequestId"] = signature_request_id
         save_formateurs(formateurs)
-        flash("Contrat envoyé à Yousign pour signature.", "ok")
+        flash("Contrat cadre envoyé à Yousign au formateur et à Intégrale Academy.", "ok")
     except YousignError as exc:
-        update_formateur_yousign_state(formateur, {"status": "error", "lastSyncedAt": now, "error": str(exc)})
+        update_formateur_yousign_state(formateur, {
+            "signatureRequestId": signature_request_id,
+            "documentId": document_id,
+            "status": "error",
+            "lastSyncedAt": now,
+            "lastEvent": "api.error",
+            "lastEventAt": now,
+            "apiHttpStatus": str(exc.status_code or "network"),
+            "apiError": str(exc),
+            "error": yousign_service_access_message(exc.status_code, exc.payload),
+            "errorPayload": exc.payload,
+        })
         save_formateurs(formateurs)
-        flash(f"Erreur Yousign: {exc}", "error")
+        flash(f"Erreur Yousign : {yousign_service_access_message(exc.status_code, exc.payload)}", "error")
     return redirect(url_for("formateur_detail", fid=fid))
 
 
@@ -10323,11 +10717,16 @@ def download_formateur_signed_yousign(fid):
     try:
         content = YousignClient().download_signed_documents(state["signatureRequestId"])
         signed_dir = os.path.join(FORMATEUR_FILES_DIR, fid, "_yousign")
-        os.makedirs(signed_dir, exist_ok=True)
-        filename = f"contrat_signe_yousign_{state['signatureRequestId']}.zip"
-        with open(os.path.join(signed_dir, filename), "wb") as f:
-            f.write(content)
-        update_formateur_yousign_state(formateur, {"signedDocumentFilename": filename, "lastSyncedAt": datetime.now().isoformat(timespec="seconds"), "error": None})
+        filename = save_yousign_signed_document(
+            content,
+            signed_dir,
+            f"contrat_cadre_sous_traitance_signe_{state['signatureRequestId']}",
+        )
+        update_formateur_yousign_state(formateur, {
+            "signedDocumentFilename": filename,
+            "lastSyncedAt": datetime.now().isoformat(timespec="seconds"),
+            "error": None,
+        })
         save_formateurs(formateurs)
         return send_from_directory(signed_dir, filename, as_attachment=True)
     except Exception as exc:
@@ -10385,8 +10784,6 @@ def yousign_webhook():
     status = YOUSIGN_EVENT_STATUS.get(event_name) or extract_yousign_status(signature_request or payload)
     now = datetime.now().isoformat(timespec="seconds")
     updates = {"status": status, "externalId": external_id, "lastWebhookAt": now, "lastEvent": event_name, "lastEventAt": now, "error": None}
-    if signer_id:
-        updates["signerId"] = signer_id
     if status == "done": updates["signedAt"] = now
     elif status == "declined": updates["declinedAt"] = now
     elif status == "expired": updates["expiredAt"] = now
@@ -10406,11 +10803,19 @@ def yousign_webhook():
             signature_request_id and normalized.get("signatureRequestId") == signature_request_id,
             external_id and normalized.get("externalId") == external_id,
             signer_id and normalized.get("signerId") == signer_id,
+            signer_id and normalized.get("centerSignerId") == signer_id,
         ])
 
     formateurs = load_formateurs()
     formateur = next((f for f in formateurs if matches_yousign_state(f.get("yousign"))), None)
     if formateur:
+        current_state = normalize_yousign_state(formateur.get("yousign"))
+        if event_name == "signer.done" and current_state.get("centerSignerId") and updates.get("apiStatus") != "done" and updates.get("status") in {"done", "signed"}:
+            updates["status"] = "partially_signed"
+            updates["signedAt"] = ""
+        if event_name in {"signer.notification_delivery_failed", "signer.error"}:
+            updates["status"] = "error"
+            updates["error"] = "Yousign n'a pas pu notifier l'un des signataires. Vérifiez les coordonnées renseignées."
         update_formateur_yousign_state(formateur, updates)
         save_formateurs(formateurs)
         logger.info("Webhook Yousign appliqué au formateur id=%s status=%s", formateur.get("id"), updates.get("status"))

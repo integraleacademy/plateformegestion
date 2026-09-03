@@ -766,6 +766,75 @@ a{color:inherit;text-decoration:none}
 
 .profile-update-card__title { color: #15120d; font-size: 13px; font-weight: 950; }
 
+.framework-contract-card {
+  margin-top: 12px;
+  background: linear-gradient(155deg, #fffdf8 0%, #fff8e8 100%);
+  border-color: rgba(196, 142, 38, .24);
+}
+
+.framework-contract-card__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.framework-contract-card__heading p,
+.framework-contract-meta {
+  margin: 4px 0 0;
+  color: #786d5d;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.framework-contract-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10.5px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.framework-contract-status--ongoing,
+.framework-contract-status--approval,
+.framework-contract-status--partially_signed { background: #dbeafe; color: #1d4ed8; }
+.framework-contract-status--done,
+.framework-contract-status--signed { background: #dcfce7; color: #166534; }
+.framework-contract-status--declined,
+.framework-contract-status--error { background: #fee2e2; color: #991b1b; }
+.framework-contract-status--expired,
+.framework-contract-status--canceled { background: #e5e7eb; color: #374151; }
+
+.framework-contract-alert {
+  padding: 8px 9px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.framework-contract-alert--error {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+.framework-contract-actions { margin-bottom: 0; }
+.framework-contract-actions .btn-premium--soft { margin: 0; }
+.framework-contract-actions button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.35);
+  opacity: .55;
+}
+
 .trainer-detail-main {
   display: grid;
   gap: 16px;

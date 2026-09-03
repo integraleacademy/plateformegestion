@@ -117,6 +117,11 @@
       </label>
       <span id="nub-error" class="field-error">Le NUB doit contenir exactement 7 chiffres.</span>
 
+      <label for="formateur-date-naissance" class="field">
+        <span>Date de naissance</span>
+        <input type="date" id="formateur-date-naissance" value="{{ formateur.date_naissance or '' }}">
+      </label>
+
       <label for="formateur-siret" class="field">
         <span>SIRET</span>
         <input type="text" id="formateur-siret" value="{{ formateur.siret or '' }}" inputmode="numeric" maxlength="14" placeholder="14 chiffres">
@@ -149,23 +154,70 @@
       <div class="last-reminder">Dernière relance : {{ last_relance_display }}</div>
       {% endif %}
 
-      {% set yousign = formateur.yousign|default({}) %}
-      <section class="profile-update-card">
-        <div class="profile-update-card__title">Signature électronique Yousign</div>
-        <p class="autosave-note">Statut : <strong>{{ yousign.status|default('non envoyé') }}</strong>{% if yousign.sentAt %} · Envoyé le {{ yousign.sentAt }}{% endif %}{% if yousign.lastSyncedAt %} · Sync {{ yousign.lastSyncedAt }}{% endif %}</p>
-        {% if yousign.error %}<p class="relance-note" style="color:#b91c1c;">Erreur : {{ yousign.error }}</p>{% endif %}
-        {% if yousign.signatureUrl %}<p><a href="{{ yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature</a></p>{% endif %}
-        <div class="detail-actions">
-          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('Envoyer le contrat PDF de ce formateur à Yousign ?');">
-            <button type="submit" class="btn-premium btn-premium--primary">Envoyer pour signature Yousign</button>
+      {% set framework_contract = formateur.frameworkContract|default({}, true) %}
+      {% set yousign = formateur.yousign|default({}, true) %}
+      {% set ys_status = yousign.status|default('draft', true) %}
+      {% set ys_active = yousign.signatureRequestId and ys_status in ['draft', 'approval', 'ongoing', 'partially_signed'] %}
+      <section class="profile-update-card framework-contract-card">
+        <div class="framework-contract-card__heading">
+          <div>
+            <div class="profile-update-card__title">Contrat cadre de sous-traitance</div>
+            <p>Génération depuis la fiche et double signature électronique.</p>
+          </div>
+          <span class="framework-contract-status framework-contract-status--{{ ys_status }}">
+            {% if yousign.signatureRequestId %}{{ yousign_status_label(ys_status) }}{% elif framework_contract.filename %}Prêt à envoyer{% else %}À générer{% endif %}
+          </span>
+        </div>
+
+        {% if framework_contract_missing_fields %}
+          <div class="framework-contract-alert framework-contract-alert--error">
+            À compléter avant génération : {{ framework_contract_missing_fields|join(', ') }}.
+          </div>
+        {% endif %}
+        {% if not formateur.email or not formateur.telephone %}
+          <div class="framework-contract-alert">
+            L’email et le téléphone portable du formateur sont nécessaires pour l’envoi Yousign avec code SMS.
+          </div>
+        {% endif %}
+        {% if framework_contract_stale %}
+          <div class="framework-contract-alert">Les informations ont changé : le PDF sera régénéré avant le prochain envoi.</div>
+        {% endif %}
+        {% if framework_contract.filename %}
+          <p class="framework-contract-meta">
+            PDF de 15 pages généré{% if framework_contract.generatedAt %} le {{ framework_contract.generatedAt|datetimefr }}{% endif %}.
+            {% if framework_contract.sentAt %}<br>Envoyé le {{ framework_contract.sentAt|datetimefr }} à {{ yousign.recipientEmail or formateur.email }} et {{ yousign.centerRecipientEmail or 'Intégrale Academy' }}.{% endif %}
+          </p>
+        {% else %}
+          <p class="framework-contract-meta">Le nom, l’adresse, la date de naissance, le NDA et le SIRET seront repris automatiquement.</p>
+        {% endif %}
+        {% if yousign.error %}<div class="framework-contract-alert framework-contract-alert--error">Erreur Yousign : {{ yousign.error }}</div>{% endif %}
+        {% if yousign.signatureUrl %}<a href="{{ yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature du formateur</a>{% endif %}
+
+        <div class="detail-actions framework-contract-actions">
+          <form method="POST" action="{{ url_for('generate_formateur_framework_contract', fid=formateur.id) }}" onsubmit="return confirm('{% if ys_active %}Une signature est en cours. Le contrat ne pourra pas être régénéré.{% elif yousign.signatureRequestId %}Créer une nouvelle version du contrat cadre ?{% else %}Générer le contrat cadre avec les informations de cette fiche ?{% endif %}');">
+            <button type="submit" class="btn-premium btn-premium--soft" {% if framework_contract_missing_fields or ys_active %}disabled{% endif %}>
+              {% if framework_contract.filename %}Régénérer le contrat{% else %}Générer le contrat{% endif %}
+            </button>
           </form>
+          {% if framework_contract.filename %}
+            <a href="{{ url_for('view_formateur_framework_contract', fid=formateur.id) }}" target="_blank" rel="noopener" class="btn-premium btn-premium--dark">Voir le contrat</a>
+          {% endif %}
+          {% if not ys_active and ys_status not in ['done', 'signed'] %}
+          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('Générer si nécessaire puis envoyer le contrat au formateur et à Intégrale Academy pour signature électronique ?');">
+            <button type="submit" class="btn-premium btn-premium--primary" {% if framework_contract_missing_fields or not formateur.email or not formateur.telephone %}disabled{% endif %}>
+              {% if ys_status == 'error' %}Réessayer l’envoi Yousign{% elif framework_contract.filename and not framework_contract_stale %}Envoyer pour signature électronique{% else %}Générer et envoyer pour signature{% endif %}
+            </button>
+          </form>
+          {% endif %}
           {% if yousign.signatureRequestId %}
           <form method="POST" action="{{ url_for('sync_formateur_contract_yousign', fid=formateur.id) }}">
-            <button type="submit" class="btn-premium btn-premium--soft">Voir le statut Yousign</button>
+            <button type="submit" class="btn-premium btn-premium--soft">Actualiser le statut Yousign</button>
           </form>
+          {% if ys_status in ['done', 'signed'] %}
           <form method="POST" action="{{ url_for('download_formateur_signed_yousign', fid=formateur.id) }}">
-            <button type="submit" class="btn-premium btn-premium--dark">Télécharger le contrat signé</button>
+            <button type="submit" class="btn-premium btn-premium--primary">Télécharger le contrat signé</button>
           </form>
+          {% endif %}
           {% endif %}
         </div>
       </section>
@@ -338,6 +390,7 @@
   const fid = container.dataset.fid;
   const nubInput = document.getElementById("formateur-nub");
   const nubError = document.getElementById("nub-error");
+  const birthDateInput = document.getElementById("formateur-date-naissance");
   const siretInput = document.getElementById("formateur-siret");
   const adresseInput = document.getElementById("formateur-adresse-postale");
   const ndaInput = document.getElementById("formateur-nda");
@@ -442,6 +495,7 @@ function updateSelectColor(selectEl) {
       },
       body: new URLSearchParams({
         nub: sanitized,
+        date_naissance: birthDateInput ? birthDateInput.value : "",
         siret: siretInput ? siretInput.value.trim() : "",
         adresse_postale: adresseInput ? adresseInput.value.trim() : "",
         nda: ndaInput ? ndaInput.value.trim() : "",
@@ -469,7 +523,7 @@ function updateSelectColor(selectEl) {
     identitySaveTimeout = setTimeout(() => saveNub(true), 500);
   }
 
-  [siretInput, adresseInput, ndaInput, tarifInput].forEach(input => {
+  [birthDateInput, siretInput, adresseInput, ndaInput, tarifInput].forEach(input => {
     if (!input) return;
     input.addEventListener("input", scheduleIdentitySave);
     input.addEventListener("blur", () => {
@@ -824,11 +878,6 @@ if (!window.__mediaLightboxEscBound) {
 
 </body>
 </html>
-
-
-
-
-
 
 
 

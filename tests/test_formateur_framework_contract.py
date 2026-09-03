@@ -164,6 +164,7 @@ def test_formateur_detail_shows_framework_contract_actions(monkeypatch):
     assert "Générer et envoyer pour signature" in html
     assert 'id="framework-contract-missing-fields"' in html
     assert 'id="framework-contract-generate-button"' in html
+    assert "saas-dialogs.js?v=e0c5fd0" in html
 
 
 def test_center_signer_webhook_keeps_trainer_signer_and_marks_partial(monkeypatch):

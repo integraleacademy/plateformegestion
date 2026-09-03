@@ -183,6 +183,7 @@
           <p class="framework-contract-meta">
             PDF de 15 pages généré{% if framework_contract.generatedAt %} le {{ framework_contract.generatedAt|datetimefr }}{% endif %}.
             {% if framework_contract.sentAt %}<br>Envoyé le {{ framework_contract.sentAt|datetimefr }} au formateur {{ yousign.recipientEmail or formateur.email }} avec vérification par code SMS.{% endif %}
+            {% if yousign.lastReminderAt %}<br>Dernière relance Yousign le {{ yousign.lastReminderAt|datetimefr }}.{% endif %}
           </p>
         {% else %}
           <p class="framework-contract-meta">Le nom, l’adresse, la date de naissance, le NDA et le SIRET seront repris automatiquement.</p>
@@ -207,6 +208,11 @@
           </form>
           {% endif %}
           {% if yousign.signatureRequestId %}
+          {% if ys_status in ['ongoing', 'partially_signed'] and yousign.signerId %}
+          <form method="POST" action="{{ url_for('remind_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('Renvoyer maintenant l’invitation de signature Yousign au formateur ?');">
+            <button type="submit" id="framework-contract-reminder-button" class="btn-premium btn-premium--primary">Renvoyer l’invitation de signature</button>
+          </form>
+          {% endif %}
           <form method="POST" action="{{ url_for('sync_formateur_contract_yousign', fid=formateur.id) }}">
             <button type="submit" class="btn-premium btn-premium--soft">Actualiser le statut Yousign</button>
           </form>
@@ -911,4 +917,3 @@ if (!window.__mediaLightboxEscBound) {
 
 </body>
 </html>
-

@@ -208,6 +208,62 @@ def test_formateur_detail_can_replace_active_legacy_center_request(monkeypatch):
     assert "L’ancienne demande à deux signataires sera annulée" in html
 
 
+def test_formateur_detail_can_resend_active_trainer_invitation(monkeypatch):
+    formateur = complete_formateur()
+    formateur["yousign"] = app.normalize_yousign_state({
+        "signatureRequestId": "sr-framework",
+        "signerId": "signer-trainer",
+        "status": "ongoing",
+        "recipientEmail": "elodie@example.com",
+    })
+    monkeypatch.setattr(app, "load_formateurs", lambda: [formateur])
+    monkeypatch.setattr(app, "get_etat_cles_badges", lambda *_args: ({}, {}))
+
+    response = authenticated_client().get("/formateurs/dfff0664")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'id="framework-contract-reminder-button"' in html
+    assert "Renvoyer l’invitation de signature" in html
+
+
+def test_yousign_reminder_resends_active_trainer_invitation(monkeypatch):
+    formateur = complete_formateur()
+    formateur["yousign"] = app.normalize_yousign_state({
+        "signatureRequestId": "sr-framework",
+        "signerId": "signer-trainer",
+        "status": "ongoing",
+        "recipientEmail": "elodie@example.com",
+    })
+    saved = {}
+    calls = {}
+
+    class FakeYousignClient:
+        def send_signer_reminder(self, signature_request_id, signer_id):
+            calls.update({
+                "signature_request_id": signature_request_id,
+                "signer_id": signer_id,
+            })
+            return {}
+
+    monkeypatch.setattr(app, "load_formateurs", lambda: [formateur])
+    monkeypatch.setattr(app, "save_formateurs", lambda data: saved.setdefault("data", data))
+    monkeypatch.setattr(app, "is_yousign_configured", lambda: True)
+    monkeypatch.setattr(app, "YousignClient", FakeYousignClient)
+
+    response = authenticated_client().post("/formateurs/dfff0664/yousign/remind")
+
+    assert response.status_code == 302
+    assert calls == {
+        "signature_request_id": "sr-framework",
+        "signer_id": "signer-trainer",
+    }
+    assert formateur["yousign"]["lastReminderAt"]
+    assert formateur["yousign"]["lastEvent"] == "signer.reminder.sent"
+    assert formateur["yousign"]["status"] == "ongoing"
+    assert saved["data"] == [formateur]
+
+
 def test_center_signer_webhook_keeps_trainer_signer_and_marks_partial(monkeypatch):
     formateur = complete_formateur()
     formateur["yousign"] = app.normalize_yousign_state({

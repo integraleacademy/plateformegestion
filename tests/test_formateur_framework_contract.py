@@ -29,7 +29,7 @@ def complete_formateur():
     }
 
 
-def test_framework_contract_pdf_uses_formateur_data_and_removes_old_signature(tmp_path):
+def test_framework_contract_pdf_uses_formateur_data_and_embeds_center_signature(tmp_path):
     output = tmp_path / "contrat-cadre.pdf"
 
     app.generate_formateur_framework_contract_pdf(
@@ -46,7 +46,8 @@ def test_framework_contract_pdf_uses_formateur_data_and_removes_old_signature(tm
     assert "17/05/1990" in text
     assert "123 456 789 00012" in text
     assert "jeudi 3 septembre 2026" in text
-    assert "Signatures électroniques des parties" in text
+    assert "Signature et tampon du centre / signature électronique du formateur" in text
+    assert len(list(reader.pages[-1].images)) >= 3
     assert "LIBAULT" not in text
     assert "Yannice" not in text
     assert "Oodrive" not in text
@@ -80,12 +81,25 @@ def test_identity_update_persists_birth_date(monkeypatch):
     assert saved["data"] == [formateur]
 
 
-def test_yousign_send_generates_contract_and_creates_two_signature_fields(monkeypatch, tmp_path):
+def test_yousign_send_creates_only_trainer_signer_with_sms_otp(monkeypatch, tmp_path):
     formateur = complete_formateur()
+    formateur["yousign"] = app.normalize_yousign_state({
+        "signatureRequestId": "sr-legacy-center",
+        "signerId": "signer-trainer-old",
+        "centerSignerId": "signer-center-old",
+        "status": "ongoing",
+    })
     saved = {}
     calls = {"signers": [], "fields": []}
 
     class FakeYousignClient:
+        def cancel_signature_request(self, signature_request_id, custom_note=""):
+            calls["canceled"] = {
+                "signature_request_id": signature_request_id,
+                "custom_note": custom_note,
+            }
+            return {}
+
         def create_signature_request(self, name, external_id=""):
             calls["request"] = {"name": name, "external_id": external_id}
             return {"id": "sr-framework"}
@@ -107,9 +121,11 @@ def test_yousign_send_generates_contract_and_creates_two_signature_fields(monkey
                 "email": email,
                 **kwargs,
             })
-            if email == "elodie@example.com":
-                return {"id": "signer-trainer", "signature_link": "https://example.test/sign"}
-            return {"id": "signer-center"}
+            return {
+                "id": "signer-trainer",
+                "signature_link": "https://example.test/sign",
+                "signature_authentication_mode": "otp_sms",
+            }
 
         def add_signature_field(self, signature_request_id, document_id, signer_id, **kwargs):
             calls["fields"].append({
@@ -129,25 +145,30 @@ def test_yousign_send_generates_contract_and_creates_two_signature_fields(monkey
     monkeypatch.setattr(app, "save_formateurs", lambda data: saved.setdefault("data", data))
     monkeypatch.setattr(app, "is_yousign_configured", lambda: True)
     monkeypatch.setattr(app, "YousignClient", FakeYousignClient)
-    monkeypatch.setenv("YOUSIGN_CENTER_SIGNER_EMAIL", "direction@example.com")
-
     response = authenticated_client().post("/formateurs/dfff0664/yousign/send")
 
     assert response.status_code == 302
+    assert calls["canceled"]["signature_request_id"] == "sr-legacy-center"
+    assert "seul le formateur signe" in calls["canceled"]["custom_note"]
     assert calls["upload"]["pdf_bytes"].startswith(b"%PDF")
     assert calls["upload"]["parse_anchors"] is False
-    assert [signer["email"] for signer in calls["signers"]] == [
-        "elodie@example.com",
-        "direction@example.com",
-    ]
+    assert [signer["email"] for signer in calls["signers"]] == ["elodie@example.com"]
     assert calls["signers"][0]["force_sms_otp"] is True
     assert calls["signers"][0]["phone_number"] == "+33612345678"
-    assert {field["signer_id"] for field in calls["fields"]} == {"signer-trainer", "signer-center"}
-    assert all(field["page"] == 15 for field in calls["fields"])
+    assert len(calls["fields"]) == 1
+    assert calls["fields"][0] == {
+        "signature_request_id": "sr-framework",
+        "document_id": "doc-framework",
+        "signer_id": "signer-trainer",
+        "page": 15,
+        **app.YOUSIGN_FRAMEWORK_TRAINER_SIGNATURE_FIELD,
+    }
     assert calls["activated"] == "sr-framework"
     assert formateur["frameworkContract"]["pageCount"] == 15
     assert formateur["yousign"]["status"] == "ongoing"
-    assert formateur["yousign"]["centerSignerId"] == "signer-center"
+    assert formateur["yousign"]["centerSignerId"] == ""
+    assert formateur["yousign"]["centerFieldId"] == ""
+    assert formateur["yousign"]["signatureAuthenticationMode"] == "otp_sms"
     assert saved["data"] == [formateur]
 
 
@@ -161,10 +182,30 @@ def test_formateur_detail_shows_framework_contract_actions(monkeypatch):
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert "Contrat cadre de sous-traitance" in html
+    assert "Signature et tampon du centre intégrés au PDF" in html
+    assert "signature électronique du formateur avec code SMS" in html
     assert "Générer et envoyer pour signature" in html
     assert 'id="framework-contract-missing-fields"' in html
     assert 'id="framework-contract-generate-button"' in html
     assert "saas-dialogs.js?v=e0c5fd0" in html
+
+
+def test_formateur_detail_can_replace_active_legacy_center_request(monkeypatch):
+    formateur = complete_formateur()
+    formateur["yousign"] = app.normalize_yousign_state({
+        "signatureRequestId": "sr-legacy-center",
+        "centerSignerId": "signer-center-old",
+        "status": "ongoing",
+    })
+    monkeypatch.setattr(app, "load_formateurs", lambda: [formateur])
+    monkeypatch.setattr(app, "get_etat_cles_badges", lambda *_args: ({}, {}))
+
+    response = authenticated_client().get("/formateurs/dfff0664")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Remplacer la demande de signature" in html
+    assert "L’ancienne demande à deux signataires sera annulée" in html
 
 
 def test_center_signer_webhook_keeps_trainer_signer_and_marks_partial(monkeypatch):

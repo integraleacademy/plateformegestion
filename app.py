@@ -9295,7 +9295,7 @@ FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE = os.path.join(
     "contrat_cadre_sous_traitance_template.pdf",
 )
 FORMATEUR_FRAMEWORK_CONTRACT_DIRNAME = "_contrats_cadres"
-YOUSIGN_FRAMEWORK_CENTER_SIGNATURE_FIELD = {"x": 101, "y": 662, "width": 174, "height": 45}
+FORMATEUR_FRAMEWORK_CONTRACT_GENERATOR_VERSION = "2-center-signature-stamp"
 YOUSIGN_FRAMEWORK_TRAINER_SIGNATURE_FIELD = {"x": 337, "y": 662, "width": 174, "height": 45}
 os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
 
@@ -9531,7 +9531,10 @@ def formateur_framework_contract_missing_fields(formateur):
 
 def formateur_framework_contract_source_hash(formateur):
     serialized = json.dumps(
-        formateur_framework_contract_payload(formateur),
+        {
+            "generatorVersion": FORMATEUR_FRAMEWORK_CONTRACT_GENERATOR_VERSION,
+            "payload": formateur_framework_contract_payload(formateur),
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -9585,7 +9588,7 @@ def generate_formateur_framework_contract_pdf(formateur, output_path, contract_d
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
         from reportlab.pdfgen import canvas
-        from reportlab.lib.utils import simpleSplit
+        from reportlab.lib.utils import ImageReader, simpleSplit
     except ImportError as exc:
         raise RuntimeError("Les dépendances PDF du contrat cadre sont indisponibles.") from exc
 
@@ -9600,6 +9603,26 @@ def generate_formateur_framework_contract_pdf(formateur, output_path, contract_d
     template_reader = PdfReader(FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE)
     if len(template_reader.pages) != 15:
         raise RuntimeError("Le modèle du contrat cadre doit contenir exactement 15 pages.")
+
+    center_signature_path = find_center_image("signature", "sign")
+    center_stamp_path = find_center_image("tampon", "cachet", "stamp")
+    if not center_signature_path or not center_stamp_path:
+        raise FileNotFoundError("La signature ou le tampon d’Intégrale Academy est introuvable.")
+
+    def draw_contained_image(pdf_canvas, image_path, x, y, max_width, max_height):
+        image = ImageReader(image_path)
+        image_width, image_height = image.getSize()
+        scale = min(max_width / image_width, max_height / image_height)
+        draw_width = image_width * scale
+        draw_height = image_height * scale
+        pdf_canvas.drawImage(
+            image,
+            x + ((max_width - draw_width) / 2),
+            y + ((max_height - draw_height) / 2),
+            width=draw_width,
+            height=draw_height,
+            mask="auto",
+        )
 
     def page_overlay(page_number, page_width, page_height):
         packet = BytesIO()
@@ -9646,7 +9669,11 @@ def generate_formateur_framework_contract_pdf(formateur, output_path, contract_d
                 230.0,
                 f"Fait à Puget sur Argens le {format_french_contract_date(contract_date)},",
             )
-            pdf_canvas.drawString(93.4, 180.0, "Signatures électroniques des parties :")
+            pdf_canvas.drawString(
+                93.4,
+                180.0,
+                "Signature et tampon du centre / signature électronique du formateur :",
+            )
 
             box_y = 78.0
             box_height = 58.0
@@ -9660,6 +9687,22 @@ def generate_formateur_framework_contract_pdf(formateur, output_path, contract_d
             pdf_canvas.setLineWidth(0.6)
             pdf_canvas.rect(left_x, box_y, box_width, box_height, stroke=1, fill=0)
             pdf_canvas.rect(right_x, box_y, box_width, box_height, stroke=1, fill=0)
+            draw_contained_image(
+                pdf_canvas,
+                center_signature_path,
+                left_x + 5,
+                box_y + 6,
+                70,
+                46,
+            )
+            draw_contained_image(
+                pdf_canvas,
+                center_stamp_path,
+                left_x + 76,
+                box_y + 6,
+                109,
+                46,
+            )
 
         pdf_canvas.save()
         packet.seek(0)
@@ -9844,7 +9887,7 @@ def normalize_yousign_state(state=None):
         "signatureUrl": "", "sentAt": "", "signedAt": "", "declinedAt": "", "expiredAt": "", "canceledAt": "",
         "lastEvent": "", "lastEventAt": "", "lastSyncedAt": "", "lastWebhookAt": "",
         "apiStatus": "", "apiSignerStatus": "", "apiHttpStatus": "", "apiError": "", "apiRawResponse": "",
-        "recipientEmail": "", "centerRecipientEmail": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
+        "recipientEmail": "", "centerRecipientEmail": "", "signatureAuthenticationMode": "", "signedDocumentFilename": "", "signedDocumentUrl": "", "error": None, "errorPayload": None,
     }
     legacy = {
         "yousign_signature_request_id": "signatureRequestId", "yousign_signer_id": "signerId", "yousign_document_id": "documentId",
@@ -10535,7 +10578,10 @@ def send_formateur_contract_yousign(fid):
         abort(404)
 
     state = normalize_yousign_state(formateur.get("yousign"))
-    if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing", "partially_signed"}:
+    active_statuses = {"draft", "approval", "ongoing", "partially_signed"}
+    has_active_request = bool(state.get("signatureRequestId") and state.get("status") in active_statuses)
+    replaces_legacy_center_request = bool(has_active_request and state.get("centerSignerId"))
+    if has_active_request and not replaces_legacy_center_request:
         flash("Une demande Yousign active existe déjà pour ce contrat. Actualisez son statut avant tout nouvel envoi.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
@@ -10552,12 +10598,27 @@ def send_formateur_contract_yousign(fid):
         flash("Yousign n'est pas configuré: renseignez YOUSIGN_API_KEY côté serveur.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
-    center_first_name = (os.environ.get("YOUSIGN_CENTER_SIGNER_FIRST_NAME") or "Clément").strip()
-    center_last_name = (os.environ.get("YOUSIGN_CENTER_SIGNER_LAST_NAME") or "VAILLANT").strip()
-    center_email = (os.environ.get("YOUSIGN_CENTER_SIGNER_EMAIL") or "ecole@integraleacademy.com").strip()
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", center_email):
-        flash("Email du signataire Intégrale Academy invalide. Vérifiez YOUSIGN_CENTER_SIGNER_EMAIL.", "error")
-        return redirect(url_for("formateur_detail", fid=fid))
+    client = YousignClient()
+    if replaces_legacy_center_request:
+        try:
+            client.cancel_signature_request(
+                state["signatureRequestId"],
+                "Remplacée par une demande corrigée : seul le formateur signe via OTP SMS.",
+            )
+        except YousignError as exc:
+            flash(
+                "Impossible d'annuler l'ancienne demande Yousign à deux signataires : "
+                f"{yousign_service_access_message(exc.status_code, exc.payload)}",
+                "error",
+            )
+            return redirect(url_for("formateur_detail", fid=fid))
+        update_formateur_yousign_state(formateur, {
+            "status": "canceled",
+            "canceledAt": datetime.now().isoformat(timespec="seconds"),
+            "lastEvent": "signature_request.canceled_for_replacement",
+            "error": None,
+        })
+        save_formateurs(formateurs)
 
     try:
         if state.get("signatureRequestId"):
@@ -10568,7 +10629,6 @@ def send_formateur_contract_yousign(fid):
         flash(f"Génération du contrat impossible : {exc}", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
-    client = YousignClient()
     now = datetime.now().isoformat(timespec="seconds")
     signature_request_id = ""
     document_id = ""
@@ -10612,18 +10672,6 @@ def send_formateur_contract_yousign(fid):
         if not signer_id:
             raise YousignError("Yousign n'a pas retourné d'identifiant pour le formateur signataire.")
 
-        center_signer = client.add_signer(
-            signature_request_id,
-            center_first_name,
-            center_last_name,
-            center_email,
-            document_id=document_id,
-            use_text_tags=True,
-        )
-        center_signer_id = center_signer.get("id") or ""
-        if not center_signer_id:
-            raise YousignError("Yousign n'a pas retourné d'identifiant pour le signataire Intégrale Academy.")
-
         trainer_field = client.add_signature_field(
             signature_request_id,
             document_id,
@@ -10631,17 +10679,9 @@ def send_formateur_contract_yousign(fid):
             page=page_count,
             **YOUSIGN_FRAMEWORK_TRAINER_SIGNATURE_FIELD,
         )
-        center_field = client.add_signature_field(
-            signature_request_id,
-            document_id,
-            center_signer_id,
-            page=page_count,
-            **YOUSIGN_FRAMEWORK_CENTER_SIGNATURE_FIELD,
-        )
         trainer_field_id = trainer_field.get("id") if isinstance(trainer_field, dict) else ""
-        center_field_id = center_field.get("id") if isinstance(center_field, dict) else ""
-        if not trainer_field_id or not center_field_id:
-            raise YousignError("Les deux champs de signature n'ont pas pu être ajoutés au contrat.")
+        if not trainer_field_id:
+            raise YousignError("Le champ de signature du formateur n'a pas pu être ajouté au contrat.")
 
         activated = client.activate_signature_request(signature_request_id)
         status = extract_yousign_status(activated) or "ongoing"
@@ -10652,8 +10692,8 @@ def send_formateur_contract_yousign(fid):
             "documentId": document_id or "",
             "signerId": signer_id,
             "fieldId": trainer_field_id,
-            "centerSignerId": center_signer_id,
-            "centerFieldId": center_field_id,
+            "centerSignerId": "",
+            "centerFieldId": "",
             "status": status,
             "signatureUrl": signature_url,
             "sentAt": now,
@@ -10661,13 +10701,14 @@ def send_formateur_contract_yousign(fid):
             "lastEvent": "signature_request.activated",
             "lastEventAt": now,
             "recipientEmail": email,
-            "centerRecipientEmail": center_email,
+            "centerRecipientEmail": "",
+            "signatureAuthenticationMode": "otp_sms",
             "error": None,
         })
         formateur.setdefault("frameworkContract", {})["sentAt"] = now
         formateur["frameworkContract"]["signatureRequestId"] = signature_request_id
         save_formateurs(formateurs)
-        flash("Contrat cadre envoyé à Yousign au formateur et à Intégrale Academy.", "ok")
+        flash("Contrat cadre envoyé au formateur avec vérification par code SMS.", "ok")
     except YousignError as exc:
         update_formateur_yousign_state(formateur, {
             "signatureRequestId": signature_request_id,

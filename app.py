@@ -26,6 +26,7 @@ from email.mime.application import MIMEApplication
 import logging
 import math
 import threading
+from copy import deepcopy
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -551,10 +552,14 @@ APS_CONVOCATION_TEMPLATE = os.path.join(BASE_DIR, "gestionstagiaires", "template
 
 APS_TOTAL_HOURS = 175
 APS_TOTAL_MINUTES = APS_TOTAL_HOURS * 60
-APS_ELEARNING_HOURS = 62
+APS_CPNEFP_PROGRAM_VERSION = "V3.2"
+APS_CPNEFP_PROGRAM_DATE = "23/07/2026"
+APS_ELEARNING_HOURS = 51
 APS_ELEARNING_MINUTES = APS_ELEARNING_HOURS * 60
 APS_PRESENTIEL_HOURS = APS_TOTAL_HOURS - APS_ELEARNING_HOURS
 APS_PRESENTIEL_MINUTES = APS_PRESENTIEL_HOURS * 60
+APS_PRACTICE_MINUTES = 63 * 60 + 30
+APS_PRESENTIEL_THEORY_MINUTES = APS_PRESENTIEL_MINUTES - APS_PRACTICE_MINUTES
 APS_MAX_DAILY_MINUTES = 7 * 60
 APS_EXTENDED_DAILY_MINUTES = 8 * 60
 
@@ -650,6 +655,45 @@ APS_EXPECTED_UV_TOTALS = {
     "UV14": 7,
 }
 
+# Volumes maximaux pouvant être réalisés à distance dans le programme
+# CPNEFP TFP APS V3.2 du 23 juillet 2026. Les UV à zéro doivent être
+# réalisées intégralement en présentiel.
+APS_EXPECTED_ELEARNING_UV_TOTALS = {
+    "UV1": 0,
+    "UV2": 20,
+    "UV3": 3,
+    "UV4": 4,
+    "UV5": 0,
+    "UV6": 3,
+    "UV7": 7,
+    "UV8": 0,
+    "UV9": 0,
+    "UV10": 0,
+    "UV11": 2,
+    "UV12": 7,
+    "UV13": 0,
+    "UV14": 5,
+}
+
+# Les 63 h 30 de pratique annoncées par le programme CPNEFP sont toutes
+# réalisées en présentiel. Les autres heures présentielles sont théoriques.
+APS_EXPECTED_PRACTICE_UV_MINUTES = {
+    "UV1": 7 * 60,
+    "UV2": 1 * 60,
+    "UV3": 7 * 60,
+    "UV4": 0,
+    "UV5": 3 * 60,
+    "UV6": 0,
+    "UV7": 3 * 60 + 30,
+    "UV8": 25 * 60,
+    "UV9": 4 * 60,
+    "UV10": 4 * 60,
+    "UV11": 5 * 60,
+    "UV12": 0,
+    "UV13": 4 * 60,
+    "UV14": 0,
+}
+
 APS_UV_LABELS = {
     "UV1": "Secouriste Sauveteur du Travail (SST)",
     "UV2": "Environnement juridique de la sécurité privée",
@@ -695,27 +739,174 @@ APS_MODULES = [
 ]
 
 
-APS_ELEARNING_PRESENTIEL_MODULES = [
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV2", "title": "Environnement juridique de la sécurité privée", "durationMinutes": 17 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV3", "title": "Gestion des risques et situations conflictuelles", "durationMinutes": 5 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV4", "title": "Transmission des consignes et informations", "durationMinutes": 5 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV2", "title": "Environnement juridique de la sécurité privée", "durationMinutes": 3 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV11", "title": "Gestion des risques / connaissances des vecteurs d’incendie", "durationMinutes": 9 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV7", "title": "Prévention des risques terroristes", "durationMinutes": 6 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV1", "title": "Secourir", "durationMinutes": 1 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV10", "title": "Connaissance de l’outil informatique / transmission", "durationMinutes": 2 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV8", "title": "Surveillance et gardiennage", "durationMinutes": 7 * 60},
-    {"part": "PÉRIODE 1 — E-LEARNING / DISTANCIEL — 62h", "modality": "elearning", "uv": "UV12", "title": "Événementiel", "durationMinutes": 7 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV1", "title": "Gestion des premiers secours", "durationMinutes": 14 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV2", "title": "Environnement juridique de la sécurité privée", "durationMinutes": 2 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV5", "title": "Gestion des risques / connaissances des vecteurs d’incendie", "durationMinutes": 16 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV7", "title": "Prévention des risques terroristes", "durationMinutes": 270},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV1", "title": "Secourir", "durationMinutes": 90},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV3", "title": "Gestion des risques et des situations conflictuelles", "durationMinutes": 9 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV13", "title": "Gestion des risques de situations conflictuelles dégradées", "durationMinutes": 7 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV8", "title": "Surveillance et gardiennage", "durationMinutes": 45 * 60},
-    {"part": "PÉRIODE 2 — PRÉSENTIEL AU CENTRE — 113h", "modality": "presentiel", "uv": "UV12", "title": "Événementiel", "durationMinutes": 14 * 60},
+def _aps_cpnefp_row(uv, title, duration_minutes, distance_minutes=0, practice_minutes=0):
+    """Create one auditable row from the CPNEFP V3.2 programme table."""
+    return {
+        "uv": uv,
+        "title": title,
+        "durationMinutes": int(duration_minutes),
+        "distanceMinutes": int(distance_minutes),
+        "practiceMinutes": int(practice_minutes),
+    }
+
+
+# Source unique du parcours APS mixte. Chaque ligne reprend une séquence du
+# tableau CPNEFP V3.2 et distingue son maximum distanciel ainsi que sa pratique
+# obligatoire. Les deux périodes du planning sont dérivées de cette table afin
+# d'empêcher tout nouveau décalage entre l'interface, le PDF et le validateur.
+APS_CPNEFP_SEQUENCE_ROWS = [
+    _aps_cpnefp_row("UV1", "Secours à personnes", 14 * 60, practice_minutes=7 * 60),
+
+    _aps_cpnefp_row("UV2", "Livre VI du code de la sécurité intérieure", 3 * 60, distance_minutes=3 * 60),
+    _aps_cpnefp_row("UV2", "Déontologie professionnelle", 4 * 60, distance_minutes=4 * 60),
+    _aps_cpnefp_row("UV2", "Dispositions utiles du Code pénal", 4 * 60, distance_minutes=4 * 60),
+    _aps_cpnefp_row("UV2", "Article 73 du Code de procédure pénale", 2 * 60, distance_minutes=2 * 60),
+    _aps_cpnefp_row("UV2", "Garanties liées aux libertés publiques et privées", 1 * 60, distance_minutes=1 * 60),
+    _aps_cpnefp_row("UV2", "Principes de la République française", 3 * 60, distance_minutes=3 * 60),
+    _aps_cpnefp_row("UV2", "Mise en œuvre du livre VI dans les missions de surveillance", 2 * 60, practice_minutes=1 * 60),
+    _aps_cpnefp_row("UV2", "Justification des actions au regard du Code pénal", 2 * 60, distance_minutes=2 * 60),
+    _aps_cpnefp_row("UV2", "Libertés publiques, privées et convention collective", 1 * 60, distance_minutes=1 * 60),
+
+    _aps_cpnefp_row("UV3", "Analyse et résolution des conflits", 5 * 60, distance_minutes=3 * 60),
+    _aps_cpnefp_row("UV3", "Gestion des situations conflictuelles dans les missions de l’APS", 9 * 60, practice_minutes=7 * 60),
+
+    _aps_cpnefp_row("UV4", "Connaissance des outils de transmission", 3 * 60, distance_minutes=2 * 60),
+    _aps_cpnefp_row("UV4", "Transmission des consignes et informations", 2 * 60, distance_minutes=1 * 60),
+    _aps_cpnefp_row("UV4", "Main courante et logiciels métier", 2 * 60, distance_minutes=1 * 60),
+
+    _aps_cpnefp_row("UV5", "Prévention des risques d’incendie", 7 * 60, practice_minutes=3 * 60),
+    _aps_cpnefp_row("UV6", "Appréhension dans le cadre des missions de l’APS", 7 * 60, distance_minutes=3 * 60),
+
+    _aps_cpnefp_row("UV7", "Risques et menaces terroristes", 90, distance_minutes=90),
+    _aps_cpnefp_row("UV7", "Niveaux de risque et cibles potentielles", 60, distance_minutes=60),
+    _aps_cpnefp_row("UV7", "Matériels utilisés par les terroristes", 60, distance_minutes=60),
+    _aps_cpnefp_row("UV7", "Réflexes de prévention face aux menaces terroristes", 60, distance_minutes=60),
+    _aps_cpnefp_row("UV7", "Détection des comportements suspects", 60, distance_minutes=60),
+    _aps_cpnefp_row("UV7", "Culture de la sécurité", 30, distance_minutes=30),
+    _aps_cpnefp_row("UV7", "Se protéger et protéger les autres face à une attaque", 150, practice_minutes=90),
+    _aps_cpnefp_row("UV7", "Alerter les forces de l’ordre et faciliter leur intervention", 120, practice_minutes=60),
+    _aps_cpnefp_row("UV7", "Blessures en rapport avec le danger terroriste", 30, distance_minutes=30),
+    _aps_cpnefp_row("UV7", "Notions de secourisme tactique", 90, practice_minutes=60),
+    _aps_cpnefp_row("UV7", "Alerter les secours", 30, distance_minutes=30),
+
+    _aps_cpnefp_row("UV8", "Information, communication et transmission", 8 * 60, practice_minutes=4 * 60),
+    _aps_cpnefp_row("UV8", "Préparation des missions de l’APS", 6 * 60, practice_minutes=2 * 60),
+    _aps_cpnefp_row("UV8", "Contrôle des accès", 9 * 60, practice_minutes=5 * 60),
+    _aps_cpnefp_row("UV8", "Prise en compte d’un poste de contrôle de sécurité", 9 * 60, practice_minutes=5 * 60),
+    _aps_cpnefp_row("UV8", "Rondes de surveillance et systèmes de contrôle des rondes", 13 * 60, practice_minutes=9 * 60),
+
+    _aps_cpnefp_row("UV9", "Palpation de sécurité et inspection visuelle des bagages", 7 * 60, practice_minutes=4 * 60),
+    _aps_cpnefp_row("UV10", "Télésurveillance et vidéoprotection", 7 * 60, practice_minutes=4 * 60),
+
+    _aps_cpnefp_row("UV11", "Gestion des alarmes", 7 * 60, practice_minutes=4 * 60),
+    _aps_cpnefp_row("UV11", "Protection du travailleur isolé - PTI/DATI", 2 * 60, practice_minutes=1 * 60),
+    _aps_cpnefp_row("UV11", "Sensibilisation au risque électrique", 2 * 60, distance_minutes=2 * 60),
+
+    _aps_cpnefp_row("UV12", "Cadre légal et sécurisation des grands rassemblements", 5 * 60, distance_minutes=5 * 60),
+    _aps_cpnefp_row("UV12", "Acteurs d’un événement", 1 * 60, distance_minutes=1 * 60),
+    _aps_cpnefp_row("UV12", "Contrôle d’accès et filtrage lors de grands événements", 1 * 60, distance_minutes=1 * 60),
+
+    _aps_cpnefp_row("UV13", "Gestion des situations conflictuelles dégradées", 7 * 60, practice_minutes=4 * 60),
+    _aps_cpnefp_row("UV14", "Risques professionnels et industriels - ICPE/SEVESO", 7 * 60, distance_minutes=5 * 60),
 ]
+
+
+def _aps_delivery_title(title, delivery_type):
+    if delivery_type == "practice":
+        return f"{title} - Mise en situation pratique"
+    if delivery_type == "distance_theory":
+        return f"{title} - Apports théoriques à distance"
+    return f"{title} - Apports théoriques en présentiel"
+
+
+def _build_aps_elearning_presentiel_modules():
+    periods = {
+        "elearning": f"PÉRIODE 1 - E-LEARNING / DISTANCIEL - {APS_ELEARNING_HOURS}h MAXIMUM - CPNEFP {APS_CPNEFP_PROGRAM_VERSION}",
+        "presentiel": f"PÉRIODE 2 - PRÉSENTIEL AU CENTRE - {APS_PRESENTIEL_HOURS}h MINIMUM - DONT 63h30 DE PRATIQUE",
+    }
+    modules = {"elearning": [], "presentiel": []}
+    for row_index, row in enumerate(APS_CPNEFP_SEQUENCE_ROWS, start=1):
+        distance = row["distanceMinutes"]
+        practice = row["practiceMinutes"]
+        presentiel_theory = row["durationMinutes"] - distance - practice
+        base_key = f"{APS_CPNEFP_PROGRAM_VERSION}|{row['uv']}|{row_index}"
+        if distance:
+            modules["elearning"].append({
+                "key": f"{base_key}|distance_theory",
+                "part": periods["elearning"],
+                "modality": "elearning",
+                "deliveryType": "theory",
+                "uv": row["uv"],
+                "title": _aps_delivery_title(row["title"], "distance_theory"),
+                "durationMinutes": distance,
+                "practiceMinutes": 0,
+                "programVersion": APS_CPNEFP_PROGRAM_VERSION,
+            })
+        if presentiel_theory:
+            modules["presentiel"].append({
+                "key": f"{base_key}|presentiel_theory",
+                "part": periods["presentiel"],
+                "modality": "presentiel",
+                "deliveryType": "theory",
+                "uv": row["uv"],
+                "title": _aps_delivery_title(row["title"], "presentiel_theory"),
+                "durationMinutes": presentiel_theory,
+                "practiceMinutes": 0,
+                "programVersion": APS_CPNEFP_PROGRAM_VERSION,
+            })
+        if practice:
+            modules["presentiel"].append({
+                "key": f"{base_key}|practice",
+                "part": periods["presentiel"],
+                "modality": "presentiel",
+                "deliveryType": "practice",
+                "uv": row["uv"],
+                "title": _aps_delivery_title(row["title"], "practice"),
+                "durationMinutes": practice,
+                "practiceMinutes": practice,
+                "programVersion": APS_CPNEFP_PROGRAM_VERSION,
+            })
+    return modules["elearning"] + modules["presentiel"]
+
+
+APS_ELEARNING_PRESENTIEL_MODULES = _build_aps_elearning_presentiel_modules()
+
+
+def aps_cpnefp_reference_errors():
+    """Return configuration errors before any planning can be generated."""
+    errors = []
+    uv_totals = {uv: 0 for uv in APS_EXPECTED_UV_TOTALS}
+    distance_uv_totals = {uv: 0 for uv in APS_EXPECTED_UV_TOTALS}
+    practice_uv_totals = {uv: 0 for uv in APS_EXPECTED_UV_TOTALS}
+    for row in APS_CPNEFP_SEQUENCE_ROWS:
+        uv = row["uv"]
+        if uv not in uv_totals:
+            errors.append(f"UV inconnue dans le référentiel CPNEFP : {uv}.")
+            continue
+        if row["distanceMinutes"] + row["practiceMinutes"] > row["durationMinutes"]:
+            errors.append(f"Répartition impossible pour {uv} - {row['title']}.")
+        uv_totals[uv] += row["durationMinutes"]
+        distance_uv_totals[uv] += row["distanceMinutes"]
+        practice_uv_totals[uv] += row["practiceMinutes"]
+    for uv, hours in APS_EXPECTED_UV_TOTALS.items():
+        if uv_totals[uv] != hours * 60:
+            errors.append(f"Référentiel {uv} : {uv_totals[uv] / 60:g}h au lieu de {hours:g}h.")
+        if distance_uv_totals[uv] != APS_EXPECTED_ELEARNING_UV_TOTALS[uv] * 60:
+            errors.append(f"Distanciel {uv} : {distance_uv_totals[uv] / 60:g}h au lieu de {APS_EXPECTED_ELEARNING_UV_TOTALS[uv]:g}h.")
+        if practice_uv_totals[uv] != APS_EXPECTED_PRACTICE_UV_MINUTES[uv]:
+            errors.append(f"Pratique {uv} : {practice_uv_totals[uv] / 60:g}h incohérentes.")
+    if sum(uv_totals.values()) != APS_TOTAL_MINUTES:
+        errors.append("Le référentiel CPNEFP ne totalise pas 175h.")
+    if sum(distance_uv_totals.values()) != APS_ELEARNING_MINUTES:
+        errors.append("Le référentiel CPNEFP ne totalise pas 51h de distanciel.")
+    if sum(practice_uv_totals.values()) != APS_PRACTICE_MINUTES:
+        errors.append("Le référentiel CPNEFP ne totalise pas 63h30 de pratique.")
+    return errors
+
+
+_APS_CPNEFP_REFERENCE_ERRORS = aps_cpnefp_reference_errors()
+if _APS_CPNEFP_REFERENCE_ERRORS:
+    raise RuntimeError("Configuration APS CPNEFP invalide : " + " ".join(_APS_CPNEFP_REFERENCE_ERRORS))
 
 APS_RECAP_ROWS = [
     ("UV1", "Secouriste Sauveteur du Travail (SST)"),
@@ -1349,7 +1540,7 @@ def aps_day_label(day_date):
 
 def aps_blocks_to_planning_data(days, formateur, salle, planning_mode="full_presentiel"):
     planning = []
-    elearning_remaining = 62.0 if planning_mode == "elearning_presentiel" else 0.0
+    elearning_remaining = float(APS_ELEARNING_HOURS) if planning_mode == "elearning_presentiel" else 0.0
     for day in days:
         day_date = day["date"]
         slots = []
@@ -1381,15 +1572,22 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
     sequence = [dict(item, remainingMinutes=int(item["durationMinutes"])) for item in APS_ELEARNING_PRESENTIEL_MODULES]
     expected_elearning = sum(item["durationMinutes"] for item in sequence if item["modality"] == "elearning")
     expected_presentiel = sum(item["durationMinutes"] for item in sequence if item["modality"] == "presentiel")
-    if expected_elearning != APS_ELEARNING_MINUTES or expected_presentiel != APS_PRESENTIEL_MINUTES:
-        raise ValueError("Configuration APS incohérente : la répartition e-learning / présentiel ne correspond pas au total attendu.")
+    expected_practice = sum(item.get("practiceMinutes", 0) for item in sequence)
+    if (expected_elearning != APS_ELEARNING_MINUTES
+            or expected_presentiel != APS_PRESENTIEL_MINUTES
+            or expected_practice != APS_PRACTICE_MINUTES):
+        raise ValueError(
+            "Configuration APS incohérente : la répartition CPNEFP V3.2 "
+            "e-learning / présentiel / pratique ne correspond pas au total attendu."
+        )
 
     idx = 0
     current_day = start_date
     planning = []
     totals = {}
 
-    # 1) Les 62h e-learning sont placées au début de session, sans salle ni formateur.
+    # 1) Les 51h maximales d'e-learning sont placées au début de session,
+    # sans salle ni formateur, conformément au programme CPNEFP V3.2.
     while idx < len(sequence) and sequence[idx]["modality"] == "elearning":
         if end_date and current_day > end_date:
             available_days = aps_working_days_between(start_date, end_date, exam_iso)
@@ -1411,11 +1609,13 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
                     "duration": round(duration_minutes / 60, 2), "durationMinutes": duration_minutes,
                     "uv": module["uv"], "title": module["title"], "part": module["part"],
                     "room": "", "trainer": "", "modality": "elearning",
+                    "deliveryType": module["deliveryType"], "practiceMinutes": 0,
+                    "programVersion": module["programVersion"], "pedagogicalKey": module["key"],
                 })
                 module["remainingMinutes"] -= duration_minutes
                 remaining_slot -= duration_minutes
                 cursor = end_time
-                totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
+                totals[module["key"]] = totals.get(module["key"], 0) + duration_minutes
                 if module["remainingMinutes"] == 0:
                     idx += 1
             if idx >= len(sequence) or sequence[idx]["modality"] != "elearning":
@@ -1494,11 +1694,14 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
                     "duration": round(duration_minutes / 60, 2), "durationMinutes": duration_minutes,
                     "uv": module["uv"], "title": module["title"], "part": module["part"],
                     "room": salle or "Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS", "trainer": formateur or "", "modality": "presentiel",
+                    "deliveryType": module["deliveryType"],
+                    "practiceMinutes": duration_minutes if module["deliveryType"] == "practice" else 0,
+                    "programVersion": module["programVersion"], "pedagogicalKey": module["key"],
                 })
                 module["remainingMinutes"] -= duration_minutes
                 remaining_slot -= duration_minutes
                 cursor = end_time
-                totals[module["title"]] = totals.get(module["title"], 0) + duration_minutes
+                totals[module["key"]] = totals.get(module["key"], 0) + duration_minutes
                 if module["remainingMinutes"] == 0:
                     idx += 1
             if idx >= len(sequence) or sequence[idx]["modality"] != "presentiel":
@@ -2504,6 +2707,12 @@ def aps_summary_from_data(planning_data):
     uv_totals = {uv: 0.0 for uv in APS_EXPECTED_UV_TOTALS}
     total = 0.0
     modality_totals = {"elearning": 0.0, "presentiel": 0.0}
+    modality_uv_minutes = {
+        modality: {uv: 0 for uv in APS_EXPECTED_UV_TOTALS}
+        for modality in modality_totals
+    }
+    practice_uv_minutes = {uv: 0 for uv in APS_EXPECTED_UV_TOTALS}
+    practice_minutes = 0
     detailed_rows = {}
     slot_count = 0
     errors = []
@@ -2540,6 +2749,20 @@ def aps_summary_from_data(planning_data):
             modality = (slot.get("modality") or "presentiel").strip()
             if modality in modality_totals:
                 modality_totals[modality] = round(modality_totals[modality] + duration, 2)
+                if uv in modality_uv_minutes[modality]:
+                    modality_uv_minutes[modality][uv] += duration_minutes
+            try:
+                slot_practice_minutes = int(round(float(slot.get("practiceMinutes") or 0)))
+            except (TypeError, ValueError):
+                slot_practice_minutes = -1
+            if slot_practice_minutes < 0 or slot_practice_minutes > duration_minutes:
+                errors.append(f"Durée pratique incohérente pour {uv} le {day_date}.")
+                slot_practice_minutes = 0
+            if slot_practice_minutes and modality != "presentiel":
+                errors.append(f"La pratique {uv} doit être réalisée en présentiel.")
+            practice_minutes += slot_practice_minutes
+            if uv in practice_uv_minutes:
+                practice_uv_minutes[uv] += slot_practice_minutes
             # In a mixed course, the same UV can be taught partly online and
             # partly in person. Keep those deliveries separate for the PDF
             # recap instead of collapsing them into the generic APS UV list.
@@ -2551,9 +2774,11 @@ def aps_summary_from_data(planning_data):
                     "label": title,
                     "title": title,
                     "hours": 0.0,
+                    "practiceMinutes": 0,
                     "modality": modality,
                 })
                 row["hours"] = round(row["hours"] + duration, 2)
+                row["practiceMinutes"] += slot_practice_minutes
             if uv not in uv_totals:
                 errors.append(f"UV inconnue: {uv}")
             else:
@@ -2565,7 +2790,22 @@ def aps_summary_from_data(planning_data):
         if has_mixed_modalities
         else [{"uv": uv, "label": APS_UV_LABELS[uv], "hours": uv_totals.get(uv, 0), "expected": expected, "modality": "presentiel"} for uv, expected in APS_EXPECTED_UV_TOTALS.items()]
     )
-    return {"total_hours": total, "uv_totals": uv_totals, "uv_rows": rows, "modality_totals": modality_totals, "days_count": len(planning_data or []), "slots_count": slot_count, "errors": errors}
+    return {
+        "total_hours": total,
+        "uv_totals": uv_totals,
+        "uv_rows": rows,
+        "modality_totals": modality_totals,
+        "modality_uv_totals": {
+            modality: {uv: round(minutes / 60, 2) for uv, minutes in values.items()}
+            for modality, values in modality_uv_minutes.items()
+        },
+        "practice_hours": round(practice_minutes / 60, 2),
+        "practice_uv_hours": {uv: round(minutes / 60, 2) for uv, minutes in practice_uv_minutes.items()},
+        "presentiel_theory_hours": round(modality_totals["presentiel"] - practice_minutes / 60, 2),
+        "days_count": len(planning_data or []),
+        "slots_count": slot_count,
+        "errors": errors,
+    }
 
 
 def aps_expected_content(planning_mode="full_presentiel"):
@@ -2578,9 +2818,21 @@ def aps_expected_content(planning_mode="full_presentiel"):
     if planning_mode == "elearning_presentiel":
         contents = {}
         for item in APS_ELEARNING_PRESENTIEL_MODULES:
-            key = "|".join((item["uv"], item["title"], item["modality"]))
-            row = contents.setdefault(key, {"key": key, "uv": item["uv"], "title": item["title"], "part": item["part"], "modality": item["modality"], "expectedMinutes": 0, "color": "#6d28d9" if item["modality"] == "elearning" else "#0d9488"})
+            key = item.get("key") or "|".join((item["uv"], item["title"], item["modality"]))
+            row = contents.setdefault(key, {
+                "key": key,
+                "uv": item["uv"],
+                "title": item["title"],
+                "part": item["part"],
+                "modality": item["modality"],
+                "deliveryType": item.get("deliveryType") or "theory",
+                "programVersion": item.get("programVersion") or APS_CPNEFP_PROGRAM_VERSION,
+                "expectedMinutes": 0,
+                "expectedPracticeMinutes": 0,
+                "color": "#6d28d9" if item["modality"] == "elearning" else "#0d9488",
+            })
             row["expectedMinutes"] += int(item["durationMinutes"])
+            row["expectedPracticeMinutes"] += int(item.get("practiceMinutes") or 0)
         return list(contents.values())
     return [{"key": uv, "uv": uv, "title": APS_UV_LABELS[uv], "part": "Programme APS", "modality": "presentiel", "expectedMinutes": int(hours * 60), "color": "#0d9488"} for uv, hours in APS_EXPECTED_UV_TOTALS.items()]
 
@@ -2590,20 +2842,51 @@ def aps_content_key_for_slot(slot, planning_mode="full_presentiel"):
         return str(slot["pedagogicalKey"])
     uv = (slot.get("uv") or "").strip().upper()
     if planning_mode == "elearning_presentiel":
+        title = (slot.get("title") or "").strip()
+        modality = (slot.get("modality") or "presentiel").strip()
+        for item in APS_ELEARNING_PRESENTIEL_MODULES:
+            if item["uv"] == uv and item["title"] == title and item["modality"] == modality:
+                return item["key"]
         return "|".join((uv, (slot.get("title") or "").strip(), (slot.get("modality") or "presentiel").strip()))
     return uv
 
 
+def normalize_aps_compliance_metadata(planning_data, planning_mode="full_presentiel"):
+    """Derive regulatory metadata from canonical content, never from the browser."""
+    if planning_mode != "elearning_presentiel":
+        return planning_data
+    expected = {item["key"]: item for item in aps_expected_content(planning_mode)}
+    for day in planning_data or []:
+        for slot in day.get("slots", []):
+            if not is_countable_planning_slot(slot):
+                continue
+            item = expected.get(aps_content_key_for_slot(slot, planning_mode))
+            if not item:
+                continue
+            duration_minutes = int(round(float(slot.get("durationMinutes") or 0)))
+            slot["uv"] = item["uv"]
+            slot["title"] = item["title"]
+            slot["part"] = item["part"]
+            slot["modality"] = item["modality"]
+            slot["deliveryType"] = item["deliveryType"]
+            slot["practiceMinutes"] = duration_minutes if item["deliveryType"] == "practice" else 0
+            slot["programVersion"] = item["programVersion"]
+            slot["pedagogicalKey"] = item["key"]
+    return planning_data
+
+
 def aps_curriculum_summary(planning_data, planning_mode="full_presentiel"):
     contents = aps_expected_content(planning_mode)
-    by_key = {item["key"]: dict(item, plannedMinutes=0) for item in contents}
+    by_key = {item["key"]: dict(item, plannedMinutes=0, plannedPracticeMinutes=0) for item in contents}
     for day in planning_data or []:
         for slot in day.get("slots", []):
             if not is_countable_planning_slot(slot):
                 continue
             key = aps_content_key_for_slot(slot, planning_mode)
             if key in by_key:
-                by_key[key]["plannedMinutes"] += int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0) * 60)))
+                slot_minutes = int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0) * 60)))
+                by_key[key]["plannedMinutes"] += slot_minutes
+                by_key[key]["plannedPracticeMinutes"] += int(round(float(slot.get("practiceMinutes") or 0)))
     rows = []
     for item in by_key.values():
         item["plannedMinutes"] = int(item["plannedMinutes"])
@@ -2612,7 +2895,18 @@ def aps_curriculum_summary(planning_data, planning_mode="full_presentiel"):
         rows.append(item)
     expected = sum(row["expectedMinutes"] for row in rows)
     planned = sum(max(0, row["plannedMinutes"]) for row in rows)
-    return {"contents": rows, "expectedMinutes": expected, "plannedMinutes": planned, "remainingMinutes": expected - planned}
+    expected_practice = sum(row.get("expectedPracticeMinutes", 0) for row in rows)
+    planned_practice = sum(max(0, row.get("plannedPracticeMinutes", 0)) for row in rows)
+    return {
+        "contents": rows,
+        "expectedMinutes": expected,
+        "plannedMinutes": planned,
+        "remainingMinutes": expected - planned,
+        "expectedPracticeMinutes": expected_practice,
+        "plannedPracticeMinutes": planned_practice,
+        "remainingPracticeMinutes": expected_practice - planned_practice,
+        "programVersion": APS_CPNEFP_PROGRAM_VERSION if planning_mode == "elearning_presentiel" else None,
+    }
 
 
 def aps_daily_capacity_minutes(session_data):
@@ -2753,6 +3047,7 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
 
     Daily capacity overruns are warnings, never validation errors.
     """
+    planning_data = normalize_aps_compliance_metadata(planning_data, planning_mode)
     summary = aps_summary_from_data(planning_data)
     errors = list(summary["errors"])
     curriculum = aps_curriculum_summary(planning_data, planning_mode)
@@ -2787,31 +3082,86 @@ def validate_aps_rescheduling_data(planning_data, planning_mode="full_presentiel
     for item in curriculum["contents"]:
         if item["plannedMinutes"] > item["expectedMinutes"]:
             errors.append(f"{item['title']} dépasse le volume pédagogique obligatoire ({format_duration_from_minutes(item['expectedMinutes'])}).")
+        if item.get("plannedPracticeMinutes", 0) > item.get("expectedPracticeMinutes", 0):
+            errors.append(f"{item['title']} dépasse son volume de pratique obligatoire ({format_duration_from_minutes(item.get('expectedPracticeMinutes', 0))}).")
+    for uv, expected in APS_EXPECTED_UV_TOTALS.items():
+        actual_minutes = int(round(summary["uv_totals"].get(uv, 0) * 60))
+        if actual_minutes > expected * 60:
+            errors.append(f"{uv} dépasse son volume réglementaire de {expected}h.")
+    if planning_mode == "elearning_presentiel":
+        elearning_minutes = int(round(summary["modality_totals"].get("elearning", 0) * 60))
+        practice_minutes = int(round(summary.get("practice_hours", 0) * 60))
+        if elearning_minutes > APS_ELEARNING_MINUTES:
+            errors.append(f"Le distanciel dépasse le maximum réglementaire de {APS_ELEARNING_HOURS}h.")
+        if practice_minutes > APS_PRACTICE_MINUTES:
+            errors.append(f"La pratique dépasse le volume réglementaire de {format_duration_from_minutes(APS_PRACTICE_MINUTES)}.")
+        for uv in APS_EXPECTED_UV_TOTALS:
+            actual_distance = int(round(summary["modality_uv_totals"]["elearning"].get(uv, 0) * 60))
+            maximum_distance = APS_EXPECTED_ELEARNING_UV_TOTALS[uv] * 60
+            if actual_distance > maximum_distance:
+                errors.append(f"{uv} dépasse son maximum distanciel de {APS_EXPECTED_ELEARNING_UV_TOTALS[uv]}h.")
+            actual_practice = int(round(summary["practice_uv_hours"].get(uv, 0) * 60))
+            maximum_practice = APS_EXPECTED_PRACTICE_UV_MINUTES[uv]
+            if actual_practice > maximum_practice:
+                errors.append(f"{uv} dépasse son volume de pratique de {format_duration_from_minutes(maximum_practice)}.")
     summary["warnings"] = aps_capacity_warnings(planning_data, daily_capacity_minutes)
-    return errors, summary, curriculum
+    return list(dict.fromkeys(errors)), summary, curriculum
 
-def validate_aps_planning_data(planning_data, planning_mode="full_presentiel"):
-    summary = aps_summary_from_data(planning_data)
-    errors = list(summary["errors"])
+def validate_aps_planning_data(
+    planning_data,
+    planning_mode="full_presentiel",
+    daily_capacity_minutes=APS_MAX_DAILY_MINUTES,
+    lunch_break=("12:30", "13:30"),
+):
+    planning_data = normalize_aps_compliance_metadata(planning_data, planning_mode)
+    errors, summary, curriculum = validate_aps_rescheduling_data(
+        planning_data,
+        planning_mode,
+        daily_capacity_minutes=daily_capacity_minutes,
+        lunch_break=lunch_break,
+    )
     if round(summary["total_hours"], 2) != APS_TOTAL_HOURS:
         errors.append(f"Le total doit être exactement de {APS_TOTAL_HOURS}h (actuel: {summary['total_hours']}h).")
+    for uv, expected in APS_EXPECTED_UV_TOTALS.items():
+        actual = round(summary["uv_totals"].get(uv, 0), 2)
+        if actual != expected:
+            errors.append(f"{uv} doit totaliser {expected}h (actuel: {actual}h).")
     if planning_mode == "elearning_presentiel":
-        errors.extend(validate_aps_elearning_presentiel_rules(planning_data, summary))
-    else:
-        for uv, expected in APS_EXPECTED_UV_TOTALS.items():
-            actual = round(summary["uv_totals"].get(uv, 0), 2)
-            if actual != expected:
-                errors.append(f"{uv} doit totaliser {expected}h (actuel: {actual}h).")
-    return errors, summary
+        errors.extend(validate_aps_elearning_presentiel_rules(planning_data, summary, curriculum))
+    return list(dict.fromkeys(errors)), summary
 
-def validate_aps_elearning_presentiel_rules(planning_data, summary=None):
+def validate_aps_elearning_presentiel_rules(planning_data, summary=None, curriculum=None):
+    planning_data = normalize_aps_compliance_metadata(planning_data, "elearning_presentiel")
     summary = summary or aps_summary_from_data(planning_data)
+    curriculum = curriculum or aps_curriculum_summary(planning_data, "elearning_presentiel")
     errors = []
     totals = summary.get("modality_totals", {})
     if int(round(totals.get("elearning", 0) * 60)) != APS_ELEARNING_MINUTES:
-        errors.append(f"Le total e-learning doit être exactement de 62h (actuel: {totals.get('elearning', 0):g}h).")
+        errors.append(f"Le parcours mixte maximal doit totaliser {APS_ELEARNING_HOURS}h d'e-learning (actuel: {totals.get('elearning', 0):g}h).")
     if int(round(totals.get("presentiel", 0) * 60)) != APS_PRESENTIEL_MINUTES:
-        errors.append(f"Le total présentiel doit être exactement de 113h (actuel: {totals.get('presentiel', 0):g}h).")
+        errors.append(f"Le parcours mixte maximal doit totaliser {APS_PRESENTIEL_HOURS}h de présentiel (actuel: {totals.get('presentiel', 0):g}h).")
+    if int(round(summary.get("practice_hours", 0) * 60)) != APS_PRACTICE_MINUTES:
+        errors.append(f"La pratique en présentiel doit totaliser {format_duration_from_minutes(APS_PRACTICE_MINUTES)} (actuel: {format_duration_from_minutes(int(round(summary.get('practice_hours', 0) * 60)))}).")
+    if int(round(summary.get("presentiel_theory_hours", 0) * 60)) != APS_PRESENTIEL_THEORY_MINUTES:
+        errors.append(f"La théorie en présentiel doit totaliser {format_duration_from_minutes(APS_PRESENTIEL_THEORY_MINUTES)} (actuel: {format_duration_from_minutes(int(round(summary.get('presentiel_theory_hours', 0) * 60)))}).")
+    for uv in APS_EXPECTED_UV_TOTALS:
+        actual_distance = int(round(summary["modality_uv_totals"]["elearning"].get(uv, 0) * 60))
+        expected_distance = APS_EXPECTED_ELEARNING_UV_TOTALS[uv] * 60
+        if actual_distance != expected_distance:
+            errors.append(f"{uv} doit totaliser {format_duration_from_minutes(expected_distance)} à distance (actuel: {format_duration_from_minutes(actual_distance)}).")
+        actual_practice = int(round(summary["practice_uv_hours"].get(uv, 0) * 60))
+        expected_practice = APS_EXPECTED_PRACTICE_UV_MINUTES[uv]
+        if actual_practice != expected_practice:
+            errors.append(f"{uv} doit totaliser {format_duration_from_minutes(expected_practice)} de pratique (actuel: {format_duration_from_minutes(actual_practice)}).")
+    for item in curriculum["contents"]:
+        if item["plannedMinutes"] != item["expectedMinutes"]:
+            errors.append(
+                f"{item['uv']} — {item['title']} doit totaliser "
+                f"{format_duration_from_minutes(item['expectedMinutes'])} "
+                f"(actuel: {format_duration_from_minutes(item['plannedMinutes'])})."
+            )
+        if item.get("plannedPracticeMinutes", 0) != item.get("expectedPracticeMinutes", 0):
+            errors.append(f"La qualification théorie/pratique est incorrecte pour {item['uv']} — {item['title']}.")
     seen_presentiel = False
     last_elearning_day = None
     first_presentiel = None
@@ -2843,7 +3193,37 @@ def validate_aps_elearning_presentiel_rules(planning_data, summary=None):
                 errors.append(f"Le présentiel doit commencer le prochain jour ouvré complet ({expected}) après la période e-learning.")
         except Exception:
             errors.append("Impossible de vérifier le prochain jour ouvré de démarrage présentiel.")
-    return errors
+    return list(dict.fromkeys(errors))
+
+
+def aps_planning_compliance_report(session_data):
+    """Return the official APS export status without mutating persisted data."""
+    planning_data = visible_planning_data(deepcopy(session_data.get("apsPlanningData") or []), include_empty=True)
+    planning_mode = session_data.get("apsPlanningMode") or (
+        "elearning_presentiel"
+        if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
+        else "full_presentiel"
+    )
+    if not planning_data:
+        errors = ["Aucune donnée de planning APS structurée n'est disponible."]
+        summary = None
+    else:
+        planning_data = normalize_aps_slot_durations(planning_data)
+        planning_data = normalize_aps_compliance_metadata(planning_data, planning_mode)
+        errors, summary = validate_aps_planning_data(
+            planning_data,
+            planning_mode,
+            daily_capacity_minutes=aps_daily_capacity_minutes(session_data),
+            lunch_break=aps_lunch_break(session_data),
+        )
+    return {
+        "ok": not errors,
+        "errors": errors,
+        "summary": summary,
+        "programVersion": APS_CPNEFP_PROGRAM_VERSION,
+        "programDate": APS_CPNEFP_PROGRAM_DATE,
+        "planningMode": planning_mode,
+    }
 
 def aps_pdf_logo_path():
     public_logo = os.path.join(BASE_DIR, "public", "logo-integrale-academy.png")
@@ -2908,10 +3288,10 @@ def planning_pdf_profile(document_profile, planning_mode, summary):
         profile.setdefault("short_label", "DESP")
     elif planning_mode == "elearning_presentiel":
         profile.setdefault("planning_title", "PLANNING DE FORMATION APS")
-        profile.setdefault("subtitle", "Agent de Prévention et de Sécurité — 175 heures")
-        profile.setdefault("modality_line", f"Modalité : E-learning + présentiel • E-learning : {totals.get('elearning', APS_ELEARNING_HOURS):g}h • Présentiel : {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h • Total : {summary.get('total_hours', APS_TOTAL_HOURS):g}h")
-        profile.setdefault("legend_elearning", f"E-learning / distanciel — {totals.get('elearning', APS_ELEARNING_HOURS):g}h")
-        profile.setdefault("legend_presentiel", f"Présentiel au centre — {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h")
+        profile.setdefault("subtitle", f"Agent de Prévention et de Sécurité — CPNEFP {APS_CPNEFP_PROGRAM_VERSION} du {APS_CPNEFP_PROGRAM_DATE}")
+        profile.setdefault("modality_line", f"Total : {summary.get('total_hours', APS_TOTAL_HOURS):g}h • Distanciel : {totals.get('elearning', APS_ELEARNING_HOURS):g}h max. • Présentiel : {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h min. • Pratique : {format_duration_from_minutes(APS_PRACTICE_MINUTES)}")
+        profile.setdefault("legend_elearning", f"E-learning / distanciel — {totals.get('elearning', APS_ELEARNING_HOURS):g}h maximum")
+        profile.setdefault("legend_presentiel", f"Présentiel — {totals.get('presentiel', APS_PRESENTIEL_HOURS):g}h minimum")
     else:
         profile.setdefault("planning_title", "PLANNING DE FORMATION APS")
         profile.setdefault("subtitle", "Agent de Prévention et de Sécurité — 175 heures")
@@ -3133,9 +3513,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             exam_bits = f" • Examen prévu le {format_date(session_data.get('date_exam'))}"
         info_y = draw_wrapped_text(c, f"{period}{exam_bits} • Formateur(s) présentiel : {trainer_label}", margin + 88, height - 64, width - margin - (margin + 88), "Helvetica", 9, 11)
         modality_y = info_y - 1
-        c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.HexColor("#111827"))
-        c.drawString(margin + 88, modality_y, document_profile.get("modality_line"))
-        y_dates = modality_y - 13
+        c.setFillColor(colors.HexColor("#111827"))
+        modality_bottom = draw_wrapped_text(c, document_profile.get("modality_line"), margin + 88, modality_y, width - margin - (margin + 88), "Helvetica-Bold", 7.4, 9)
+        y_dates = modality_bottom - 2
         date_lines = []
         if document_profile.get("validate") == "ssiap1":
             date_lines.append(f"Période globale de formation : du {format_date(session_data.get('date_debut'))} au {format_date(session_data.get('date_fin'))}")
@@ -3204,7 +3584,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                     else:
                         modality_color = "#b91c1c" if slot.get("modality") == "exam" else ("#6d28d9" if slot.get("modality") == "elearning" else "#0d9488")
                     c.setFillColor(colors.HexColor(modality_color)); c.roundRect(margin, y - h + 5, 7, h, 2, fill=1, stroke=0)
-                    modality_label = "Examen" if slot.get("modality") == "exam" or is_afc_exam_slot(slot) else ("E-learning" if slot.get("modality") == "elearning" else "Présentiel")
+                    modality_label = "Examen" if slot.get("modality") == "exam" or is_afc_exam_slot(slot) else ("E-learning" if slot.get("modality") == "elearning" else ("Pratique" if slot.get("deliveryType") == "practice" else "Présentiel"))
 
                     def draw_modality_badge(badge_x, badge_y):
                         c.setFillColor(colors.HexColor(modality_color))
@@ -3333,6 +3713,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 c.drawString(margin, y, f"E-learning / distanciel : {modality_totals.get('elearning', 0):g}h — {aps_format_range(modality_ranges.get('elearning'))}"); y -= 13
             if modality_ranges.get("presentiel"):
                 c.drawString(margin, y, f"Présentiel : {modality_totals.get('presentiel', 0):g}h — {aps_format_range(modality_ranges.get('presentiel'))}"); y -= 13
+            if planning_mode == "elearning_presentiel":
+                c.drawString(margin, y, f"Dont pratique en présentiel : {format_duration_from_minutes(int(round(summary.get('practice_hours', 0) * 60)))}"); y -= 13
+                c.drawString(margin, y, f"Dont théorie en présentiel : {format_duration_from_minutes(int(round(summary.get('presentiel_theory_hours', 0) * 60)))}"); y -= 13
             c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
             y -= 20
         y = summary_table_header(y)
@@ -3349,7 +3732,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             part_label = ("A3P" if document_profile.get("validate") == "a3p" else ("Parcours" if document_profile.get("validate") == "afc_aps_ssiap" else (f"Partie {str(row.get('uv')).split('-')[0][1:]}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else ("Période 1" if modality == "elearning" else "Période 2"))))
             c.drawString(margin, y, part_label)
             draw_wrapped_text(c, module_text, margin+92, y, width - margin - 300, "Helvetica", 7.2, 8)
-            c.drawString(width-margin-140, y, "E-learning" if modality == "elearning" else "Présentiel")
+            modality_label = "E-learning" if modality == "elearning" else ("Pratique" if row.get("practiceMinutes") else "Présentiel")
+            c.drawString(width-margin-140, y, modality_label)
             c.drawRightString(width-margin, y, format_duration_from_minutes(int(round(float(row.get("hours", 0))*60))))
             y -= row_h
         final_block_h = 34 + 24 + 92 + 25 + 70
@@ -3388,6 +3772,8 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             y -= 13
         if modality_ranges.get("presentiel"):
             y -= 13
+        if planning_mode == "elearning_presentiel":
+            y -= 26
         y -= 20
         y -= 26
         for row in summary.get("uv_rows") or []:
@@ -4022,7 +4408,11 @@ def generate_attendance_pdf_common(session_data, output_path, training_type=None
 
     training_type = (training_type or session_data.get("formation") or "APS").upper()
     planning_data = session_data.get("apsPlanningData") or []
-    planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
+    planning_mode = session_data.get("apsPlanningMode") or (
+        "elearning_presentiel"
+        if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
+        else "full_presentiel"
+    )
     students = session_data.get("apsAttendanceStudents") or []
     is_afc = training_type == "AFC_APS_SSIAP"
     if is_afc:
@@ -4596,16 +4986,12 @@ def refresh_aps_planning_pdf_file(session_data, sid):
             temp_path,
             planning_data=planning_data,
             planning_mode=planning_mode,
-            # A plan edited in the APS editor may intentionally depart from
-            # the automatic e-learning/presentiel sequence.  It was already
-            # checked on save for real scheduling issues (times, overlaps,
-            # lunch break and known course content), so refreshing its PDF
-            # must use the same rescheduling validation rather than reject a
-            # deliberate manual modification with the generator rules.
+            # APS PDFs are official outputs: unlike editable drafts, they must
+            # pass the complete CPNEFP programme validation before rendering.
             document_profile=(
                 {"validate": "ssiap1"}
                 if is_ssiap1_session(session_data)
-                else {"validate": "rescheduling"}
+                else {}
             ),
         )
         os.replace(temp_path, output_path)
@@ -6751,6 +7137,7 @@ def session_detail(sid):
         order=order,
         now=datetime.now,
         planning_pdf=session.get("planning_pdf"),
+        aps_planning_compliance=aps_planning_compliance_report(session) if (session.get("formation") or "").upper() == "APS" else None,
         afc_dsf_summary=afc_dsf_summary(session, request.args.get("billingUntil"), request.args.get("periodStart"), request.args.get("periodEnd"), request.args.get("hourlyRate")) if is_afc_aps_ssiap_session(session) else None,
         afc_dsf_modules=AFC_DSF_MODULES,
         afc_dsf_money=afc_dsf_money,
@@ -7453,6 +7840,10 @@ def generate_aps_planning_route(sid):
         session_data["apsPlanningData"] = result["planning_data"]
         session_data["apsPlanningSummary"] = result["summary"]
         session_data["apsPlanningMode"] = planning_mode
+        if training_code == "APS":
+            session_data["apsPlanningReferenceVersion"] = APS_CPNEFP_PROGRAM_VERSION
+            session_data["apsPlanningReferenceDate"] = APS_CPNEFP_PROGRAM_DATE
+            session_data["apsPlanningNeedsRegeneration"] = False
         session_data["planning_generated_at"] = append_planning_history(session_data, "planning généré")
         save_sessions(data)
         app.logger.info(
@@ -8694,7 +9085,7 @@ def get_aps_planning_api(sid):
     is_afc = normalize_training_code(session_data) == "AFC_APS_SSIAP" if session_data else False
     if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    planning_data = visible_planning_data(session_data.get("apsPlanningData") or [], include_empty=True)
+    planning_data = visible_planning_data(deepcopy(session_data.get("apsPlanningData") or []), include_empty=True)
     if is_afc:
         planning_data = normalize_afc_exam_trainers(planning_data)
     if formation == "APS":
@@ -8702,21 +9093,42 @@ def get_aps_planning_api(sid):
         # placeholders) so a support investigation can see the exact legacy
         # records that were loaded.
         log_aps_planning_diagnostics(session_data)
-    planning_mode = session_data.get("apsPlanningMode") or "full_presentiel"
+    planning_mode = session_data.get("apsPlanningMode") or (
+        "elearning_presentiel"
+        if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
+        else "full_presentiel"
+    )
+    compliance_errors = []
+    if formation == "APS" and planning_data:
+        planning_data = normalize_aps_slot_durations(planning_data)
+        planning_data = normalize_aps_compliance_metadata(planning_data, planning_mode)
+        compliance_errors, _ = validate_aps_planning_data(
+            planning_data,
+            planning_mode,
+            daily_capacity_minutes=aps_daily_capacity_minutes(session_data),
+            lunch_break=aps_lunch_break(session_data),
+        )
     summary = ssiap1_summary_from_data(planning_data) if is_ssiap1_session(session_data) and planning_data else (desp_summary_from_planning(planning_data) if is_desp and planning_data else (aps_summary_from_data(planning_data) if planning_data else None))
     curriculum = aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None
+    compliance = ({
+        "ok": not compliance_errors,
+        "errors": compliance_errors,
+        "programVersion": APS_CPNEFP_PROGRAM_VERSION,
+        "programDate": APS_CPNEFP_PROGRAM_DATE,
+    } if formation == "APS" else None)
     return jsonify({
         "ok": True,
         "session": session_data,
         "apsPlanningData": planning_data,
         "summary": summary,
         "curriculum": curriculum,
+        "compliance": compliance,
         "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [],
         "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None,
         "capacityViolations": aps_capacity_violations(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [],
         "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [],
-        "pdfUrl": url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None,
-        "needsRegeneration": bool(session_data.get("planning_pdf") and not planning_data),
+        "pdfUrl": url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") and not compliance_errors else None,
+        "needsRegeneration": bool(session_data.get("apsPlanningNeedsRegeneration") or compliance_errors or (session_data.get("planning_pdf") and not planning_data)),
     })
 
 @app.put("/api/sessions/<sid>/aps-planning")
@@ -8746,8 +9158,10 @@ def update_aps_planning_api(sid):
         # Never trust a duration sent by the browser: persist the duration
         # calculated from the two editable time fields.
         planning_data = normalize_aps_slot_durations(planning_data)
-        log_aps_planning_diagnostics({**session_data, "apsPlanningData": planning_data})
     planning_mode = session_data.get("apsPlanningMode") or ("elearning_presentiel" if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", [])) else "full_presentiel")
+    if formation == "APS":
+        planning_data = normalize_aps_compliance_metadata(planning_data, planning_mode)
+        log_aps_planning_diagnostics({**session_data, "apsPlanningData": planning_data})
     exam_iso = aps_local_date_iso(session_data.get("date_exam"))
     if exam_iso and not is_ssiap1_session(session_data) and not is_afc and any(day.get("date") == exam_iso for day in planning_data):
         return jsonify({"ok": False, "error": f"Sécurité planning APS: la date d'examen ({format_date(exam_iso)}) est réservée à l’examen et ne peut contenir aucun créneau de formation."}), 400
@@ -8773,15 +9187,33 @@ def update_aps_planning_api(sid):
     if errors:
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary,
                         "capacityViolations": capacity_violations}), 400
+    compliance_errors = []
+    if formation == "APS":
+        compliance_errors, compliance_summary = validate_aps_planning_data(
+            planning_data,
+            planning_mode,
+            daily_capacity_minutes=aps_daily_capacity_minutes(session_data),
+            lunch_break=aps_lunch_break(session_data),
+        )
+        if payload.get("regeneratePdf") and compliance_errors:
+            return jsonify({
+                "ok": False,
+                "error": f"PDF officiel non généré : le planning n'est pas conforme au programme CPNEFP {APS_CPNEFP_PROGRAM_VERSION} du {APS_CPNEFP_PROGRAM_DATE}.",
+                "errors": compliance_errors,
+                "summary": compliance_summary,
+                "capacityViolations": capacity_violations,
+            }), 400
     session_data["apsPlanningData"] = planning_data
     session_data["apsPlanningSummary"] = summary
     session_data["planning_modified_at"] = append_planning_history(session_data, "planning modifié")
-    pdf_url = url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") else None
+    if formation == "APS":
+        session_data["apsPlanningNeedsRegeneration"] = True
+    pdf_url = url_for("view_planning_pdf", sid=sid) if session_data.get("planning_pdf") and not compliance_errors else None
     if payload.get("regeneratePdf"):
         filename = f"planning_{'afc_aps_ssiap' if is_afc else ('desp' if is_desp else ('ssiap1' if is_ssiap1 else 'aps'))}_session_{sid}.pdf"
         output_path = os.path.join(PLANNING_DIR, filename)
         temp_path = f"{output_path}.tmp"
-        profile = ({"validate": "afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"} if is_afc else ({"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"} if is_ssiap1_session(session_data) else ({"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else {"validate": "rescheduling", "summary": summary})))
+        profile = ({"validate": "afc_aps_ssiap", "summary": summary, "planning_title":"PLANNING AFC FRANCE TRAVAIL APS + SSIAP", "short_label":"AFC APS + SSIAP"} if is_afc else ({"validate": "ssiap1", "summary": summary, "planning_title": "PLANNING DE FORMATION SSIAP 1", "short_label": "SSIAP 1"} if is_ssiap1_session(session_data) else ({"validate": "desp", "summary": summary, "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"} if is_desp else {"summary": summary})))
         try:
             result = generate_aps_planning_pdf(session_data, "", temp_path, planning_data=planning_data, planning_mode=planning_mode, document_profile=profile)
             if os.path.exists(output_path):
@@ -8803,10 +9235,14 @@ def update_aps_planning_api(sid):
         session_data["planning_pdf"] = filename
         session_data["apsPlanningSummary"] = result["summary"]
         session_data["apsPlanningMode"] = planning_mode
+        if formation == "APS":
+            session_data["apsPlanningNeedsRegeneration"] = False
+            session_data["apsPlanningReferenceVersion"] = APS_CPNEFP_PROGRAM_VERSION
+            session_data["apsPlanningReferenceDate"] = APS_CPNEFP_PROGRAM_DATE
         session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF régénéré")
         pdf_url = url_for("view_planning_pdf", sid=sid)
     save_sessions(data)
-    return jsonify({"ok": True, "pdfUrl": pdf_url, "planningData": planning_data, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [], "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None, "capacityViolations": capacity_violations, "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [], "modifiedAt": session_data.get("planning_modified_at")})
+    return jsonify({"ok": True, "pdfUrl": pdf_url, "planningData": planning_data, "summary": session_data.get("apsPlanningSummary"), "curriculum": aps_curriculum_summary(planning_data, planning_mode) if formation == "APS" else None, "compliance": ({"ok": not compliance_errors, "errors": compliance_errors, "programVersion": APS_CPNEFP_PROGRAM_VERSION, "programDate": APS_CPNEFP_PROGRAM_DATE} if formation == "APS" else None), "needsRegeneration": bool(session_data.get("apsPlanningNeedsRegeneration")), "dayAvailability": aps_day_availability(planning_data, session_data) if formation == "APS" else [], "dailyCapacityMinutes": aps_daily_capacity_minutes(session_data) if formation == "APS" else None, "capacityViolations": capacity_violations, "warnings": aps_capacity_warnings(planning_data, aps_daily_capacity_minutes(session_data)) if formation == "APS" else [], "modifiedAt": session_data.get("planning_modified_at")})
 
 
 @app.delete("/api/sessions/<sid>/aps-planning")
@@ -8826,6 +9262,9 @@ def reset_aps_planning_api(sid):
         "apsPlanningUpdatedAt",
         "apsPlanningModifiedAt",
         "apsPlanningSummary",
+        "apsPlanningReferenceVersion",
+        "apsPlanningReferenceDate",
+        "apsPlanningNeedsRegeneration",
         "apsPlanningHistory",
         "planning_pdf",
         "planning_generated_at",
@@ -8882,6 +9321,9 @@ def view_planning_pdf(sid):
     try:
         name = refresh_aps_planning_pdf_file(session_data, sid)
         save_sessions(data)
+    except ValueError as exc:
+        app.logger.warning("Planning APS non conforme avant affichage session=%s erreur=%s", sid, exc)
+        abort(409, description=str(exc))
     except Exception as exc:
         app.logger.exception("Impossible de rafraîchir le planning APS avant affichage session=%s", sid)
         abort(500, description=str(exc))
@@ -8904,6 +9346,9 @@ def download_planning_pdf(sid):
     try:
         name = refresh_aps_planning_pdf_file(session_data, sid)
         save_sessions(data)
+    except ValueError as exc:
+        app.logger.warning("Planning APS non conforme avant téléchargement session=%s erreur=%s", sid, exc)
+        abort(409, description=str(exc))
     except Exception as exc:
         app.logger.exception("Impossible de rafraîchir le planning APS avant téléchargement session=%s", sid)
         abort(500, description=str(exc))

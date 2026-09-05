@@ -918,7 +918,8 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 </div>
 
-  <!-- ===================== PLANNING PDF ===================== -->
+<!-- ===================== PLANNING PDF ===================== -->
+{% set aps_pdf_blocked = s.formation == "APS" and planning_pdf and aps_planning_compliance and not aps_planning_compliance.ok %}
 <section class="planning-box" id="planning-section">
   <div class="planning-header">
     <h2 style="margin:0;">📅 Planning de formation (PDF)</h2>
@@ -927,7 +928,7 @@ a.back:hover{ background:#d9a848 !important; }
 
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
         <a class="btn small" href="{{ url_for('view_a3p_document', sid=s.id, kind='planning') }}" target="_blank">👀 Voir le planning</a>
-      {% elif planning_pdf %}
+      {% elif planning_pdf and not aps_pdf_blocked %}
         <a class="btn small" href="{{ url_for('view_planning_pdf', sid=s.id) }}" target="_blank">👀 Voir le planning</a>
       {% endif %}
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') and s.a3pPlanningData %}
@@ -937,7 +938,7 @@ a.back:hover{ background:#d9a848 !important; }
       {% endif %}
       {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
         <button type="button" class="btn small gold" id="openApsPlanningModal">
-          {% if planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
+          {% if aps_pdf_blocked %}✅ Mettre le planning en conformité{% elif planning_pdf %}🔁 Régénérer le planning{% else %}✨ Générer planning{% endif %}
         </button>
       {% elif s.formation == "A3P" %}
         <button type="button" class="btn small gold" id="openA3pModal">
@@ -949,7 +950,7 @@ a.back:hover{ background:#d9a848 !important; }
       {% endif %}
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
         <a class="btn small" href="{{ url_for('view_a3p_document', sid=s.id, kind='planning') }}">⬇️ Télécharger</a>
-      {% elif planning_pdf %}
+      {% elif planning_pdf and not aps_pdf_blocked %}
         <a class="btn small" href="{{ url_for('download_planning_pdf', sid=s.id) }}">⬇️ Télécharger</a>
       {% endif %}
     </div>
@@ -965,6 +966,9 @@ a.back:hover{ background:#d9a848 !important; }
       <p class="muted" style="margin-top:8px;">Aucun planning PDF généré pour cette session A3P.</p>
     {% endif %}
   {% elif planning_pdf %}
+    {% if aps_pdf_blocked %}
+      <div class="flash error" style="display:block;margin-top:8px;">Planning non conforme au programme CPNEFP {{ aps_planning_compliance.programVersion }} du {{ aps_planning_compliance.programDate }}. La consultation et le téléchargement du PDF sont bloqués jusqu’à sa régénération.</div>
+    {% endif %}
     {% if s.planning_generated_at %}
       <div class="planning-status">✅ Planning généré le {{ s.planning_generated_at|datetimefr }}</div>
     {% endif %}
@@ -1325,7 +1329,7 @@ a.back:hover{ background:#d9a848 !important; }
             <input id="apsModeElearningPresentiel" name="planningMode" type="radio" value="elearning_presentiel" required>
             <span>
               <strong>E-learning + présentiel</strong>
-              <small>62h en e-learning d’abord, puis 113h en présentiel.</small>
+              <small>51h maximum en e-learning, puis 124h minimum en présentiel, dont 63h30 de pratique (CPNEFP V3.2 du 23/07/2026).</small>
             </span>
           </label>
         </div>
@@ -2580,7 +2584,4 @@ document.addEventListener('DOMContentLoaded',init);
 
 </body>
 </html>
-
-
-
 

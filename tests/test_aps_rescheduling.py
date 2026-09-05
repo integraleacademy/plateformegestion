@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import date
 from pathlib import Path
 
 import app
@@ -45,14 +46,14 @@ def test_elearning_curriculum_keeps_remaining_courses_separate_from_presentiel()
     elearning = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "elearning")
     presentiel = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "presentiel")
     plan = [{"date": "2026-09-01", "slots": [{
-        "start": "08:30", "end": "12:00", "duration": 3.5, "durationMinutes": 210,
+        "start": "08:30", "end": "09:30", "duration": 1, "durationMinutes": 60,
         "uv": elearning["uv"], "title": elearning["title"], "part": elearning["part"],
         "modality": "elearning", "pedagogicalKey": elearning["key"],
     }]}]
 
     errors, _, curriculum = app.validate_aps_rescheduling_data(plan, "elearning_presentiel")
     assert errors == []
-    assert next(row for row in curriculum["contents"] if row["key"] == elearning["key"])["remainingMinutes"] == elearning["expectedMinutes"] - 210
+    assert next(row for row in curriculum["contents"] if row["key"] == elearning["key"])["remainingMinutes"] == elearning["expectedMinutes"] - 60
     assert next(row for row in curriculum["contents"] if row["key"] == presentiel["key"])["remainingMinutes"] == presentiel["expectedMinutes"]
 
 
@@ -79,16 +80,26 @@ def test_editor_allows_selecting_slot_modality_and_filters_courses_by_it():
     assert "isEmpty:true" in editor
     assert "function insertableMinutes(day,slot)" in editor
     assert "a.planned===0&&available<=0" in editor
+    assert "deliveryType:content.deliveryType" in editor
+    assert "practiceMinutes:content.deliveryType==='practice'?duration:0" in editor
 
 
 def test_editor_prioritizes_remaining_aps_hours_and_incomplete_contents():
     editor = Path("templates/aps_planning_editor.html").read_text(encoding="utf-8")
     assert 'id="planningAlert"' in editor
-    assert "Planning incomplet" in editor
+    assert "incomplet" in editor
+    assert "PDF officiel reste bloqué" in editor
     assert "Voir les contenus à insérer" in editor
     assert "incompleteOnly=true" in editor
     assert "remaining-badge" in editor
     assert "metric-remaining" in editor
+
+
+def test_session_page_blocks_access_to_a_noncompliant_aps_pdf():
+    detail = Path("templates/session_detail.html").read_text(encoding="utf-8")
+    assert "aps_pdf_blocked" in detail
+    assert "consultation et le téléchargement du PDF sont bloqués" in detail
+    assert "Mettre le planning en conformité" in detail
 
 
 def test_api_persists_incomplete_old_plan_and_returns_remaining_curriculum(monkeypatch):
@@ -108,6 +119,26 @@ def test_api_persists_incomplete_old_plan_and_returns_remaining_curriculum(monke
         refreshed = client.get("/api/sessions/aps-reschedule/aps-planning").get_json()
     assert refreshed["apsPlanningData"][0]["slots"][0]["isEmpty"] is True
     assert refreshed["curriculum"]["remainingMinutes"] == refreshed["curriculum"]["expectedMinutes"]
+    assert refreshed["compliance"]["ok"] is False
+    assert refreshed["compliance"]["programVersion"] == app.APS_CPNEFP_PROGRAM_VERSION
+    assert refreshed["needsRegeneration"] is True
+
+
+def test_generated_mixed_plan_has_an_official_cpnefp_compliance_report():
+    planning, _, _ = app.generateApsElearningPresentielPlanning(
+        date(2026, 7, 8), "Jean Dupont", "Salle 1", end_date=date(2026, 8, 11)
+    )
+    report = app.aps_planning_compliance_report({
+        "formation": "APS",
+        "apsPlanningData": planning,
+    })
+
+    assert report["ok"] is True
+    assert report["errors"] == []
+    assert report["programVersion"] == "V3.2"
+    assert report["planningMode"] == "elearning_presentiel"
+    assert report["summary"]["modality_totals"] == {"elearning": 51.0, "presentiel": 124.0}
+    assert report["summary"]["practice_hours"] == 63.5
 
 
 def test_api_recalculates_persists_times_and_reports_daily_availability(monkeypatch):
@@ -133,8 +164,8 @@ def test_api_recalculates_persists_times_and_reports_daily_availability(monkeypa
     assert refreshed["apsPlanningData"][0]["slots"][0]["end"] == "11:30"
 
 
-def test_api_regenerates_pdf_for_an_incomplete_rescheduled_plan(monkeypatch, tmp_path):
-    """A work-in-progress APS plan remains exportable from the editor."""
+def test_api_blocks_official_pdf_for_an_incomplete_rescheduled_plan(monkeypatch, tmp_path):
+    """A work-in-progress plan remains a draft and cannot become an official PDF."""
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     uv1 = next(item for item in app.aps_expected_content() if item["key"] == "UV1")
     session = {
@@ -159,15 +190,15 @@ def test_api_regenerates_pdf_for_an_incomplete_rescheduled_plan(monkeypatch, tmp
             json={"planningData": deepcopy(session["apsPlanningData"]), "regeneratePdf": True},
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 400
     payload = response.get_json()
-    assert payload["ok"] is True
-    assert payload["pdfUrl"] == "/sessions/aps-incomplete-pdf/planning/view"
-    assert (tmp_path / "planning_aps_session_aps-incomplete-pdf.pdf").exists()
+    assert payload["ok"] is False
+    assert "CPNEFP" in payload["error"]
+    assert not (tmp_path / "planning_aps_session_aps-incomplete-pdf.pdf").exists()
 
 
-def test_view_pdf_accepts_a_manually_reordered_elearning_plan(monkeypatch, tmp_path):
-    """Viewing a manually changed APS plan must not reapply generator ordering."""
+def test_view_pdf_blocks_a_noncompliant_manually_reordered_elearning_plan(monkeypatch, tmp_path):
+    """A noncompliant draft must never be served as an official APS PDF."""
     app.app.config.update(TESTING=True, SECRET_KEY="test")
     elearning = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "elearning")
     presentiel = next(item for item in app.aps_expected_content("elearning_presentiel") if item["modality"] == "presentiel")
@@ -195,9 +226,8 @@ def test_view_pdf_accepts_a_manually_reordered_elearning_plan(monkeypatch, tmp_p
             flask_session["admin_session_version"] = app.ADMIN_SESSION_VERSION
         response = client.get("/sessions/aps-manual-order/planning/view")
 
-    assert response.status_code == 200
-    assert response.mimetype == "application/pdf"
-    assert (tmp_path / "planning_aps_session_aps-manual-order.pdf").exists()
+    assert response.status_code == 409
+    assert not (tmp_path / "planning_aps_session_aps-manual-order.pdf").exists()
 
 
 def test_insert_four_hours_of_uv1_from_empty_slot_persists_and_leaves_three_hours(monkeypatch):
@@ -315,7 +345,7 @@ def test_editor_delegates_dynamic_course_insert_clicks_and_includes_request_data
     assert "data-max-duration=" in editor
     assert "method:'PUT'" in editor
     assert "Insertion…" in editor
-    assert "Impossible d’insérer ce cours" in editor
+    assert "Action impossible" in editor
     assert 'id="modalError" class="error"' in editor
     assert "modalErr=document.getElementById('modalError')" in editor
     assert "function showActionError(message)" in editor

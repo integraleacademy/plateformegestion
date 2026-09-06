@@ -378,3 +378,10 @@
 .studio-format-linkedin_landscape.new-layout.brand-side-right .sv-brand{right:22px!important}
 .studio-format-linkedin_landscape.new-layout.brand-side-left .sv-safe>main{left:max(126px,calc(80px + var(--new-logo-size)))!important}
 .studio-format-linkedin_landscape.new-layout.brand-side-right .sv-safe>main{right:max(126px,calc(80px + var(--new-logo-size)))!important}
+
+.studio-format-linkedin_landscape .new-giant-alarm b{font-size:68px}
+.new-snake ol{padding-right:58px}
+.studio-format-linkedin_landscape .new-snake ol{padding-right:24px;column-gap:24px}
+.studio-format-linkedin_landscape .new-snake li:nth-child(even){translate:24px 0}
+.studio-format-linkedin_landscape .new-phone{grid-template-columns:240px minmax(0,1fr)}
+.studio-format-linkedin_landscape .new-device{width:210px;padding:20px}

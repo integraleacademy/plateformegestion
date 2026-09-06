@@ -136,7 +136,7 @@ function renderMotionControls(){
   const toggle=$('#studioMotionToggle');toggle.hidden=!available;toggle.textContent=playing?'Ⅱ Animation':'▶ Animation';toggle.setAttribute('aria-pressed',String(playing));toggle.setAttribute('aria-label',playing?'Mettre l’animation en pause':'Lire l’animation');
   $('#exportMotionButton').hidden=!available;
 }
-function fitTemplatePreviews(){for(const preview of $$('.studio-new2-preview')){const width=preview.clientWidth;preview.style.height=width+'px';if(preview.firstElementChild)preview.firstElementChild.style.transform=`scale(${width/1080})`}}
+function fitTemplatePreviews(){for(const preview of $$('.studio-new2-preview')){const width=preview.clientWidth;preview.style.height=width+'px';if(preview.firstElementChild){preview.firstElementChild.style.transform=`scale(${width/1080})`;fitSlide(preview.firstElementChild,{waitForPaint:false}).catch(error=>console.warn('[STUDIO] Aperçu non ajusté',error))}}}
 async function doMotionExport(){
   if(store.project.ui?.isExporting)return;store.project.ui.isExporting=true;
   const buttons=$$('[data-action="exportStandard"],[data-action="exportHd"],[data-action="exportMotion"],[data-action="closeExport"]');

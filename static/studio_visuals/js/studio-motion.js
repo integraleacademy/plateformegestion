@@ -30,7 +30,7 @@ export function startStudioMotion(root,{playing=true}={}){
 
 export function supportedVideoType(recorder=globalThis.MediaRecorder){
   if(!recorder?.isTypeSupported)return null;
-  return ['video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(type=>recorder.isTypeSupported(type))||null;
+  return ['video/mp4;codecs=avc1.424028','video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/mp4','video/webm'].find(type=>recorder.isTypeSupported(type))||null;
 }
 async function loadFrame(url){const image=new Image();image.src=url;await image.decode();return image}
 
@@ -71,26 +71,36 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
       }
       context.restore();
     }
-    draw(0);stream=canvas.captureStream(30);
+    draw(0);stream=canvas.captureStream(0);
+    let videoTrack=stream.getVideoTracks()[0];
+    if(typeof videoTrack.requestFrame!=='function'){
+      stream.getTracks().forEach(track=>track.stop());
+      stream=canvas.captureStream(30);videoTrack=stream.getVideoTracks()[0];
+    }
     recorder=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:6000000});
     const chunks=[];
     const blob=await new Promise((resolve,reject)=>{
       recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data)};
       recorder.onerror=event=>reject(event.error||new Error('L’enregistrement vidéo a échoué.'));
       recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||type}));
-      recorder.start(250);const start=performance.now();
       watchdog=setTimeout(()=>reject(new Error('L’export a été interrompu. Gardez cet onglet visible pendant les 6 secondes d’enregistrement.')),duration*1000+15000);
-      const tick=now=>{
-        const elapsed=Math.min(duration*1000,now-start);draw((elapsed%(duration*1000))/(duration*1000));
+      let start=0;const interval=1000/30;
+      // A recorder must not depend on the tab's paint frequency. Explicit
+      // canvas frames keep the video smooth when browser painting is reduced.
+      const tick=()=>{
+        const elapsed=Math.min(duration*1000,performance.now()-start);draw((elapsed%(duration*1000))/(duration*1000));
+        videoTrack.requestFrame?.();
         const percent=Math.round(elapsed/(duration*1000)*100);onProgress(percent);onStatus(`Création de la vidéo… ${percent} %`);
-        if(elapsed>=duration*1000){recorder.stop();return}frameId=requestAnimationFrame(tick);
+        if(elapsed>=duration*1000){frameId=setTimeout(()=>recorder.stop(),interval+20);return}
+        frameId=setTimeout(tick,Math.max(4,interval-((performance.now()-start)%interval)));
       };
-      frameId=requestAnimationFrame(tick);
+      recorder.onstart=()=>{start=performance.now();tick()};
+      recorder.start(250);
     });
     if(blob.size<1000)throw new Error('La vidéo générée est vide. Relancez l’export.');
     return {blob,extension:type.startsWith('video/mp4')?'mp4':'webm',width:canvas.width,height:canvas.height,duration};
   }finally{
-    cancelAnimationFrame(frameId);clearTimeout(watchdog);
+    clearTimeout(frameId);clearTimeout(watchdog);
     if(recorder?.state==='recording')recorder.stop();
     stream?.getTracks().forEach(track=>track.stop());
     node.classList.remove('studio-motion-base','studio-motion-only');

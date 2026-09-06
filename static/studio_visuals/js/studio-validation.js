@@ -1,9 +1,7 @@
 function measureUnscaledWidth(element){
-  const cs=getComputedStyle(element);
-  const cssWidth=parseFloat(cs.width)||0;
-  const maxWidth=parseFloat(cs.maxWidth);
-  const naturalWidth=element.naturalWidth?Math.min(element.naturalWidth,Number.isFinite(maxWidth)?maxWidth:Infinity):0;
-  return Math.max(element.offsetWidth||0,cssWidth,naturalWidth,element.getBoundingClientRect().width||0);
+  const canvas=element.closest('.social-studio-slide');
+  const zoom=canvas?canvas.getBoundingClientRect().width/(canvas.offsetWidth||1):1;
+  return element.getBoundingClientRect().width/(zoom||1);
 }
 
 function isVisible(element){
@@ -13,15 +11,23 @@ function isVisible(element){
 }
 
 function isTextClipped(element){
-  const tolerance=3,style=getComputedStyle(element),clipsSelf=[style.overflow,style.overflowX,style.overflowY].some(value=>['hidden','clip','auto','scroll'].includes(value));
-  if(clipsSelf&&(element.scrollWidth>element.clientWidth+tolerance||element.scrollHeight>element.clientHeight+tolerance))return true;
+  const canvas=element.closest('.social-studio-slide');
+  const tolerance=3*(canvas?canvas.getBoundingClientRect().width/(canvas.offsetWidth||1):1);
   if(!document.createRange)return false;
   try{
-    const range=document.createRange();
-    range.selectNodeContents(element);
-    const textRect=range.getBoundingClientRect();
-    let ancestor=element.parentElement;
-    while(ancestor&&ancestor!==element.closest('.social-studio-slide')){
+    // Measure text only: selection/resize handles are deliberately outside the
+    // text box and must not turn a valid selected template into a failed export.
+    const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT);
+    const rects=[];
+    for(let textNode=walker.nextNode();textNode;textNode=walker.nextNode()){
+      if(!textNode.textContent.trim()||textNode.parentElement?.closest('[data-editor-only]'))continue;
+      const range=document.createRange();range.selectNodeContents(textNode);
+      rects.push(range.getBoundingClientRect());
+    }
+    if(!rects.length)return false;
+    const textRect={left:Math.min(...rects.map(r=>r.left)),right:Math.max(...rects.map(r=>r.right)),top:Math.min(...rects.map(r=>r.top)),bottom:Math.max(...rects.map(r=>r.bottom))};
+    let ancestor=element;
+    while(ancestor&&ancestor!==canvas){
       const ancestorStyle=getComputedStyle(ancestor);
       if([ancestorStyle.overflow,ancestorStyle.overflowX,ancestorStyle.overflowY].some(value=>['hidden','clip'].includes(value))){
         const rect=ancestor.getBoundingClientRect();
@@ -77,13 +83,15 @@ export function validateStudioSlide(slideNode,options={}){
   if(!logo)blockingErrors.push({message:'Logo officiel obligatoire absent.',element:canvas});
   else{
     if(uniqueLogos.length>1)blockingErrors.push({message:'Plusieurs logos détectés',element:logo});
+    if(!logo.complete||!logo.naturalWidth)blockingErrors.push({message:'Le logo n’a pas pu être chargé.',element:logo});
     const width=measureUnscaledWidth(logo);
-    if(width&&width<100)blockingErrors.push({message:'Logo trop petit',element:logo});
+    const minimum=canvas.dataset.studioFormat==='linkedin_landscape'?48:72;
+    if(width&&width<minimum)warnings.push({message:'Le logo est petit : agrandissez-le pour améliorer sa lisibilité.',element:logo});
   }
   if(!canvas.textContent.includes('Faites le premier pas vers votre futur métier'))blockingErrors.push({message:'Slogan obligatoire absent.',element:canvas});
   if(!canvas.querySelector('.sv-brand__formation'))blockingErrors.push({message:'Repère couleur de la formation absent.',element:canvas});
 
-  for(const element of canvas.querySelectorAll('.sv-brand__slogan,.sv-brand__formation,.sv-footer__place,.sv-footer__site,.sv-footer__phone,.sv-footer__cta,.new-design [data-content-key]')){
+  for(const element of canvas.querySelectorAll('.sv-brand__slogan,.sv-brand__formation,.sv-footer__place,.sv-footer__site,.sv-footer__phone,.sv-footer__cta,.new-design [data-content-key],[data-fit]')){
     if(isVisible(element)&&isTextClipped(element))blockingErrors.push({message:`Le texte « ${element.dataset.elementName||element.textContent.trim()||'identité'} » est coupé.`,element});
   }
 

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<title>Studio — contrôle des rendus</title>
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-shell.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-canvas.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-themes.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-new-templates.css">
+<style>
+  .audit-controls{position:sticky;top:0;z-index:1000;background:white;padding:12px;display:flex;gap:10px;align-items:center}
+  .audit-controls select{width:210px}.audit-controls label{margin:0}
+  #preview{zoom:.62;margin:24px}#progress,#report{white-space:pre-wrap;margin:20px;font:14px monospace}
+  #audit-stage{position:absolute;left:-20000px;top:0;pointer-events:none}
+</style>
+<body class="social-studio">
+<div class="audit-controls">
+  <label>Modèle<select id="template"></select></label>
+  <label>Formation<select id="formation"></select></label>
+  <label>Format<select id="format"></select></label>
+  <button id="audit">Contrôler tous les modèles</button>
+</div>
+<p id="progress">Chargement…</p><div id="preview"></div><pre id="report"></pre><div id="audit-stage"></div>
+<script type="module">
+  // Serve the repository root with a local HTTP server; no production data or API calls.
+  import {renderSlide} from '/static/studio_visuals/js/studio-renderer.js';
+  import {fitSlide} from '/static/studio_visuals/js/studio-text-fit.js';
+  import {validateStudioSlide} from '/static/studio_visuals/js/studio-validation.js';
+  import {waitForImages} from '/static/studio_visuals/js/studio-exporter.js';
+  import {createProject,defaultContentForFormation,FORMATS} from '/static/studio_visuals/js/studio-store.js';
+  const $=id=>document.getElementById(id);
+  const [{templates},themes]=await Promise.all(['templates','themes'].map(name=>fetch(`/static/studio_visuals/data/${name}.json`).then(r=>r.json())));
+  const ready=templates.filter(t=>t.status==='ready');
+  for(const t of ready)$('template').add(new Option(t.name,t.id));
+  for(const id of Object.keys(themes))$('formation').add(new Option(id,id));
+  for(const [id,f] of Object.entries(FORMATS))$('format').add(new Option(f.label,id));
+  $('formation').value='APS';$('template').value='new_manifesto_highlight';
+  async function render(target,templateId,formation,formatId){
+    const project=createProject({formation,templateId,content:defaultContentForFormation(formation)});
+    project.format=FORMATS[formatId];project.slides[0].options.showSafeMargins=false;
+    const node=renderSlide(project,project.slides[0],'export',{templates,themes});
+    target.replaceChildren(node);await waitForImages(node);await fitSlide(node);await fitSlide(node);
+    return validateStudioSlide(node);
+  }
+  async function preview(){
+    const v=await render($('preview'),$('template').value,$('formation').value,$('format').value);
+    $('progress').textContent=v.blockingErrors.length?v.blockingErrors.map(x=>x.message).join('\n'):'Rendu sans erreur bloquante';
+  }
+  for(const id of ['template','formation','format'])$(id).addEventListener('change',preview);
+  $('audit').addEventListener('click',async()=>{
+    $('audit').disabled=true;const results=[];let count=0;
+    try{
+      for(const formatId of Object.keys(FORMATS))for(const t of ready){
+        const v=await render($('audit-stage'),t.id,$('formation').value,formatId);
+        const errors=v.blockingErrors.map(x=>x.message);
+        results.push({template:t.id,format:formatId,errors});
+        $('progress').textContent=`${++count}/${ready.length*4} rendus contrôlés`;
+      }
+      const failures=results.filter(r=>r.errors.length);
+      $('report').textContent=JSON.stringify({total:results.length,failed:failures.length,failures},null,2);
+      $('progress').textContent=`Terminé : ${results.length-failures.length}/${results.length} rendus sans erreur`;
+    }catch(error){$('report').textContent=error.stack}finally{$('audit').disabled=false;$('audit-stage').replaceChildren()}
+  });
+  await preview();
+</script>
+</body></html>

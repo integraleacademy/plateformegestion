@@ -47,12 +47,15 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
   if(!type)throw new Error('L’export vidéo n’est pas disponible dans ce navigateur. Ouvrez le studio dans Chrome ou Edge à jour.');
   const effects=[...node.querySelectorAll('[data-motion]')];
   if(!effects.length)throw new Error('Choisissez un modèle NEW2 portant la mention « Animé ».');
+  const foregroundNodes=[...node.querySelectorAll('.n2-code,[data-motion-foreground]')].filter(element=>!element.closest('[data-motion]'));
   let stream,recorder,frameId,watchdog;
+  let foreground;
   const bounds=node.getBoundingClientRect();
   const layers=[];
   const raster=()=>htmlToImage.toPng(node,{width,height,pixelRatio:1,cacheBust:false,style:{width:width+'px',height:height+'px',transform:'none',margin:'0'}});
   try{
     onStatus('Préparation des calques animés…');
+    foregroundNodes.forEach(element=>element.dataset.motionForegroundCapture='true');
     node.classList.add('studio-motion-base');
     const base=await loadFrame(await raster());
     node.classList.remove('studio-motion-base');
@@ -63,6 +66,11 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
       const image=await loadFrame(await raster());
       delete effect.dataset.motionCapture;
       layers.push({image,kind:effect.dataset.motion,...motionLayerCenter(bounds,rect,width,height)});
+    }
+    if(foregroundNodes.length){
+      foregroundNodes.forEach(element=>element.dataset.motionCapture='true');
+      foreground=await loadFrame(await raster());
+      foregroundNodes.forEach(element=>delete element.dataset.motionCapture);
     }
     node.classList.remove('studio-motion-only');
     const canvas=document.createElement('canvas');
@@ -77,6 +85,7 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
         context.translate(layer.cx+p.x,layer.cy+p.y);context.rotate(p.rotation);context.scale(p.scale,p.scale);context.translate(-layer.cx,-layer.cy);
         context.drawImage(layer.image,0,0,width,height);context.restore();
       }
+      if(foreground)context.drawImage(foreground,0,0,width,height);
       context.restore();
     }
     draw(0);stream=canvas.captureStream(0);
@@ -113,5 +122,6 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
     stream?.getTracks().forEach(track=>track.stop());
     node.classList.remove('studio-motion-base','studio-motion-only');
     effects.forEach(effect=>delete effect.dataset.motionCapture);
+    foregroundNodes.forEach(element=>{delete element.dataset.motionCapture;delete element.dataset.motionForegroundCapture});
   }
 }

@@ -62,6 +62,12 @@ function article(ctx,cls,roles,body,footer='horizontal'){
     main.dataset.region='content';
     main.dataset.elementName=template.name||template.id;
     if(template.isNew)main.dataset.layoutFitMode='art-directed';
+    // Legacy statistic cards can contain dates or place names as well as numbers.
+    // Fit these actual values just like the newer template families.
+    for(const value of main.querySelectorAll('.dashboard strong,.big-number>strong,.big-number aside b,.bars strong,.gauge strong,.mk-wall strong,.mk-phone strong,.mk-growth b,.mk-ring strong,.mk-mega>strong,.mk-soldout>strong,.mk-proofgrid strong,.mk-tiles strong,.mk-orbits>div')){
+      if(!value.dataset.fit)value.dataset.fit=/^[\d\s.,%+€h/−-]+$/.test(value.textContent.trim())?'metric':'meta';
+    }
+
   }
   decorateEditableElements(el,slide,{renderMode});
   return el;

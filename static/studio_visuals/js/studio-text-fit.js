@@ -23,6 +23,18 @@ function renderedLineCount(element,fontSize,lineHeight){
   return Math.max(1,Math.round(Math.max(0,element.scrollHeight-padding)/(fontSize*lineHeight)));
 }
 
+function renderedTextHeight(element){
+  // A grid item may stretch to its entire row: scrollHeight then measures the
+  // empty row as well as the text. Only the rendered text needs to fit.
+  if(document.createRange&&element.getBoundingClientRect){
+    const range=document.createRange();range.selectNodeContents(element);
+    const rect=range.getBoundingClientRect(),box=element.getBoundingClientRect();
+    const zoom=box.height/(element.offsetHeight||box.height||1);
+    if(rect.height>0)return rect.height/(zoom||1);
+  }
+  return element.scrollHeight;
+}
+
 export async function fitText({element,minFontSize,maxFontSize,maxLines,maxHeight,lineHeight}){
   await waitForStudioFonts();
   if(!element||element.hidden)return true;
@@ -35,11 +47,11 @@ export async function fitText({element,minFontSize,maxFontSize,maxLines,maxHeigh
     element.style.fontSize=mid+'px';
     const lines=renderedLineCount(element,mid,lineHeight);
     const widthOk=element.scrollWidth<=element.clientWidth+3;
-    const heightOk=element.scrollHeight<=maxHeight+3;
+    const heightOk=renderedTextHeight(element)<=maxHeight+3;
     if(widthOk&&heightOk&&lines<=maxLines){best=mid;lo=mid+1}else hi=mid-1;
   }
   element.style.fontSize=best+'px';
-  const bad=element.scrollWidth>element.clientWidth+3||element.scrollHeight>maxHeight+3||renderedLineCount(element,best,lineHeight)>maxLines;
+  const bad=element.scrollWidth>element.clientWidth+3||renderedTextHeight(element)>maxHeight+3||renderedLineCount(element,best,lineHeight)>maxLines;
   if(bad)element.dataset.fitWarning='Texte trop long : réduisez-le.';
   return !bad;
 }

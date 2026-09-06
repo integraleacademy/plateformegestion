@@ -28,7 +28,11 @@ async function render(target,id,formation,format,scenario){
  if(scenario==='legacy')Object.assign(content,{title:'Faites le premier pas vers votre futur métier.',quote:'Faites le premier pas vers votre futur métier',cta:'Faites le premier pas vers votre futur métier'});
  const project=createProject({formation,templateId:id,content});project.format=FORMATS[format];project.slides[0].options.showSafeMargins=false;
  const node=renderSlide(project,project.slides[0],'export',{templates,themes});target.replaceChildren(node);
- await waitForImages(node);await fitSlide(node);await fitSlide(node);
+ // Layout measurements force a reflow. Batch checks do not need an animation
+ // frame for each pass; the export path still waits for painting and decoding.
+ if([...node.querySelectorAll('img')].some(image=>!image.complete))await waitForImages(node);
+ await fitSlide(node,{waitForPaint:false});await fitSlide(node,{waitForPaint:false});
+ await new Promise(resolve=>setTimeout(resolve,0));
  const errors=validateStudioSlide(node).blockingErrors.map(e=>e.message);
  const text=node.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const count=(text.match(/faites le premier pas vers votre futur metier/g)||[]).length;

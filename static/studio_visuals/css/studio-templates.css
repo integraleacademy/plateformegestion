@@ -668,3 +668,37 @@
 .studio-v2.studio-format-linkedin_landscape .mk-wall section:first-child{grid-row:auto}
 .studio-v2.studio-format-linkedin_landscape .mk-wall section{padding:18px 14px;min-width:0}
 .studio-v2.studio-format-linkedin_landscape .mk-wall strong{font-size:38px;line-height:1.2}
+
+/* Dense legacy compositions: explicit tracks keep each role in its own space. */
+.studio-v2 .timeline-v li{grid-template-rows:auto auto;row-gap:4px}
+.studio-v2 .timeline-v li>b{grid-column:1;grid-row:1/3}
+.studio-v2 .timeline-v li>strong{grid-column:2;grid-row:1}
+.studio-v2 .timeline-v li>span{grid-column:2;grid-row:2;margin-top:0}
+.studio-v2 .quote blockquote{padding-block:.24em;max-height:none}
+.studio-v2 .big-number>strong,.studio-v2 .mk-mega>strong,.studio-v2 .mk-soldout>strong{padding-block:.25em;line-height:1.12;letter-spacing:-.055em}
+.studio-v2.studio-format-linkedin_landscape .mk h1{font-size:40px;line-height:1.05}
+.studio-v2.studio-format-linkedin_landscape .calendar{grid-template-rows:auto minmax(0,1fr);gap:18px;align-content:stretch}
+.studio-v2.studio-format-linkedin_landscape .calgrid{height:100%;align-self:stretch;grid-template-rows:repeat(4,minmax(0,1fr))}
+.studio-v2.studio-format-linkedin_landscape .calgrid span{aspect-ratio:auto;min-height:0}
+.studio-v2.studio-format-linkedin_landscape .timeline-v ol{align-self:center}
+.studio-v2.studio-format-linkedin_landscape .timeline-v li{grid-template-columns:44px minmax(0,1fr);min-height:60px;column-gap:14px}
+.studio-v2.studio-format-linkedin_landscape .timeline-v li>span{font-size:16px;line-height:1.25}
+.studio-v2.studio-format-linkedin_landscape .mk-ring{grid-template-columns:240px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:20px}
+.studio-v2.studio-format-linkedin_landscape .mk-ring>div{grid-column:1;grid-row:1/3;width:220px;padding:22px;text-align:center}
+.studio-v2.studio-format-linkedin_landscape .mk-ring>h1{grid-column:2;grid-row:1}
+.studio-v2.studio-format-linkedin_landscape .mk-ring>aside{grid-column:2;grid-row:2;grid-template-columns:repeat(var(--studio-stat-count,3),minmax(0,1fr));gap:10px}
+.studio-v2.studio-format-linkedin_landscape .mk-ring aside section{padding:14px;min-width:0}
+.studio-v2.studio-format-linkedin_landscape .mk-ring aside strong{display:block;font-size:28px;line-height:1.2;overflow-wrap:anywhere}
+.studio-v2.studio-format-linkedin_landscape .mk-ring aside small{font-size:11px}
+.studio-v2.studio-format-linkedin_landscape .mk-accordion>div{display:grid;gap:10px}
+.studio-v2.studio-format-linkedin_landscape .mk-accordion details{margin:0;padding:12px}
+.studio-v2.studio-format-linkedin_landscape .mk-accordion summary{font-size:18px;line-height:1.2}
+.studio-v2.studio-format-linkedin_landscape .mk-accordion details p{font-size:16px;line-height:1.25;margin:6px 0 0}
+.studio-v2.studio-format-linkedin_landscape .mk-month{grid-template-columns:230px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:20px;align-items:center}
+.studio-v2.studio-format-linkedin_landscape .mk-month>time{grid-column:1;grid-row:1/3;font-size:48px}
+.studio-v2.studio-format-linkedin_landscape .mk-month>h1{grid-column:2;grid-row:1}
+.studio-v2.studio-format-linkedin_landscape .mk-month>div{grid-column:2;grid-row:2;grid-template-columns:repeat(8,minmax(0,1fr))}
+.studio-v2.studio-format-linkedin_landscape .mk-waitlist{grid-template-rows:auto minmax(0,1fr) auto}
+.studio-v2.studio-format-linkedin_landscape .mk-waitlist ol{margin:0;padding:0;gap:10px}
+.studio-v2.studio-format-linkedin_landscape .mk-waitlist li{font-size:22px;line-height:1.2;padding:12px}
+.studio-v2 .constellation h1{top:24px}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFileSync} from 'node:fs';
 import {uniqueSignatureContent,isStudioSlogan,STUDIO_SLOGAN} from '../static/studio_visuals/js/studio-content-rules.js';
-import {motionPose,supportedVideoType} from '../static/studio_visuals/js/studio-motion.js';
+import {motionPose,supportedVideoType,motionLayerCenter} from '../static/studio_visuals/js/studio-motion.js';
 import {renderNew2TemplateBody,NEW2_IDS} from '../static/studio_visuals/js/studio-new2-templates.js';
 import {defaultContentForFormation} from '../static/studio_visuals/js/studio-store.js';
 const catalog=JSON.parse(readFileSync('static/studio_visuals/data/templates.json','utf8')).templates;
@@ -38,4 +38,13 @@ test('motion is loopable and bounded and MP4 falls back cleanly where unsupporte
   assert.equal(supportedVideoType({isTypeSupported:type=>type==='video/mp4;codecs=avc1.424028'||type==='video/webm;codecs=vp9'}),'video/mp4;codecs=avc1.424028');
   assert.equal(supportedVideoType({isTypeSupported:type=>type==='video/webm;codecs=vp8'}),'video/webm;codecs=vp8');
   assert.equal(supportedVideoType({isTypeSupported:()=>false}),null);
+});
+test('video rotation uses bitmap coordinates at every page zoom',()=>{
+  for(const zoom of [.2,.75,.8,1,1.5,2]){
+    const canvas={left:-100000*zoom,top:0,width:1080*zoom,height:1920*zoom};
+    const effect={left:canvas.left+100*zoom,top:700*zoom,width:400*zoom,height:400*zoom};
+    const center=motionLayerCenter(canvas,effect,1080,1920);
+    assert.ok(Math.abs(center.cx-300)<1e-7);
+    assert.ok(Math.abs(center.cy-900)<1e-7);
+  }
 });

@@ -22,7 +22,10 @@ function isTextClipped(element){
     for(let textNode=walker.nextNode();textNode;textNode=walker.nextNode()){
       if(!textNode.textContent.trim()||textNode.parentElement?.closest('[data-editor-only]'))continue;
       const range=document.createRange();range.selectNodeContents(textNode);
-      rects.push(range.getBoundingClientRect());
+      const rect=range.getBoundingClientRect();
+      // display:none descendants have a zero rectangle at the page origin.
+      // They must not make a visible parent appear to contain clipped text.
+      if(rect.width>0&&rect.height>0)rects.push(rect);
     }
     if(!rects.length)return false;
     const textRect={left:Math.min(...rects.map(r=>r.left)),right:Math.max(...rects.map(r=>r.right)),top:Math.min(...rects.map(r=>r.top)),bottom:Math.max(...rects.map(r=>r.bottom))};

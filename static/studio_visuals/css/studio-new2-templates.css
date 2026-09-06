@@ -8,7 +8,7 @@
 .studio-v2.new2-layout .sv-brand img{width:104px!important;height:104px!important;object-fit:contain;filter:none}
 .studio-v2.new2-layout .sv-brand__formation{color:var(--n2-ink);background:transparent;border:1px solid currentColor;border-radius:99px;padding:9px 14px;font-size:15px;max-width:160px;writing-mode:horizontal-tb;transform:none}
 .studio-v2.new2-layout .sv-brand__slogan{position:static!important;margin-left:auto;width:auto!important;max-width:430px;min-height:0;padding:8px 0;font-size:14px;line-height:1.4;color:var(--n2-ink);text-align:right;letter-spacing:0;text-transform:none;writing-mode:horizontal-tb;transform:none!important;background:none!important;box-shadow:none!important;border:0!important;backdrop-filter:none}
-.studio-v2.new2-layout .sv-safe>main{position:absolute!important;inset:182px 58px 122px!important;display:grid;grid-template-columns:minmax(0,1.16fr) minmax(0,.84fr);gap:28px;width:auto!important;height:auto!important;max-height:none;min-height:0;margin:0!important;padding:16px 4px!important;overflow:visible;z-index:2;align-content:center;align-items:center;transform-origin:center center}
+.studio-v2.new2-layout :where(.sv-safe)>main{position:absolute!important;inset:182px 58px 122px!important;display:grid;grid-template-columns:minmax(0,1.16fr) minmax(0,.84fr);gap:28px;width:auto!important;height:auto!important;max-height:none;min-height:0;margin:0!important;padding:16px 4px!important;overflow:visible;z-index:2;align-content:center;align-items:center;transform-origin:center center}
 .studio-v2.new2-layout .sv-footer{position:absolute!important;inset:auto 58px 32px!important;width:auto!important;max-width:none;height:66px!important;min-height:0!important;padding:18px 0 0!important;display:flex!important;gap:20px!important;align-items:center;background:none!important;box-shadow:none!important;border:0!important;border-top:1px solid currentColor!important;border-radius:0;color:var(--n2-ink)!important}
 .studio-v2.new2-layout .sv-footer:before,.studio-v2.new2-layout .sv-footer:after,.studio-v2.new2-layout .sv-footer__identity i,.studio-v2.new2-layout .sv-footer__cta{display:none}
 .studio-v2.new2-layout .sv-footer__identity{min-width:0;max-width:43%;color:inherit}
@@ -61,14 +61,14 @@
 /* Format adaptations use canvas dimensions, never the editor viewport. */
 .studio-format-instagram_portrait.studio-v2.new2-layout{--n2-title:76px}
 .studio-format-instagram_story.studio-v2.new2-layout{--n2-title:82px}
-.studio-format-instagram_story.studio-v2.new2-layout .sv-safe>main{inset:220px 58px 165px!important;row-gap:48px}
+.studio-format-instagram_story.studio-v2.new2-layout :where(.sv-safe)>main{inset:220px 58px 165px!important;row-gap:48px}
 .studio-format-instagram_story.studio-v2.new2-layout .sv-footer{bottom:70px!important}
 .studio-format-instagram_story .n2-aperture-stage,.studio-format-instagram_story .n2-portal-stage,.studio-format-instagram_story .n2-sticker-stage{min-height:560px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout{--n2-title:39px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout .sv-brand{inset:18px 38px auto!important;height:85px!important;gap:15px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout .sv-brand .studio-brand-logo,.studio-format-linkedin_landscape.studio-v2.new2-layout .sv-brand img{width:78px!important;height:78px!important;flex-basis:78px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout .sv-brand__slogan{font-size:13px;max-width:410px}
-.studio-format-linkedin_landscape.studio-v2.new2-layout .sv-safe>main{inset:125px 44px 86px!important;padding:8px 4px!important;gap:18px;align-content:center}
+.studio-format-linkedin_landscape.studio-v2.new2-layout :where(.sv-safe)>main{inset:125px 44px 86px!important;padding:8px 4px!important;gap:18px;align-content:center}
 .studio-format-linkedin_landscape.studio-v2.new2-layout .sv-footer{inset:auto 44px 20px!important;height:46px!important;padding-top:10px!important;gap:15px!important}
 .studio-format-linkedin_landscape.studio-v2.new2-layout .sv-footer__identity strong{font-size:13px}.studio-format-linkedin_landscape.studio-v2.new2-layout .sv-footer__place{font-size:11px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout .sv-footer__phone,.studio-format-linkedin_landscape.studio-v2.new2-layout .sv-footer__site{font-size:13px}

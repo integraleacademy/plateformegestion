@@ -35,6 +35,7 @@ test('motion is loopable and bounded and MP4 falls back cleanly where unsupporte
     for(let i=0;i<=100;i++){const p=motionPose(kind,i/100);assert.ok(Math.abs(p.x)<=10&&Math.abs(p.y)<=11&&p.scale>=.97&&p.scale<=1.03)}
   }
   assert.equal(supportedVideoType({isTypeSupported:type=>type==='video/mp4'}),'video/mp4');
+  assert.equal(supportedVideoType({isTypeSupported:type=>type==='video/mp4;codecs=avc1.424028'||type==='video/webm;codecs=vp9'}),'video/mp4;codecs=avc1.424028');
   assert.equal(supportedVideoType({isTypeSupported:type=>type==='video/webm;codecs=vp8'}),'video/webm;codecs=vp8');
   assert.equal(supportedVideoType({isTypeSupported:()=>false}),null);
 });

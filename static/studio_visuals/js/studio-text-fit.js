@@ -122,12 +122,12 @@ export function fitLayoutFrame(root){
   return 1;
 }
 
-export async function fitSlide(root){
+export async function fitSlide(root,{waitForPaint=true}={}){
   const canvas=root.matches?.('.social-studio-slide')?root:root.querySelector?.('.social-studio-slide')||root;
   await waitForStudioFonts();
   const jobs=[...root.querySelectorAll('[data-fit]')].filter(element=>element.dataset.studioManualFont!=='true').map(element=>fitText({element,...fitOptions(element,canvas)}));
   const results=await Promise.all(jobs);
-  await new Promise(resolve=>(globalThis.requestAnimationFrame||setTimeout)(resolve));
+  if(waitForPaint)await new Promise(resolve=>(globalThis.requestAnimationFrame||setTimeout)(resolve));
   if(canvas.dataset.studioManualLayout!=='true')fitLayoutFrame(root);
   return results;
 }

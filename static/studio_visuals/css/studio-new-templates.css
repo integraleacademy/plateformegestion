@@ -385,3 +385,11 @@
 .studio-format-linkedin_landscape .new-snake li:nth-child(even){translate:24px 0}
 .studio-format-linkedin_landscape .new-phone{grid-template-columns:240px minmax(0,1fr)}
 .studio-format-linkedin_landscape .new-device{width:210px;padding:20px}
+.new-layout .new-radar{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+.new-layout .new-radar>aside{min-width:0;grid-template-columns:minmax(0,1fr)}
+.new-layout .new-radar>aside section{min-width:0;gap:12px}
+.new-layout .new-radar>aside section strong{min-width:0;white-space:normal}
+.new-layout .new-hook>span{top:18px;right:30px;font-size:240px;line-height:1.3}
+.new-layout .new-quote-mark{top:18px;font-size:160px;line-height:1.3}
+.studio-format-linkedin_landscape.new-layout .new-hook>span{top:12px;font-size:150px}
+.studio-format-linkedin_landscape.new-layout .new-quote-mark{top:12px;font-size:100px}

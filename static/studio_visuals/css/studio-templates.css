@@ -705,3 +705,11 @@
 
 /* A signature is typography, not a second white banner across the artwork. */
 .studio-v2 .sv-brand__slogan{background:transparent!important;border-color:transparent!important;box-shadow:none!important;backdrop-filter:none!important}
+.studio-v2 .faq article{grid-template-columns:70px minmax(0,1fr)}
+.studio-v2 .faq article p{grid-column:2}
+.studio-v2 .mk-ribbon aside{right:48px;max-width:calc(100% - 96px);padding:20px 36px;font-size:42px;transform:rotate(8deg)}
+.studio-format-linkedin_landscape.studio-v2 .mk-ribbon aside{right:28px;top:30px;font-size:32px;padding:14px 24px;max-width:calc(100% - 72px)}
+.studio-format-linkedin_landscape.studio-v2 .gauge{gap:16px;grid-template-rows:auto minmax(0,1fr)}
+.studio-format-linkedin_landscape.studio-v2 .gauge h1{font-size:36px;line-height:1.1;padding-block:.12em}
+.studio-format-linkedin_landscape.studio-v2 .gauge .dial{width:210px;height:210px}
+.studio-format-linkedin_landscape.studio-v2 .gauge .dial strong{width:154px;height:154px}

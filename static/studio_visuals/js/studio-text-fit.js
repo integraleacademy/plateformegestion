@@ -58,12 +58,12 @@ function fitOptions(element,canvas){
   // small date, button or caption to the generic title/metric maximum.
   const options=(minimum,lines,height)=>({
     minFontSize:Math.min(designed.fontSize,minimum),maxFontSize:designed.fontSize,
-    maxLines:lines,maxHeight:Math.min(height,element.clientHeight||height),
+    maxLines:lines,maxHeight:height,
     lineHeight:designed.lineHeight
   });
   if(kind==='badge'){
     const vertical=String(style.writingMode||'').startsWith('vertical');
-    if(vertical)return options(8,1,Math.max(180,Math.min(520,parentHeight-40)));
+    if(vertical)return options(8,2,Math.max(180,Math.min(520,parentHeight-40)));
     return options(8,2,54);
   }
   if(kind==='title')return options(24,5,Math.min(360,Math.max(110,parentHeight*.62)));

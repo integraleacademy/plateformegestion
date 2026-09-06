@@ -36,7 +36,7 @@ function textElement(fontSize,width,textLength,kind='title'){
     computed:{fontSize:String(fontSize),lineHeight:String(fontSize*1.2),paddingTop:'0',paddingBottom:'0'},
     removeAttribute(name){if(name==='data-fit-warning')delete this.dataset.fitWarning}};
   Object.defineProperties(element,{
-    clientHeight:{get:()=>Math.ceil(fontSize*1.2*Math.ceil(textLength*fontSize*.5/width))},
+    clientHeight:{get:()=>{const size=parseFloat(element.style.fontSize)||fontSize;return Math.ceil(size*1.2*Math.ceil(textLength*size*.5/width))}},
     scrollWidth:{get:()=>width},
     scrollHeight:{get:()=>{const size=parseFloat(element.style.fontSize)||fontSize;return Math.ceil(size*1.2*Math.ceil(textLength*size*.5/width))}}
   });
@@ -53,7 +53,7 @@ test('fitting long text is stable when repeated for export',async()=>{
   const text=textElement(68,310,75),root=slide(text);
   await fitSlide(root);const first=text.style.fontSize;
   assert.ok(parseFloat(first)<68);assert.equal(text.dataset.fitWarning,undefined);
-  await fitSlide(root);assert.equal(text.style.fontSize,first);
+  for(let i=0;i<5;i++){await fitSlide(root);assert.equal(text.style.fontSize,first)}
 });
 test('an explicit manual font size is retained',async()=>{
   const text=textElement(34,400,40);text.dataset.studioManualFont='true';text.style.fontSize='51px';

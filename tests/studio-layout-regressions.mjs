@@ -59,6 +59,24 @@ test('an explicit manual font size is retained',async()=>{
   const text=textElement(34,400,40);text.dataset.studioManualFont='true';text.style.fontSize='51px';
   await fitSlide(slide(text));assert.equal(text.style.fontSize,'51px');
 });
+test('a stretched grid heading fits by its text height at preview and export zoom',async()=>{
+  try{
+    for(const zoom of [.4,1]){
+      const heading={...textElement(40,400,40)};
+      // 300px of grid row height exceeds the title budget, but two lines fit.
+      Object.defineProperty(heading,'scrollHeight',{value:300});
+      heading.scrollWidth=400;
+      heading.offsetHeight=300;
+      heading.getBoundingClientRect=()=>({height:300*zoom});
+      document.createRange=()=>({selectNodeContents(){},
+        getClientRects:()=>[0,1].map(i=>({left:0,top:i*48*zoom,width:250*zoom,height:48*zoom})),
+        getBoundingClientRect:()=>({height:parseFloat(heading.style.fontSize)*2.4*zoom})});
+      await fitSlide(slide(heading));
+      assert.equal(heading.style.fontSize,'40px');
+      assert.equal(heading.dataset.fitWarning,undefined);
+    }
+  }finally{delete document.createRange}
+});
 test('unfittable content remains flagged instead of silently passing',async()=>{
   const text=textElement(68,180,900);await fitSlide(slide(text));assert.ok(text.dataset.fitWarning);
 });

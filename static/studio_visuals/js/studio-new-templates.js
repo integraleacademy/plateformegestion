@@ -31,7 +31,7 @@ export function renderNewTemplateBody(ctx){
   const date=edit('startDate',val(content,'startDate',val(content,'date','Prochaine session')),'time','new-date');
   const location=edit('location',val(content,'location','Puget-sur-Argens'),'span','new-location');
   const places=edit('availability',val(content,'availability','Places limitées'),'strong','new-places');
-  const quote=edit('quote',content.quote||'Faites le premier pas vers votre futur métier','blockquote','new-quote');
+  const quote=edit('quote',content.quote||'Un nouveau métier. Une nouvelle perspective.','blockquote','new-quote');
   const first=contentStats(content)[0],second=contentStats(content)[1]||first;
   const bodies={
     new_manifesto_highlight:`<main class="new-design new-manifesto" data-layout-role="new-manifesto-highlight"><span class="new-kicker">INTÉGRALE ACADEMY</span>${title}<div class="new-highlight-line">${highlight}</div>${intro}<button>${cta}<b>→</b></button></main>`,

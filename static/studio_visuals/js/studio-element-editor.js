@@ -103,7 +103,7 @@ export function decorateEditableElements(root,slide,{renderMode='preview'}={}){
   const activeTemplatePrefix=`${slug(slide?.templateId||'template')}--`;
   const hasManualLayout=Object.entries(overrides).some(([id,override])=>id.startsWith(activeTemplatePrefix)&&override&&['x','y','scale','rotation','fontSize'].some(key=>override[key]!==undefined));
   if(root.dataset)root.dataset.studioManualLayout=String(hasManualLayout);
-  const nodes=[...new Set(root.querySelectorAll(EDITABLE_SELECTOR))].filter(node=>!node.matches?.('[data-editor-only],svg *')&&!node.closest?.('[data-editor-only]'));
+  const nodes=[...new Set(root.querySelectorAll(EDITABLE_SELECTOR))].filter(node=>!node.matches?.('[data-editor-only],svg *')&&!node.closest?.('[data-editor-only],[data-studio-decorative]'));
   const used=new Map();
   for(const node of nodes){
     let id=preferredId(node,root,slide);

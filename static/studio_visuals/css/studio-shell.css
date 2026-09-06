@@ -37,3 +37,17 @@
 #studioAiToggle{flex:none;white-space:nowrap}
 #studioAiToggle.is-active{background:#111827;color:#fff}
 #studioAiToggle:focus-visible,#studioAiClose:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+/* The slide tray is optional; closing it returns all of its height to the artwork. */
+.social-studio__workspace{display:flex;flex-direction:column;min-height:0}
+.social-studio__canvas-shell{flex:1 1 auto;min-height:0}
+.studio-ai-composer,.social-studio__filmstrip{flex:0 0 auto}
+.social-studio__filmstrip{max-height:128px}
+.social-studio__filmstrip[hidden],#studioMotionToggle[hidden],#exportMotionButton[hidden]{display:none!important}
+.studio-new2-preview{position:relative;overflow:hidden;width:100%;height:125px;border-radius:10px;pointer-events:none}
+.studio-new2-preview>.social-studio-slide{position:absolute;inset:0 auto auto 0;transform:scale(.12);transform-origin:top left;pointer-events:none}
+.studio-collection-badges{display:flex;gap:4px;flex-wrap:wrap}
+.social-studio .studio-collection-badges span{font-size:9px;font-weight:800;background:#e7eee8;color:#173629;border-radius:5px;padding:4px 5px;margin:0}
+.social-studio__dialog{max-width:calc(100vw - 40px)}
+.social-studio__dialog menu{flex-wrap:wrap;padding:0}
+#studioMotionToggle,#studioSlidesToggle{flex:none;white-space:nowrap}
+#studioMotionToggle{font-size:12px}

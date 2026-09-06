@@ -1728,65 +1728,2259 @@
       "thumbnail": "/static/studio_visuals/templates/stats_big_number.svg",
       "renderer": "renderMarketingTemplate"
     },
-    {"id":"new_manifesto_highlight","family":"cover","name":"NEW · Manifeste surligné","description":"Titre manifeste avec surlignage éditorial","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction","cta"],"density":"minimal","style":"editorial","brandLayout":"top-left","previewStyle":1,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_editorial_arch","family":"cover","name":"NEW · Arche éditoriale","description":"Grande arche et composition institutionnelle","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","startDate","location"],"density":"editorial","style":"premium","brandLayout":"top-center","previewStyle":2,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_split_signal","family":"cover","name":"NEW · Signal en deux univers","description":"Double panneau asymétrique orienté conversion","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction","stats","cta"],"density":"dynamic","style":"saas","brandLayout":"top-right","previewStyle":3,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_vertical_wordmark","family":"cover","name":"NEW · Sigle vertical","description":"Sigle vertical monumental et bloc éditorial","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction","startDate","availability"],"density":"minimal","style":"typographic","brandLayout":"side-left","previewStyle":4,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_quote_window","family":"quote","name":"NEW · Fenêtre citation","description":"Citation XXL dans une fenêtre premium","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["quote"],"supportedContent":["quote","highlightedText"],"density":"minimal","style":"editorial","brandLayout":"side-right","previewStyle":5,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_focus_stripe","family":"cover","name":"NEW · Bande focus","description":"Bande diagonale et titre à fort impact","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction"],"density":"dynamic","style":"highlight","brandLayout":"floating-left","previewStyle":6,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_typo_crop","family":"cover","name":"NEW · Typographie recadrée","description":"Acronyme géant recadré façon campagne","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction","cta"],"density":"minimal","style":"typographic","brandLayout":"floating-right","previewStyle":7,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_center_orbit","family":"cover","name":"NEW · Carte en orbite","description":"Carte centrale entourée de repères flottants","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction","startDate","availability"],"density":"minimal","style":"saas","brandLayout":"bottom-left","previewStyle":8,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_dark_beam","family":"cover","name":"NEW · Faisceau nocturne","description":"Univers sombre et faisceau lumineux","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","highlightedText","introduction","cta"],"density":"minimal","style":"dark","brandLayout":"bottom-center","previewStyle":9,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_soft_stack","family":"cover","name":"NEW · Cartes superposées","description":"Trois surfaces superposées en profondeur","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","startDate","location","availability"],"density":"editorial","style":"soft","brandLayout":"bottom-right","previewStyle":10,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-
-    {"id":"new_date_portal","family":"session","name":"NEW · Portail de session","description":"Date monumentale dans un portail coloré","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["session"],"supportedContent":["title","startDate","location","cta"],"density":"dynamic","style":"date","brandLayout":"top-right","previewStyle":11,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_calendar_strip","family":"session","name":"NEW · Ruban calendrier","description":"Semaine graphique et informations de session","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["session"],"supportedContent":["title","startDate","location","availability"],"density":"dashboard","style":"calendar","brandLayout":"top-left","previewStyle":12,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_ticket_cut","family":"session","name":"NEW · Ticket découpé","description":"Ticket premium avec perforation centrale","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["session"],"supportedContent":["title","introduction","startDate","location","availability","cta"],"density":"editorial","style":"ticket","brandLayout":"side-left","previewStyle":13,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_countdown_flip","family":"urgency","name":"NEW · Compteur flip","description":"Compte à rebours inspiré des tableaux d’affichage","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["urgency"],"supportedContent":["title","daysRemaining","availability"],"density":"minimal","style":"urgent","brandLayout":"floating-right","previewStyle":14,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_date_podium","family":"dates","name":"NEW · Podium des informations","description":"Date, lieu et places mis en scène en podium","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["dates"],"supportedContent":["title","startDate","location","availability"],"density":"dashboard","style":"date","brandLayout":"top-center","previewStyle":15,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_route_launch","family":"process","name":"NEW · Route du lancement","description":"Trajectoire visuelle vers l’inscription","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","steps"],"density":"dynamic","style":"route","brandLayout":"side-right","previewStyle":16,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_session_board","family":"session","name":"NEW · Tableau de session","description":"Tableau éditorial structuré comme une campagne","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["session"],"supportedContent":["title","highlightedText","introduction","startDate","location","availability"],"density":"editorial","style":"board","brandLayout":"bottom-left","previewStyle":17,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_date_window","family":"dates","name":"NEW · Fenêtre de dates","description":"Interface web stylisée avec date géante","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["dates"],"supportedContent":["title","introduction","startDate"],"density":"editorial","style":"saas","brandLayout":"floating-left","previewStyle":18,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_time_capsule","family":"session","name":"NEW · Capsule temporelle","description":"Capsule de date et bloc conversion","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["session"],"supportedContent":["title","startDate","location","availability","cta"],"density":"minimal","style":"premium","brandLayout":"bottom-center","previewStyle":19,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_schedule_wave","family":"process","name":"NEW · Planning en vague","description":"Étapes posées sur une vague de progression","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","steps","startDate","location"],"density":"dynamic","style":"wave","brandLayout":"bottom-right","previewStyle":20,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-
-    {"id":"new_bento_benefits","family":"program","name":"NEW · Bento avantages","description":"Grille bento inspirée des produits SaaS","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["program"],"supportedContent":["title","introduction","stats"],"density":"dashboard","style":"bento","brandLayout":"top-left","previewStyle":21,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_module_mosaic","family":"program","name":"NEW · Mosaïque modules","description":"Programme en mosaïque de cartes numérotées","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["program"],"supportedContent":["title","modules"],"density":"dashboard","style":"mosaic","brandLayout":"top-center","previewStyle":22,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_steps_snake","family":"process","name":"NEW · Parcours serpent","description":"Parcours alterné qui guide le regard","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","steps"],"density":"dynamic","style":"process","brandLayout":"side-left","previewStyle":23,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_program_tabs","family":"program","name":"NEW · Programme à onglets","description":"Navigation à onglets inspirée d’une interface web","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["program"],"supportedContent":["title","modules"],"density":"dashboard","style":"saas","brandLayout":"top-right","previewStyle":24,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_skill_radar","family":"program","name":"NEW · Radar compétences","description":"Radar graphique entouré de compétences","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["program"],"supportedContent":["title","highlightedText","modules"],"density":"dynamic","style":"data","brandLayout":"side-right","previewStyle":25,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_pathway_cards","family":"process","name":"NEW · Cartes parcours","description":"Étapes en cartes horizontales connectées","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","introduction","steps"],"density":"editorial","style":"cards","brandLayout":"floating-left","previewStyle":26,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_checklist_big","family":"program","name":"NEW · Grande checklist","description":"Promesse forte et checklist de compétences","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["program"],"supportedContent":["title","introduction","modules"],"density":"editorial","style":"checklist","brandLayout":"floating-right","previewStyle":27,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_acronym_grid","family":"program","name":"NEW · Grille acronyme","description":"Acronyme massif et grille programme","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["program"],"supportedContent":["title","highlightedText","modules"],"density":"dynamic","style":"typographic","brandLayout":"bottom-left","previewStyle":28,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_process_columns","family":"process","name":"NEW · Colonnes progression","description":"Quatre colonnes qui montent vers l’objectif","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","steps"],"density":"dashboard","style":"process","brandLayout":"bottom-center","previewStyle":29,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_learning_map","family":"process","name":"NEW · Carte d’apprentissage","description":"Carte libre avec quatre points de passage","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","introduction","steps"],"density":"dynamic","style":"map","brandLayout":"bottom-right","previewStyle":30,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-
-    {"id":"new_number_monolith","family":"stats","name":"NEW · Monolithe chiffre","description":"Chiffre central monumental et texte latéral","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["stats"],"supportedContent":["title","introduction","stats"],"density":"minimal","style":"data","brandLayout":"side-left","previewStyle":31,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_dashboard_glass","family":"stats","name":"NEW · Dashboard verre","description":"Indicateurs sur surfaces translucides","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["stats"],"supportedContent":["title","stats"],"density":"dashboard","style":"glass","brandLayout":"top-left","previewStyle":32,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_proof_rings","family":"proof","name":"NEW · Anneaux de preuve","description":"Indicateur circulaire et preuves associées","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["proof"],"supportedContent":["title","stats"],"density":"dashboard","style":"data","brandLayout":"top-center","previewStyle":33,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_metric_tower","family":"stats","name":"NEW · Tour de métriques","description":"Indicateurs présentés en gradins verticaux","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["stats"],"supportedContent":["title","stats"],"density":"dynamic","style":"data","brandLayout":"top-right","previewStyle":34,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_success_stamp","family":"proof","name":"NEW · Tampon réussite","description":"Tampon circulaire façon certification premium","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["proof"],"supportedContent":["title","introduction","stats"],"density":"minimal","style":"stamp","brandLayout":"side-right","previewStyle":35,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_barcode_stats","family":"stats","name":"NEW · Statistiques barcode","description":"Barres verticales et chiffres ultra visuels","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["stats"],"supportedContent":["title","stats"],"density":"dashboard","style":"bars","brandLayout":"floating-left","previewStyle":36,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_review_quote","family":"proof","name":"NEW · Avis cinq étoiles","description":"Citation client et preuve chiffrée","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["proof"],"supportedContent":["quote","stats"],"density":"minimal","style":"review","brandLayout":"floating-right","previewStyle":37,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_result_spectrum","family":"stats","name":"NEW · Spectre résultats","description":"Dégradé spectral et cartes KPI","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["stats"],"supportedContent":["title","stats"],"density":"dashboard","style":"gradient","brandLayout":"bottom-left","previewStyle":38,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_data_wave","family":"stats","name":"NEW · Vague de données","description":"Courbe ascendante et chiffres clés","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["stats"],"supportedContent":["title","introduction","stats"],"density":"dynamic","style":"data","brandLayout":"bottom-center","previewStyle":39,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_badge_wall","family":"proof","name":"NEW · Mur de badges","description":"Badges de preuve disposés librement","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["proof"],"supportedContent":["title","stats"],"density":"dynamic","style":"badges","brandLayout":"bottom-right","previewStyle":40,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-
-    {"id":"new_cta_launchpad","family":"conclusion","name":"NEW · Rampe de lancement","description":"CTA central propulsé par un halo graphique","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["conclusion"],"supportedContent":["title","highlightedText","introduction","cta"],"density":"minimal","style":"conversion","brandLayout":"top-left","previewStyle":41,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_application_card","family":"conclusion","name":"NEW · Carte candidature","description":"Carte candidature et informations pratiques","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["conclusion"],"supportedContent":["title","introduction","startDate","location","availability","cta"],"density":"editorial","style":"conversion","brandLayout":"side-left","previewStyle":42,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_last_places","family":"urgency","name":"NEW · Dernières places XXL","description":"Alerte de places volontairement massive","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["urgency"],"supportedContent":["title","availability","cta"],"density":"minimal","style":"urgent","brandLayout":"top-right","previewStyle":43,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_phone_mockup","family":"saas","name":"NEW · Écran mobile","description":"Mockup mobile et promesse de formation","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["saas"],"supportedContent":["title","highlightedText","introduction","startDate","cta"],"density":"editorial","style":"saas","brandLayout":"top-center","previewStyle":44,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_arrow_story","family":"conclusion","name":"NEW · Flèche narrative","description":"Grande flèche qui conduit vers l’inscription","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["conclusion"],"supportedContent":["title","introduction","availability","cta"],"density":"dynamic","style":"conversion","brandLayout":"side-right","previewStyle":45,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_contact_poster","family":"conclusion","name":"NEW · Affiche contact","description":"Coordonnées visibles comme une campagne outdoor","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["conclusion"],"supportedContent":["title","highlightedText","footer"],"density":"minimal","style":"poster","brandLayout":"floating-left","previewStyle":46,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_enroll_steps","family":"process","name":"NEW · Inscription en trois gestes","description":"Trois étapes simples et un CTA final","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["process"],"supportedContent":["title","steps","cta"],"density":"editorial","style":"conversion","brandLayout":"floating-right","previewStyle":47,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_final_door","family":"conclusion","name":"NEW · Porte vers le métier","description":"Porte graphique ouverte sur la prochaine étape","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["conclusion"],"supportedContent":["title","introduction","cta"],"density":"minimal","style":"concept","brandLayout":"bottom-left","previewStyle":48,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_question_hook","family":"faq","name":"NEW · Question déclic","description":"Question géante conçue pour arrêter le scroll","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["faq"],"supportedContent":["question","introduction","cta"],"density":"minimal","style":"hook","brandLayout":"bottom-center","previewStyle":49,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-    {"id":"new_future_card","family":"conclusion","name":"NEW · Carte du futur","description":"Carte finale premium avec date et lieu","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["conclusion"],"supportedContent":["title","startDate","location","cta"],"density":"minimal","style":"premium","brandLayout":"bottom-right","previewStyle":50,"isNew":true,"renderer":"renderNewTemplate","status":"ready","version":3},
-
-    {"id":"new_giant_a3p","family":"cover","name":"NEW · A3P monumental","description":"Lettres A3P géantes en profondeur et promesse de protection rapprochée","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","cta"],"density":"minimal","style":"giant-type","brandLayout":"top-left","previewStyle":51,"formationPreset":"A3P","giantLetters":"A3P","isNew":true,"renderer":"renderNewTemplate","status":"ready","version":4},
-    {"id":"new_giant_aps","family":"cover","name":"NEW · APS impact","description":"Lettres APS géantes découpées en panneaux de campagne","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","availability","cta"],"density":"dynamic","style":"giant-type","brandLayout":"side-left","previewStyle":52,"formationPreset":"APS","giantLetters":"APS","isNew":true,"renderer":"renderNewTemplate","status":"ready","version":4},
-    {"id":"new_giant_desp","family":"cover","name":"NEW · DESP direction","description":"DESP en lettres géantes, composition exécutive et structurée","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","cta"],"density":"editorial","style":"giant-type","brandLayout":"top-right","previewStyle":53,"formationPreset":"DIRIGEANT","giantLetters":"DESP","isNew":true,"renderer":"renderNewTemplate","status":"ready","version":4},
-    {"id":"new_giant_ssiap","family":"cover","name":"NEW · SSIAP alerte","description":"SSIAP géant, signal rouge et lecture immédiate","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","startDate","cta"],"density":"dynamic","style":"giant-type","brandLayout":"bottom-left","previewStyle":54,"formationPreset":"SSIAP","giantLetters":"SSIAP","isNew":true,"renderer":"renderNewTemplate","status":"ready","version":4},
-    {"id":"new_giant_vtc","family":"cover","name":"NEW · VTC mouvement","description":"VTC géant avec lignes de vitesse et appel à l’action","supportedFormats":["instagram_square","instagram_portrait","instagram_story","linkedin_landscape"],"suitableRoles":["cover"],"supportedContent":["title","introduction","location","cta"],"density":"dynamic","style":"giant-type","brandLayout":"bottom-right","previewStyle":55,"formationPreset":"VTC","giantLetters":"VTC","isNew":true,"renderer":"renderNewTemplate","status":"ready","version":4}
+    {
+      "id": "new_manifesto_highlight",
+      "family": "cover",
+      "name": "NEW · Manifeste surligné",
+      "description": "Titre manifeste avec surlignage éditorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "editorial",
+      "brandLayout": "top-left",
+      "previewStyle": 1,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_editorial_arch",
+      "family": "cover",
+      "name": "NEW · Arche éditoriale",
+      "description": "Grande arche et composition institutionnelle",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "premium",
+      "brandLayout": "top-center",
+      "previewStyle": 2,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_split_signal",
+      "family": "cover",
+      "name": "NEW · Signal en deux univers",
+      "description": "Double panneau asymétrique orienté conversion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "stats",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "saas",
+      "brandLayout": "top-right",
+      "previewStyle": 3,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_vertical_wordmark",
+      "family": "cover",
+      "name": "NEW · Sigle vertical",
+      "description": "Sigle vertical monumental et bloc éditorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "startDate",
+        "availability"
+      ],
+      "density": "minimal",
+      "style": "typographic",
+      "brandLayout": "side-left",
+      "previewStyle": 4,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_quote_window",
+      "family": "quote",
+      "name": "NEW · Fenêtre citation",
+      "description": "Citation XXL dans une fenêtre premium",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "quote"
+      ],
+      "supportedContent": [
+        "quote",
+        "highlightedText"
+      ],
+      "density": "minimal",
+      "style": "editorial",
+      "brandLayout": "side-right",
+      "previewStyle": 5,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_focus_stripe",
+      "family": "cover",
+      "name": "NEW · Bande focus",
+      "description": "Bande diagonale et titre à fort impact",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction"
+      ],
+      "density": "dynamic",
+      "style": "highlight",
+      "brandLayout": "floating-left",
+      "previewStyle": 6,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_typo_crop",
+      "family": "cover",
+      "name": "NEW · Typographie recadrée",
+      "description": "Acronyme géant recadré façon campagne",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "typographic",
+      "brandLayout": "floating-right",
+      "previewStyle": 7,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_center_orbit",
+      "family": "cover",
+      "name": "NEW · Carte en orbite",
+      "description": "Carte centrale entourée de repères flottants",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "startDate",
+        "availability"
+      ],
+      "density": "minimal",
+      "style": "saas",
+      "brandLayout": "bottom-left",
+      "previewStyle": 8,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_dark_beam",
+      "family": "cover",
+      "name": "NEW · Faisceau nocturne",
+      "description": "Univers sombre et faisceau lumineux",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "dark",
+      "brandLayout": "bottom-center",
+      "previewStyle": 9,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_soft_stack",
+      "family": "cover",
+      "name": "NEW · Cartes superposées",
+      "description": "Trois surfaces superposées en profondeur",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "location",
+        "availability"
+      ],
+      "density": "editorial",
+      "style": "soft",
+      "brandLayout": "bottom-right",
+      "previewStyle": 10,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_date_portal",
+      "family": "session",
+      "name": "NEW · Portail de session",
+      "description": "Date monumentale dans un portail coloré",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "location",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "date",
+      "brandLayout": "top-right",
+      "previewStyle": 11,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_calendar_strip",
+      "family": "session",
+      "name": "NEW · Ruban calendrier",
+      "description": "Semaine graphique et informations de session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "location",
+        "availability"
+      ],
+      "density": "dashboard",
+      "style": "calendar",
+      "brandLayout": "top-left",
+      "previewStyle": 12,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_ticket_cut",
+      "family": "session",
+      "name": "NEW · Ticket découpé",
+      "description": "Ticket premium avec perforation centrale",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "location",
+        "availability",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "ticket",
+      "brandLayout": "side-left",
+      "previewStyle": 13,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_countdown_flip",
+      "family": "urgency",
+      "name": "NEW · Compteur flip",
+      "description": "Compte à rebours inspiré des tableaux d’affichage",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "daysRemaining",
+        "availability"
+      ],
+      "density": "minimal",
+      "style": "urgent",
+      "brandLayout": "floating-right",
+      "previewStyle": 14,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_date_podium",
+      "family": "dates",
+      "name": "NEW · Podium des informations",
+      "description": "Date, lieu et places mis en scène en podium",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "location",
+        "availability"
+      ],
+      "density": "dashboard",
+      "style": "date",
+      "brandLayout": "top-center",
+      "previewStyle": 15,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_route_launch",
+      "family": "process",
+      "name": "NEW · Route du lancement",
+      "description": "Trajectoire visuelle vers l’inscription",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "steps"
+      ],
+      "density": "dynamic",
+      "style": "route",
+      "brandLayout": "side-right",
+      "previewStyle": 16,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_session_board",
+      "family": "session",
+      "name": "NEW · Tableau de session",
+      "description": "Tableau éditorial structuré comme une campagne",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "startDate",
+        "location",
+        "availability"
+      ],
+      "density": "editorial",
+      "style": "board",
+      "brandLayout": "bottom-left",
+      "previewStyle": 17,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_date_window",
+      "family": "dates",
+      "name": "NEW · Fenêtre de dates",
+      "description": "Interface web stylisée avec date géante",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "dates"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "saas",
+      "brandLayout": "floating-left",
+      "previewStyle": 18,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_time_capsule",
+      "family": "session",
+      "name": "NEW · Capsule temporelle",
+      "description": "Capsule de date et bloc conversion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "session"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "location",
+        "availability",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "premium",
+      "brandLayout": "bottom-center",
+      "previewStyle": 19,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_schedule_wave",
+      "family": "process",
+      "name": "NEW · Planning en vague",
+      "description": "Étapes posées sur une vague de progression",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "steps",
+        "startDate",
+        "location"
+      ],
+      "density": "dynamic",
+      "style": "wave",
+      "brandLayout": "bottom-right",
+      "previewStyle": 20,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_bento_benefits",
+      "family": "program",
+      "name": "NEW · Bento avantages",
+      "description": "Grille bento inspirée des produits SaaS",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "stats"
+      ],
+      "density": "dashboard",
+      "style": "bento",
+      "brandLayout": "top-left",
+      "previewStyle": 21,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_module_mosaic",
+      "family": "program",
+      "name": "NEW · Mosaïque modules",
+      "description": "Programme en mosaïque de cartes numérotées",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "modules"
+      ],
+      "density": "dashboard",
+      "style": "mosaic",
+      "brandLayout": "top-center",
+      "previewStyle": 22,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_steps_snake",
+      "family": "process",
+      "name": "NEW · Parcours serpent",
+      "description": "Parcours alterné qui guide le regard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "steps"
+      ],
+      "density": "dynamic",
+      "style": "process",
+      "brandLayout": "side-left",
+      "previewStyle": 23,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_program_tabs",
+      "family": "program",
+      "name": "NEW · Programme à onglets",
+      "description": "Navigation à onglets inspirée d’une interface web",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "modules"
+      ],
+      "density": "dashboard",
+      "style": "saas",
+      "brandLayout": "top-right",
+      "previewStyle": 24,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_skill_radar",
+      "family": "program",
+      "name": "NEW · Radar compétences",
+      "description": "Radar graphique entouré de compétences",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "modules"
+      ],
+      "density": "dynamic",
+      "style": "data",
+      "brandLayout": "side-right",
+      "previewStyle": 25,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_pathway_cards",
+      "family": "process",
+      "name": "NEW · Cartes parcours",
+      "description": "Étapes en cartes horizontales connectées",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "steps"
+      ],
+      "density": "editorial",
+      "style": "cards",
+      "brandLayout": "floating-left",
+      "previewStyle": 26,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_checklist_big",
+      "family": "program",
+      "name": "NEW · Grande checklist",
+      "description": "Promesse forte et checklist de compétences",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "modules"
+      ],
+      "density": "editorial",
+      "style": "checklist",
+      "brandLayout": "floating-right",
+      "previewStyle": 27,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_acronym_grid",
+      "family": "program",
+      "name": "NEW · Grille acronyme",
+      "description": "Acronyme massif et grille programme",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "program"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "modules"
+      ],
+      "density": "dynamic",
+      "style": "typographic",
+      "brandLayout": "bottom-left",
+      "previewStyle": 28,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_process_columns",
+      "family": "process",
+      "name": "NEW · Colonnes progression",
+      "description": "Quatre colonnes qui montent vers l’objectif",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "steps"
+      ],
+      "density": "dashboard",
+      "style": "process",
+      "brandLayout": "bottom-center",
+      "previewStyle": 29,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_learning_map",
+      "family": "process",
+      "name": "NEW · Carte d’apprentissage",
+      "description": "Carte libre avec quatre points de passage",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "steps"
+      ],
+      "density": "dynamic",
+      "style": "map",
+      "brandLayout": "bottom-right",
+      "previewStyle": 30,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_number_monolith",
+      "family": "stats",
+      "name": "NEW · Monolithe chiffre",
+      "description": "Chiffre central monumental et texte latéral",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "stats"
+      ],
+      "density": "minimal",
+      "style": "data",
+      "brandLayout": "side-left",
+      "previewStyle": 31,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_dashboard_glass",
+      "family": "stats",
+      "name": "NEW · Dashboard verre",
+      "description": "Indicateurs sur surfaces translucides",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dashboard",
+      "style": "glass",
+      "brandLayout": "top-left",
+      "previewStyle": 32,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_proof_rings",
+      "family": "proof",
+      "name": "NEW · Anneaux de preuve",
+      "description": "Indicateur circulaire et preuves associées",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dashboard",
+      "style": "data",
+      "brandLayout": "top-center",
+      "previewStyle": 33,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_metric_tower",
+      "family": "stats",
+      "name": "NEW · Tour de métriques",
+      "description": "Indicateurs présentés en gradins verticaux",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dynamic",
+      "style": "data",
+      "brandLayout": "top-right",
+      "previewStyle": 34,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_success_stamp",
+      "family": "proof",
+      "name": "NEW · Tampon réussite",
+      "description": "Tampon circulaire façon certification premium",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "stats"
+      ],
+      "density": "minimal",
+      "style": "stamp",
+      "brandLayout": "side-right",
+      "previewStyle": 35,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_barcode_stats",
+      "family": "stats",
+      "name": "NEW · Statistiques barcode",
+      "description": "Barres verticales et chiffres ultra visuels",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dashboard",
+      "style": "bars",
+      "brandLayout": "floating-left",
+      "previewStyle": 36,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_review_quote",
+      "family": "proof",
+      "name": "NEW · Avis cinq étoiles",
+      "description": "Citation client et preuve chiffrée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "quote",
+        "stats"
+      ],
+      "density": "minimal",
+      "style": "review",
+      "brandLayout": "floating-right",
+      "previewStyle": 37,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_result_spectrum",
+      "family": "stats",
+      "name": "NEW · Spectre résultats",
+      "description": "Dégradé spectral et cartes KPI",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dashboard",
+      "style": "gradient",
+      "brandLayout": "bottom-left",
+      "previewStyle": 38,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_data_wave",
+      "family": "stats",
+      "name": "NEW · Vague de données",
+      "description": "Courbe ascendante et chiffres clés",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "stats"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "stats"
+      ],
+      "density": "dynamic",
+      "style": "data",
+      "brandLayout": "bottom-center",
+      "previewStyle": 39,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_badge_wall",
+      "family": "proof",
+      "name": "NEW · Mur de badges",
+      "description": "Badges de preuve disposés librement",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "proof"
+      ],
+      "supportedContent": [
+        "title",
+        "stats"
+      ],
+      "density": "dynamic",
+      "style": "badges",
+      "brandLayout": "bottom-right",
+      "previewStyle": 40,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_cta_launchpad",
+      "family": "conclusion",
+      "name": "NEW · Rampe de lancement",
+      "description": "CTA central propulsé par un halo graphique",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "conversion",
+      "brandLayout": "top-left",
+      "previewStyle": 41,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_application_card",
+      "family": "conclusion",
+      "name": "NEW · Carte candidature",
+      "description": "Carte candidature et informations pratiques",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "location",
+        "availability",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "conversion",
+      "brandLayout": "side-left",
+      "previewStyle": 42,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_last_places",
+      "family": "urgency",
+      "name": "NEW · Dernières places XXL",
+      "description": "Alerte de places volontairement massive",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "urgency"
+      ],
+      "supportedContent": [
+        "title",
+        "availability",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "urgent",
+      "brandLayout": "top-right",
+      "previewStyle": 43,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_phone_mockup",
+      "family": "saas",
+      "name": "NEW · Écran mobile",
+      "description": "Mockup mobile et promesse de formation",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "saas"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "introduction",
+        "startDate",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "saas",
+      "brandLayout": "top-center",
+      "previewStyle": 44,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_arrow_story",
+      "family": "conclusion",
+      "name": "NEW · Flèche narrative",
+      "description": "Grande flèche qui conduit vers l’inscription",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "availability",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "conversion",
+      "brandLayout": "side-right",
+      "previewStyle": 45,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_contact_poster",
+      "family": "conclusion",
+      "name": "NEW · Affiche contact",
+      "description": "Coordonnées visibles comme une campagne outdoor",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "highlightedText",
+        "footer"
+      ],
+      "density": "minimal",
+      "style": "poster",
+      "brandLayout": "floating-left",
+      "previewStyle": 46,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_enroll_steps",
+      "family": "process",
+      "name": "NEW · Inscription en trois gestes",
+      "description": "Trois étapes simples et un CTA final",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "process"
+      ],
+      "supportedContent": [
+        "title",
+        "steps",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "conversion",
+      "brandLayout": "floating-right",
+      "previewStyle": 47,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_final_door",
+      "family": "conclusion",
+      "name": "NEW · Porte vers le métier",
+      "description": "Porte graphique ouverte sur la prochaine étape",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "concept",
+      "brandLayout": "bottom-left",
+      "previewStyle": 48,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_question_hook",
+      "family": "faq",
+      "name": "NEW · Question déclic",
+      "description": "Question géante conçue pour arrêter le scroll",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "faq"
+      ],
+      "supportedContent": [
+        "question",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "hook",
+      "brandLayout": "bottom-center",
+      "previewStyle": 49,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_future_card",
+      "family": "conclusion",
+      "name": "NEW · Carte du futur",
+      "description": "Carte finale premium avec date et lieu",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "location",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "premium",
+      "brandLayout": "bottom-right",
+      "previewStyle": 50,
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 3
+    },
+    {
+      "id": "new_giant_a3p",
+      "family": "cover",
+      "name": "NEW · A3P monumental",
+      "description": "Lettres A3P géantes en profondeur et promesse de protection rapprochée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "minimal",
+      "style": "giant-type",
+      "brandLayout": "top-left",
+      "previewStyle": 51,
+      "formationPreset": "A3P",
+      "giantLetters": "A3P",
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 4
+    },
+    {
+      "id": "new_giant_aps",
+      "family": "cover",
+      "name": "NEW · APS impact",
+      "description": "Lettres APS géantes découpées en panneaux de campagne",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "availability",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "giant-type",
+      "brandLayout": "side-left",
+      "previewStyle": 52,
+      "formationPreset": "APS",
+      "giantLetters": "APS",
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 4
+    },
+    {
+      "id": "new_giant_desp",
+      "family": "cover",
+      "name": "NEW · DESP direction",
+      "description": "DESP en lettres géantes, composition exécutive et structurée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "giant-type",
+      "brandLayout": "top-right",
+      "previewStyle": 53,
+      "formationPreset": "DIRIGEANT",
+      "giantLetters": "DESP",
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 4
+    },
+    {
+      "id": "new_giant_ssiap",
+      "family": "cover",
+      "name": "NEW · SSIAP alerte",
+      "description": "SSIAP géant, signal rouge et lecture immédiate",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "giant-type",
+      "brandLayout": "bottom-left",
+      "previewStyle": 54,
+      "formationPreset": "SSIAP",
+      "giantLetters": "SSIAP",
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 4
+    },
+    {
+      "id": "new_giant_vtc",
+      "family": "cover",
+      "name": "NEW · VTC mouvement",
+      "description": "VTC géant avec lignes de vitesse et appel à l’action",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "location",
+        "cta"
+      ],
+      "density": "dynamic",
+      "style": "giant-type",
+      "brandLayout": "bottom-right",
+      "previewStyle": 55,
+      "formationPreset": "VTC",
+      "giantLetters": "VTC",
+      "isNew": true,
+      "renderer": "renderNewTemplate",
+      "status": "ready",
+      "version": 4
+    },
+    {
+      "id": "new2_aperture",
+      "family": "cover",
+      "name": "NEW2 · Champ des possibles",
+      "description": "Projecteur et anneaux en mouvement",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "orbit",
+      "hasEmojis": false,
+      "previewStyle": 1,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_paperfold",
+      "family": "cover",
+      "name": "NEW2 · Nouveau chapitre",
+      "description": "Affiche éditoriale et papier plié",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 2,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_passport",
+      "family": "session",
+      "name": "NEW2 · Pass pour votre avenir",
+      "description": "Ticket de formation avec volet détachable",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 3,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_sticker_club",
+      "family": "cover",
+      "name": "NEW2 · Le club des futurs pros",
+      "description": "Stickers illustrés, diplôme, fusée et étoiles",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 4,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_conversation",
+      "family": "conclusion",
+      "name": "NEW2 · On en parle ?",
+      "description": "Conversation et bulles pour engager le contact",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "pulse",
+      "hasEmojis": true,
+      "previewStyle": 5,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_launch_arc",
+      "family": "launch",
+      "name": "NEW2 · Décollage professionnel",
+      "description": "Trajectoire courbe et fusée en mouvement",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "rise",
+      "hasEmojis": true,
+      "previewStyle": 6,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_desktop",
+      "family": "saas",
+      "name": "NEW2 · Votre projet prend forme",
+      "description": "Fenêtre de bureau et widget calendrier",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 7,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_editorial",
+      "family": "cover",
+      "name": "NEW2 · Édition avenir",
+      "description": "Mise en page magazine et typographie sérif",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 8,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_ribbon",
+      "family": "program",
+      "name": "NEW2 · Le savoir pour avancer",
+      "description": "Ruban graphique et médaille",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": true,
+      "previewStyle": 9,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_target",
+      "family": "cover",
+      "name": "NEW2 · Objectif métier",
+      "description": "Cible animée et flèche directionnelle",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "pulse",
+      "hasEmojis": false,
+      "previewStyle": 10,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_playbill",
+      "family": "cover",
+      "name": "NEW2 · Place à votre avenir",
+      "description": "Affiche de campagne et grande étoile",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 11,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_polaroid",
+      "family": "careers",
+      "name": "NEW2 · Nouvel horizon",
+      "description": "Carte photo illustrée et légende manuscrite",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": true,
+      "previewStyle": 12,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_compass",
+      "family": "process",
+      "name": "NEW2 · Le bon cap",
+      "description": "Boussole en mouvement et parcours en trois étapes",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location",
+        "steps"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "spin",
+      "hasEmojis": false,
+      "previewStyle": 13,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_kinetic",
+      "family": "cover",
+      "name": "NEW2 · Faire, oser, avancer",
+      "description": "Typographie expressive et étoile cinétique",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "spin",
+      "hasEmojis": false,
+      "previewStyle": 14,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_pixel",
+      "family": "program",
+      "name": "NEW2 · Level up",
+      "description": "Escalier pixel, trophée et repères métiers",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 15,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_neon_ticket",
+      "family": "session",
+      "name": "NEW2 · La suite commence ici",
+      "description": "Pass nocturne et orbite lumineuse",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "orbit",
+      "hasEmojis": false,
+      "previewStyle": 16,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_calendar_stack",
+      "family": "dates",
+      "name": "NEW2 · À vos agendas",
+      "description": "Calendrier sur pages superposées",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": true,
+      "previewStyle": 17,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_portal_gradient",
+      "family": "cover",
+      "name": "NEW2 · Ouvrez la suite",
+      "description": "Portail en dégradé et clé flottante",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 18,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_flipbook",
+      "family": "program",
+      "name": "NEW2 · Apprendre et pratiquer",
+      "description": "Livre ouvert et programme lisible",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location",
+        "modules"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "",
+      "hasEmojis": true,
+      "previewStyle": 19,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    },
+    {
+      "id": "new2_confetti",
+      "family": "launch",
+      "name": "NEW2 · Nouvelle histoire",
+      "description": "Confettis, célébration et appel à l’action",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate",
+        "location"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew2": true,
+      "collection": "NEW2",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 20,
+      "renderer": "renderNew2Template",
+      "status": "ready",
+      "version": 5
+    }
   ]
 }

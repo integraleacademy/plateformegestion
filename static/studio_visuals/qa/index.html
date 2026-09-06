@@ -1,0 +1,49 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><title>Studio — contrôle des compositions</title>
+<link rel="stylesheet" href="../css/studio-shell.css"><link rel="stylesheet" href="../css/studio-canvas.css"><link rel="stylesheet" href="../css/studio-templates.css"><link rel="stylesheet" href="../css/studio-themes.css"><link rel="stylesheet" href="../css/studio-new-templates.css"><link rel="stylesheet" href="../css/studio-new2-templates.css">
+<style>body{padding:16px}.controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:#edf1f7;padding:12px;z-index:100}.controls label{width:170px}.controls button{margin-bottom:12px}#preview{zoom:.6;margin:20px}#stage{position:absolute;left:-20000px;top:0}pre{white-space:pre-wrap;background:white;padding:18px}#summary{font-size:18px;font-weight:700}#examples{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}#examples>div{overflow:hidden;height:275px;background:white}#examples .social-studio-slide{transform:scale(.24);transform-origin:top left}</style>
+<body class="social-studio"><div class="controls">
+<label>Collection<select id="collection"><option value="new2">NEW2</option><option value="all">Tous les modèles</option><option value="old">Modèles précédents</option></select></label>
+<label>Formation<select id="formation"></select></label><label>Contenu<select id="scenario"><option value="default">Texte normal</option><option value="long">Texte long</option><option value="legacy">Ancien slogan répété</option></select></label>
+<label>Étendue<select id="scope"><option value="one">Formation choisie</option><option value="all">Toutes les formations</option></select></label>
+<button id="run">Contrôler</button><button id="stop" disabled>Arrêter</button>
+<label>Modèle<select id="template"></select></label><label>Format<select id="format"></select></label><button id="view">Afficher</button>
+</div><p id="summary" aria-live="polite">Chargement…</p><div id="preview"></div><pre id="report"></pre><div id="stage"></div>
+<script type="module">
+import {renderSlide} from '../js/studio-renderer.js';
+import {fitSlide} from '../js/studio-text-fit.js';
+import {validateStudioSlide} from '../js/studio-validation.js';
+import {waitForImages} from '../js/studio-exporter.js';
+import {createProject,defaultContentForFormation,FORMATS} from '../js/studio-store.js';
+const $=id=>document.getElementById(id);
+const [{templates},themes]=await Promise.all(['templates','themes'].map(n=>fetch('../data/'+n+'.json').then(r=>r.json())));
+const ready=templates.filter(t=>t.status==='ready');
+for(const t of ready)$('template').add(new Option(t.name,t.id));
+for(const f of Object.keys(themes))$('formation').add(new Option(f,f));
+for(const [id,f] of Object.entries(FORMATS))$('format').add(new Option(f.label,id));
+$('formation').value='A3P';$('template').value='new2_aperture';
+let running=false;
+async function render(target,id,formation,format,scenario){
+ const content=defaultContentForFormation(formation);
+ if(scenario==='long')Object.assign(content,{title:'Devenez Agent de Protection Physique des Personnes et préparez votre prochaine étape professionnelle',introduction:'Une formation concrète, une équipe à vos côtés et un accompagnement pour préparer votre avenir professionnel à Puget-sur-Argens.',cta:'Contactez notre équipe pour préparer votre inscription',startDate:'Du 09 novembre 2026 au 19 janvier 2027',location:'Puget-sur-Argens, Côte d’Azur'});
+ if(scenario==='legacy')Object.assign(content,{title:'Faites le premier pas vers votre futur métier.',quote:'Faites le premier pas vers votre futur métier',cta:'Faites le premier pas vers votre futur métier'});
+ const project=createProject({formation,templateId:id,content});project.format=FORMATS[format];project.slides[0].options.showSafeMargins=false;
+ const node=renderSlide(project,project.slides[0],'export',{templates,themes});target.replaceChildren(node);
+ await waitForImages(node);await fitSlide(node);await fitSlide(node);
+ const errors=validateStudioSlide(node).blockingErrors.map(e=>e.message);
+ const text=node.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const count=(text.match(/faites le premier pas vers votre futur metier/g)||[]).length;
+ if(count!==1)errors.push('Signature présente '+count+' fois');
+ return {template:id,formation,format,scenario,errors};
+}
+$('view').onclick=async()=>{const r=await render($('preview'),$('template').value,$('formation').value,$('format').value,$('scenario').value);$('summary').textContent=r.errors.length?r.errors.join(' / '):'Aucune erreur bloquante';};
+$('stop').onclick=()=>{running=false};
+$('run').onclick=async()=>{
+ const selected=ready.filter(t=>$('collection').value==='all'||($('collection').value==='new2'?t.isNew2:!t.isNew2));
+ const formations=$('scope').value==='all'?Object.keys(themes):[$('formation').value],scenario=$('scenario').value;
+ running=true;$('run').disabled=true;$('stop').disabled=false;$('preview').replaceChildren();const results=[];
+ try{for(const formation of formations){for(const format of Object.keys(FORMATS)){for(const t of selected){if(!running)break;results.push(await render($('stage'),t.id,formation,format,scenario));$('summary').textContent=results.length+'/'+(selected.length*formations.length*4)+' contrôles';}}}
+ const failures=results.filter(r=>r.errors.length);$('report').textContent=JSON.stringify({total:results.length,failed:failures.length,failures},null,2);$('summary').textContent='Terminé : '+(results.length-failures.length)+'/'+results.length+' sans erreur';
+ }catch(error){$('report').textContent=error.stack}finally{running=false;$('run').disabled=false;$('stop').disabled=true;$('stage').replaceChildren()}
+};
+$('summary').textContent=ready.length+' modèles disponibles';await $('view').onclick();
+</script></body></html>

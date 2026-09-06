@@ -34,6 +34,14 @@ export function supportedVideoType(recorder=globalThis.MediaRecorder){
 }
 async function loadFrame(url){const image=new Image();image.src=url;await image.decode();return image}
 
+export function motionLayerCenter(canvasBounds,effectBounds,width,height){
+  // DOM rectangles include page zoom; the exported bitmap uses canvas pixels.
+  return {
+    cx:(effectBounds.left-canvasBounds.left+effectBounds.width/2)*width/canvasBounds.width,
+    cy:(effectBounds.top-canvasBounds.top+effectBounds.height/2)*height/canvasBounds.height
+  };
+}
+
 export async function recordStudioMotion(node,{width,height,duration=6,onStatus=()=>{},onProgress=()=>{}}){
   const type=supportedVideoType();
   if(!type)throw new Error('L’export vidéo n’est pas disponible dans ce navigateur. Ouvrez le studio dans Chrome ou Edge à jour.');
@@ -54,7 +62,7 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
       effect.dataset.motionCapture='true';
       const image=await loadFrame(await raster());
       delete effect.dataset.motionCapture;
-      layers.push({image,kind:effect.dataset.motion,cx:rect.left-bounds.left+rect.width/2,cy:rect.top-bounds.top+rect.height/2});
+      layers.push({image,kind:effect.dataset.motion,...motionLayerCenter(bounds,rect,width,height)});
     }
     node.classList.remove('studio-motion-only');
     const canvas=document.createElement('canvas');

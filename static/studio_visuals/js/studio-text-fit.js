@@ -1,11 +1,13 @@
+let fontsReady;
+const typography=new WeakMap();
 export async function waitForStudioFonts(){
   if(!document.fonts)return;
-  await Promise.all([
+  if(!fontsReady)fontsReady=Promise.all([
     document.fonts.load('800 48px StudioDisplay'),
     document.fonts.load('400 24px StudioText'),
     document.fonts.load('700 24px StudioText')
-  ]).catch(()=>{});
-  await document.fonts.ready;
+  ]).catch(()=>{}).then(()=>document.fonts.ready);
+  await fontsReady;
 }
 
 function renderedLineCount(element,fontSize,lineHeight){
@@ -26,9 +28,8 @@ export async function fitText({element,minFontSize,maxFontSize,maxLines,maxHeigh
   if(!element||element.hidden)return true;
   element.removeAttribute('data-fit-warning');
   element.style.lineHeight=String(lineHeight);
-  element.style.maxWidth='100%';
   element.style.boxSizing='border-box';
-  let lo=minFontSize,hi=maxFontSize,best=minFontSize;
+  let lo=Math.ceil(minFontSize),hi=Math.floor(maxFontSize),best=lo;
   while(lo<=hi){
     const mid=Math.floor((lo+hi)/2);
     element.style.fontSize=mid+'px';
@@ -45,18 +46,31 @@ export async function fitText({element,minFontSize,maxFontSize,maxLines,maxHeigh
 
 function fitOptions(element,canvas){
   const kind=element.dataset.fit;
+  const style=getComputedStyle(element);
+  if(!typography.has(element))typography.set(element,{
+    fontSize:parseFloat(style.fontSize)||24,
+    lineHeight:(parseFloat(style.lineHeight)/(parseFloat(style.fontSize)||24))||1.2
+  });
+  const designed=typography.get(element);
   const canvasHeight=canvas.clientHeight||parseFloat(canvas.style.height)||1080;
   const parentHeight=element.parentElement?.clientHeight||canvasHeight;
+  // The template owns its hierarchy. Fitting can reduce text, never inflate a
+  // small date, button or caption to the generic title/metric maximum.
+  const options=(minimum,lines,height)=>({
+    minFontSize:Math.min(designed.fontSize,minimum),maxFontSize:designed.fontSize,
+    maxLines:lines,maxHeight:Math.min(height,element.clientHeight||height),
+    lineHeight:designed.lineHeight
+  });
   if(kind==='badge'){
-    const vertical=String(getComputedStyle(element).writingMode||'').startsWith('vertical');
-    if(vertical)return {minFontSize:8,maxFontSize:12,maxLines:1,maxHeight:Math.max(180,Math.min(520,parentHeight-40)),lineHeight:1};
-    return {minFontSize:10,maxFontSize:14,maxLines:1,maxHeight:54,lineHeight:1};
+    const vertical=String(style.writingMode||'').startsWith('vertical');
+    if(vertical)return options(8,1,Math.max(180,Math.min(520,parentHeight-40)));
+    return options(8,2,54);
   }
-  if(kind==='title')return {minFontSize:36,maxFontSize:96,maxLines:4,maxHeight:Math.min(330,Math.max(150,parentHeight*.48)),lineHeight:.96};
-  if(kind==='cta')return {minFontSize:18,maxFontSize:30,maxLines:2,maxHeight:84,lineHeight:1.12};
-  if(kind==='metric')return {minFontSize:28,maxFontSize:118,maxLines:2,maxHeight:Math.min(220,Math.max(88,parentHeight*.32)),lineHeight:.9};
-  if(kind==='meta')return {minFontSize:15,maxFontSize:42,maxLines:3,maxHeight:Math.min(150,Math.max(72,parentHeight*.24)),lineHeight:1.05};
-  return {minFontSize:18,maxFontSize:32,maxLines:6,maxHeight:Math.min(250,Math.max(100,parentHeight*.42)),lineHeight:1.2};
+  if(kind==='title')return options(24,5,Math.min(360,Math.max(110,parentHeight*.62)));
+  if(kind==='cta')return options(12,3,96);
+  if(kind==='metric')return options(20,3,Math.min(240,Math.max(80,parentHeight*.4)));
+  if(kind==='meta')return options(12,3,Math.min(160,Math.max(64,parentHeight*.3)));
+  return options(14,7,Math.min(300,Math.max(90,parentHeight*.5)));
 }
 
 function visibleElement(element){
@@ -80,8 +94,12 @@ export function fitLayoutFrame(root){
   const top=Math.min(frame.top,...rects.map(rect=>rect.top));
   const right=Math.max(frame.right,...rects.map(rect=>rect.right));
   const bottom=Math.max(frame.bottom,...rects.map(rect=>rect.bottom));
-  const requiredWidth=artDirected?right-left:Math.max(main.scrollWidth,right-left);
-  const requiredHeight=artDirected?bottom-top:Math.max(main.scrollHeight,bottom-top);
+  // scrollWidth/Height are CSS pixels; DOMRects include the editor zoom.
+  // Mixing them used to shrink otherwise valid compositions in the preview.
+  const zoomX=frame.width/(main.offsetWidth||frame.width);
+  const zoomY=frame.height/(main.offsetHeight||frame.height);
+  const requiredWidth=artDirected?right-left:Math.max(main.scrollWidth*zoomX,right-left);
+  const requiredHeight=artDirected?bottom-top:Math.max(main.scrollHeight*zoomY,bottom-top);
   const scale=Math.min(1,frame.width/Math.max(1,requiredWidth),frame.height/Math.max(1,requiredHeight));
   if(scale<.995){
     const fitted=Math.max(.72,scale);

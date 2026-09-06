@@ -11,3 +11,9 @@
   backdrop-filter:none!important;
   -webkit-backdrop-filter:none!important;
 }
+/* Layers for the native video exporter; no screen, microphone or camera capture. */
+.social-studio-slide.studio-motion-base [data-motion]{visibility:hidden!important}
+.social-studio-slide.studio-motion-only{background:transparent!important}
+.social-studio-slide.studio-motion-only:before,.social-studio-slide.studio-motion-only:after{display:none!important}
+.social-studio-slide.studio-motion-only .sv-safe{visibility:hidden!important}
+.social-studio-slide.studio-motion-only [data-motion-capture],.social-studio-slide.studio-motion-only [data-motion-capture] *{visibility:visible!important}

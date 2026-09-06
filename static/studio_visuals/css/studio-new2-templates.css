@@ -103,3 +103,5 @@
 .studio-format-linkedin_landscape.studio-v2.new2-layout .n2 p{font-size:17px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout :is(.n2-copy,[class$="-copy"]){gap:12px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout :is(.n2-ribbon,.n2-polaroid,.n2-kinetic,.n2-portal-gradient){grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}
+.studio-format-instagram_square.new2_confetti .n2-celebrate{font-size:100px}
+.studio-format-instagram_square.new2_confetti .n2-confetti-copy{gap:18px}

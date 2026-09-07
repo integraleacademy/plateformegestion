@@ -65,7 +65,7 @@ function article(ctx,cls,roles,body,footer='horizontal'){
   if(main){
     main.dataset.region='content';
     main.dataset.elementName=template.name||template.id;
-    if(template.isNew||template.isNew2||template.isNew3||template.isMetier)main.dataset.layoutFitMode='art-directed';
+    if(template.isNew||template.isNew2||template.isNew3||template.isMetier||template.isGeneral)main.dataset.layoutFitMode='art-directed';
     // Legacy statistic cards can contain dates or place names as well as numbers.
     // Fit these actual values just like the newer template families.
     for(const value of main.querySelectorAll('.dashboard strong,.big-number>strong,.big-number aside b,.bars strong,.gauge strong,.mk-wall strong,.mk-phone strong,.mk-growth b,.mk-ring strong,.mk-mega>strong,.mk-soldout>strong,.mk-proofgrid strong,.mk-tiles strong,.mk-orbits>div')){

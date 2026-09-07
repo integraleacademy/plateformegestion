@@ -1,3 +1,4 @@
+import {GENERAL_DESIGNS,createGeneralScenes} from './studio-general-templates.js';
 import {EXTRA_METIER_DEFINITIONS,createExtraMetierScenes} from './studio-metier-more.js';
 // Profession-specific artwork: every subject has its own vector scene. Shared
 // primitives keep colors tied to the training palette and exports resolution-free.
@@ -143,6 +144,8 @@ const scenes={
  'DIRIGEANT/strategie':()=>path('M90 372H241V256H399V145H547',A,13)+[90,241,399,547].map((x,i)=>circle(x,[372,256,145,145][i],22,W,`stroke="${A}" stroke-width="7"`)).join('')+path('M481 232V51l90 34-90 34',I,7,S)+rect(83,60,241,72,W,18)+text(110,106,'DÉVELOPPEMENT',22)
 };
 
+const sceneHelpers={rect,circle,path,group,person,monitor,clipboard,building,car,pin,route,radio,bag,phone,desk,handshake,calendar,A,S,I,L,P,W};
+Object.assign(scenes,createGeneralScenes(sceneHelpers));
 Object.assign(scenes,createExtraMetierScenes({rect,circle,path,group,person,monitor,clipboard,building,car,pin,route,radio,bag,phone,desk,handshake,calendar,A,S,I,L,P,W}));
 
 export function renderMetierIllustration(design){
@@ -151,11 +154,11 @@ export function renderMetierIllustration(design){
  return `<svg viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${scene()}</svg>`;
 }
 export function renderMetierTemplateBody(ctx){
- const d=METIER_DESIGNS.find(d=>d.id===ctx.template.id);
+ const d=METIER_DESIGNS.find(d=>d.id===ctx.template.id)||GENERAL_DESIGNS.find(d=>d.id===ctx.template.id);
  if(!d)throw new Error('Composition métier inconnue : '+ctx.template.id);
  const c=ctx.slide.content||{};
  const field=(key,tag,fit)=>`<${tag} class="metier-${key}${key==='cta'?' n2-cta':''}" data-content-key="${key}" data-fit="${fit}" data-element-name="${key}">${esc(c[key]||d.contentDefaults[key])}</${tag}>`;
- const label=`<div class="metier-kicker"><span class="metier-code" data-fit="meta">FORMATION ${d.code}</span></div>`;
+ const label=`<div class="metier-kicker"><span class="metier-code" data-fit="meta">${esc(d.kicker||`FORMATION ${d.code}`)}</span></div>`;
  const title=field('title','h1','title'),intro=field('introduction','p','body');
  const action=`<div class="n2-action">${field('cta','span','cta')}<b aria-hidden="true">↗</b></div>`;
  const tags=`<ul class="metier-subjects">${d.subjects.map(s=>`<li data-fit="meta">${esc(s)}</li>`).join('')}</ul>`;

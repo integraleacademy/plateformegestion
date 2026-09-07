@@ -33,6 +33,14 @@ export function supportedVideoType(recorder=globalThis.MediaRecorder){
   return ['video/mp4;codecs=avc1.424028','video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/mp4','video/webm'].find(type=>recorder.isTypeSupported(type))||null;
 }
 async function loadFrame(url){const image=new Image();image.src=url;await image.decode();return image}
+function assertTransparentLayer(image){
+  const probe=document.createElement('canvas');probe.width=probe.height=1;
+  const context=probe.getContext('2d',{willReadFrequently:true});
+  for(const [x,y] of [[image.width/2,1],[image.width/2,image.height-2],[1,image.height/2],[image.width-2,image.height/2]]){
+    context.clearRect(0,0,1,1);context.drawImage(image,Math.floor(x),Math.floor(y),1,1,0,0,1,1);
+    if(context.getImageData(0,0,1,1).data[3]>0)throw new Error('Le fond de la vidéo masque le contenu. Relancez l’export.');
+  }
+}
 
 export function motionLayerCenter(canvasBounds,effectBounds,width,height){
   // DOM rectangles include page zoom; the exported bitmap uses canvas pixels.
@@ -46,12 +54,13 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
   const type=supportedVideoType();
   if(!type)throw new Error('L’export vidéo n’est pas disponible dans ce navigateur. Ouvrez le studio dans Chrome ou Edge à jour.');
   const effects=[...node.querySelectorAll('[data-motion]')];
-  if(!effects.length)throw new Error('Choisissez un modèle NEW2 portant la mention « Animé ».');
+  if(!effects.length)throw new Error('Choisissez un modèle portant la mention « Animé ».');
   const foregroundNodes=[...node.querySelectorAll('.n2-code,[data-motion-foreground]')].filter(element=>!element.closest('[data-motion]'));
   let stream,recorder,frameId,watchdog;
   let foreground;
   const bounds=node.getBoundingClientRect();
   const layers=[];
+  const originalStyle=node.style.cssText;
   const raster=()=>htmlToImage.toPng(node,{width,height,pixelRatio:1,cacheBust:false,style:{width:width+'px',height:height+'px',transform:'none',margin:'0'}});
   try{
     onStatus('Préparation des calques animés…');
@@ -60,16 +69,21 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
     const base=await loadFrame(await raster());
     node.classList.remove('studio-motion-base');
     node.classList.add('studio-motion-only');
+    // A template may use a more specific !important background than the shared
+    // capture stylesheet. Every overlay must remain transparent over the base.
+    node.style.setProperty('background','transparent','important');
     for(const effect of effects){
       const rect=effect.getBoundingClientRect();
       effect.dataset.motionCapture='true';
       const image=await loadFrame(await raster());
+      assertTransparentLayer(image);
       delete effect.dataset.motionCapture;
       layers.push({image,kind:effect.dataset.motion,...motionLayerCenter(bounds,rect,width,height)});
     }
     if(foregroundNodes.length){
       foregroundNodes.forEach(element=>element.dataset.motionCapture='true');
       foreground=await loadFrame(await raster());
+      assertTransparentLayer(foreground);
       foregroundNodes.forEach(element=>delete element.dataset.motionCapture);
     }
     node.classList.remove('studio-motion-only');
@@ -121,6 +135,7 @@ export async function recordStudioMotion(node,{width,height,duration=6,onStatus=
     if(recorder?.state==='recording')recorder.stop();
     stream?.getTracks().forEach(track=>track.stop());
     node.classList.remove('studio-motion-base','studio-motion-only');
+    node.style.cssText=originalStyle;
     effects.forEach(effect=>delete effect.dataset.motionCapture);
     foregroundNodes.forEach(element=>{delete element.dataset.motionCapture;delete element.dataset.motionForegroundCapture});
   }

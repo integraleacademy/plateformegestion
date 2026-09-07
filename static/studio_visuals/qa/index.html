@@ -7,12 +7,15 @@
 <label>Étendue<select id="scope"><option value="one">Formation choisie</option><option value="all">Toutes les formations</option></select></label>
 <button id="run">Contrôler</button><button id="stop" disabled>Arrêter</button>
 <label>Modèle<select id="template"></select></label><label>Format<select id="format"></select></label><button id="view">Afficher</button>
+<button id="png" disabled>Vérifier le PNG</button><button id="video" disabled>Vérifier la vidéo</button>
 </div><p id="summary" aria-live="polite">Chargement…</p><div id="preview"></div><pre id="report"></pre><div id="stage"></div>
+<div id="studio-export-root" aria-hidden="true"></div>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js" defer></script>
 <script type="module">
 import {renderSlide} from '../js/studio-renderer.js';
 import {fitSlide} from '../js/studio-text-fit.js';
 import {validateStudioSlide} from '../js/studio-validation.js';
-import {waitForImages} from '../js/studio-exporter.js';
+import {waitForImages,SocialVisualExporter} from '../js/studio-exporter.js';
 import {createProject,defaultContentForFormation,FORMATS} from '../js/studio-store.js';
 const $=id=>document.getElementById(id);
 const [{templates},themes]=await Promise.all(['templates','themes'].map(n=>fetch('../data/'+n+'.json').then(r=>r.json())));
@@ -21,33 +24,80 @@ for(const t of ready)$('template').add(new Option(t.name,t.id));
 for(const f of Object.keys(themes))$('formation').add(new Option(f,f));
 for(const [id,f] of Object.entries(FORMATS))$('format').add(new Option(f.label,id));
 $('formation').value='A3P';$('template').value='new2_aperture';
-let running=false;
+let running=false,previewProject=null;
+const exporter=new SocialVisualExporter({root:$('studio-export-root'),templates,themes});
+function exportAvailability(){
+ $('png').disabled=running||exporter.running||!previewProject;
+ $('video').disabled=$('png').disabled||!ready.find(t=>t.id===previewProject?.slides[0].templateId)?.motion;
+}
+// Inspect rendered colors, including inherited styles and mixed colors. Emoji
+// artwork and the official logo keep their original pixels.
+function paletteErrors(node,theme){
+ const errors=[],canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ const rgb=color=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data].map(v=>v/255)};
+ const hue=c=>{const max=Math.max(...c.slice(0,3)),min=Math.min(...c.slice(0,3)),d=max-min;if(d<.04)return null;const l=(max+min)/2;if(l<.07||l>.92||d/(1-Math.abs(2*l-1))<.18)return null;return ((max===c[0]?(c[1]-c[2])/d:max===c[1]?(c[2]-c[0])/d+2:(c[0]-c[1])/d+4)*60+360)%360};
+ const expected=hue(rgb(theme.primary)),seen=new Set();
+ for(const el of [node,...node.querySelectorAll('*')]){
+  if(el.closest('.studio-brand-logo')||getComputedStyle(el).display==='none')continue;
+  const style=getComputedStyle(el);
+  for(const property of ['color','backgroundColor']){
+   const value=style[property];if(seen.has(value))continue;seen.add(value);
+   const c=rgb(value),h=hue(c);if(c[3]<.2||h===null)continue;
+   const delta=Math.abs(h-expected);if(Math.min(delta,360-delta)>25)errors.push('Couleur hors formation : '+value+' ('+el.className+')');
+  }
+ }
+ const luminance=c=>c.slice(0,3).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+ for(const action of node.querySelectorAll('.n2-action')){
+  const a=luminance(rgb(getComputedStyle(action.querySelector('.n2-cta')).color)),b=luminance(rgb(getComputedStyle(action).backgroundColor));
+  if((Math.max(a,b)+.05)/(Math.min(a,b)+.05)<4.5)errors.push('Contraste insuffisant du bouton');
+ }
+ return errors;
+}
 async function render(target,id,formation,format,scenario){
  const content=defaultContentForFormation(formation);
  if(scenario==='long')Object.assign(content,{title:'Devenez Agent de Protection Physique des Personnes et préparez votre prochaine étape professionnelle',introduction:'Une formation concrète, une équipe à vos côtés et un accompagnement pour préparer votre avenir professionnel à Puget-sur-Argens.',cta:'Contactez notre équipe pour préparer votre inscription',startDate:'Du 09 novembre 2026 au 19 janvier 2027',location:'Puget-sur-Argens, Côte d’Azur'});
  if(scenario==='legacy')Object.assign(content,{title:'Faites le premier pas vers votre futur métier.',quote:'Faites le premier pas vers votre futur métier',cta:'Faites le premier pas vers votre futur métier'});
  const project=createProject({formation,templateId:id,content});project.format=FORMATS[format];project.slides[0].options.showSafeMargins=false;
  const node=renderSlide(project,project.slides[0],'export',{templates,themes});target.replaceChildren(node);
+ if(target===$('preview'))previewProject=project;
  // Layout measurements force a reflow. Batch checks do not need an animation
  // frame for each pass; the export path still waits for painting and decoding.
  if([...node.querySelectorAll('img')].some(image=>!image.complete))await waitForImages(node);
  await fitSlide(node,{waitForPaint:false});await fitSlide(node,{waitForPaint:false});
  await new Promise(resolve=>setTimeout(resolve,0));
  const errors=validateStudioSlide(node).blockingErrors.map(e=>e.message);
+ if(id.startsWith('new2_'))errors.push(...paletteErrors(node,themes[formation]));
  const text=node.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const count=(text.match(/faites le premier pas vers votre futur metier/g)||[]).length;
  if(count!==1)errors.push('Signature présente '+count+' fois');
  return {template:id,formation,format,scenario,errors};
 }
-$('view').onclick=async()=>{const r=await render($('preview'),$('template').value,$('formation').value,$('format').value,$('scenario').value);$('summary').textContent=r.errors.length?r.errors.join(' / '):'Aucune erreur bloquante';};
+$('view').onclick=async()=>{const r=await render($('preview'),$('template').value,$('formation').value,$('format').value,$('scenario').value);$('summary').textContent=r.errors.length?r.errors.join(' / '):'Aucune erreur bloquante';exportAvailability();};
+async function checkExport(motion){
+ if(!previewProject||exporter.running)return;
+ const project=JSON.parse(JSON.stringify(previewProject));
+ $('png').disabled=$('video').disabled=$('view').disabled=$('run').disabled=true;
+ let objectUrl;
+ try{
+  const args={project,slide:project.slides[0],onStatus:status=>{$('summary').textContent=status}};
+  let href,extension='png';
+  if(motion){const result=await exporter.exportMotion(args);href=objectUrl=URL.createObjectURL(result.blob);extension=result.extension;}
+  else href=await exporter.exportSlide({...args,outputWidth:project.format.width,outputHeight:project.format.height});
+  const link=document.createElement('a');link.href=href;link.download=`controle-palette-${project.formation}-${project.slides[0].templateId}.${extension}`;link.click();
+  $('summary').textContent='Export '+extension.toUpperCase()+' vérifié : '+project.format.width+' × '+project.format.height;
+ }catch(error){$('summary').textContent=error.message;}
+ finally{if(objectUrl)setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);$('view').disabled=$('run').disabled=false;exportAvailability();}
+}
+$('png').onclick=()=>checkExport(false);$('video').onclick=()=>checkExport(true);
 $('stop').onclick=()=>{running=false};
 $('run').onclick=async()=>{
  const selected=ready.filter(t=>$('collection').value==='all'||($('collection').value==='new2'?t.isNew2:!t.isNew2));
  const formations=$('scope').value==='all'?Object.keys(themes):[$('formation').value],scenario=$('scenario').value;
- running=true;$('run').disabled=true;$('stop').disabled=false;$('preview').replaceChildren();const results=[];
+ running=true;previewProject=null;exportAvailability();$('view').disabled=$('run').disabled=true;$('stop').disabled=false;$('preview').replaceChildren();const results=[];
  try{for(const formation of formations){for(const format of Object.keys(FORMATS)){for(const t of selected){if(!running)break;results.push(await render($('stage'),t.id,formation,format,scenario));$('summary').textContent=results.length+'/'+(selected.length*formations.length*4)+' contrôles';}}}
  const failures=results.filter(r=>r.errors.length);$('report').textContent=JSON.stringify({total:results.length,failed:failures.length,failures},null,2);$('summary').textContent='Terminé : '+(results.length-failures.length)+'/'+results.length+' sans erreur';
- }catch(error){$('report').textContent=error.stack}finally{running=false;$('run').disabled=false;$('stop').disabled=true;$('stage').replaceChildren()}
+ }catch(error){$('report').textContent=error.stack}finally{running=false;$('view').disabled=$('run').disabled=false;$('stop').disabled=true;$('stage').replaceChildren();exportAvailability()}
 };
 $('summary').textContent=ready.length+' modèles disponibles';await $('view').onclick();
 </script></body></html>

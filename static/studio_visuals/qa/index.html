@@ -52,6 +52,12 @@ function paletteErrors(node,theme){
   }
  }
  const luminance=c=>c.slice(0,3).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+ const paper=luminance(rgb(getComputedStyle(node).getPropertyValue('--n2-paper')));
+ if(paper<.75)errors.push('Fond de collection trop sombre');
+ for(const copy of node.querySelectorAll('h1,[data-content-key="introduction"],.sv-brand__slogan')){
+  const ink=luminance(rgb(getComputedStyle(copy).color));
+  if((Math.max(paper,ink)+.05)/(Math.min(paper,ink)+.05)<7)errors.push('Contraste insuffisant du texte principal');
+ }
  for(const action of node.querySelectorAll('.n2-action')){
   const a=luminance(rgb(getComputedStyle(action.querySelector('[data-content-key="cta"]')).color)),b=luminance(rgb(getComputedStyle(action).backgroundColor));
   if((Math.max(a,b)+.05)/(Math.min(a,b)+.05)<4.5)errors.push('Contraste insuffisant du bouton');

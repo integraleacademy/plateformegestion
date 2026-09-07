@@ -4012,7 +4012,7 @@
       "hasEmojis": false,
       "previewStyle": 1,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4045,7 +4045,7 @@
       "hasEmojis": false,
       "previewStyle": 2,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4078,7 +4078,7 @@
       "hasEmojis": false,
       "previewStyle": 3,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4110,7 +4110,7 @@
       "hasEmojis": false,
       "previewStyle": 4,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4142,7 +4142,7 @@
       "hasEmojis": true,
       "previewStyle": 5,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4175,7 +4175,7 @@
       "hasEmojis": false,
       "previewStyle": 6,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4208,7 +4208,7 @@
       "hasEmojis": false,
       "previewStyle": 7,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4240,7 +4240,7 @@
       "hasEmojis": false,
       "previewStyle": 8,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4273,7 +4273,7 @@
       "hasEmojis": false,
       "previewStyle": 9,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4306,7 +4306,7 @@
       "hasEmojis": false,
       "previewStyle": 10,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4339,7 +4339,7 @@
       "hasEmojis": false,
       "previewStyle": 11,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4372,7 +4372,7 @@
       "hasEmojis": false,
       "previewStyle": 12,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4404,7 +4404,7 @@
       "hasEmojis": false,
       "previewStyle": 13,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4437,7 +4437,7 @@
       "hasEmojis": false,
       "previewStyle": 14,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4469,7 +4469,7 @@
       "hasEmojis": false,
       "previewStyle": 15,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4502,7 +4502,7 @@
       "hasEmojis": false,
       "previewStyle": 16,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4535,7 +4535,7 @@
       "hasEmojis": false,
       "previewStyle": 17,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4568,7 +4568,7 @@
       "hasEmojis": false,
       "previewStyle": 18,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4601,7 +4601,7 @@
       "hasEmojis": false,
       "previewStyle": 19,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4634,7 +4634,7 @@
       "hasEmojis": false,
       "previewStyle": 20,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4666,7 +4666,7 @@
       "hasEmojis": false,
       "previewStyle": 21,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4699,7 +4699,7 @@
       "hasEmojis": true,
       "previewStyle": 22,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4731,7 +4731,7 @@
       "hasEmojis": true,
       "previewStyle": 23,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4763,7 +4763,7 @@
       "hasEmojis": true,
       "previewStyle": 24,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4796,7 +4796,7 @@
       "hasEmojis": false,
       "previewStyle": 25,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4828,7 +4828,7 @@
       "hasEmojis": true,
       "previewStyle": 26,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4861,7 +4861,7 @@
       "hasEmojis": false,
       "previewStyle": 27,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4894,7 +4894,7 @@
       "hasEmojis": true,
       "previewStyle": 28,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4927,7 +4927,7 @@
       "hasEmojis": false,
       "previewStyle": 29,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4959,7 +4959,7 @@
       "hasEmojis": false,
       "previewStyle": 30,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -4991,7 +4991,7 @@
       "hasEmojis": true,
       "previewStyle": 31,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5023,7 +5023,7 @@
       "hasEmojis": true,
       "previewStyle": 32,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5056,7 +5056,7 @@
       "hasEmojis": true,
       "previewStyle": 33,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5088,7 +5088,7 @@
       "hasEmojis": true,
       "previewStyle": 34,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5121,7 +5121,7 @@
       "hasEmojis": true,
       "previewStyle": 35,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5153,7 +5153,7 @@
       "hasEmojis": true,
       "previewStyle": 36,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5185,7 +5185,7 @@
       "hasEmojis": true,
       "previewStyle": 37,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5218,7 +5218,7 @@
       "hasEmojis": true,
       "previewStyle": 38,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5250,7 +5250,7 @@
       "hasEmojis": true,
       "previewStyle": 39,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5283,7 +5283,7 @@
       "hasEmojis": true,
       "previewStyle": 40,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5315,7 +5315,7 @@
       "hasEmojis": false,
       "previewStyle": 41,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5348,7 +5348,7 @@
       "hasEmojis": false,
       "previewStyle": 42,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5380,7 +5380,7 @@
       "hasEmojis": false,
       "previewStyle": 43,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5412,7 +5412,7 @@
       "hasEmojis": false,
       "previewStyle": 44,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5444,7 +5444,7 @@
       "hasEmojis": false,
       "previewStyle": 45,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5477,7 +5477,7 @@
       "hasEmojis": true,
       "previewStyle": 46,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5509,7 +5509,7 @@
       "hasEmojis": false,
       "previewStyle": 47,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5541,7 +5541,7 @@
       "hasEmojis": false,
       "previewStyle": 48,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5574,7 +5574,7 @@
       "hasEmojis": false,
       "previewStyle": 49,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -5606,7 +5606,7 @@
       "hasEmojis": true,
       "previewStyle": 50,
       "renderer": "renderNew3Template",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     }
   ]

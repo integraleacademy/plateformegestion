@@ -21,6 +21,7 @@ test('each profession has ten complete templates with its own artwork and correc
   assert.ok(d,template.id);
   assert.equal(template.formationPreset,d.formation);
   assert.equal(template.renderer,'renderMetierTemplate');
+  assert.equal(template.status,'ready');
   assert.deepEqual(template.contentDefaults,d.contentDefaults);
   assert.equal(template.supportedFormats.length,4);
   const body=renderMetierTemplateBody({template,project:{formation:d.formation},slide:{content:d.contentDefaults}});

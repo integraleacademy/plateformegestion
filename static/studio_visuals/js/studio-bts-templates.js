@@ -72,7 +72,7 @@ const stories = {
   ['projet','Votre projet CI','Curieux du monde ? Faites-en votre projet.','Langues, ouverture et commerce : explorez le BTS Commerce international chez Intégrale Academy.','target',['Curiosité','Ouverture','Commerce']]
  ],
  BTS: [
-  ['univers','Tous nos BTS','Six univers. Votre prochaine direction.','Sécurité, immobilier, commerce, relation client, international ou comptabilité : trouvez votre BTS.','catalog',['MOS','PI','MCO','NDRC','CI','CG']],
+  ['univers','Les six univers','Six univers. Votre prochaine direction.','Sécurité, immobilier, commerce, relation client, international ou comptabilité : trouvez votre BTS.','catalog',['MOS','PI','MCO','NDRC','CI','CG']],
   ['avenir','Votre avenir après le bac','Après le bac, donnez du relief à vos envies.','Explorez nos six BTS et construisez un projet qui vous ressemble avec Intégrale Academy.','cap',['Choisir','Apprendre','Avancer']],
   ['competences','Vos futures compétences','Des envies aux compétences.','Organisation, conseil, gestion ou négociation : découvrez les savoir-faire à construire dans nos BTS.','grid',['Savoir-faire','Pratique','Projet']],
   ['orientation','Votre orientation','Trouvez votre voie, gardez votre ambition.','Comparez nos univers de formation et échangez avec notre équipe pour préciser votre choix.','route',['Univers','Choix','Orientation']],

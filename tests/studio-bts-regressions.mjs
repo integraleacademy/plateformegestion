@@ -19,7 +19,7 @@ test('60 selectable BTS models cover all requested audiences and every export fo
   assert.doesNotMatch(defaults.title,/Devenez Management|Devenez Professions/);
  }
  for(const t of bts){
-  assert.ok(['preview','ready'].includes(t.status));assert.equal(t.renderer,'renderBtsTemplate');assert.ok(t.hasEmojis);
+  assert.equal(t.status,'ready');assert.equal(t.renderer,'renderBtsTemplate');assert.ok(t.hasEmojis);
   assert.deepEqual(t.supportedFormats,Object.keys(FORMATS));
   const d=BTS_DESIGNS.find(d=>d.id===t.id);assert.deepEqual(t.contentDefaults,d.contentDefaults);
   const html=renderBtsTemplateBody({template:t,slide:{content:defaultContentForFormation('APS')}});

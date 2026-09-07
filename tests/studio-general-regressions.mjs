@@ -17,7 +17,7 @@ test('thirty general compositions are distinct, gold, editable and available in 
  for(const template of general){
   assert.equal(template.formationPreset,'OR');
   assert.equal(template.collection,'GÉNÉRAL');
-  assert.ok(['preview','ready'].includes(template.status));
+  assert.equal(template.status,'ready');
   assert.equal(template.supportedFormats.length,4);
   const d=GENERAL_DESIGNS.find(d=>d.id===template.id);
   assert.deepEqual(template.contentDefaults,d.contentDefaults);

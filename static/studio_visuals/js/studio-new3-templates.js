@@ -134,5 +134,6 @@ export function renderNew3TemplateBody(ctx){
   cascade:()=>`${scene(art('n3-cascade',`<div>${[0,1,2,3,4].map(i=>`<i style="--tile:${i}"><b>↗</b></i>`).join('')}</div>`,d.motion))}${copy('UNE IMPULSION POUR TOUT CHANGER',true)}`,
   celebration:()=>`<header class="n3-celebration-top">${tag('LA SUITE S’ÉCRIT MAINTENANT')}${code}</header>${scene(art('n3-celebration-rays',svg('<path d="M45 210a155 155 0 0 1 310 0" fill="none" stroke="currentColor" stroke-width="35"/>'+line('M50 285 20 330M355 280l30 35M200 40V5')))+emoji('🎉','n3-celebration-emoji',d.motion))}${title}${bottom()}`
  };
- return `<main class="n2 n3 n3-${d.layout} n3-${d.slug}" data-layout-role="${d.id}" data-new3-design="${d.id}">${bodies[d.slug]()}</main>`;
+ const body=bodies[d.slug]().replace(/aria-hidden="true"(?! data-studio-decorative)/g,'aria-hidden="true" data-studio-decorative="true"');
+ return `<main class="n2 n3 n3-${d.layout} n3-${d.slug}${body.startsWith('<aside')?' n3-visual-first':''}" data-layout-role="${d.id}" data-new3-design="${d.id}">${body}</main>`;
 }

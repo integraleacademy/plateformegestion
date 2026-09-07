@@ -11,7 +11,7 @@
 <label>Planche<select id="sheet"><option value="0">Modèles 1–10</option><option value="1">Modèles 11–20</option><option value="2">Modèles 21–30</option><option value="3">Modèles 31–40</option><option value="4">Modèles 41–50</option></select></label><button id="gallery">Voir les 10 modèles</button>
 </div><p id="summary" aria-live="polite">Chargement…</p><div id="preview"></div><pre id="report"></pre><div id="stage"></div>
 <div id="examples"></div>
-<style>#examples{grid-template-columns:repeat(5,250px);gap:12px}#examples>div{height:282px;background:none;overflow:visible}#examples strong{display:block;font-size:11px;padding:8px 0}#examples .qa-cell{height:250px;position:relative;overflow:hidden;background:none}#examples .social-studio-slide{position:absolute;inset:0;transform:scale(.23148);transform-origin:top left}</style>
+<style>#examples{grid-template-columns:repeat(5,250px);gap:12px}#examples>div{height:282px;background:none;overflow:visible}#examples>div>strong{display:block;font-size:11px;padding:8px 0}#examples .qa-cell{height:250px;position:relative;overflow:hidden;background:none}#examples .social-studio-slide{position:absolute;inset:0;transform:scale(.23148);transform-origin:top left}</style>
 <div id="studio-export-root" aria-hidden="true"></div>
 <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js" defer></script>
 <script type="module">
@@ -58,6 +58,20 @@ function paletteErrors(node,theme){
  }
  return errors;
 }
+function illustrationErrors(node){
+ const errors=[],main=node.querySelector('main'),frame=main.getBoundingClientRect(),scale=node.getBoundingClientRect().width/node.offsetWidth,tolerance=8*scale;
+ const copy=[...main.querySelectorAll('[data-content-key]')].filter(el=>!el.closest('.n3-scene'));
+ for(const art of main.querySelectorAll('.n3-art')){
+  if(art.parentElement.closest('.n3-art'))continue;
+  const r=art.getBoundingClientRect();
+  if(r.left<frame.left-tolerance||r.right>frame.right+tolerance||r.top<frame.top-tolerance||r.bottom>frame.bottom+tolerance)errors.push('Illustration hors composition : '+art.className);
+  for(const text of copy){
+   const t=text.getBoundingClientRect(),width=Math.max(0,Math.min(r.right,t.right)-Math.max(r.left,t.left)),height=Math.max(0,Math.min(r.bottom,t.bottom)-Math.max(r.top,t.top));
+   if(width*height>16*scale*scale)errors.push('Illustration sur le texte : '+art.className+' / '+text.dataset.contentKey);
+  }
+ }
+ return errors;
+}
 async function render(target,id,formation,format,scenario){
  const content=defaultContentForFormation(formation);
  if(scenario==='long')Object.assign(content,{title:'Devenez Agent de Protection Physique des Personnes et préparez votre prochaine étape professionnelle',introduction:'Une formation concrète, une équipe à vos côtés et un accompagnement pour préparer votre avenir professionnel à Puget-sur-Argens.',cta:'Contactez notre équipe pour préparer votre inscription',startDate:'Du 09 novembre 2026 au 19 janvier 2027',location:'Puget-sur-Argens, Côte d’Azur'});
@@ -72,6 +86,7 @@ async function render(target,id,formation,format,scenario){
  await new Promise(resolve=>setTimeout(resolve,0));
  const errors=validateStudioSlide(node).blockingErrors.map(e=>e.message);
  if(id.startsWith('new2_')||id.startsWith('new3_'))errors.push(...paletteErrors(node,themes[formation]));
+ if(id.startsWith('new3_'))errors.push(...illustrationErrors(node));
  const text=node.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const count=(text.match(/faites le premier pas vers votre futur metier/g)||[]).length;
  if(count!==1)errors.push('Signature présente '+count+' fois');
@@ -100,7 +115,7 @@ $('gallery').onclick=async()=>{
  const page=Number($('sheet').value),selected=selectedTemplates().slice(page*10,page*10+10),results=[];
  try{for(const t of selected){
   const card=document.createElement('div'),label=document.createElement('strong'),cell=document.createElement('div');label.textContent=t.name;cell.className='qa-cell';card.append(label,cell);$('examples').append(card);
-  results.push(await render(cell,t.id,$('formation').value,'instagram_square',$('scenario').value));
+  const result=await render(cell,t.id,$('formation').value,'instagram_square',$('scenario').value);card.dataset.errors=JSON.stringify(result.errors);results.push(result);
  }
  $('summary').textContent=selected.length+' modèles affichés · '+results.filter(r=>r.errors.length).length+' erreurs';
  }finally{$('gallery').disabled=false;}

@@ -2,7 +2,7 @@
 <link rel="stylesheet" href="../css/studio-shell.css"><link rel="stylesheet" href="../css/studio-canvas.css"><link rel="stylesheet" href="../css/studio-templates.css"><link rel="stylesheet" href="../css/studio-themes.css"><link rel="stylesheet" href="../css/studio-new-templates.css"><link rel="stylesheet" href="../css/studio-new2-templates.css"><link rel="stylesheet" href="../css/studio-new3-templates.css"><link rel="stylesheet" href="../css/studio-metier-templates.css">
 <style>body{padding:16px}.controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:#edf1f7;padding:12px;z-index:100}.controls label{width:170px}.controls button{margin-bottom:12px}#preview{zoom:.6;margin:20px}#stage{position:absolute;left:-20000px;top:0}pre{white-space:pre-wrap;background:white;padding:18px}#summary{font-size:18px;font-weight:700}#examples{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}#examples>div{overflow:hidden;height:275px;background:white}#examples .social-studio-slide{transform:scale(.24);transform-origin:top left}</style>
 <body class="social-studio"><div class="controls">
-<label>Collection<select id="collection"><option value="metier">MÉTIERS</option><option value="new3">NEW3</option><option value="new2">NEW2</option><option value="all">Tous les modèles</option><option value="old">Modèles précédents</option></select></label>
+<label>Collection<select id="collection"><option value="metierplus">MÉTIERS · Nouveaux</option><option value="metier">MÉTIERS · Tous</option><option value="new3">NEW3</option><option value="new2">NEW2</option><option value="all">Tous les modèles</option><option value="old">Modèles précédents</option></select></label>
 <label>Formation<select id="formation"></select></label><label>Contenu<select id="scenario"><option value="default">Texte normal</option><option value="long">Texte long</option><option value="legacy">Ancien slogan répété</option></select></label>
 <label>Étendue<select id="scope"><option value="one">Formation choisie</option><option value="all">Toutes les formations</option></select></label>
 <button id="run">Contrôler</button><button id="stop" disabled>Arrêter</button>
@@ -23,11 +23,11 @@ import {createProject,defaultContentForFormation,FORMATS} from '../js/studio-sto
 const $=id=>document.getElementById(id);
 const [{templates},themes]=await Promise.all(['templates','themes'].map(n=>fetch('../data/'+n+'.json').then(r=>r.json())));
 const ready=templates.filter(t=>t.status==='ready'||((t.isNew3||t.isMetier)&&t.status==='preview'));
-const selectedTemplates=()=>ready.filter(t=>$('collection').value==='all'||($('collection').value==='metier'?t.isMetier:$('collection').value==='new3'?t.isNew3:$('collection').value==='new2'?t.isNew2:!t.isNew2&&!t.isNew3&&!t.isMetier));
+const selectedTemplates=()=>ready.filter(t=>$('collection').value==='all'||($('collection').value==='metierplus'?t.isMetierExpansion:$('collection').value==='metier'?t.isMetier:$('collection').value==='new3'?t.isNew3:$('collection').value==='new2'?t.isNew2:!t.isNew2&&!t.isNew3&&!t.isMetier));
 for(const t of ready)$('template').add(new Option(t.name,t.id));
 for(const f of Object.keys(themes))$('formation').add(new Option(f,f));
 for(const [id,f] of Object.entries(FORMATS))$('format').add(new Option(f.label,id));
-$('formation').value='SSIAP';$('template').value='metier_ssiap_ssi';
+$('formation').value='SSIAP';$('template').value='metier_ssiap_ria';
 $('template').onchange=()=>{const t=ready.find(t=>t.id===$('template').value);if(t?.isMetier)$('formation').value=t.formationPreset;};
 let running=false,previewProject=null;
 const exporter=new SocialVisualExporter({root:$('studio-export-root'),templates,themes});
@@ -67,7 +67,7 @@ function paletteErrors(node,theme){
 }
 function illustrationErrors(node){
  const errors=[],main=node.querySelector('main'),frame=main.getBoundingClientRect(),scale=node.getBoundingClientRect().width/node.offsetWidth,tolerance=8*scale;
- if(node.classList.contains('metier-layout')&&!node.classList.contains('studio-format-linkedin_landscape')&&(main.classList.contains('metier-cinema')||main.classList.contains('metier-poster'))){
+ if(node.classList.contains('metier-layout')&&!node.classList.contains('studio-format-linkedin_landscape')&&(main.classList.contains('metier-cinema')||main.classList.contains('metier-poster')||main.classList.contains('metier-feature'))){
   if(main.querySelector('.metier-head').getBoundingClientRect().width<frame.width*.9)errors.push('La composition panoramique doit utiliser toute la largeur');
  }
  const copy=[...main.querySelectorAll('[data-content-key]')].filter(el=>!el.closest('.n3-scene'));
@@ -80,6 +80,18 @@ function illustrationErrors(node){
    if(width*height>16*scale*scale)errors.push('Illustration sur le texte : '+art.className+' / '+text.dataset.contentKey);
   }
  }
+ return errors;
+}
+function readabilityErrors(node){
+ const errors=[],landscape=node.dataset.studioFormat==='linkedin_landscape';
+ const main=node.querySelector('main'),scale=(main.getBoundingClientRect().width/main.offsetWidth)/(node.getBoundingClientRect().width/node.offsetWidth);
+ const rules=[['h1',landscape?30:42],['[data-content-key="introduction"]',landscape?20:26],['[data-content-key="cta"]',landscape?20:24],['figcaption',landscape?18:22],['.metier-code,.metier-subjects li',landscape?18:22],['.sv-brand__slogan',landscape?16:19],['.sv-footer__site,.sv-footer__phone',landscape?17:20],['.sv-footer__place',landscape?16:17]];
+ for(const [selector,min] of rules)for(const el of node.querySelectorAll(selector)){
+  const style=getComputedStyle(el);if(style.display==='none')continue;
+  const size=parseFloat(style.fontSize)*(main.contains(el)?scale:1);
+  if(size<min-.3)errors.push('Texte trop petit : '+el.textContent.trim().slice(0,45)+' ('+size.toFixed(1)+' px, minimum '+min+')');
+ }
+ if(/\b\d{2}\s*\/\s*(10|25)\b/.test(main.textContent))errors.push('Compteur décoratif encore présent');
  return errors;
 }
 async function render(target,id,formation,format,scenario){
@@ -97,6 +109,7 @@ async function render(target,id,formation,format,scenario){
  const errors=validateStudioSlide(node).blockingErrors.map(e=>e.message);
  if(id.startsWith('new2_')||id.startsWith('new3_')||id.startsWith('metier_'))errors.push(...paletteErrors(node,themes[formation]));
  if(id.startsWith('new3_')||id.startsWith('metier_'))errors.push(...illustrationErrors(node));
+ if(id.startsWith('metier_'))errors.push(...readabilityErrors(node));
  const text=node.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const count=(text.match(/faites le premier pas vers votre futur metier/g)||[]).length;
  if(count!==1)errors.push('Signature présente '+count+' fois');
@@ -122,7 +135,7 @@ $('png').onclick=()=>checkExport(false);$('video').onclick=()=>checkExport(true)
 $('gallery').onclick=async()=>{
  if(running||exporter.running)return;
  $('gallery').disabled=true;$('preview').replaceChildren();previewProject=null;exportAvailability();$('examples').replaceChildren();$('report').textContent='';
- const isMetier=$('collection').value==='metier',page=isMetier?0:Number($('sheet').value),selected=selectedTemplates().filter(t=>!isMetier||t.formationPreset===$('formation').value).slice(page*10,page*10+10),results=[];
+ const isMetier=$('collection').value.startsWith('metier'),page=Number($('sheet').value),selected=selectedTemplates().filter(t=>!isMetier||t.formationPreset===$('formation').value).slice(page*10,page*10+10),results=[];
  try{for(const t of selected){
   const card=document.createElement('div'),label=document.createElement('strong'),cell=document.createElement('div');label.textContent=t.name;cell.className='qa-cell';card.append(label,cell);$('examples').append(card);
   const result=await render(cell,t.id,$('formation').value,'instagram_square',$('scenario').value);card.dataset.errors=JSON.stringify(result.errors);results.push(result);
@@ -139,5 +152,9 @@ $('run').onclick=async()=>{
  const failures=results.filter(r=>r.errors.length);$('report').textContent=JSON.stringify({total:results.length,failed:failures.length,failures},null,2);$('summary').textContent='Terminé : '+(results.length-failures.length)+'/'+results.length+' sans erreur';
  }catch(error){$('report').textContent=error.stack}finally{running=false;$('view').disabled=$('run').disabled=false;$('stop').disabled=true;$('stage').replaceChildren();exportAvailability()}
 };
+$('collection').onchange=()=>{
+ const count=$('collection').value.startsWith('metier')?Math.max(...Object.keys(themes).map(f=>selectedTemplates().filter(t=>t.formationPreset===f).length)):selectedTemplates().length;
+ $('sheet').replaceChildren();for(let i=0;i<Math.ceil(count/10);i++)$('sheet').add(new Option(`Modèles ${i*10+1}–${Math.min(count,(i+1)*10)}`,String(i)));
+};$('collection').onchange();
 $('summary').textContent=ready.length+' modèles disponibles';await $('view').onclick();
 </script></body></html>

@@ -73,6 +73,18 @@ function fitOptions(element,canvas){
     maxLines:lines,maxHeight:height,
     lineHeight:designed.lineHeight
   });
+  if(canvas.classList?.contains('metier-layout')){
+    const landscape=canvas.dataset.studioFormat==='linkedin_landscape';
+    const story=canvas.dataset.studioFormat==='instagram_story';
+    // A heading's parent often contains only that heading. Multiplying its
+    // height by .62 was shrinking readable type even when the canvas had room.
+    // Profession layouts reserve room for copy and keep a meaningful type floor.
+    if(kind==='title')return options(landscape?30:42,5,landscape?210:story?520:360);
+    if(kind==='body')return options(landscape?20:26,6,landscape?175:story?440:330);
+    if(kind==='cta')return options(landscape?20:24,3,landscape?90:130);
+    if(kind==='badge')return options(landscape?16:19,2,78);
+    if(kind==='meta')return options(landscape?18:22,3,150);
+  }
   if(kind==='badge'){
     const vertical=String(style.writingMode||'').startsWith('vertical');
     if(vertical)return options(8,2,Math.max(180,Math.min(520,parentHeight-40)));

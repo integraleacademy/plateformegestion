@@ -6,22 +6,22 @@ import {defaultContentForFormation,normalizeSlideContentForTemplate} from '../st
 
 const catalog=JSON.parse(readFileSync(new URL('../static/studio_visuals/data/templates.json',import.meta.url))).templates;
 const templates=catalog.filter(t=>t.isMetier);
-test('each profession has ten complete templates with its own artwork and correct preset',()=>{
- assert.equal(templates.length,50);
- assert.equal(METIER_DESIGNS.length,50);
- assert.equal(new Set(METIER_DESIGNS.map(renderMetierIllustration)).size,50);
- assert.equal(new Set(METIER_DESIGNS.map(d=>d.layout)).size,10);
+test('each profession has twenty-five complete templates with its own artwork and correct preset',()=>{
+ assert.equal(templates.length,125);
+ assert.equal(METIER_DESIGNS.length,125);
+ assert.equal(new Set(METIER_DESIGNS.map(renderMetierIllustration)).size,125);
+ assert.equal(new Set(METIER_DESIGNS.map(d=>d.layout)).size,15);
  for(const formation of ['SSIAP','APS','VTC','A3P','DIRIGEANT']){
   const collection=templates.filter(t=>t.formationPreset===formation);
-  assert.equal(collection.length,10,formation);
-  assert.deepEqual(collection.map(t=>t.professionIndex),[1,2,3,4,5,6,7,8,9,10]);
+  assert.equal(collection.length,25,formation);
+  assert.deepEqual(collection.map(t=>t.professionIndex),Array.from({length:25},(_,i)=>i+1));
  }
  for(const template of templates){
   const d=METIER_DESIGNS.find(d=>d.id===template.id);
   assert.ok(d,template.id);
   assert.equal(template.formationPreset,d.formation);
   assert.equal(template.renderer,'renderMetierTemplate');
-  assert.equal(template.status,'ready');
+  assert.ok(['ready','preview'].includes(template.status));
   assert.deepEqual(template.contentDefaults,d.contentDefaults);
   assert.equal(template.supportedFormats.length,4);
   const body=renderMetierTemplateBody({template,project:{formation:d.formation},slide:{content:d.contentDefaults}});
@@ -29,8 +29,17 @@ test('each profession has ten complete templates with its own artwork and correc
   assert.equal((body.match(/data-content-key="introduction"/g)||[]).length,1);
   assert.equal((body.match(/data-content-key="cta"/g)||[]).length,1);
   assert.equal(body.includes('data-motion='),Boolean(template.motion));
+  assert.ok(!body.includes('metier-index'));
+  assert.doesNotMatch(body,/\b\d{2}\s*\/\s*(10|25)\b/);
   assert.ok(!/175 h|CPF|🛡|Faites le premier pas/.test(body));
  }
+});
+test('seventy-five additions preserve all original template identifiers',()=>{
+ const extra=templates.filter(t=>t.isMetierExpansion);
+ assert.equal(extra.length,75);
+ for(const f of ['SSIAP','APS','VTC','A3P','DIRIGEANT'])assert.equal(extra.filter(t=>t.formationPreset===f).length,15);
+ assert.equal(templates.filter(t=>!t.isMetierExpansion).length,50);
+ assert.ok(templates.filter(t=>!t.isMetierExpansion).every(t=>t.status==='ready'));
 });
 test('selecting a mission updates automatic copy while retaining contact details',()=>{
  const first=templates[0],next=templates[1];

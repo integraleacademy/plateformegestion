@@ -73,7 +73,7 @@ function fitOptions(element,canvas){
     maxLines:lines,maxHeight:height,
     lineHeight:designed.lineHeight
   });
-  if(canvas.classList?.contains('metier-layout')){
+  if(canvas.classList?.contains('metier-layout')||canvas.classList?.contains('bts-layout')){
     const landscape=canvas.dataset.studioFormat==='linkedin_landscape';
     const story=canvas.dataset.studioFormat==='instagram_story';
     // A heading's parent often contains only that heading. Multiplying its

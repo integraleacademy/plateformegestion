@@ -1,14 +1,17 @@
 <!doctype html><html lang="fr"><meta charset="utf-8"><title>Studio — contrôle des compositions</title>
-<link rel="stylesheet" href="../css/studio-shell.css"><link rel="stylesheet" href="../css/studio-canvas.css"><link rel="stylesheet" href="../css/studio-templates.css"><link rel="stylesheet" href="../css/studio-themes.css"><link rel="stylesheet" href="../css/studio-new-templates.css"><link rel="stylesheet" href="../css/studio-new2-templates.css">
+<link rel="stylesheet" href="../css/studio-shell.css"><link rel="stylesheet" href="../css/studio-canvas.css"><link rel="stylesheet" href="../css/studio-templates.css"><link rel="stylesheet" href="../css/studio-themes.css"><link rel="stylesheet" href="../css/studio-new-templates.css"><link rel="stylesheet" href="../css/studio-new2-templates.css"><link rel="stylesheet" href="../css/studio-new3-templates.css">
 <style>body{padding:16px}.controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:#edf1f7;padding:12px;z-index:100}.controls label{width:170px}.controls button{margin-bottom:12px}#preview{zoom:.6;margin:20px}#stage{position:absolute;left:-20000px;top:0}pre{white-space:pre-wrap;background:white;padding:18px}#summary{font-size:18px;font-weight:700}#examples{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}#examples>div{overflow:hidden;height:275px;background:white}#examples .social-studio-slide{transform:scale(.24);transform-origin:top left}</style>
 <body class="social-studio"><div class="controls">
-<label>Collection<select id="collection"><option value="new2">NEW2</option><option value="all">Tous les modèles</option><option value="old">Modèles précédents</option></select></label>
+<label>Collection<select id="collection"><option value="new3">NEW3</option><option value="new2">NEW2</option><option value="all">Tous les modèles</option><option value="old">Modèles précédents</option></select></label>
 <label>Formation<select id="formation"></select></label><label>Contenu<select id="scenario"><option value="default">Texte normal</option><option value="long">Texte long</option><option value="legacy">Ancien slogan répété</option></select></label>
 <label>Étendue<select id="scope"><option value="one">Formation choisie</option><option value="all">Toutes les formations</option></select></label>
 <button id="run">Contrôler</button><button id="stop" disabled>Arrêter</button>
 <label>Modèle<select id="template"></select></label><label>Format<select id="format"></select></label><button id="view">Afficher</button>
 <button id="png" disabled>Vérifier le PNG</button><button id="video" disabled>Vérifier la vidéo</button>
+<label>Planche<select id="sheet"><option value="0">Modèles 1–10</option><option value="1">Modèles 11–20</option><option value="2">Modèles 21–30</option><option value="3">Modèles 31–40</option><option value="4">Modèles 41–50</option></select></label><button id="gallery">Voir les 10 modèles</button>
 </div><p id="summary" aria-live="polite">Chargement…</p><div id="preview"></div><pre id="report"></pre><div id="stage"></div>
+<div id="examples"></div>
+<style>#examples{grid-template-columns:repeat(5,250px);gap:12px}#examples>div{height:282px;background:none;overflow:visible}#examples strong{display:block;font-size:11px;padding:8px 0}#examples .qa-cell{height:250px;position:relative;overflow:hidden;background:none}#examples .social-studio-slide{position:absolute;inset:0;transform:scale(.23148);transform-origin:top left}</style>
 <div id="studio-export-root" aria-hidden="true"></div>
 <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js" defer></script>
 <script type="module">
@@ -19,11 +22,12 @@ import {waitForImages,SocialVisualExporter} from '../js/studio-exporter.js';
 import {createProject,defaultContentForFormation,FORMATS} from '../js/studio-store.js';
 const $=id=>document.getElementById(id);
 const [{templates},themes]=await Promise.all(['templates','themes'].map(n=>fetch('../data/'+n+'.json').then(r=>r.json())));
-const ready=templates.filter(t=>t.status==='ready');
+const ready=templates.filter(t=>t.status==='ready'||(t.isNew3&&t.status==='preview'));
+const selectedTemplates=()=>ready.filter(t=>$('collection').value==='all'||($('collection').value==='new3'?t.isNew3:$('collection').value==='new2'?t.isNew2:!t.isNew2&&!t.isNew3));
 for(const t of ready)$('template').add(new Option(t.name,t.id));
 for(const f of Object.keys(themes))$('formation').add(new Option(f,f));
 for(const [id,f] of Object.entries(FORMATS))$('format').add(new Option(f.label,id));
-$('formation').value='A3P';$('template').value='new2_aperture';
+$('formation').value='A3P';$('template').value='new3_prism';
 let running=false,previewProject=null;
 const exporter=new SocialVisualExporter({root:$('studio-export-root'),templates,themes});
 function exportAvailability(){
@@ -49,7 +53,7 @@ function paletteErrors(node,theme){
  }
  const luminance=c=>c.slice(0,3).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
  for(const action of node.querySelectorAll('.n2-action')){
-  const a=luminance(rgb(getComputedStyle(action.querySelector('.n2-cta')).color)),b=luminance(rgb(getComputedStyle(action).backgroundColor));
+  const a=luminance(rgb(getComputedStyle(action.querySelector('[data-content-key="cta"]')).color)),b=luminance(rgb(getComputedStyle(action).backgroundColor));
   if((Math.max(a,b)+.05)/(Math.min(a,b)+.05)<4.5)errors.push('Contraste insuffisant du bouton');
  }
  return errors;
@@ -67,7 +71,7 @@ async function render(target,id,formation,format,scenario){
  await fitSlide(node,{waitForPaint:false});await fitSlide(node,{waitForPaint:false});
  await new Promise(resolve=>setTimeout(resolve,0));
  const errors=validateStudioSlide(node).blockingErrors.map(e=>e.message);
- if(id.startsWith('new2_'))errors.push(...paletteErrors(node,themes[formation]));
+ if(id.startsWith('new2_')||id.startsWith('new3_'))errors.push(...paletteErrors(node,themes[formation]));
  const text=node.textContent.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const count=(text.match(/faites le premier pas vers votre futur metier/g)||[]).length;
  if(count!==1)errors.push('Signature présente '+count+' fois');
@@ -90,9 +94,20 @@ async function checkExport(motion){
  finally{if(objectUrl)setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);$('view').disabled=$('run').disabled=false;exportAvailability();}
 }
 $('png').onclick=()=>checkExport(false);$('video').onclick=()=>checkExport(true);
+$('gallery').onclick=async()=>{
+ if(running||exporter.running)return;
+ $('gallery').disabled=true;$('preview').replaceChildren();previewProject=null;exportAvailability();$('examples').replaceChildren();$('report').textContent='';
+ const page=Number($('sheet').value),selected=selectedTemplates().slice(page*10,page*10+10),results=[];
+ try{for(const t of selected){
+  const card=document.createElement('div'),label=document.createElement('strong'),cell=document.createElement('div');label.textContent=t.name;cell.className='qa-cell';card.append(label,cell);$('examples').append(card);
+  results.push(await render(cell,t.id,$('formation').value,'instagram_square',$('scenario').value));
+ }
+ $('summary').textContent=selected.length+' modèles affichés · '+results.filter(r=>r.errors.length).length+' erreurs';
+ }finally{$('gallery').disabled=false;}
+};
 $('stop').onclick=()=>{running=false};
 $('run').onclick=async()=>{
- const selected=ready.filter(t=>$('collection').value==='all'||($('collection').value==='new2'?t.isNew2:!t.isNew2));
+ const selected=selectedTemplates();
  const formations=$('scope').value==='all'?Object.keys(themes):[$('formation').value],scenario=$('scenario').value;
  running=true;previewProject=null;exportAvailability();$('view').disabled=$('run').disabled=true;$('stop').disabled=false;$('preview').replaceChildren();const results=[];
  try{for(const formation of formations){for(const format of Object.keys(FORMATS)){for(const t of selected){if(!running)break;results.push(await render($('stage'),t.id,formation,format,scenario));$('summary').textContent=results.length+'/'+(selected.length*formations.length*4)+' contrôles';}}}

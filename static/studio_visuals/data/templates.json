@@ -3981,6 +3981,1633 @@
       "renderer": "renderNew2Template",
       "status": "ready",
       "version": 5
+    },
+    {
+      "id": "new3_prism",
+      "family": "cover",
+      "name": "NEW3 · Le prisme de votre avenir",
+      "description": "Prisme lumineux et affiche nocturne",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "orbit",
+      "hasEmojis": false,
+      "previewStyle": 1,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_sunrise",
+      "family": "cover",
+      "name": "NEW3 · L’horizon s’ouvre",
+      "description": "Soleil graphique et lignes d’horizon",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "rise",
+      "hasEmojis": false,
+      "previewStyle": 2,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_monogram",
+      "family": "cover",
+      "name": "NEW3 · Votre métier en grand",
+      "description": "Monogramme découpé et bloc typographique",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 3,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_archway",
+      "family": "cover",
+      "name": "NEW3 · Passez à la suite",
+      "description": "Arcades architecturales en perspective",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 4,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_orbit_cards",
+      "family": "cover",
+      "name": "NEW3 · Un projet, des possibilités",
+      "description": "Cartes illustrées en constellation",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 5,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_ribbon_path",
+      "family": "cover",
+      "name": "NEW3 · Dessinez votre parcours",
+      "description": "Ruban continu et titre en marge",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": false,
+      "previewStyle": 6,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_paper_cut",
+      "family": "cover",
+      "name": "NEW3 · Changez de perspective",
+      "description": "Papier découpé en relief",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 7,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_spotlight",
+      "family": "cover",
+      "name": "NEW3 · C’est votre moment",
+      "description": "Cercle de lumière et affiche de scène",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": false,
+      "previewStyle": 8,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_zigzag",
+      "family": "cover",
+      "name": "NEW3 · L’élan qui change tout",
+      "description": "Flèche pliée et typographie décalée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "rise",
+      "hasEmojis": false,
+      "previewStyle": 9,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_wave_signal",
+      "family": "cover",
+      "name": "NEW3 · Faites vibrer votre projet",
+      "description": "Signal lumineux sur fond profond",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": false,
+      "previewStyle": 10,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_headline_press",
+      "family": "cover",
+      "name": "NEW3 · La une de votre avenir",
+      "description": "Une de magazine et cartouche de session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 11,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_column_cover",
+      "family": "cover",
+      "name": "NEW3 · La prochaine édition",
+      "description": "Couverture littéraire et tranche colorée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 12,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_manifesto",
+      "family": "cover",
+      "name": "NEW3 · Osez la suite",
+      "description": "Manifeste typographique centré",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 13,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_underlined",
+      "family": "cover",
+      "name": "NEW3 · Le déclic",
+      "description": "Composition soulignée et flèche manuscrite",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 14,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_index_tabs",
+      "family": "cover",
+      "name": "NEW3 · Le bon chapitre",
+      "description": "Intercalaires et fiche éditoriale",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 15,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_editorial_seal",
+      "family": "cover",
+      "name": "NEW3 · Un nouveau départ",
+      "description": "Sceau graphique et affiche sérif",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 16,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_cut_type",
+      "family": "cover",
+      "name": "NEW3 · Place au changement",
+      "description": "Grand lettrage et aplats découpés",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 17,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_swiss_grid",
+      "family": "cover",
+      "name": "NEW3 · Cap sur votre métier",
+      "description": "Grille suisse et direction affirmée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 18,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_offset_blocks",
+      "family": "cover",
+      "name": "NEW3 · Construisez la suite",
+      "description": "Blocs asymétriques et surfaces superposées",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "startDate",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 19,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_typographic_flag",
+      "family": "cover",
+      "name": "NEW3 · Votre avenir prend place",
+      "description": "Fanion typographique et colonne fine",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 20,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_mission_board",
+      "family": "cover",
+      "name": "NEW3 · Projet métier",
+      "description": "Tableau de projet en trois étapes",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 21,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_launchpad",
+      "family": "cover",
+      "name": "NEW3 · Prêt à démarrer",
+      "description": "Rampe de lancement illustrée",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "rise",
+      "hasEmojis": true,
+      "previewStyle": 22,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_chat_invite",
+      "family": "cover",
+      "name": "NEW3 · Votre projet mérite une réponse",
+      "description": "Invitation à échanger et bulles de dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": true,
+      "previewStyle": 23,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_path_cards",
+      "family": "cover",
+      "name": "NEW3 · À chaque étape, une équipe",
+      "description": "Trois cartes pour accompagner votre parcours",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": true,
+      "previewStyle": 24,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_agenda_card",
+      "family": "cover",
+      "name": "NEW3 · La prochaine session",
+      "description": "Invitation et date mise à l’honneur",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "startDate",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 25,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_training_kit",
+      "family": "cover",
+      "name": "NEW3 · Tout commence ici",
+      "description": "Kit illustré du futur professionnel",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": true,
+      "previewStyle": 26,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_metro_map",
+      "family": "cover",
+      "name": "NEW3 · Votre ligne vers l’avenir",
+      "description": "Ligne de métro et étapes du projet",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 27,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_swipe_deck",
+      "family": "cover",
+      "name": "NEW3 · Faites le bon choix",
+      "description": "Jeu de cartes en éventail",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 28,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_checklist",
+      "family": "cover",
+      "name": "NEW3 · Votre projet prend vie",
+      "description": "Liste de préparation et coche graphique",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 29,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_focus_mode",
+      "family": "cover",
+      "name": "NEW3 · Activez votre avenir",
+      "description": "Interrupteur géant et affiche minimaliste",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": false,
+      "previewStyle": 30,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_diploma",
+      "family": "cover",
+      "name": "NEW3 · Votre prochain chapitre",
+      "description": "Diplôme illustré et halo rayonnant",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 31,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_rocket",
+      "family": "cover",
+      "name": "NEW3 · Donnez de l’élan",
+      "description": "Fusée et traînée verticale",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "rise",
+      "hasEmojis": true,
+      "previewStyle": 32,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_toolbox",
+      "family": "cover",
+      "name": "NEW3 · Un métier concret",
+      "description": "Boîte à outils sur socle graphique",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 33,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_handshake",
+      "family": "cover",
+      "name": "NEW3 · Avançons ensemble",
+      "description": "Poignée de main et deux formes réunies",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": true,
+      "previewStyle": 34,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_idea",
+      "family": "cover",
+      "name": "NEW3 · Du projet à l’action",
+      "description": "Ampoule et rayons graphiques",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": true,
+      "previewStyle": 35,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_briefcase",
+      "family": "cover",
+      "name": "NEW3 · La suite professionnelle",
+      "description": "Mallette et carte de parcours",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 36,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_key",
+      "family": "cover",
+      "name": "NEW3 · Ouvrez les possibilités",
+      "description": "Clé et serrure monumentale",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": true,
+      "previewStyle": 37,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_target",
+      "family": "cover",
+      "name": "NEW3 · Gardez le cap",
+      "description": "Cible illustrée et coordonnées graphiques",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 38,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_spark",
+      "family": "cover",
+      "name": "NEW3 · Votre talent, la suite",
+      "description": "Étoiles et affiche lumineuse",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": true,
+      "previewStyle": 39,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_emoji_books",
+      "family": "cover",
+      "name": "NEW3 · Apprendre pour avancer",
+      "description": "Bibliothèque et pile de livres",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 40,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_constellation",
+      "family": "cover",
+      "name": "NEW3 · Reliez vos ambitions",
+      "description": "Constellation et points de rencontre",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "pulse",
+      "hasEmojis": false,
+      "previewStyle": 41,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_infinity",
+      "family": "cover",
+      "name": "NEW3 · Une nouvelle dimension",
+      "description": "Boucle infinie et jeu de lignes",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": false,
+      "previewStyle": 42,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_kinetic_steps",
+      "family": "cover",
+      "name": "NEW3 · Chaque étape compte",
+      "description": "Escalier graphique en mouvement",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "rise",
+      "hasEmojis": false,
+      "previewStyle": 43,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_sonar",
+      "family": "cover",
+      "name": "NEW3 · Trouvez votre voie",
+      "description": "Éventail de lumière et signal circulaire",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "orbit",
+      "hasEmojis": false,
+      "previewStyle": 44,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_comet",
+      "family": "cover",
+      "name": "NEW3 · Vers de nouveaux horizons",
+      "description": "Comète et lignes de vitesse",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "rise",
+      "hasEmojis": false,
+      "previewStyle": 45,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_folded_map",
+      "family": "cover",
+      "name": "NEW3 · Tracez votre route",
+      "description": "Carte pliée et repère de destination",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 46,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_growth_garden",
+      "family": "cover",
+      "name": "NEW3 · Faites grandir votre projet",
+      "description": "Plante abstraite et courbes organiques",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "float",
+      "hasEmojis": false,
+      "previewStyle": 47,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_bridge",
+      "family": "cover",
+      "name": "NEW3 · Un pont vers demain",
+      "description": "Pont architectural et horizon ouvert",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "design",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "",
+      "hasEmojis": false,
+      "previewStyle": 48,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_cascade",
+      "family": "cover",
+      "name": "NEW3 · L’impulsion du changement",
+      "description": "Dominos de couleur et rythme diagonal",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "orbit",
+      "hasEmojis": false,
+      "previewStyle": 49,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "new3_celebration",
+      "family": "cover",
+      "name": "NEW3 · Le début d’une belle suite",
+      "description": "Arche festive et éclats illustrés",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isNew3": true,
+      "collection": "NEW3",
+      "motion": "bob",
+      "hasEmojis": true,
+      "previewStyle": 50,
+      "renderer": "renderNew3Template",
+      "status": "preview",
+      "version": 1
     }
   ]
 }

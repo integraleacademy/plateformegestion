@@ -7,7 +7,7 @@ const {renderSlide,buildTemplateRegistry,getTemplateStructureFingerprint,recomme
 const {decorateEditableElements}=await import('../static/studio_visuals/js/studio-element-editor.js');
 const data=JSON.parse(readFileSync('static/studio_visuals/data/templates.json','utf8'));
 const themes=JSON.parse(readFileSync('static/studio_visuals/data/themes.json','utf8'));
-const ready=data.templates.filter(t=>t.status==='ready');
+const ready=data.templates.filter(t=>t.status==='ready'||(t.isNew3&&t.status==='preview'));
 assert.ok(ready.length >= 115);
 const newTemplates=ready.filter(template=>template.isNew);
 assert.equal(newTemplates.length,55);
@@ -34,4 +34,4 @@ const formats={instagram_square:{width:1080,height:1080},instagram_portrait:{wid
 let combinations=0;
 for(const [formation,theme] of Object.entries(themes)){for(const [id,dims] of Object.entries(formats)){for(const template of ready){const themedProject={...project,formation,format:{id,...dims}};const slide={templateId:template.id,content,options:{showSafeMargins:false}};const node=renderSlide(themedProject,slide,'export',{templates:ready,templateRegistry:registry,themes});assert.equal(node.dataset.formation,formation);assert.equal(node.dataset.studioFormat,id);assert.equal(node.style['--formation-primary'],theme.primary);assert.equal(node.style['--formation-secondary'],theme.secondary);assert.equal(node.style['--formation-dark'],theme.surfaceDark);assert.equal(node.style['--studio-chrome-logo-size'],id==='linkedin_landscape'?'96px':'150px');const badge=formation==='OR'?'INTÉGRALE':formation;assert.ok(node.innerHTML.includes(`class="sv-brand__formation">${badge}</span>`),`${formation} badge`);combinations++}}}
 assert.deepEqual(recommendTemplates({...content,examDate:'04/11/2026'}).slice(0,2),['session_calendar','session_ticket']);
-console.log(`${ready.length} templates ready, 55 NEW designs distinct, ${combinations} formation/format/template combinations rendered`);
+console.log(`${ready.length} templates checked, 55 NEW designs distinct, ${combinations} formation/format/template combinations rendered`);

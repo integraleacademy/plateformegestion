@@ -151,12 +151,12 @@
 .n3-metro>div{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:25px;border-top:12px solid var(--n3-color);padding-top:38px}
 .n3-metro>div>i{position:absolute;top:-24px;left:0;width:35px;height:35px;background:var(--n3-paper);border:8px solid var(--n3-color);border-radius:50%}
 .n3-metro>div>span:not(.n2-code){font-size:24px;line-height:1.25;font-weight:750}
-.n3-card-fan{position:relative;width:100%;height:100%}
-.n3-playing-card{position:absolute;inset:50px 75px 30px 25px;border:2px solid var(--theme-text);border-radius:25px;background:var(--n3-tint);box-shadow:8px 12px 0 #00000020;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:25px;rotate:-18deg}
+.n3-card-fan{position:relative;width:84%;max-width:400px;height:78%}
+.n3-playing-card{position:absolute;inset:12% 30% 12% 12%;border:2px solid var(--theme-text);border-radius:25px;background:var(--n3-tint);box-shadow:8px 12px 0 #00000020;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:25px;rotate:-12deg}
 .n3-playing-card span{font-size:108px;line-height:1.1}
 .n3-playing-card b{font-size:34px;line-height:1.1}
-.n3-playing-b{inset:30px 35px 50px 65px;background:var(--formation-background-alt);rotate:2deg}
-.n3-playing-c{inset:65px 5px 15px 95px;background:var(--n3-surface);rotate:17deg}
+.n3-playing-b{inset:8% 20% 16% 22%;background:var(--formation-background-alt);rotate:2deg}
+.n3-playing-c{inset:18% 12% 6% 30%;background:var(--n3-surface);rotate:12deg}
 .n3-check-sheet{width:100%;background:var(--n3-surface);border:1px solid var(--theme-border);padding:28px;border-radius:25px;box-shadow:10px 12px 0 var(--n3-tint)}
 .n3-check-sheet>header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .n3-check-sheet>header>b{font-size:52px;color:var(--n3-color)}
@@ -219,7 +219,7 @@
 .n3-step-ladder+.n3-note{position:absolute;bottom:-40px;font-size:14px;text-align:center}
 .n3-sonar-disc{padding:18px}
 .n3-art.n3-comet{max-width:390px}
-.n3-map{position:relative;display:flex;width:100%;height:90%;rotate:-5deg}
+.n3-map{position:relative;display:flex;width:86%;height:82%;rotate:-5deg}
 .n3-map>i{flex:1;background:var(--n3-tint);transform:skewY(-10deg);border:1px solid var(--theme-border)}
 .n3-map>i:nth-child(2){background:var(--formation-background-alt);transform:skewY(10deg)}
 .n3-map-route{position:absolute;inset:0}

@@ -10558,6 +10558,1176 @@
       "renderer": "renderMetierTemplate",
       "status": "ready",
       "version": 1
+    },
+    {
+      "id": "general_declic",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le déclic",
+      "description": "Intégrale Academy : Envie, Projet, Formation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Votre avenir mérite un déclic.",
+        "introduction": "Une envie de changement ? Explorez les formations Intégrale Academy et donnez une direction à votre projet.",
+        "cta": "Découvrir nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_cap",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le nouveau cap",
+      "description": "Intégrale Academy : Orientation, Ambition, Avenir.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Changez de cap. Gardez votre ambition.",
+        "introduction": "Faites le point sur vos envies et préparez votre prochaine étape professionnelle avec notre équipe.",
+        "cta": "Parlons de votre projet"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_avenir",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’horizon professionnel",
+      "description": "Intégrale Academy : Perspectives, Compétences, Métier.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "Voyez plus loin pour votre avenir.",
+        "introduction": "Un métier à découvrir, des compétences à construire : ouvrez de nouvelles perspectives avec Intégrale Academy.",
+        "cta": "Explorer les possibilités"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reconversion",
+      "family": "cover",
+      "name": "GÉNÉRAL · La reconversion",
+      "description": "Intégrale Academy : Expérience, Évolution, Projet.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Une nouvelle voie s’ouvre à vous.",
+        "introduction": "Votre expérience compte. Appuyez-vous sur elle pour imaginer un nouveau projet de formation.",
+        "cta": "Préparer ma reconversion"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_potentiel",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le potentiel",
+      "description": "Intégrale Academy : Potentiel, Apprentissage, Élan.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Donnez de la place à votre potentiel.",
+        "introduction": "Cultivez votre envie d’apprendre et découvrez les parcours qui peuvent faire avancer votre projet.",
+        "cta": "Trouver ma formation"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_objectif",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’objectif",
+      "description": "Intégrale Academy : Objectif, Préparation, Progression.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 6,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "Un objectif en tête. Un projet à construire.",
+        "introduction": "Transformez votre envie de progresser en un projet de formation concret, avec des repères pour avancer.",
+        "cta": "Construire mon projet"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_parcours",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le parcours de formation",
+      "description": "Intégrale Academy : Choix, Préparation, Parcours.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 7,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Votre parcours commence à prendre forme.",
+        "introduction": "Du choix de la formation à la préparation de votre entrée, échangeons sur les étapes de votre projet.",
+        "cta": "Préparer mon parcours"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_accompagnement",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’accompagnement",
+      "description": "Intégrale Academy : Écoute, Échanges, Accompagnement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 8,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "Une équipe à vos côtés pour avancer.",
+        "introduction": "Vos questions, vos envies, votre projet : prenons le temps de préparer ensemble votre parcours de formation.",
+        "cta": "Rencontrer notre équipe"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_choix",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le choix de la formation",
+      "description": "Intégrale Academy : Découverte, Orientation, Choix.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 9,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "Trouvez le parcours qui vous correspond.",
+        "introduction": "Découvrez nos univers de formation et échangez avec notre équipe pour préciser votre orientation.",
+        "cta": "Découvrir les parcours"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_rencontre",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le premier échange",
+      "description": "Intégrale Academy : Questions, Écoute, Rencontre.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 10,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Votre projet mérite une conversation.",
+        "introduction": "Une question sur une formation ? Faites connaissance avec notre équipe et parlons de votre prochaine étape.",
+        "cta": "Parlons de votre projet"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_competences",
+      "family": "cover",
+      "name": "GÉNÉRAL · La construction des compétences",
+      "description": "Intégrale Academy : Apprendre, Pratiquer, Progresser.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 11,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "Construisez des compétences qui comptent.",
+        "introduction": "Apprendre, s’exercer, progresser : donnez une place à la formation dans votre avenir professionnel.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_pratique",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’apprentissage par la pratique",
+      "description": "Intégrale Academy : Pratique, Métier, Préparation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 12,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Donnez du concret à vos ambitions.",
+        "introduction": "Découvrez des formations tournées vers les métiers et la préparation de votre futur quotidien professionnel.",
+        "cta": "Découvrir notre approche"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_collectif",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’énergie du collectif",
+      "description": "Intégrale Academy : Rencontres, Échanges, Collectif.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 13,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "L’envie d’apprendre se partage.",
+        "introduction": "Rencontres, échanges et apprentissage : imaginez votre place dans un nouvel environnement de formation.",
+        "cta": "Rejoindre un parcours"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_progression",
+      "family": "cover",
+      "name": "GÉNÉRAL · La progression",
+      "description": "Intégrale Academy : Apprentissage, Effort, Progression.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 14,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Chaque apprentissage vous fait avancer.",
+        "introduction": "Construisez votre projet avec une idée simple : faire de votre envie d’apprendre une force pour la suite.",
+        "cta": "Faire avancer mon projet"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_confiance",
+      "family": "cover",
+      "name": "GÉNÉRAL · La confiance",
+      "description": "Intégrale Academy : Repères, Préparation, Confiance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 15,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Préparez la suite avec confiance.",
+        "introduction": "Clarifiez votre projet, découvrez votre parcours et échangez avec notre équipe avant de vous lancer.",
+        "cta": "Préparer la prochaine étape"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_inscription",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le projet d’inscription",
+      "description": "Intégrale Academy : Formation, Dossier, Inscription.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 16,
+      "composition": "dossier",
+      "contentDefaults": {
+        "title": "Votre envie devient un projet.",
+        "introduction": "Vous avez une formation en tête ? Contactez notre équipe pour préparer votre demande d’inscription.",
+        "cta": "Préparer mon inscription"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_agenda",
+      "family": "cover",
+      "name": "GÉNÉRAL · Les prochaines sessions",
+      "description": "Intégrale Academy : Sessions, Dates, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 17,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Faites une place à votre avenir.",
+        "introduction": "Consultez les prochaines sessions et préparez votre organisation pour votre projet de formation.",
+        "cta": "Voir les prochaines sessions"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_accueil",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’accueil au centre",
+      "description": "Intégrale Academy : Centre, Équipe, Formation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 18,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "Un lieu pour apprendre et avancer.",
+        "introduction": "Découvrez Intégrale Academy à Puget-sur-Argens et échangez avec notre équipe sur votre projet professionnel.",
+        "cta": "Découvrir Intégrale Academy"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_questions",
+      "family": "cover",
+      "name": "GÉNÉRAL · Les réponses à vos questions",
+      "description": "Intégrale Academy : Questions, Informations, Choix.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 19,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "Vos questions font avancer votre projet.",
+        "introduction": "Parcours, organisation, inscription : notre équipe vous aide à y voir plus clair avant de choisir votre formation.",
+        "cta": "Échanger avec notre équipe"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_preparation",
+      "family": "cover",
+      "name": "GÉNÉRAL · La préparation du départ",
+      "description": "Intégrale Academy : Préparation, Organisation, Départ.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 20,
+      "composition": "dossier",
+      "contentDefaults": {
+        "title": "Préparez votre nouveau départ.",
+        "introduction": "Faites le point sur les étapes de votre projet et les informations utiles pour préparer votre entrée en formation.",
+        "cta": "Organiser mon parcours"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_livre",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le prochain chapitre",
+      "description": "Intégrale Academy : Évolution, Apprentissage, Avenir.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 21,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Écrivez un nouveau chapitre professionnel.",
+        "introduction": "Une envie d’évolution ou de changement ? Ouvrez le champ des possibles avec les formations Intégrale Academy.",
+        "cta": "Ouvrir de nouvelles pistes"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_passerelle",
+      "family": "cover",
+      "name": "GÉNÉRAL · La passerelle vers demain",
+      "description": "Intégrale Academy : Expérience, Formation, Métier.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 22,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Reliez vos envies à un nouveau métier.",
+        "introduction": "Découvrez nos formations et commencez à dessiner un parcours entre votre expérience et votre projet.",
+        "cta": "Dessiner mon parcours"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_elan",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’élan professionnel",
+      "description": "Intégrale Academy : Motivation, Formation, Évolution.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 23,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Donnez de l’élan à votre projet.",
+        "introduction": "Votre motivation est un point de départ. Échangeons sur la formation qui peut accompagner votre prochaine étape.",
+        "cta": "Lancer mon projet"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_univers",
+      "family": "cover",
+      "name": "GÉNÉRAL · Les univers de formation",
+      "description": "Intégrale Academy : Découverte, Parcours, Orientation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 24,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Plusieurs univers. Votre prochaine voie.",
+        "introduction": "Sécurité privée, incendie, protection, direction ou VTC : découvrez les parcours proposés par Intégrale Academy.",
+        "cta": "Explorer nos univers"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_savoir",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le savoir en mouvement",
+      "description": "Intégrale Academy : Curiosité, Savoir, Compétences.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 25,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "L’apprentissage ouvre de nouvelles portes.",
+        "introduction": "Donnez du temps à votre curiosité et découvrez les compétences à travailler dans votre futur parcours.",
+        "cta": "Choisir d’apprendre"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_projet",
+      "family": "cover",
+      "name": "GÉNÉRAL · Le projet qui se dessine",
+      "description": "Intégrale Academy : Idées, Échanges, Construction.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustrated",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 26,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Faites grandir votre idée de départ.",
+        "introduction": "Une envie, une question, une ambition : rassemblez vos idées et construisez votre projet avec notre équipe.",
+        "cta": "Donner forme à mon projet"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_immersion",
+      "family": "cover",
+      "name": "GÉNÉRAL · La découverte des métiers",
+      "description": "Intégrale Academy : Découverte, Métier, Projection.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 27,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Projetez-vous dans un nouveau quotidien.",
+        "introduction": "Découvrez les univers métiers de nos formations et imaginez la prochaine étape de votre vie professionnelle.",
+        "cta": "Découvrir les métiers"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_trajectoire",
+      "family": "cover",
+      "name": "GÉNÉRAL · La trajectoire",
+      "description": "Intégrale Academy : Direction, Parcours, Avenir.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 28,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Votre prochaine étape se prépare ici.",
+        "introduction": "Prenez le temps de choisir votre direction et de préparer un parcours de formation cohérent avec votre projet.",
+        "cta": "Préparer ma prochaine étape"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ambition",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’ambition en action",
+      "description": "Intégrale Academy : Envie, Échange, Action.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 29,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "Passez de l’envie à l’action.",
+        "introduction": "Découvrez nos parcours, posez vos questions et commencez à construire votre projet de formation.",
+        "cta": "Démarrer mon projet"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ensemble",
+      "family": "cover",
+      "name": "GÉNÉRAL · L’aventure Intégrale Academy",
+      "description": "Intégrale Academy : Rencontre, Formation, Avenir.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isGeneral": true,
+      "collection": "GÉNÉRAL",
+      "formationPreset": "OR",
+      "professionIndex": 30,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Votre avenir nous donne rendez-vous.",
+        "introduction": "Faisons connaissance et préparons ensemble votre projet de formation avec Intégrale Academy.",
+        "cta": "Parlons de votre avenir"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
     }
   ]
 }

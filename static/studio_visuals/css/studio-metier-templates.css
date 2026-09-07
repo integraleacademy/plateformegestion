@@ -68,7 +68,7 @@
 .studio-v2.new2-layout.metier-layout .metier-head{gap:16px}
 .studio-v2.new2-layout.metier-layout .metier-bottom{gap:24px}
 .studio-v2.new2-layout.metier-layout .sv-brand__formation{font-size:20px;max-width:190px}
-.studio-v2.new2-layout.metier-layout .sv-brand__slogan{font-size:20px;line-height:1.3;max-width:435px}
+.studio-v2.new2-layout.metier-layout .sv-brand__slogan{font-size:20px;line-height:1.3;max-width:520px;white-space:normal}
 .studio-v2.new2-layout.metier-layout .sv-footer{height:88px!important;inset:auto 58px 28px!important}
 .studio-v2.new2-layout.metier-layout .sv-footer__identity strong{font-size:21px;letter-spacing:.02em}
 .studio-v2.new2-layout.metier-layout .sv-footer__place{font-size:18px}
@@ -128,3 +128,11 @@
 .studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout :is(.metier-dossier,.metier-folio)>.metier-visual{grid-column:2;grid-row:1/4;height:100%}
 .studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout :is(.metier-dossier,.metier-folio)>.metier-copy{grid-column:1;grid-row:3;gap:10px}
 .studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout :is(.metier-dossier,.metier-folio) .metier-subjects{font-size:18px}
+
+/* Long landscape copy keeps its type size by using the available canvas area. */
+.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout :where(.sv-safe)>main.metier-main{inset:112px 44px 92px!important;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:10px 24px}
+.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout main:is(.metier-editorial,.metier-focus){grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
+.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout .metier-copy,.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout .metier-bottom{gap:8px}
+.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout .n2-action{padding-block:10px}
+.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout .metier-head{gap:10px}
+.studio-format-linkedin_landscape.studio-v2.new2-layout.metier-layout main:is(.metier-cinema,.metier-poster,.metier-feature,.metier-dossier,.metier-folio){--n2-title:37px;gap:9px 24px}

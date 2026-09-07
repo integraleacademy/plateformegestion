@@ -7,7 +7,7 @@ const {renderSlide,buildTemplateRegistry,getTemplateStructureFingerprint,recomme
 const {decorateEditableElements}=await import('../static/studio_visuals/js/studio-element-editor.js');
 const data=JSON.parse(readFileSync('static/studio_visuals/data/templates.json','utf8'));
 const themes=JSON.parse(readFileSync('static/studio_visuals/data/themes.json','utf8'));
-const ready=data.templates.filter(t=>t.status==='ready'||((t.isNew3||t.isMetier||t.isGeneral)&&t.status==='preview'));
+const ready=data.templates.filter(t=>t.status==='ready'||((t.isNew3||t.isMetier||t.isGeneral||t.isBts)&&t.status==='preview'));
 assert.ok(ready.length >= 115);
 const newTemplates=ready.filter(template=>template.isNew);
 assert.equal(newTemplates.length,55);

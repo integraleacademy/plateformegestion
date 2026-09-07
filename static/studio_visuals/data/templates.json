@@ -11728,6 +11728,2406 @@
       "renderer": "renderMetierTemplate",
       "status": "ready",
       "version": 1
+    },
+    {
+      "id": "bts_mos_supervision",
+      "family": "saas",
+      "name": "BTS MOS · PC sécurité",
+      "description": "Management opérationnel de la sécurité : Observer, Analyser, Coordonner.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 1,
+      "composition": "workspace",
+      "contentDefaults": {
+        "title": "Prenez de la hauteur sur la sécurité.",
+        "introduction": "Du PC sécurité à la coordination des équipes, découvrez un BTS au cœur des opérations.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_leadership",
+      "family": "saas",
+      "name": "BTS MOS · Leadership terrain",
+      "description": "Management opérationnel de la sécurité : Équipe, Consignes, Mission.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 2,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Le terrain a besoin de votre leadership.",
+        "introduction": "Apprenez à organiser une équipe et à accompagner les missions de sécurité au quotidien.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_prevention",
+      "family": "saas",
+      "name": "BTS MOS · Prévention des risques",
+      "description": "Management opérationnel de la sécurité : Repérer, Prévenir, Préparer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Anticipez. Organisez. Faites la différence.",
+        "introduction": "Analyse des risques, prévention et préparation : construisez votre regard professionnel.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_rondes",
+      "family": "saas",
+      "name": "BTS MOS · Rondes et coordination",
+      "description": "Management opérationnel de la sécurité : Rondes, Consignes, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 4,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Chaque mission mérite une bonne organisation.",
+        "introduction": "Préparez les rondes, structurez les consignes et travaillez la coordination des interventions.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_evenement",
+      "family": "saas",
+      "name": "BTS MOS · Sécurité événementielle",
+      "description": "Management opérationnel de la sécurité : Public, Dispositif, Équipe.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 5,
+      "composition": "flow",
+      "contentDefaults": {
+        "title": "Dans les coulisses des grands rendez-vous.",
+        "introduction": "Accueil du public, organisation et sécurité événementielle : explorez un univers qui bouge.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "rise",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_planning",
+      "family": "saas",
+      "name": "BTS MOS · Organisation des équipes",
+      "description": "Management opérationnel de la sécurité : Planning, Missions, Échanges.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 6,
+      "composition": "arch",
+      "contentDefaults": {
+        "title": "Donnez le bon rythme à votre équipe.",
+        "introduction": "Répartir les missions, préparer les plannings et communiquer : le management commence ici.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_crise",
+      "family": "saas",
+      "name": "BTS MOS · Gestion des situations",
+      "description": "Management opérationnel de la sécurité : Analyser, Communiquer, Agir.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 7,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Gardez le cap quand tout s’accélère.",
+        "introduction": "Travaillez l’analyse de situation, la communication et la coordination dans votre parcours MOS.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_qualite",
+      "family": "saas",
+      "name": "BTS MOS · Qualité de service",
+      "description": "Management opérationnel de la sécurité : Consignes, Suivi, Qualité.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 8,
+      "composition": "cards",
+      "contentDefaults": {
+        "title": "La qualité se construit sur le terrain.",
+        "introduction": "Consignes, suivi des prestations et relation client : donnez du sens à chaque détail.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_alternance",
+      "family": "saas",
+      "name": "BTS MOS · Expérience et formation",
+      "description": "Management opérationnel de la sécurité : Formation, Entreprise, Expérience.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 9,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Apprenez aujourd’hui. Coordonnez demain.",
+        "introduction": "Reliez les enseignements du BTS MOS à votre expérience en entreprise grâce à l’alternance.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "orbit",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mos_projet",
+      "family": "saas",
+      "name": "BTS MOS · Votre projet MOS",
+      "description": "Management opérationnel de la sécurité : Terrain, Organisation, Projet.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MOS",
+      "professionIndex": 10,
+      "composition": "launch",
+      "contentDefaults": {
+        "title": "Votre prochain défi : manager la sécurité.",
+        "introduction": "Envie d’allier organisation, terrain et responsabilités ? Découvrez le BTS MOS chez Intégrale Academy.",
+        "cta": "Découvrir le BTS MOS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_transaction",
+      "family": "saas",
+      "name": "BTS PI · La transaction immobilière",
+      "description": "Professions immobilières : Découverte, Conseil, Transaction.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 1,
+      "composition": "workspace",
+      "contentDefaults": {
+        "title": "Ouvrez la porte de votre avenir.",
+        "introduction": "De la découverte d’un bien à la relation client, explorez les métiers de la transaction immobilière.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_visite",
+      "family": "saas",
+      "name": "BTS PI · La visite immobilière",
+      "description": "Professions immobilières : Bien, Visite, Projet.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 2,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Faites visiter. Faites la différence.",
+        "introduction": "Apprenez à présenter un bien, comprendre un projet et accompagner vos futurs clients.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_location",
+      "family": "saas",
+      "name": "BTS PI · La gestion locative",
+      "description": "Professions immobilières : Location, Dossier, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Derrière chaque location, un vrai métier.",
+        "introduction": "Dossiers, suivi et relation avec les occupants : découvrez les enjeux de la gestion locative.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_copropriete",
+      "family": "saas",
+      "name": "BTS PI · La copropriété",
+      "description": "Professions immobilières : Immeuble, Gestion, Échanges.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 4,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Un immeuble. Des projets à coordonner.",
+        "introduction": "Organisation, échanges et suivi : préparez-vous à comprendre la vie d’une copropriété.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_estimation",
+      "family": "saas",
+      "name": "BTS PI · Le marché immobilier",
+      "description": "Professions immobilières : Marché, Analyse, Conseil.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 5,
+      "composition": "flow",
+      "contentDefaults": {
+        "title": "Apprenez à lire le marché immobilier.",
+        "introduction": "Observez les biens, leur environnement et les attentes des clients pour construire votre analyse.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "rise",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_conseil",
+      "family": "saas",
+      "name": "BTS PI · Le conseil client",
+      "description": "Professions immobilières : Écoute, Besoins, Solutions.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 6,
+      "composition": "arch",
+      "contentDefaults": {
+        "title": "Les bons projets commencent par l’écoute.",
+        "introduction": "Comprendre les besoins, présenter des solutions et créer une relation professionnelle de confiance.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_digital",
+      "family": "saas",
+      "name": "BTS PI · L’immobilier et le digital",
+      "description": "Professions immobilières : Biens, Digital, Clients.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 7,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "L’immobilier prend une nouvelle dimension.",
+        "introduction": "Présentation des biens, outils numériques et relation client : connectez vos compétences.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_negociation",
+      "family": "saas",
+      "name": "BTS PI · La négociation immobilière",
+      "description": "Professions immobilières : Argumenter, Échanger, Accompagner.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 8,
+      "composition": "cards",
+      "contentDefaults": {
+        "title": "Donnez de la valeur à chaque échange.",
+        "introduction": "Travaillez votre argumentation et votre posture pour accompagner un projet immobilier.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_alternance",
+      "family": "saas",
+      "name": "BTS PI · Votre terrain immobilier",
+      "description": "Professions immobilières : Formation, Entreprise, Immobilier.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 9,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Un pied en cours. Un pied dans l’immobilier.",
+        "introduction": "Avec le BTS PI en alternance, reliez les apprentissages à une expérience concrète en entreprise.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "orbit",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_pi_projet",
+      "family": "saas",
+      "name": "BTS PI · Votre projet PI",
+      "description": "Professions immobilières : Transaction, Location, Copropriété.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS PI",
+      "professionIndex": 10,
+      "composition": "launch",
+      "contentDefaults": {
+        "title": "Votre avenir a trouvé une nouvelle adresse.",
+        "introduction": "Transaction, location ou copropriété : explorez votre voie avec le BTS Professions immobilières.",
+        "cta": "Découvrir le BTS PI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_boutique",
+      "family": "saas",
+      "name": "BTS MCO · L’unité commerciale",
+      "description": "Management commercial opérationnel : Clients, Offre, Équipe.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 1,
+      "composition": "workspace",
+      "contentDefaults": {
+        "title": "Entrez dans les coulisses du commerce.",
+        "introduction": "Relation client, offre et organisation : découvrez ce qui fait vivre une unité commerciale.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_experience",
+      "family": "saas",
+      "name": "BTS MCO · L’expérience client",
+      "description": "Management commercial opérationnel : Accueillir, Conseiller, Fidéliser.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 2,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Faites de chaque visite une expérience.",
+        "introduction": "Accueil, écoute et conseil : travaillez une relation client qui donne envie de revenir.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_animation",
+      "family": "saas",
+      "name": "BTS MCO · L’animation commerciale",
+      "description": "Management commercial opérationnel : Offre, Mise en valeur, Animation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Donnez envie. Donnez vie au commerce.",
+        "introduction": "Mettez en valeur une offre et découvrez comment préparer une animation commerciale.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_management",
+      "family": "saas",
+      "name": "BTS MCO · Le management d’équipe",
+      "description": "Management commercial opérationnel : Organiser, Accompagner, Manager.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 4,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Votre énergie peut faire grandir une équipe.",
+        "introduction": "Organisation, échanges et accompagnement : construisez vos premiers repères de manager.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_merchandising",
+      "family": "saas",
+      "name": "BTS MCO · Le merchandising",
+      "description": "Management commercial opérationnel : Produits, Espace, Vitrine.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 5,
+      "composition": "flow",
+      "contentDefaults": {
+        "title": "Le détail qui change toute une vitrine.",
+        "introduction": "Présentation des produits et organisation de l’espace : cultivez votre regard commercial.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "rise",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_gestion",
+      "family": "saas",
+      "name": "BTS MCO · La gestion opérationnelle",
+      "description": "Management commercial opérationnel : Stocks, Flux, Activité.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 6,
+      "composition": "arch",
+      "contentDefaults": {
+        "title": "Pilotez le commerce au quotidien.",
+        "introduction": "Approvisionnements, stocks et suivi de l’activité : découvrez la gestion opérationnelle.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_omnicanal",
+      "family": "saas",
+      "name": "BTS MCO · Le commerce omnicanal",
+      "description": "Management commercial opérationnel : Boutique, Digital, Parcours.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 7,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Le commerce se vit sur tous les canaux.",
+        "introduction": "Du point de vente au digital, apprenez à penser une expérience client cohérente.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_performance",
+      "family": "saas",
+      "name": "BTS MCO · Le suivi de l’activité",
+      "description": "Management commercial opérationnel : Observer, Comprendre, Améliorer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 8,
+      "composition": "cards",
+      "contentDefaults": {
+        "title": "Transformez l’analyse en actions.",
+        "introduction": "Comprendre les indicateurs et préparer des actions : donnez une direction à votre activité.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_alternance",
+      "family": "saas",
+      "name": "BTS MCO · Le commerce en pratique",
+      "description": "Management commercial opérationnel : Cours, Entreprise, Pratique.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 9,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Apprenez le commerce en le vivant.",
+        "introduction": "Avec le BTS MCO en alternance, faites le lien entre les cours et votre quotidien en entreprise.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "orbit",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_mco_projet",
+      "family": "saas",
+      "name": "BTS MCO · Votre projet MCO",
+      "description": "Management commercial opérationnel : Contact, Projets, Équipe.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS MCO",
+      "professionIndex": 10,
+      "composition": "launch",
+      "contentDefaults": {
+        "title": "Votre prochain terrain de jeu : le commerce.",
+        "introduction": "Vous aimez le contact, les projets et le travail en équipe ? Découvrez le BTS MCO.",
+        "cta": "Découvrir le BTS MCO"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_relation",
+      "family": "saas",
+      "name": "BTS NDRC · La relation client",
+      "description": "Négociation et digitalisation de la relation client : Écouter, Comprendre, Proposer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 1,
+      "composition": "workspace",
+      "contentDefaults": {
+        "title": "Votre talent commence par une conversation.",
+        "introduction": "Écouter, comprendre et proposer : construisez une relation client avec le BTS NDRC.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_negociation",
+      "family": "saas",
+      "name": "BTS NDRC · La négociation",
+      "description": "Négociation et digitalisation de la relation client : Préparer, Argumenter, Négocier.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 2,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Faites de vos arguments une force.",
+        "introduction": "Préparez vos échanges commerciaux et apprenez à construire une proposition adaptée.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_crm",
+      "family": "saas",
+      "name": "BTS NDRC · Le suivi client",
+      "description": "Négociation et digitalisation de la relation client : Contact, Échange, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Chaque échange fait avancer la relation.",
+        "introduction": "Outils de suivi, connaissance client et organisation : structurez votre démarche commerciale.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_social",
+      "family": "saas",
+      "name": "BTS NDRC · La relation client digitale",
+      "description": "Négociation et digitalisation de la relation client : Contenus, Réseaux, Interactions.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 4,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Connectez votre avenir au digital.",
+        "introduction": "Réseaux sociaux, contenus et interactions : découvrez la relation client à l’ère numérique.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_prospection",
+      "family": "saas",
+      "name": "BTS NDRC · La prospection",
+      "description": "Négociation et digitalisation de la relation client : Cibler, Préparer, Contacter.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 5,
+      "composition": "flow",
+      "contentDefaults": {
+        "title": "Osez créer de nouvelles opportunités.",
+        "introduction": "Identifier des contacts, préparer une approche et organiser sa prospection : tout se travaille.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "rise",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_reseau",
+      "family": "saas",
+      "name": "BTS NDRC · L’animation de réseaux",
+      "description": "Négociation et digitalisation de la relation client : Partenaires, Échanges, Réseaux.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 6,
+      "composition": "arch",
+      "contentDefaults": {
+        "title": "Les bonnes connexions font avancer.",
+        "introduction": "Partenaires, distributeurs et réseaux : découvrez de nouvelles façons de développer l’activité.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_fidelisation",
+      "family": "saas",
+      "name": "BTS NDRC · La fidélisation",
+      "description": "Négociation et digitalisation de la relation client : Écoute, Suivi, Fidélisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 7,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "La relation continue après la vente.",
+        "introduction": "Écoute, suivi et qualité des échanges : apprenez à faire vivre la relation dans la durée.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_distance",
+      "family": "saas",
+      "name": "BTS NDRC · La relation à distance",
+      "description": "Négociation et digitalisation de la relation client : Téléphone, Visio, Digital.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 8,
+      "composition": "cards",
+      "contentDefaults": {
+        "title": "Proche de vos clients, même à distance.",
+        "introduction": "Téléphone, visio et outils digitaux : travaillez votre présence et votre posture commerciale.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_alternance",
+      "family": "saas",
+      "name": "BTS NDRC · La relation client en pratique",
+      "description": "Négociation et digitalisation de la relation client : Méthodes, Entreprise, Expérience.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 9,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Du cours au rendez-vous client.",
+        "introduction": "En BTS NDRC en alternance, reliez les méthodes commerciales à votre expérience en entreprise.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "orbit",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ndrc_projet",
+      "family": "saas",
+      "name": "BTS NDRC · Votre projet NDRC",
+      "description": "Négociation et digitalisation de la relation client : Contact, Négociation, Digital.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS NDRC",
+      "professionIndex": 10,
+      "composition": "launch",
+      "contentDefaults": {
+        "title": "Vous avez le contact. Construisez la suite.",
+        "introduction": "Négociation, relation client et digital : découvrez un BTS qui réunit vos envies.",
+        "cta": "Découvrir le BTS NDRC"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_monde",
+      "family": "saas",
+      "name": "BTS CI · Votre horizon international",
+      "description": "Commerce international : Langues, Échanges, Commerce.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 1,
+      "composition": "workspace",
+      "contentDefaults": {
+        "title": "Votre avenir voit plus grand.",
+        "introduction": "Langues, échanges et commerce : ouvrez de nouvelles perspectives avec le BTS CI.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_importexport",
+      "family": "saas",
+      "name": "BTS CI · Les opérations internationales",
+      "description": "Commerce international : Import, Export, Partenaires.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 2,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Connectez les marchés. Ouvrez des portes.",
+        "introduction": "Découvrez les opérations d’import-export et les échanges entre partenaires internationaux.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_langues",
+      "family": "saas",
+      "name": "BTS CI · Les langues et les échanges",
+      "description": "Commerce international : Langues, Culture, Communication.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Les langues donnent de l’élan à vos projets.",
+        "introduction": "Travaillez votre communication professionnelle pour échanger dans un contexte international.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_logistique",
+      "family": "saas",
+      "name": "BTS CI · La chaîne logistique",
+      "description": "Commerce international : Transport, Documents, Coordination.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 4,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Suivez le parcours derrière chaque échange.",
+        "introduction": "Transport, documents et coordination : explorez la logistique du commerce international.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_prospection",
+      "family": "saas",
+      "name": "BTS CI · La prospection internationale",
+      "description": "Commerce international : Marchés, Contacts, Prospection.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 5,
+      "composition": "flow",
+      "contentDefaults": {
+        "title": "Allez à la rencontre de nouveaux marchés.",
+        "introduction": "Analysez un environnement, repérez des contacts et préparez votre démarche de prospection.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "rise",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_interculturel",
+      "family": "saas",
+      "name": "BTS CI · Les relations interculturelles",
+      "description": "Commerce international : Cultures, Écoute, Coopération.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 6,
+      "composition": "arch",
+      "contentDefaults": {
+        "title": "Apprenez à travailler au-delà des frontières.",
+        "introduction": "Comprendre les cultures et adapter ses échanges : une autre dimension de la relation professionnelle.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_negociation",
+      "family": "saas",
+      "name": "BTS CI · Les partenaires internationaux",
+      "description": "Commerce international : Partenaires, Échanges, Relation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 7,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Créez des liens qui traversent les frontières.",
+        "introduction": "Préparez vos échanges et découvrez les relations avec des partenaires internationaux.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_veille",
+      "family": "saas",
+      "name": "BTS CI · La veille internationale",
+      "description": "Commerce international : Information, Marchés, Analyse.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 8,
+      "composition": "cards",
+      "contentDefaults": {
+        "title": "Comprenez un monde qui bouge.",
+        "introduction": "Observez les marchés, recherchez l’information et développez votre capacité d’analyse.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_alternance",
+      "family": "saas",
+      "name": "BTS CI · L’international en pratique",
+      "description": "Commerce international : Formation, Entreprise, International.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 9,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Un projet international. Un parcours concret.",
+        "introduction": "Reliez les enseignements du BTS CI à l’expérience en entreprise grâce à l’alternance.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "orbit",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_ci_projet",
+      "family": "saas",
+      "name": "BTS CI · Votre projet CI",
+      "description": "Commerce international : Curiosité, Ouverture, Commerce.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS CI",
+      "professionIndex": 10,
+      "composition": "launch",
+      "contentDefaults": {
+        "title": "Curieux du monde ? Faites-en votre projet.",
+        "introduction": "Langues, ouverture et commerce : explorez le BTS Commerce international chez Intégrale Academy.",
+        "cta": "Découvrir le BTS CI"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_univers",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Tous nos BTS",
+      "description": "Trouvez le BTS qui vous ressemble : MOS, PI, MCO, NDRC, CI, CG.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 1,
+      "composition": "workspace",
+      "contentDefaults": {
+        "title": "Six univers. Votre prochaine direction.",
+        "introduction": "Sécurité, immobilier, commerce, relation client, international ou comptabilité : trouvez votre BTS.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_avenir",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Votre avenir après le bac",
+      "description": "Trouvez le BTS qui vous ressemble : Choisir, Apprendre, Avancer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 2,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Après le bac, donnez du relief à vos envies.",
+        "introduction": "Explorez nos six BTS et construisez un projet qui vous ressemble avec Intégrale Academy.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_competences",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Vos futures compétences",
+      "description": "Trouvez le BTS qui vous ressemble : Savoir-faire, Pratique, Projet.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Des envies aux compétences.",
+        "introduction": "Organisation, conseil, gestion ou négociation : découvrez les savoir-faire à construire dans nos BTS.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_orientation",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Votre orientation",
+      "description": "Trouvez le BTS qui vous ressemble : Univers, Choix, Orientation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 4,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Trouvez votre voie, gardez votre ambition.",
+        "introduction": "Comparez nos univers de formation et échangez avec notre équipe pour préciser votre choix.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_alternance",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · L’alternance",
+      "description": "Trouvez le BTS qui vous ressemble : Formation, Entreprise, Expérience.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 5,
+      "composition": "flow",
+      "contentDefaults": {
+        "title": "Les cours vous forment. L’expérience aussi.",
+        "introduction": "Découvrez nos BTS en alternance et préparez un parcours entre formation et entreprise.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "rise",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_collectif",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · L’énergie du collectif",
+      "description": "Trouvez le BTS qui vous ressemble : Rencontres, Projets, Collectif.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 6,
+      "composition": "arch",
+      "contentDefaults": {
+        "title": "Votre avenir se construit aussi ensemble.",
+        "introduction": "Rencontres, projets et apprentissages : imaginez votre place au sein d’Intégrale Academy.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_projet",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Votre projet de formation",
+      "description": "Trouvez le BTS qui vous ressemble : Envies, Échanges, Parcours.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 7,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "L’envie est là. Donnons-lui une direction.",
+        "introduction": "Parlons de vos intérêts et des parcours BTS qui peuvent correspondre à votre projet.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_questions",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Vos questions sur les BTS",
+      "description": "Trouvez le BTS qui vous ressemble : Formation, Alternance, Inscription.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 8,
+      "composition": "cards",
+      "contentDefaults": {
+        "title": "Un BTS en tête ? Parlons-en.",
+        "introduction": "Formation, alternance et inscription : notre équipe vous aide à préparer votre prochaine étape.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_domaines",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Les six domaines",
+      "description": "Trouvez le BTS qui vous ressemble : MOS, PI, MCO, NDRC, CI, CG.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 9,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Votre avenir a plusieurs portes d’entrée.",
+        "introduction": "MOS, PI, MCO, NDRC, CI et CG : explorez nos six BTS et découvrez celui qui vous correspond.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "orbit",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "bts_tous_inscription",
+      "family": "saas",
+      "name": "BTS · Tous nos BTS · Votre candidature",
+      "description": "Trouvez le BTS qui vous ressemble : Découverte, Projet, Candidature.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "program",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isBts": true,
+      "collection": "BTS",
+      "formationPreset": "BTS",
+      "professionIndex": 10,
+      "composition": "launch",
+      "contentDefaults": {
+        "title": "Le prochain chapitre commence avec vous.",
+        "introduction": "Découvrez nos BTS et contactez notre équipe pour préparer votre projet de candidature.",
+        "cta": "Découvrir nos BTS"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderBtsTemplate",
+      "status": "preview",
+      "version": 1
     }
   ]
 }

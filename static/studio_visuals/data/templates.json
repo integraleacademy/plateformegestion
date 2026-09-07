@@ -7558,6 +7558,3006 @@
       "renderer": "renderMetierTemplate",
       "status": "ready",
       "version": 1
+    },
+    {
+      "id": "metier_ssiap_ria",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Le robinet d’incendie armé",
+      "description": "Sécurité incendie : RIA, Équipements, Formation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 11,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "Découvrez les moyens d’action.",
+        "introduction": "Entrez dans l’univers des équipements incendie et préparez votre parcours SSIAP.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_portes",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les portes coupe-feu",
+      "description": "Sécurité incendie : Portes, Bâtiment, Prévention.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 12,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "La prévention passe aussi par les portes.",
+        "introduction": "Observez le rôle des portes et des circulations dans un bâtiment.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_desenfumage",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Le désenfumage",
+      "description": "Sécurité incendie : Désenfumage, Équipements, Bâtiment.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 13,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Comprendre le bâtiment. Préparer le métier.",
+        "introduction": "Découvrez les équipements de désenfumage dans votre projet en sécurité incendie.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_eclairage",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · L’éclairage de sécurité",
+      "description": "Sécurité incendie : Éclairage, Repères, Circulations.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 14,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "Des repères pour mieux s’orienter.",
+        "introduction": "Éclairage et cheminements : explorez un autre aspect de la sécurité incendie.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_plans",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les plans du bâtiment",
+      "description": "Sécurité incendie : Plans, Accès, Repérage.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 15,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Un plan pour mieux se repérer.",
+        "introduction": "Plans, accès et circulations : donnez du concret à votre projet SSIAP.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_observation",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · L’observation sur site",
+      "description": "Sécurité incendie : Observation, Terrain, Vigilance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 16,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Votre attention a de l’avenir.",
+        "introduction": "Préparez votre regard professionnel à travers l’observation des lieux.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_secours",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · La liaison avec les secours",
+      "description": "Sécurité incendie : Liaison, Échanges, Coordination.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 17,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "Savoir transmettre, ça se prépare.",
+        "introduction": "Découvrez la place des échanges et de la coordination en sécurité incendie.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_zones",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les zones de surveillance",
+      "description": "Sécurité incendie : SSI, Zones, Surveillance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 18,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Reliez les informations du bâtiment.",
+        "introduction": "Systèmes, zones et surveillance : projetez-vous dans l’environnement d’un SSI.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_public",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les établissements recevant du public",
+      "description": "Sécurité incendie : Public, Bâtiment, Prévention.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 19,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "La sécurité au cœur des lieux de vie.",
+        "introduction": "Découvrez la prévention incendie dans les bâtiments qui accueillent du public.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_hauteur",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les immeubles de grande hauteur",
+      "description": "Sécurité incendie : Immeubles, Surveillance, Prévention.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 20,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Prenez de la hauteur sur votre projet.",
+        "introduction": "Explorez l’univers des immeubles de grande hauteur et de la sécurité incendie.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_parking",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · La surveillance des parkings",
+      "description": "Sécurité incendie : Parking, Circulations, Observation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 21,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "Chaque espace compte.",
+        "introduction": "Parkings et circulations : élargissez votre regard sur la prévention incendie.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_escaliers",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les escaliers et dégagements",
+      "description": "Sécurité incendie : Escaliers, Dégagements, Repères.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 22,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Gardez les cheminements à l’esprit.",
+        "introduction": "Découvrez la place des escaliers et des dégagements dans la prévention.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_registre",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Le registre de sécurité",
+      "description": "Sécurité incendie : Registre, Documents, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 23,
+      "composition": "dossier",
+      "contentDefaults": {
+        "title": "La prévention se suit dans la durée.",
+        "introduction": "Documents, observations et suivi : préparez votre futur quotidien SSIAP.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_materiel",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Le suivi des équipements",
+      "description": "Sécurité incendie : Matériel, Repérage, Observation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 24,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Le matériel mérite votre attention.",
+        "introduction": "Repérage des équipements et observation : donnez du sens à votre projet.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_ssiap_consignes",
+      "family": "cover",
+      "name": "MÉTIERS · SSIAP · Les consignes du site",
+      "description": "Sécurité incendie : Consignes, Site, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "SSIAP",
+      "professionIndex": 25,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Une mission commence par des repères clairs.",
+        "introduction": "Consignes, échanges et organisation : entrez dans l’univers de la sécurité incendie.",
+        "cta": "Découvrir la formation SSIAP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_industrie",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La sécurité sur site industriel",
+      "description": "Prévention et sécurité : Industrie, Présence, Vigilance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 11,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "Un site. Des missions concrètes.",
+        "introduction": "Découvrez la présence et la vigilance d’un agent APS dans un environnement industriel.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_chantier",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La surveillance d’un chantier",
+      "description": "Prévention et sécurité : Chantier, Accès, Observation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 12,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "Veillez sur un site en mouvement.",
+        "introduction": "Accès, abords et observation : découvrez l’environnement d’un chantier.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_hall",
+      "family": "cover",
+      "name": "MÉTIERS · APS · L’accueil dans le hall",
+      "description": "Prévention et sécurité : Accueil, Orientation, Présence.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 13,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "La première impression compte.",
+        "introduction": "Accueil et orientation du public : préparez votre posture professionnelle.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_flux",
+      "family": "cover",
+      "name": "MÉTIERS · APS · L’accompagnement des flux",
+      "description": "Prévention et sécurité : Public, Passage, Vigilance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 14,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Du mouvement, de l’attention.",
+        "introduction": "Public et points de passage : projetez-vous dans les missions de sécurité privée.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_parking",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La sécurité des parkings",
+      "description": "Prévention et sécurité : Parking, Accès, Circulations.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 15,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Votre vigilance trouve sa place.",
+        "introduction": "Entrées, véhicules et circulations : explorez la surveillance d’un parking.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_logistique",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La sécurité en logistique",
+      "description": "Prévention et sécurité : Logistique, Accueil, Surveillance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 16,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Au rythme des entrées et des sorties.",
+        "introduction": "Découvrez la surveillance et l’accueil sur une plateforme logistique.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_tertiaire",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La sécurité des bureaux",
+      "description": "Prévention et sécurité : Bureaux, Visiteurs, Accès.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 17,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Une présence qui accompagne le quotidien.",
+        "introduction": "Bureaux, visiteurs et accès : donnez un cadre concret à votre projet APS.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_alarme",
+      "family": "cover",
+      "name": "MÉTIERS · APS · Le suivi des alarmes",
+      "description": "Prévention et sécurité : Alarme, Observation, Transmission.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 18,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Une information à observer avec méthode.",
+        "introduction": "Signalements et transmissions : découvrez les échanges qui accompagnent la surveillance.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_dialogue",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La communication avec le public",
+      "description": "Prévention et sécurité : Dialogue, Écoute, Posture.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 19,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "Une posture calme. Un échange clair.",
+        "introduction": "Écoute et communication : préparez la dimension humaine du métier APS.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_isolement",
+      "family": "cover",
+      "name": "MÉTIERS · APS · Le travail en liaison",
+      "description": "Prévention et sécurité : Liaison, Équipe, Terrain.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 20,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "Gardez le lien avec votre équipe.",
+        "introduction": "Communication et organisation : découvrez les repères d’un agent sur le terrain.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_fermeture",
+      "family": "cover",
+      "name": "MÉTIERS · APS · L’ouverture et la fermeture du site",
+      "description": "Prévention et sécurité : Ouverture, Fermeture, Observation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 21,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "Un site se suit du début à la fin.",
+        "introduction": "Accès et observation des lieux : préparez les différentes étapes d’une présence APS.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_reperage",
+      "family": "cover",
+      "name": "MÉTIERS · APS · Le repérage des lieux",
+      "description": "Prévention et sécurité : Repérage, Lieux, Circulations.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 22,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Prenez vos repères sur le terrain.",
+        "introduction": "Explorez les lieux, les accès et les circulations dans votre projet de formation.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_releve",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La relève de poste",
+      "description": "Prévention et sécurité : Relève, Consignes, Transmission.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 23,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Une relève se prépare dans l’échange.",
+        "introduction": "Consignes et transmissions : découvrez la continuité d’une mission de sécurité.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_orientation",
+      "family": "cover",
+      "name": "MÉTIERS · APS · L’orientation des visiteurs",
+      "description": "Prévention et sécurité : Visiteurs, Orientation, Service.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 24,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Accueillir, c’est aussi orienter.",
+        "introduction": "Sens du service et attention au public : imaginez votre futur quotidien APS.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_aps_festival",
+      "family": "cover",
+      "name": "MÉTIERS · APS · La sécurité d’un festival",
+      "description": "Prévention et sécurité : Festival, Public, Présence.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "APS",
+      "professionIndex": 25,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Votre futur métier entre en scène.",
+        "introduction": "Accueil du public et présence sur site : découvrez un univers de missions APS.",
+        "cta": "Découvrir la formation APS"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_gare",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · La prise en charge en gare",
+      "description": "Chauffeur VTC : Gare, Accueil, Passagers.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 11,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "Le trajet commence à la sortie du train.",
+        "introduction": "Accueil en gare et accompagnement : découvrez une mission du chauffeur VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_hotel",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Le service auprès des hôtels",
+      "description": "Chauffeur VTC : Hôtel, Accueil, Service.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 12,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "Une arrivée soignée change le voyage.",
+        "introduction": "Prise en charge et accueil : préparez votre projet autour du service VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_affaires",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Les déplacements professionnels",
+      "description": "Chauffeur VTC : Affaires, Organisation, Mobilité.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 13,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Le service accompagne les rendez-vous.",
+        "introduction": "Organisation et déplacements professionnels : projetez-vous dans le métier VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_tourisme",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · L’accompagnement touristique",
+      "description": "Chauffeur VTC : Tourisme, Accueil, Destination.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 14,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Faites du trajet une belle première étape.",
+        "introduction": "Accueil et découverte d’une destination : explorez la dimension touristique du service.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_anticipation",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · La réservation à l’avance",
+      "description": "Chauffeur VTC : Réservation, Anticipation, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 15,
+      "composition": "dossier",
+      "contentDefaults": {
+        "title": "Un trajet réussi se prépare.",
+        "introduction": "Réservation et organisation : donnez une longueur d’avance à votre projet VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_depart",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · La préparation du départ",
+      "description": "Chauffeur VTC : Départ, Planning, Préparation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 16,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Chaque journée commence par une préparation.",
+        "introduction": "Véhicule, planning et prise en charge : découvrez le quotidien d’un chauffeur.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_soiree",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Le service en soirée",
+      "description": "Chauffeur VTC : Soirée, Trajet, Accueil.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 17,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Accompagnez aussi les retours de soirée.",
+        "introduction": "Accueil des passagers et organisation des trajets : imaginez votre activité VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_paiement",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Le paiement de la course",
+      "description": "Chauffeur VTC : Paiement, Client, Service.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 18,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "Le sens du service, jusqu’au dernier échange.",
+        "introduction": "Paiement et relation client : découvrez les étapes qui entourent une course VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_facture",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Le suivi des courses",
+      "description": "Chauffeur VTC : Courses, Documents, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 19,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Le trajet se poursuit dans le suivi.",
+        "introduction": "Documents et organisation : explorez les coulisses d’une activité de chauffeur.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_entretien",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · L’attention portée au véhicule",
+      "description": "Chauffeur VTC : Véhicule, Suivi, Préparation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 20,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "Votre véhicule fait partie de votre métier.",
+        "introduction": "Préparation et suivi du véhicule : construisez un projet attentif aux détails.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_electrique",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · La mobilité électrique",
+      "description": "Chauffeur VTC : Mobilité, Véhicule, Énergie.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 21,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Votre projet prend une nouvelle énergie.",
+        "introduction": "Découvrez un univers de mobilité et préparez votre parcours de chauffeur VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_ambiance",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · L’ambiance à bord",
+      "description": "Chauffeur VTC : Confort, Présentation, Attention.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 22,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "Le confort se prépare avant l’arrivée.",
+        "introduction": "Présentation et attention au passager : donnez du soin à votre projet VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_contact",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · L’échange avant la course",
+      "description": "Chauffeur VTC : Contact, Rendez-vous, Passagers.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 23,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Un échange clair prépare le trajet.",
+        "introduction": "Lieu de rendez-vous et prise de contact : explorez la relation avec les passagers.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_rendezvous",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Le point de prise en charge",
+      "description": "Chauffeur VTC : Prise en charge, Repérage, Accueil.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 24,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Au bon endroit, avec le sens de l’accueil.",
+        "introduction": "Repérage et préparation du rendez-vous : projetez-vous dans le quotidien VTC.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_vtc_entreprise",
+      "family": "cover",
+      "name": "MÉTIERS · VTC · Le projet professionnel VTC",
+      "description": "Chauffeur VTC : Projet, Activité, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "VTC",
+      "professionIndex": 25,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Votre activité commence par un projet.",
+        "introduction": "Conduite, service et organisation : préparez la prochaine étape de votre avenir.",
+        "cta": "Découvrir la formation VTC"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_reperage",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · Le repérage du site",
+      "description": "Protection rapprochée : Repérage, Site, Préparation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 11,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "La préparation commence sur les lieux.",
+        "introduction": "Accès et environnement : explorez la préparation d’une mission A3P.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_hotel",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · L’accompagnement à l’hôtel",
+      "description": "Protection rapprochée : Hôtel, Accueil, Accompagnement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 12,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Préparer l’accueil. Accompagner la personne.",
+        "introduction": "Découvrez les repères d’une arrivée dans l’univers de la protection rapprochée.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_affaires",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · Les missions professionnelles",
+      "description": "Protection rapprochée : Rendez-vous, Mission, Mobilité.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 13,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "La mission accompagne aussi les rendez-vous.",
+        "introduction": "Déplacements professionnels et préparation : projetez-vous dans le métier A3P.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_preparation",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · La préparation collective",
+      "description": "Protection rapprochée : Préparation, Équipe, Rôles.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 14,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Mettez la préparation au centre.",
+        "introduction": "Échanges et répartition des rôles : découvrez la construction d’une mission en équipe.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_acces",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · Le repérage des accès",
+      "description": "Protection rapprochée : Accès, Lieux, Circulations.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 15,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Chaque accès mérite d’être repéré.",
+        "introduction": "Lieux, arrivées et circulations : donnez du concret à votre projet A3P.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_accueil",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · La prise de contact",
+      "description": "Protection rapprochée : Contact, Écoute, Accompagnement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 16,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "Une mission commence aussi par la relation.",
+        "introduction": "Écoute et accueil : préparez la dimension humaine de l’accompagnement rapproché.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_conducteur",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · La liaison avec le conducteur",
+      "description": "Protection rapprochée : Conducteur, Liaison, Déplacement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 17,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Coordonner le trajet, préparer l’arrivée.",
+        "introduction": "Déplacements et communication : explorez les échanges autour d’une mission A3P.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_lieu",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · L’accompagnement sur un lieu public",
+      "description": "Protection rapprochée : Lieu public, Attention, Présence.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 18,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "Une présence attentive dans chaque lieu.",
+        "introduction": "Public et environnement : projetez-vous dans l’accompagnement d’une personne.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_adaptation",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · L’adaptation de la mission",
+      "description": "Protection rapprochée : Anticipation, Organisation, Échanges.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 19,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "Un projet qui demande de l’anticipation.",
+        "introduction": "Organisation et échanges : découvrez la préparation face aux changements de situation.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_parcours",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · Le dossier de déplacement",
+      "description": "Protection rapprochée : Déplacement, Documents, Repères.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 20,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Un déplacement se prépare dans les détails.",
+        "introduction": "Repères et documents : explorez la préparation des déplacements professionnels.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_horaires",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · Le déroulé de la mission",
+      "description": "Protection rapprochée : Planning, Mission, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 21,
+      "composition": "dossier",
+      "contentDefaults": {
+        "title": "Donnez un rythme clair à la préparation.",
+        "introduction": "Horaires et organisation : découvrez la place du planning dans une mission A3P.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_debrief",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · Le retour de mission",
+      "description": "Protection rapprochée : Échanges, Observation, Expérience.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 22,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "L’échange continue après la mission.",
+        "introduction": "Observations et retour d’expérience : donnez une place au collectif dans votre projet.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_discretion",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · La discrétion professionnelle",
+      "description": "Protection rapprochée : Posture, Discrétion, Relation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 23,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "Une présence attentive et mesurée.",
+        "introduction": "Posture et relation : découvrez les dimensions humaines de la protection rapprochée.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_flux",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · L’observation des mouvements",
+      "description": "Protection rapprochée : Mouvements, Observation, Environnement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 24,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Gardez le fil dans un lieu en mouvement.",
+        "introduction": "Observation et environnement : préparez votre regard dans l’univers A3P.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_a3p_equipement",
+      "family": "cover",
+      "name": "MÉTIERS · A3P · La préparation des équipements",
+      "description": "Protection rapprochée : Équipement, Communication, Équipe.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "A3P",
+      "professionIndex": 25,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Le matériel accompagne la préparation.",
+        "introduction": "Communication et organisation : découvrez un autre aspect du quotidien d’une équipe.",
+        "cta": "Découvrir la formation A3P"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_recrutement",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Le recrutement",
+      "description": "Direction d’entreprise : Recrutement, Équipe, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 11,
+      "composition": "folio",
+      "contentDefaults": {
+        "title": "Construire l’équipe, préparer l’avenir.",
+        "introduction": "Profils, échanges et organisation : explorez votre futur rôle de dirigeant.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_competences",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Les compétences de l’équipe",
+      "description": "Direction d’entreprise : Compétences, Équipe, Accompagnement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 12,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Faites une place aux compétences.",
+        "introduction": "Accompagnement et échanges : préparez la dimension humaine de la direction.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_devis",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · La préparation des devis",
+      "description": "Direction d’entreprise : Devis, Client, Préparation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 13,
+      "composition": "showcase",
+      "contentDefaults": {
+        "title": "Donnez une forme au besoin du client.",
+        "introduction": "Propositions et organisation : découvrez les étapes qui préparent une prestation.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_multisite",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · La gestion de plusieurs sites",
+      "description": "Direction d’entreprise : Sites, Équipes, Coordination.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 14,
+      "composition": "path",
+      "contentDefaults": {
+        "title": "Plusieurs sites. Une organisation à construire.",
+        "introduction": "Équipes, lieux et coordination : explorez la gestion d’une activité de sécurité.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_tableau",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Le tableau de pilotage",
+      "description": "Direction d’entreprise : Pilotage, Activité, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 15,
+      "composition": "console",
+      "contentDefaults": {
+        "title": "Gardez une vue d’ensemble.",
+        "introduction": "Activité et suivi : construisez votre projet avec des repères de pilotage.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_terrain",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Le lien avec le terrain",
+      "description": "Direction d’entreprise : Terrain, Équipe, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 16,
+      "composition": "cinema",
+      "contentDefaults": {
+        "title": "Reliez les décisions à la réalité du site.",
+        "introduction": "Organisation et échanges avec les équipes : projetez-vous dans le rôle de dirigeant.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_priorites",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · L’organisation des priorités",
+      "description": "Direction d’entreprise : Priorités, Actions, Coordination.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 17,
+      "composition": "window",
+      "contentDefaults": {
+        "title": "Faites avancer les bonnes actions.",
+        "introduction": "Priorités et coordination : préparez votre quotidien à la direction d’une entreprise.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_retours",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Les retours des clients",
+      "description": "Direction d’entreprise : Écoute, Clients, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 18,
+      "composition": "duo",
+      "contentDefaults": {
+        "title": "L’écoute fait aussi avancer l’entreprise.",
+        "introduction": "Retours clients et suivi : donnez une place aux échanges dans votre projet DESP.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_numerique",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Les outils de gestion",
+      "description": "Direction d’entreprise : Outils, Numérique, Organisation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 19,
+      "composition": "slope",
+      "contentDefaults": {
+        "title": "Des outils pour mieux s’organiser.",
+        "introduction": "Planning et suivi : explorez la place du numérique dans la gestion d’entreprise.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_equipements",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · La gestion des équipements",
+      "description": "Direction d’entreprise : Équipements, Équipes, Suivi.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 20,
+      "composition": "architect",
+      "contentDefaults": {
+        "title": "Préparez les moyens de vos équipes.",
+        "introduction": "Matériel, organisation et suivi : découvrez un autre aspect de la direction.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_reunion",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · La réunion d’équipe",
+      "description": "Direction d’entreprise : Réunion, Équipe, Communication.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 21,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Une équipe avance aussi dans l’échange.",
+        "introduction": "Communication et organisation : préparez les temps collectifs de votre activité.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_facturation",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Le suivi de la facturation",
+      "description": "Direction d’entreprise : Facturation, Documents, Gestion.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "illustration",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 22,
+      "composition": "dossier",
+      "contentDefaults": {
+        "title": "Donnez de la méthode au suivi.",
+        "introduction": "Documents et gestion : préparez les coulisses de votre future entreprise.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_continuite",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · La continuité de l’activité",
+      "description": "Direction d’entreprise : Continuité, Planning, Prestations.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 23,
+      "composition": "focus",
+      "contentDefaults": {
+        "title": "L’organisation accompagne chaque relève.",
+        "introduction": "Planning et coordination : projetez-vous dans le suivi des prestations de sécurité.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_reseau",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Le développement du réseau",
+      "description": "Direction d’entreprise : Réseau, Échanges, Développement.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 24,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Votre projet se construit aussi en réseau.",
+        "introduction": "Rencontres et échanges : explorez la dimension relationnelle du rôle de dirigeant.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "pulse",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "metier_dirigeant_lancement",
+      "family": "cover",
+      "name": "MÉTIERS · DESP · Le lancement d’une prestation",
+      "description": "Direction d’entreprise : Lancement, Site, Équipe.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "editorial",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isMetier": true,
+      "isMetierExpansion": true,
+      "collection": "MÉTIERS",
+      "formationPreset": "DIRIGEANT",
+      "professionIndex": 25,
+      "composition": "feature",
+      "contentDefaults": {
+        "title": "Préparez le passage du projet au terrain.",
+        "introduction": "Client, site et équipe : découvrez l’organisation d’une nouvelle prestation.",
+        "cta": "Découvrir la formation DESP"
+      },
+      "motion": "float",
+      "hasEmojis": false,
+      "renderer": "renderMetierTemplate",
+      "status": "preview",
+      "version": 1
     }
   ]
 }

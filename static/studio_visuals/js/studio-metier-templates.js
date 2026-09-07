@@ -1,3 +1,4 @@
+import {EXTRA_METIER_DEFINITIONS,createExtraMetierScenes} from './studio-metier-more.js';
 // Profession-specific artwork: every subject has its own vector scene. Shared
 // primitives keep colors tied to the training palette and exports resolution-free.
 const courses={SSIAP:['SSIAP','Sécurité incendie'],APS:['APS','Prévention et sécurité'],VTC:['VTC','Chauffeur VTC'],A3P:['A3P','Protection rapprochée'],DIRIGEANT:['DESP','Direction d’entreprise']};
@@ -63,6 +64,7 @@ const definitions={
   ['strategie','Le développement de l’entreprise','Construisez la prochaine étape de votre entreprise.','Objectifs, organisation et développement : donnez une direction à votre projet dans la sécurité privée.','Objectifs · Développement · Direction','path','float']
  ]
 };
+for(const [formation,rows] of Object.entries(EXTRA_METIER_DEFINITIONS))definitions[formation].push(...rows);
 export const METIER_DESIGNS=Object.entries(definitions).flatMap(([formation,rows])=>rows.map(([slug,name,title,introduction,subjects,layout,motion],index)=>({
  id:`metier_${formation.toLowerCase()}_${slug}`,formation,code:courses[formation][0],courseName:courses[formation][1],slug,name,title,introduction,subjects:subjects.split(' · '),layout,motion,index:index+1,
  contentDefaults:{title,introduction,cta:`Découvrir la formation ${courses[formation][0]}`}
@@ -72,7 +74,7 @@ const A='var(--n2-accent)',S='var(--n2-soft)',I='var(--n2-ink)',L='var(--n2-line
 const rect=(x,y,w,h,fill=W,r=18,extra='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" ${extra}/>`;
 const circle=(x,y,r,fill=A,extra='')=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" ${extra}/>`;
 const path=(d,stroke=I,width=5,fill='none',extra='')=>`<path d="${d}" stroke="${stroke}" stroke-width="${width}" fill="${fill}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
-const text=(x,y,t,size=18,fill=I,extra='')=>`<text x="${x}" y="${y}" fill="${fill}" font-family="Arial,sans-serif" font-size="${size}" font-weight="700" ${extra}>${esc(t)}</text>`;
+const text=(x,y,t,size=18,fill=I,extra='')=>size<28&&String(t).length>4?rect(x,y-size*.4,Math.min(120,String(t).length*size*.4),6,fill,3):`<text x="${x}" y="${y}" fill="${fill}" font-family="Arial,sans-serif" font-size="${Math.max(36,size)}" font-weight="700" ${extra}>${esc(t)}</text>`;
 const group=(x,y,s,body)=>`<g transform="translate(${x} ${y}) scale(${s})">${body}</g>`;
 const check=(x,y,s=1)=>group(x,y,s,circle(0,0,20,A)+path('M-9 0-2 7 10-8',W,4));
 const person=(x,y,s=1,coat=A)=>group(x,y,s,circle(0,-61,23,I)+path('M-13-70Q0-82 14-69',W,2)+rect(-33,-31,66,88,coat,24)+path('M-18 55-23 118M18 55 25 118',I,17)+path('M-27-12-49 42M27-12 46 35',coat,14)+path('M-13-28 0-13 12-28',W,4));
@@ -141,6 +143,8 @@ const scenes={
  'DIRIGEANT/strategie':()=>path('M90 372H241V256H399V145H547',A,13)+[90,241,399,547].map((x,i)=>circle(x,[372,256,145,145][i],22,W,`stroke="${A}" stroke-width="7"`)).join('')+path('M481 232V51l90 34-90 34',I,7,S)+rect(83,60,241,72,W,18)+text(110,106,'DÉVELOPPEMENT',22)
 };
 
+Object.assign(scenes,createExtraMetierScenes({rect,circle,path,group,person,monitor,clipboard,building,car,pin,route,radio,bag,phone,desk,handshake,calendar,A,S,I,L,P,W}));
+
 export function renderMetierIllustration(design){
  const scene=scenes[`${design.formation}/${design.slug}`];
  if(!scene)throw new Error('Illustration métier inconnue : '+design.id);
@@ -151,15 +155,15 @@ export function renderMetierTemplateBody(ctx){
  if(!d)throw new Error('Composition métier inconnue : '+ctx.template.id);
  const c=ctx.slide.content||{};
  const field=(key,tag,fit)=>`<${tag} class="metier-${key}${key==='cta'?' n2-cta':''}" data-content-key="${key}" data-fit="${fit}" data-element-name="${key}">${esc(c[key]||d.contentDefaults[key])}</${tag}>`;
- const label=`<div class="metier-kicker"><span class="metier-code" data-fit="meta">FORMATION ${d.code}</span><span class="metier-index" aria-hidden="true">${String(d.index).padStart(2,'0')} / 10</span></div>`;
+ const label=`<div class="metier-kicker"><span class="metier-code" data-fit="meta">FORMATION ${d.code}</span></div>`;
  const title=field('title','h1','title'),intro=field('introduction','p','body');
  const action=`<div class="n2-action">${field('cta','span','cta')}<b aria-hidden="true">↗</b></div>`;
  const tags=`<ul class="metier-subjects">${d.subjects.map(s=>`<li data-fit="meta">${esc(s)}</li>`).join('')}</ul>`;
  const visual=`<figure class="metier-visual" aria-label="${esc(d.name)}"><div class="metier-art" data-studio-decorative="true"${d.motion?` data-motion="${d.motion}"`:''}>${renderMetierIllustration(d)}</div><figcaption data-fit="meta" data-motion-foreground>${esc(d.name)}</figcaption></figure>`;
  const copy=`<section class="metier-copy">${label}${title}${intro}${action}</section>`;
  let body;
- if(['cinema','poster'].includes(d.layout))body=`<header class="metier-head">${label}${title}</header>${visual}<section class="metier-bottom">${intro}${action}</section>${tags}`;
- else if(d.layout==='dossier')body=`${label}<header class="metier-head">${title}</header>${visual}<section class="metier-copy">${intro}${tags}${action}</section>`;
+ if(['cinema','poster','feature'].includes(d.layout))body=`<header class="metier-head">${label}${title}</header>${visual}<section class="metier-bottom">${intro}${action}</section>${tags}`;
+ else if(['dossier','folio'].includes(d.layout))body=`${label}<header class="metier-head">${title}</header>${visual}<section class="metier-copy">${intro}${tags}${action}</section>`;
  else body=`${copy}${visual}${tags}`;
  return `<main class="n2 metier-main metier-${d.layout}" data-layout-role="metier-${d.layout}" data-metier-formation="${d.formation}">${body}</main>`;
 }

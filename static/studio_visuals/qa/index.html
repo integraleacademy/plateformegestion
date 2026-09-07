@@ -67,6 +67,9 @@ function paletteErrors(node,theme){
 }
 function illustrationErrors(node){
  const errors=[],main=node.querySelector('main'),frame=main.getBoundingClientRect(),scale=node.getBoundingClientRect().width/node.offsetWidth,tolerance=8*scale;
+ if(node.classList.contains('metier-layout')&&!node.classList.contains('studio-format-linkedin_landscape')&&(main.classList.contains('metier-cinema')||main.classList.contains('metier-poster'))){
+  if(main.querySelector('.metier-head').getBoundingClientRect().width<frame.width*.9)errors.push('La composition panoramique doit utiliser toute la largeur');
+ }
  const copy=[...main.querySelectorAll('[data-content-key]')].filter(el=>!el.closest('.n3-scene'));
  for(const art of main.querySelectorAll('.n3-art,.metier-art')){
   if(art.parentElement.closest('.n3-art,.metier-art'))continue;

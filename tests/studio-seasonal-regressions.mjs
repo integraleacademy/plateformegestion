@@ -4,16 +4,17 @@ import {readFileSync} from 'node:fs';
 import {SEASONAL_EVENTS,SEASONAL_DESIGNS,renderSeasonalIllustration,renderSeasonalTemplateBody,renderSeasonalCaptionPanel} from '../static/studio_visuals/js/studio-seasonal-templates.js';
 import {FORMATS,createProject,normalizeSlideContentForTemplate} from '../static/studio_visuals/js/studio-store.js';
 const catalog=JSON.parse(readFileSync(new URL('../static/studio_visuals/data/templates.json',import.meta.url))).templates;
-const models=catalog.filter(t=>t.isSeasonal);
+const models=catalog.filter(t=>t.isSeasonal&&!t.isCampaign);
+const holidayDesigns=SEASONAL_DESIGNS.filter(d=>!d.isCampaign);
 test('each of the four holidays has five general designs with complete social copy',()=>{
  assert.equal(models.length,20);assert.equal(new Set(models.map(t=>t.id)).size,20);
  assert.equal(models.filter(t=>t.motion).length,12);
- for(const event of Object.keys(SEASONAL_EVENTS)){
+ for(const event of ['halloween','noel','saint_valentin','bonne_annee']){
   const group=models.filter(t=>t.seasonalEvent===event);
   assert.equal(group.length,5);assert.equal(new Set(group.map(t=>t.composition)).size,5);
  }
- assert.equal(new Set(SEASONAL_DESIGNS.map(renderSeasonalIllustration)).size,20);
- assert.equal(new Set(SEASONAL_DESIGNS.map(d=>d.socialCopy.facebook)).size,20);
+ assert.equal(new Set(holidayDesigns.map(renderSeasonalIllustration)).size,20);
+ assert.equal(new Set(holidayDesigns.map(d=>d.socialCopy.facebook)).size,20);
  for(const t of models){
   assert.equal(t.status,'ready');assert.equal(t.formationPreset,'OR');
   assert.equal(t.renderer,'renderSeasonalTemplate');assert.deepEqual(t.supportedFormats,Object.keys(FORMATS));

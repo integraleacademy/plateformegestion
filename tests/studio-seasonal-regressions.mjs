@@ -15,7 +15,7 @@ test('each of the four holidays has five general designs with complete social co
  assert.equal(new Set(SEASONAL_DESIGNS.map(renderSeasonalIllustration)).size,20);
  assert.equal(new Set(SEASONAL_DESIGNS.map(d=>d.socialCopy.facebook)).size,20);
  for(const t of models){
-  assert.ok(['preview','ready'].includes(t.status));assert.equal(t.formationPreset,'OR');
+  assert.equal(t.status,'ready');assert.equal(t.formationPreset,'OR');
   assert.equal(t.renderer,'renderSeasonalTemplate');assert.deepEqual(t.supportedFormats,Object.keys(FORMATS));
   const d=SEASONAL_DESIGNS.find(d=>d.id===t.id);assert.deepEqual(t.contentDefaults,d.contentDefaults);
   const html=renderSeasonalTemplateBody({template:t,slide:{content:{title:'Ancien titre APS'}}});

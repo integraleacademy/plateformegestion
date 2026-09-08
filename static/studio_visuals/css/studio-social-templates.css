@@ -50,19 +50,32 @@
 .social-cover-art-editorial{transform:rotate(-12deg)}.social-cover-art-path{right:-80px;transform:rotate(10deg)}.social-cover-art-bento{top:-10px}
 .studio-v2.social-cover .studio-brand-logo:before,.studio-v2.social-cover .studio-brand-logo:after,.studio-v2.social-cover .sv-brand__slogan:before,.studio-v2.social-cover .sv-footer:before,.studio-v2.social-cover .sv-footer:after{display:none!important}
 .social-cover .social-studio-safe{inset:20px 240px 20px 290px}
-/* Facebook covers have three separate columns. The illustration must fit in
-   its own column, including cards and strokes, instead of hanging off-canvas. */
-.studio-v2.social-cover.studio-format-facebook_cover{--cover-logo-max:180px}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-brand{inset:42px auto auto 40px!important;width:180px!important;height:180px!important}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-safe>main.social-cover-main{inset:38px 264px 98px 244px!important;gap:12px}
-.studio-v2.social-cover.studio-format-facebook_cover .social-cover-title{font-size:37px}
-.studio-v2.social-cover.studio-format-facebook_cover .social-cover-intro{font-size:18px}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-footer{inset:auto 30px 26px 244px!important;height:54px!important}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-brand__slogan{font-size:15px}
-.studio-v2.social-cover.studio-format-facebook_cover .social-cover-art{inset:48px 24px auto auto!important;width:224px!important;height:180px!important;opacity:1!important;transform:none!important}
+/* Facebook personal profile, 1640 × 720. The shared desktop/mobile crop
+   leaves room for the central avatar, note bubble and owner's navigation. */
+.studio-v2.social-cover.studio-format-facebook_cover{--cover-logo-max:240px}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-brand{inset:286px auto auto 1076px!important;width:240px!important;height:240px!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-safe>main.social-cover-main{inset:128px 644px 448px 390px!important;gap:4px}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-title{font-size:48px;line-height:1.06}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-intro{font-size:26px;line-height:1.25}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-footer{inset:276px 644px auto 390px!important;height:32px!important;gap:0!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-brand__slogan{font-size:26px;line-height:1.2!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-footer__site{font-size:23px!important;line-height:1.2!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-footer__contacts{position:absolute!important;left:674px!important;top:260px!important;width:264px!important;height:auto!important}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-art{inset:330px auto auto 386px!important;width:190px!important;height:156px!important;opacity:1!important;transform:none!important}
 .studio-v2.social-cover.studio-format-facebook_cover .social-cover-art svg{display:block;width:100%;height:100%}
 .studio-format-facebook_cover.social-cover:after{left:-200px}
-.studio-format-facebook_cover.social-cover .social-studio-safe{inset:24px}
+.studio-format-facebook_cover.social-cover .social-studio-safe{inset:116px 280px 64px}
+.facebook-profile-preview{position:relative;flex:none;background:#fff;color:#222;border:1px solid #dde2e8;border-radius:18px;overflow:hidden;isolation:isolate;font:500 13px/1.3 system-ui}
+.facebook-profile-preview__banner{overflow:hidden}.facebook-profile-preview__banner img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.facebook-profile-preview__avatar{position:absolute;z-index:3;display:grid;place-items:center;box-sizing:border-box;border:4px solid white;border-radius:50%;background:#d7e0eb;color:#4b607b;font-weight:700}
+.facebook-profile-preview__mask{position:absolute;z-index:2;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+.facebook-profile-preview__status{justify-content:flex-start;padding-left:10%;background:#3d3a2940;color:white;font-weight:700}
+.facebook-profile-preview__menu,.facebook-profile-preview__actions{color:white;font-size:23px;text-shadow:0 1px 3px #333}
+.facebook-profile-preview__note{z-index:4;border-radius:24px;background:#fff;color:#777;font-size:12px}
+.facebook-profile-preview__panel{background:white;border-radius:28px 28px 0 0}
+.facebook-profile-preview__name{text-align:center;font-weight:750;padding:12px 10px 20px;margin-bottom:0}
+.facebook-profile-dialog{width:fit-content;max-width:calc(100vw - 32px);max-height:calc(100vh - 40px);overflow:auto;border:0;border-radius:20px;padding:22px;background:#f2f5f9;color:#1d2737}
+.facebook-profile-dialog::backdrop{background:#19233388}.facebook-profile-dialog h2{font-size:19px;margin:0 0 12px}.facebook-profile-dialog p{max-width:390px}.facebook-profile-dialog form{display:flex;justify-content:flex-end;margin-bottom:12px}
 
 /* Personal LinkedIn profile, 1584 × 396. Keep the bottom left empty for the
    avatar. The complete illustration sits above it; the logo is on the right.

@@ -10,6 +10,19 @@ export function matchesTemplateSearch(template,query){
  return normalizeSearch(query).split(' ').filter(Boolean).every(word=>haystack.includes(word));
 }
 export function compatibleFormat(template,current){const ids=template.supportedFormats||['instagram_square'];return ALL_FORMATS[ids.includes(current?.id)?current.id:ids[0]]||ALL_FORMATS.instagram_square}
+export function normalizeCoverProject(project){
+ const canonical=ALL_FORMATS[project.format?.id];
+ if(!canonical||!['facebook_cover','linkedin_cover'].includes(canonical.id))return;
+ if(canonical.id==='facebook_cover'&&project.format.width!==canonical.width){
+  const factor=canonical.width/(project.format.width||851);
+  for(const slide of project.slides||[]){
+   if(slide.logo)slide.logo.width=Math.min(240,Math.round((slide.logo.width||150)*factor));
+   const d=SOCIAL_BY_ID[slide.templateId];
+   if(d?.network==='facebook'&&slide.content?.introduction===d.introduction)slide.content.introduction=socialDefaultContent({id:slide.templateId}).introduction;
+  }
+ }
+ project.format=canonical;
+}
 export function applySocialTemplate(project,template){
  const d=SOCIAL_BY_ID[template.id];if(!d)throw new Error('Modèle social inconnu');
  const previous=project.slides[project.activeSlideIndex],formation=template.formationPreset;
@@ -17,7 +30,7 @@ export function applySocialTemplate(project,template){
  const build=(page,index)=>normalizeSlide({formation,templateId:template.id,layoutVariantId:template.id,carouselPage:index,role:index===0?'cover':index===4?'conclusion':'content',
   content:{...defaultContentForFormation(formation),...socialDefaultContent(template,index),footer:{...previous.content.footer},_autoFormation:formation,_socialTemplateId:template.id},options:{showSafeMargins:previous.options?.showSafeMargins!==false,showPagination:false}});
  if(template.isCarousel){project.slides=d.pages.map(build);project.activeSlideIndex=0;project.name=template.name;}
- else if(template.isCover){project.slides=[build(d,0)];if(d.network==='linkedin')project.slides[0].logo.width=220;project.activeSlideIndex=0;project.name=template.name;}
+ else if(template.isCover){project.slides=[build(d,0)];project.slides[0].logo.width=d.network==='linkedin'?220:240;project.activeSlideIndex=0;project.name=template.name;}
  else{project.slides[project.activeSlideIndex]=build(d,0);}
 }
 

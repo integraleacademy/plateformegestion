@@ -30,7 +30,8 @@ const text=(key,value,tag,cls,fit)=>`<${tag} class="${cls}" data-content-key="${
 export function socialDefaultContent(template,pageIndex=0){
  const d=SOCIAL_BY_ID[template.id];if(!d)return template.contentDefaults||{};
  const page=d.pages?.[pageIndex]||d;
- return {title:page.title,introduction:page.introduction,eyebrow:page.eyebrow||'✨ INTÉGRALE ACADEMY',cta:page.cta||(d.kind==='places'?'Vérifier les disponibilités':'Préparer mon inscription'),location:'Puget-sur-Argens',duration:'',financing:'',availability:'',date:'',startDate:'',endDate:'',examDate:'',_manual:false};
+ const introduction=d.network==='facebook'?['Des formations pour votre avenir.','Explorez le métier qui vous ressemble.','Sécurité · Mobilité · Management · BTS','Construisez votre projet avec nous.','Des compétences pour aller plus loin.'][d.index]:page.introduction;
+ return {title:page.title,introduction,eyebrow:page.eyebrow||'✨ INTÉGRALE ACADEMY',cta:page.cta||(d.kind==='places'?'Vérifier les disponibilités':'Préparer mon inscription'),location:'Puget-sur-Argens',duration:'',financing:'',availability:'',date:'',startDate:'',endDate:'',examDate:'',_manual:false};
 }
 export function renderSocialTemplateBody({slide,template}){
  const d=SOCIAL_BY_ID[template.id];if(!d)throw new Error(`Modèle social absent : ${template.id}`);
@@ -82,5 +83,6 @@ export function renderLinkedInCoverIllustration(variant=0){
 }
 export function renderSocialCoverBody({slide,template}){
  const d=SOCIAL_BY_ID[template.id],c={...socialDefaultContent(template),...slide.content};
+ if(d.network==='facebook'&&c.introduction===d.introduction)c.introduction=socialDefaultContent(template).introduction;
  return `<main class="social-cover-main" data-layout-role="cover-${d.layout}">${text('title',c.title,'h1','social-cover-title','title')}${text('introduction',c.introduction,'p','social-cover-intro','body')}</main><div class="social-cover-art social-cover-art-${d.layout}" data-layout-role="cover-illustration" data-cover-illustration="true" data-element-name="Illustration de couverture" data-studio-decorative="true">${d.network==='linkedin'?renderLinkedInCoverIllustration(d.index):renderSocialIllustration('portal',d.index)}</div>`;
 }

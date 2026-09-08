@@ -1,3 +1,4 @@
+import {PUBLICATION_COURSES,COVER_PUBLICATIONS,PUBLICATION_ACTIONS} from './studio-publication-copy.js';
 import {SOCIAL_BY_ID,SOCIAL_COURSES} from './studio-social-content.js';
 import {SEASONAL_DESIGNS} from './studio-seasonal-templates.js';
 import {socialDefaultContent,escapeSocial as e} from './studio-social-templates.js';
@@ -21,25 +22,88 @@ export function applySocialTemplate(project,template){
 }
 
 const WEBSITE='https://www.integraleacademy.com';
+const FACT_FIELDS=['date','startDate','endDate','examDate','location','availability','duration','financing'];
+const clean=value=>String(value??'').trim();
+const paragraphs=parts=>parts.map(clean).filter(Boolean).join('\n\n');
+const shortAngle=text=>text.split(/(?<=[.!?])\s+/)[0];
+const SESSION_ANGLES=[
+ 'Vous aimeriez vous projeter dans le quotidien du métier ? Commencez par découvrir les compétences à travailler.',
+ 'Une envie de changer de voie ou de faire évoluer votre activité ? Donnez à votre projet une prochaine étape concrète.',
+ 'Vous avez envie d’apprendre à partir de situations métier ? Regardez ce que ce parcours peut vous permettre de travailler.',
+ 'Choisir une formation, c’est aussi penser à son organisation : objectifs, prérequis, déroulement et démarches.',
+ 'Vous comparez les possibilités pour la suite de votre parcours ? Faites le lien entre vos envies et les missions du métier.'
+];
+const SESSION_PRO_ANGLES=[
+ 'Un projet professionnel se prépare en identifiant les compétences à développer et les missions auxquelles elles répondent.',
+ 'Pour préparer une évolution ou une reconversion, rapprochez votre objectif des contenus et des conditions du parcours.',
+ 'Relier les apprentissages à des situations métier permet de mieux se projeter dans une formation.',
+ 'Objectifs, prérequis, déroulement et démarches : ces repères permettent de planifier un parcours de formation.',
+ 'Comparer les parcours commence par une lecture concrète des missions et des compétences à travailler.'
+];
 function infoLines(content){
  const date=content.startDate&&content.endDate?`Du ${content.startDate} au ${content.endDate}`:content.startDate?`À partir du ${content.startDate}`:content.date||'';
- return [date?`📅 ${date}`:'',content.location?`📍 ${content.location}`:'',content.availability?`⏳ ${content.availability}`:'',content.duration?`⏱️ ${content.duration}`:'',content.financing?`💡 Financement : ${content.financing}`:''].filter(Boolean);
+ return [date?`📅 ${date}`:'',content.examDate?`📝 Examen : ${content.examDate}`:'',content.location?`📍 ${content.location}`:'',content.availability?`⏳ ${content.availability}`:'',content.duration?`⏱️ ${content.duration}`:'',content.financing?`💡 Financement : ${content.financing}`:''].filter(Boolean).join('\n');
+}
+function factualContent(content){
+ const factual={...content};
+ for(const [key,defaultValue] of [['duration','175 h'],['financing','CPF'],['availability','Places limitées']])if(content[key]===defaultValue&&!content._publicationFields?.includes(key))factual[key]='';
+ return factual;
+}
+function stableIndex(id){return Array.from(id||'').reduce((n,c)=>n+c.codePointAt(0),0)%5}
+function courseFor(project,d){
+ const key=d?.key||Object.keys(SOCIAL_COURSES).find(k=>SOCIAL_COURSES[k].formation===project.formation)||'general';
+ return {key,course:SOCIAL_COURSES[key],copy:PUBLICATION_COURSES[key]};
+}
+function changedCopy(content,defaults,keys=['title','introduction']){
+ return keys.filter(key=>clean(content[key])!==clean(defaults[key])).map(key=>clean(content[key])).filter(Boolean).join('\n\n');
+}
+function finishPublication(body,action,course,network,index){
+ const tags=[...new Set(['#IntegraleAcademy',...(course?.hashtags||'#Formation #ProjetProfessionnel').split(/\s+/),...(network==='instagram'?['#FormationProfessionnelle']:[])])];
+ return paragraphs([body,`👉 ${action||PUBLICATION_ACTIONS[network][index]}\n${course?.formation==='A3P'?WEBSITE+'/securiteprivee':WEBSITE}`,tags.join(' ')]).replace(/\n{3,}/g,'\n\n');
 }
 export function publicationText(project,template,network='facebook'){
+ if(!PUBLICATION_ACTIONS[network])network='facebook';
  const c=project.slides[project.activeSlideIndex]?.content||{},d=SOCIAL_BY_ID[template.id],seasonal=SEASONAL_DESIGNS.find(x=>x.id===template.id);
- const course=d?.course||Object.values(SOCIAL_COURSES).find(x=>x.formation===project.formation),emoji=course?.emoji||'✨';
- let body;
+ const {key,course,copy}=courseFor(project,d),emoji=course.emoji,index=d?.index??stableIndex(template.id);
+ let body,action;
  if(d?.pages){
-  const slides=project.slides.filter(s=>s.templateId===template.id).sort((a,b)=>(a.carouselPage||0)-(b.carouselPage||0));
-  const pages=slides.length===5?slides.map(s=>s.content):d.pages;
-  body=`${emoji} ${pages[0].title}\n\n${pages[0].introduction}\n\n${pages.slice(1,4).map(p=>`✨ ${p.title}\n${p.introduction}`).join('\n\n')}\n\n🎯 ${pages[4].introduction}`;
-  if(d.key==='desp_vae')body+='\nLa décision de validation appartient au jury.';
- }else if(d?.kind){body=`${d.kind==='places'?'⏳ DERNIÈRES PLACES':'📅 PROCHAINE SESSION'} — ${d.key==='desp_initial'?'DESP':d.course.label}\n\n${c.title}\n\n${c.introduction}\n\n${emoji} Au cœur du parcours : ${d.course.tags.join(', ').toLowerCase()}.\n\n${infoLines(c).join('\n')}\n\n🎯 ${d.kind==='places'?'Contactez notre équipe pour vérifier les disponibilités et préparer votre inscription.':'Découvrez les modalités et préparez votre inscription avec notre équipe.'}`;}
- else if(d?.network){body=`✨ ${c.title}\n\n${c.introduction}\n\n🎓 Sécurité, mobilité, management et BTS : explorez les parcours Intégrale Academy.\n\n💬 Une envie d’évolution ou de reconversion ? Préparons votre projet.`;}
- else if(seasonal&&!c._manual){return seasonal.socialCopy[network==='instagram'?'instagram':'facebook'];}
- else{const factual={...c};for(const [key,defaultValue] of [['duration','175 h'],['financing','CPF'],['availability','Places limitées']])if(c[key]===defaultValue&&!c._publicationFields?.includes(key))factual[key]='';body=`${emoji} ${c.title||template.name}\n\n${c.introduction||template.description||''}\n\n${infoLines(factual).join('\n')}\n\n🎯 ${c.cta&&c.cta!=='Faites le premier pas vers votre futur métier'?c.cta:'Parlons de votre projet de formation'}.`;}
- const tags=course?.hashtags||'#Formation #ProjetProfessionnel';
- return `${body}\n\n👉 Découvrez nos formations et contactez notre équipe :\n${WEBSITE}${network==='instagram'?'\n🔗 Retrouvez également le lien dans notre bio.':''}\n\n#IntegraleAcademy ${tags}`.replace(/\n{3,}/g,'\n\n').trim();
+  // Resolve each page independently, including a partially edited carrousel.
+  const pages=d.pages.map((page,i)=>project.slides.find(s=>s.templateId===template.id&&s.carouselPage===i)?.content||page);
+  const lead=clean(pages[0].introduction)!==clean(d.pages[0].introduction)?pages[0].introduction:network==='instagram'?shortAngle(copy.angles[index]):copy.angles[index];
+  const points=pages.slice(1,4).map((p,i)=>{
+   const includeBody=network==='linkedin'||clean(p.introduction)!==clean(d.pages[i+1].introduction);
+   return `${network==='linkedin'?'•':copy.bullets[i]} ${clean(p.title)}${includeBody&&clean(p.introduction)?`\n${clean(p.introduction)}`:''}`;
+  }).join(network==='linkedin'?'\n\n':'\n');
+  const facts=Object.fromEntries(FACT_FIELDS.map(field=>[field,pages.find(p=>clean(p[field]))?.[field]||'']));
+  body=paragraphs([
+   `${emoji} ${clean(pages[0].title)}`,lead,
+   `${network==='instagram'?'Faites défiler pour découvrir 👇':network==='linkedin'?'Trois repères à explorer dans ce carrousel :':'Au fil des images 👇'}\n${points}`,
+   changedCopy(pages[4],d.pages[4]),infoLines(facts),
+   key==='desp_vae'?'La décision de validation appartient au jury.':''
+  ]);
+  action=network==='instagram'?`Envie d’aller plus loin ? Découvrez le parcours et préparons ${copy.goal}.`:network==='linkedin'?`Pour préparer ${copy.goal}, consultez les modalités du parcours et contactez notre équipe sur le site.`:`${copy.question} Retrouvez le parcours sur notre site et parlons de vos prochaines étapes.`;
+ }else if(d?.kind){
+  const label=d.key==='desp_initial'?'DESP':course.label;
+  const title=`${d.kind==='places'?'⏳ DERNIÈRES PLACES':'📅 PROCHAINE SESSION'} · ${label}\n${clean(c.title)}`;
+  const lead=clean(c.introduction)!==clean(d.introduction)?c.introduction:network==='instagram'?copy.question:network==='linkedin'?SESSION_PRO_ANGLES[index]:SESSION_ANGLES[index];
+  body=paragraphs([title,lead,network==='instagram'?`${emoji} ${course.tags.join(' · ')}`:`${emoji} ${copy.reason}`,infoLines(c)]);
+  action=d.kind==='places'
+   ?network==='instagram'?'Intéressé ? Vérifiez les places restantes et préparez votre inscription avec notre équipe sur le site.':`Vous souhaitez rejoindre la session ? Vérifiez les disponibilités et les conditions d’entrée pour préparer ${copy.goal} avec notre équipe.`
+   :network==='instagram'?'Dates, programme, inscription : retrouvez les informations de la session sur notre site.':`Pour organiser ${copy.goal}, retrouvez le programme et renseignez-vous sur les dates, les prérequis et l’inscription sur notre site.`;
+ }else if(d?.network){
+  body=paragraphs([`✨ ${clean(c.title)}`,COVER_PUBLICATIONS[index][network],changedCopy(c,d,['introduction'])]);
+ }else if(seasonal&&!c._manual){
+  // These seasonal posts already have authored event-specific copy.
+  return seasonal.socialCopy[network==='instagram'?'instagram':'facebook'];
+ }else{
+  const intro=clean(c.introduction||template.description),title=clean(c.title||template.name);
+  body=paragraphs([`${emoji} ${title}`,intro,network==='instagram'?'':key==='general'?'':copy.reason,infoLines(factualContent(c))]);
+  if(network==='instagram'&&key!=='general')action=`${copy.question} Découvrez le programme et les modalités sur notre site.`;
+  // A CTA explicitly edited in the visual remains part of the generated post.
+  const customCta=c._publicationFields?.includes('cta')&&clean(c.cta)&&c.cta!=='Faites le premier pas vers votre futur métier';
+  if(customCta)action=`${clean(c.cta).replace(/[.!]+$/,'')}. Retrouvez les informations sur notre site.`;
+ }
+ return finishPublication(body,action,course,network,index);
 }
 export function publicationKey(template,network){return `${template.id}:${network}`}
 export function renderPublicationPanel(project,template,network='facebook'){

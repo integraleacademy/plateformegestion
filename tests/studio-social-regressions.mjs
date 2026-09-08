@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {SOCIAL_COURSES,CAROUSEL_DESIGNS,COVER_DESIGNS,SESSION_DESIGNS} from '../static/studio_visuals/js/studio-social-content.js';
 import {createProject,ALL_FORMATS,FORMATION_CONFIG} from '../static/studio_visuals/js/studio-store.js';
-import {applySocialTemplate,matchesTemplateSearch,compatibleFormat,publicationText,createCarouselZip} from '../static/studio_visuals/js/studio-social-tools.js';
+import {applySocialTemplate,matchesTemplateSearch,compatibleFormat,publicationText,renderPublicationPanel,publicationKey,createCarouselZip} from '../static/studio_visuals/js/studio-social-tools.js';
 import {renderSocialTemplateBody,renderSocialCoverBody} from '../static/studio_visuals/js/studio-social-templates.js';
 const {templates}=JSON.parse(readFileSync('static/studio_visuals/data/templates.json'));
 const themes=JSON.parse(readFileSync('static/studio_visuals/data/themes.json'));
@@ -46,6 +46,33 @@ test('legacy placeholder facts are not promoted into publication claims',()=>{
  const t=templates.find(t=>t.id==='new_manifesto_highlight'),p=createProject({formation:'A3P'});
  const automatic=publicationText(p,t);assert.ok(!automatic.includes('175 h'));assert.ok(!automatic.includes('CPF'));
  p.slides[0].content._publicationFields=['duration'];assert.ok(publicationText(p,t).includes('175 h'));
+});
+test('the 115 social models have three distinct complete network captions without invented facts',()=>{
+ for(const t of models){
+  const p=createProject();applySocialTemplate(p,t);
+  const texts=['facebook','instagram','linkedin'].map(network=>publicationText(p,t,network));
+  assert.equal(new Set(texts).size,3,t.id);
+  for(const text of texts){
+   assert.ok(text.length>220,t.id);assert.equal((text.match(/https:\/\//g)||[]).length,1,t.id);
+   assert.ok(text.includes('#IntegraleAcademy'));assert.ok(!/undefined|\[object Object\]|175 h|CPF|🎄|🛡|07\/10/.test(text),t.id);
+   if(!t.isCarousel)assert.ok(!/carrousel|Faites défiler/i.test(text),t.id);
+   if(t.formationPreset==='A3P')assert.ok(text.includes('https://www.integraleacademy.com/securiteprivee'));
+  }
+  if(t.isCarousel)assert.ok(texts[1].length<texts[2].length,t.id);
+ }
+});
+test('edited captions stay intact and regeneration follows edits across carousel pages',()=>{
+ const t=models.find(t=>t.id==='carousel_aps_2'),p=createProject();applySocialTemplate(p,t);
+ Object.assign(p.slides[0].content,{title:'Mon titre personnalisé',introduction:'Mon accroche de publication.'});
+ Object.assign(p.slides[2].content,{introduction:'Le détail ajouté à ma deuxième idée.',startDate:'19 novembre'});
+ p.slides[4].content.introduction='Mon invitation personnalisée.';
+ for(const network of ['facebook','instagram','linkedin']){
+  const text=publicationText(p,t,network);
+  for(const snippet of ['Mon titre personnalisé','Mon accroche de publication.','Le détail ajouté','19 novembre','Mon invitation personnalisée.'])assert.ok(text.includes(snippet));
+ }
+ p.publications={[publicationKey(t,'facebook')]:'Mon texte définitif <personnalisé> 🔎'};
+ const html=renderPublicationPanel(p,t,'facebook');assert.ok(html.includes('Mon texte définitif &lt;personnalisé&gt; 🔎'));assert.ok(!html.includes('Mon accroche de publication.'));
+ delete p.publications[publicationKey(t,'facebook')];assert.ok(renderPublicationPanel(p,t).includes('Mon accroche de publication.'));
 });
 test('ZIP contains binary files and UTF-8 caption in a single archive',async()=>{
  const blob=createCarouselZip([{name:'01.png',bytes:new Uint8Array([137,80,78,71,0,255])},{name:'texte-publication.txt',bytes:new TextEncoder().encode('🔥 Formation SSIAP 1')}]);

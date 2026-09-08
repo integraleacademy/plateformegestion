@@ -705,6 +705,9 @@
 
 /* A signature is typography, not a second white banner across the artwork. */
 .studio-v2 .sv-brand__slogan{background:transparent!important;border-color:transparent!important;box-shadow:none!important;backdrop-filter:none!important}
+/* This is plain signature text. The former pill radius clips the F when a
+   template removes its padding or moves it into an overflow-hidden footer. */
+.studio-v2 .sv-brand__slogan{border-radius:0!important;overflow:visible!important}
 .studio-v2 .faq article{grid-template-columns:70px minmax(0,1fr)}
 .studio-v2 .faq article p{grid-column:2}
 .studio-v2 .mk-ribbon aside{right:48px;max-width:calc(100% - 96px);padding:20px 36px;font-size:42px;transform:rotate(8deg)}

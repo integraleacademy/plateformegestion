@@ -31,6 +31,8 @@
 .studio-v2.social-cover{--cover-logo-max:200px;--social-accent:#A87014;--social-tint:#F7E8C5;--social-line:#E8CF98;--social-ink:#2e2b28;background:radial-gradient(ellipse at 75% 25%,#f8e5b9,transparent 70%),#fffcf5!important}
 .studio-v2.social-cover .sv-safe{display:block!important;position:absolute!important;inset:0!important;padding:0!important}
 .studio-v2.social-cover :is(.sv-brand,.sv-footer){position:absolute!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+/* Cover identity uses unframed text: legacy rounded bars must not mask it. */
+.studio-v2.social-cover :is(.sv-brand,.sv-footer,.sv-footer__contacts,.sv-footer__site){border-radius:0!important;overflow:visible!important}
 .studio-v2.social-cover .sv-brand{inset:28px auto auto 290px!important;width:200px!important;height:200px!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:0!important}
 .studio-v2.social-cover .sv-brand .studio-brand-logo{--cover-logo-size:min(var(--studio-logo-size,150px),var(--cover-logo-max));width:var(--cover-logo-size)!important;height:var(--cover-logo-size)!important;min-width:0!important;flex:0 0 auto!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important}
 .studio-v2.social-cover .sv-brand .studio-brand-logo img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain;border-radius:0!important}

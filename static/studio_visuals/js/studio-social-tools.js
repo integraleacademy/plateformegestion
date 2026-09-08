@@ -123,7 +123,7 @@ export function publicationText(project,template,network='facebook'){
  const customCta=c._publicationFields?.includes('cta')&&clean(c.cta)&&c.cta!=='Faites le premier pas vers votre futur métier';
  const facts=publicationFacts(project,template),schedule=scheduleLines(facts,course,{upcoming:Boolean(d?.kind),vae:key==='desp_vae'});
  const practical=practicalLines(facts),program='🎓 '+copy.program,hook=copy.emoji+' '+copy.hook;
- let body,action=key.startsWith('bts_')?'Échangez avec notre équipe pour découvrir le parcours et préparer votre candidature en '+course.label+'.':copy.action;
+ let body,action=copy.action||(key.startsWith('bts_')?'Échangez avec notre équipe pour découvrir le parcours et préparer votre candidature en '+course.label+'.':PUBLICATION_ACTIONS[network]);
  if(d?.pages){
   const pages=publicationPages(project,template,d);
   const titleChanged=clean(pages[0].title)!==clean(d.pages[0].title);

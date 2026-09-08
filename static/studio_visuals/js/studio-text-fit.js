@@ -74,6 +74,11 @@ function fitOptions(element,canvas){
     lineHeight:designed.lineHeight
   });
   if(canvas.classList?.contains('social-cover')){
+    if(canvas.dataset.studioFormat==='linkedin_cover'){
+      if(kind==='title')return options(44,2,140);
+      if(kind==='body')return options(22,2,78);
+      return options(20,2,64);
+    }
     if(kind==='title')return options(30,2,110);
     if(kind==='body')return options(16,2,60);
     return options(14,2,45);

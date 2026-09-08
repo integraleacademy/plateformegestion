@@ -6,7 +6,9 @@ export const FORMATS={
   instagram_story:{id:'instagram_story',width:1080,height:1920,label:'Story / Reel',networks:'Instagram · Facebook · TikTok',usage:'Stories, Reels et vidéos verticales'},
   linkedin_landscape:{id:'linkedin_landscape',width:1200,height:627,label:'Paysage',networks:'LinkedIn · Facebook',usage:'Publication LinkedIn et partage de lien'}
 };
-export const COVER_FORMATS={linkedin_cover:{id:'linkedin_cover',width:1512,height:256,label:'Couverture LinkedIn',networks:'LinkedIn',usage:'Couverture de page'},facebook_cover:{id:'facebook_cover',width:851,height:315,label:'Couverture Facebook',networks:'Facebook',usage:'Couverture de page'}};
+// LinkedIn personal profiles use 4:1; the old company-page ratio was cropped
+// heavily when uploaded to a personal profile (see LinkedIn help a568217).
+export const COVER_FORMATS={linkedin_cover:{id:'linkedin_cover',width:1584,height:396,label:'Couverture LinkedIn · Profil personnel',networks:'LinkedIn',usage:'Profil personnel'},facebook_cover:{id:'facebook_cover',width:851,height:315,label:'Couverture Facebook',networks:'Facebook',usage:'Couverture de page'}};
 export const ALL_FORMATS={...FORMATS,...COVER_FORMATS};
 export const DEFAULT_LOGO_SETTINGS={width:150,opacity:1};
 export const FORMATION_CONFIG={A3P:{id:'A3P',label:'A3P',fullName:'Agent de Protection Physique des Personnes',defaultThemeId:'a3p_default',universe:'Protection rapprochée'},APS:{id:'APS',label:'APS',fullName:'Agent de Prévention et de Sécurité',defaultThemeId:'aps_default',universe:'Sécurité privée'},SSIAP:{id:'SSIAP',label:'SSIAP',fullName:'Service de Sécurité Incendie et d’Assistance à Personnes',defaultThemeId:'ssiap_default',universe:'Sécurité incendie'},DIRIGEANT:{id:'DIRIGEANT',label:'DIRIGEANT · DESP',fullName:'Dirigeant d’une entreprise de sécurité privée',defaultThemeId:'dirigeant_default',universe:'Direction et conformité'},VTC:{id:'VTC',label:'VTC',fullName:'Chauffeur VTC',defaultThemeId:'vtc_default',universe:'Mobilité et transport'},OR:{id:'OR',label:'OR · Général',fullName:'Intégrale Academy',defaultThemeId:'or_general',universe:'Formation professionnelle'}};

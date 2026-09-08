@@ -58,3 +58,18 @@
 .studio-format-facebook_cover .social-cover-art{width:250px;right:-135px;top:14px;height:270px;opacity:.6}
 .studio-format-facebook_cover.social-cover:after{left:-200px}
 .studio-format-facebook_cover.social-cover .social-studio-safe{inset:26px 65px 21px 135px}
+
+/* Personal LinkedIn profile, 1584 × 396. Keep the bottom left empty for the
+   avatar. The complete illustration sits above it; the logo is on the right.
+   Key elements also fit in the centre crop of a narrower 3:1 mobile banner. */
+.studio-v2.social-cover.studio-format-linkedin_cover{--cover-logo-max:250px}
+.studio-v2.social-cover.studio-format-linkedin_cover .sv-brand{inset:32px auto auto 1120px!important;width:250px!important;height:250px!important}
+.studio-v2.social-cover.studio-format-linkedin_cover .sv-safe>main.social-cover-main{inset:44px 484px 128px 620px!important;gap:16px}
+.studio-v2.social-cover.studio-format-linkedin_cover .social-cover-title{font-size:54px;line-height:1.08;letter-spacing:-.035em}
+.studio-v2.social-cover.studio-format-linkedin_cover .social-cover-intro{font-size:25px;line-height:1.3}
+.studio-v2.social-cover.studio-format-linkedin_cover footer.sv-footer{inset:auto 214px 40px 620px!important;height:68px!important;display:flex!important;flex-flow:column!important;align-items:flex-start!important;justify-content:center!important;gap:6px!important}
+.studio-v2.social-cover.studio-format-linkedin_cover .sv-brand__slogan{font-size:22px;line-height:1.3!important}
+.studio-v2.social-cover.studio-format-linkedin_cover .sv-footer__site{font-size:20px!important}
+.studio-v2.social-cover.studio-format-linkedin_cover .social-cover-art{inset:28px auto auto 255px!important;width:334px!important;height:156px!important;opacity:1!important;transform:none!important}
+.studio-v2.social-cover.studio-format-linkedin_cover .social-cover-art svg{display:block;width:100%;height:100%;overflow:visible}
+.studio-v2.social-cover.studio-format-linkedin_cover .social-studio-safe{inset:24px 198px 28px 198px}

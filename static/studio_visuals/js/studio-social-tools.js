@@ -17,7 +17,7 @@ export function applySocialTemplate(project,template){
  const build=(page,index)=>normalizeSlide({formation,templateId:template.id,layoutVariantId:template.id,carouselPage:index,role:index===0?'cover':index===4?'conclusion':'content',
   content:{...defaultContentForFormation(formation),...socialDefaultContent(template,index),footer:{...previous.content.footer},_autoFormation:formation,_socialTemplateId:template.id},options:{showSafeMargins:previous.options?.showSafeMargins!==false,showPagination:false}});
  if(template.isCarousel){project.slides=d.pages.map(build);project.activeSlideIndex=0;project.name=template.name;}
- else if(template.isCover){project.slides=[build(d,0)];project.activeSlideIndex=0;project.name=template.name;}
+ else if(template.isCover){project.slides=[build(d,0)];if(d.network==='linkedin')project.slides[0].logo.width=220;project.activeSlideIndex=0;project.name=template.name;}
  else{project.slides[project.activeSlideIndex]=build(d,0);}
 }
 

@@ -45,7 +45,42 @@ export function renderSocialTemplateBody({slide,template}){
  const type=d.pages?.[page]?.kind||'announcement';
  return `<main class="social-main social-layout-${d.layout} social-page-${type}" data-layout-role="social-${d.layout}-${type}"><section class="social-copy">${kicker}${title}${intro}${details}${cta}</section>${art}${tags}${progress}</main>`;
 }
+// Wide illustrations deliberately fit above the personal-profile photo.
+// Their viewBox includes every card, path and stroke: none relies on cropping.
+export function renderLinkedInCoverIllustration(variant=0){
+ const gold='#B88120',tint='#FAE7B7',line='#E6C57C',ink='#32352E';
+ const card=(x,y,w,h,fill='#fff',r=18)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" stroke="${line}" stroke-width="2"/>`;
+ const dot=(x,y,r=6,fill=gold)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"/>`;
+ let shapes='';
+ if(variant===0){
+  shapes=card(12,12,576,256)+`<path d="M40 219H560" stroke="${line}" stroke-width="3"/>`+
+   `<path d="M186 217V127a83 83 0 0 1 166 0v90" fill="${tint}" stroke="${gold}" stroke-width="8"/><path d="M217 217V130a52 52 0 0 1 104 0v87" fill="#fff" stroke="${line}" stroke-width="5"/>`+
+   `<path d="M256 172h173m-25-25 26 25-26 25" fill="none" stroke="${ink}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`+dot(453,72,20,tint)+dot(80,81,10)+dot(112,81,6,line);
+ }
+ if(variant===1){
+  shapes=card(16,14,568,252)+`<path d="M17 72H584" stroke="${line}" stroke-width="2"/>`+dot(39,43)+dot(61,43,6,line)+dot(83,43,6,tint)+
+   card(124,29,135,43,tint,10)+card(270,29,135,43,'#fff',10)+card(417,29,143,43,'#fff',10)+
+   card(39,97,153,141,tint)+card(212,97,153,141)+card(385,97,174,141,gold)+
+   glyph('portal',84,125,73)+glyph('folder',253,125,73)+glyph('globe',431,125,79,'#fff');
+ }
+ if(variant===2){
+  shapes=card(12,12,576,256)+`<path d="M67 204C153 204 123 86 266 86S389 199 518 71" stroke="${gold}" stroke-width="7" fill="none" stroke-linecap="round"/><path d="m485 72 36-7-1 37" stroke="${gold}" stroke-width="7" fill="none" stroke-linejoin="round"/>`+
+   [[68,204],[258,87],[427,139]].map(([x,y])=>dot(x,y,20,tint)+dot(x,y,9)).join('')+
+   card(49,40,123,88)+glyph('folder',86,55,52)+card(269,164,116,81)+glyph('portal',306,176,53);
+ }
+ if(variant===3){
+  shapes=card(12,12,576,256)+`<ellipse cx="300" cy="141" rx="171" ry="88" stroke="${gold}" stroke-width="3" stroke-dasharray="6 9" fill="none"/>`+
+   card(40,33,114,104,tint)+glyph('chat',67,54,62)+card(444,138,114,104,tint)+glyph('globe',469,158,65)+
+   `<path d="m300 46 26 56 62 8-45 43 11 62-54-30-54 30 11-62-45-43 62-8z" fill="${gold}" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>`+dot(484,67,14,line)+dot(116,212,11,gold);
+ }
+ if(variant===4){
+  shapes=card(12,12,576,256)+card(42,161,132,79,tint)+card(183,113,132,127,tint)+card(324,66,132,174,gold)+
+   `<path d="M67 122 284 40m-31-12 35 10-13 34" stroke="${gold}" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+
+   glyph('portal',356,110,67,'#fff')+dot(512,178,41,tint)+`<path d="m493 178 14 14 25-28" stroke="${ink}" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+ }
+ return `<svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${shapes}</svg>`;
+}
 export function renderSocialCoverBody({slide,template}){
  const d=SOCIAL_BY_ID[template.id],c={...socialDefaultContent(template),...slide.content};
- return `<main class="social-cover-main" data-layout-role="cover-${d.layout}">${text('title',c.title,'h1','social-cover-title','title')}${text('introduction',c.introduction,'p','social-cover-intro','body')}</main><div class="social-cover-art social-cover-art-${d.layout}" data-studio-decorative="true">${renderSocialIllustration('portal',d.index)}</div>`;
+ return `<main class="social-cover-main" data-layout-role="cover-${d.layout}">${text('title',c.title,'h1','social-cover-title','title')}${text('introduction',c.introduction,'p','social-cover-intro','body')}</main><div class="social-cover-art social-cover-art-${d.layout}" ${d.network==='linkedin'?'data-layout-role="cover-illustration" data-cover-illustration="true"':''} data-studio-decorative="true">${d.network==='linkedin'?renderLinkedInCoverIllustration(d.index):renderSocialIllustration('portal',d.index)}</div>`;
 }

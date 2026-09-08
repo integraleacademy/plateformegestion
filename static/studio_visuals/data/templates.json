@@ -14128,6 +14128,806 @@
       "renderer": "renderBtsTemplate",
       "status": "ready",
       "version": 1
+    },
+    {
+      "id": "general_halloween_citrouille",
+      "family": "saas",
+      "name": "Général · Halloween · La citrouille créative",
+      "description": "Joyeux Halloween ! Cette année, laissez votre envie d’apprendre prendre toute la place.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "halloween",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Même pas peur de l’avenir.",
+        "introduction": "Joyeux Halloween ! Cette année, laissez votre envie d’apprendre prendre toute la place.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_halloween_fantome",
+      "family": "saas",
+      "name": "Général · Halloween · Le fantôme des doutes",
+      "description": "Un projet en tête ? Explorez vos possibilités, une question à la fois.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "halloween",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Boo ! Faites fuir les doutes.",
+        "introduction": "Un projet en tête ? Explorez vos possibilités, une question à la fois.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_halloween_potion",
+      "family": "saas",
+      "name": "Général · Halloween · La potion d’ambition",
+      "description": "Curiosité, motivation, apprentissage : préparez votre propre recette pour avancer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "halloween",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Une dose d’audace. Un nouveau projet.",
+        "introduction": "Curiosité, motivation, apprentissage : préparez votre propre recette pour avancer.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_halloween_porte",
+      "family": "saas",
+      "name": "Général · Halloween · La porte des possibles",
+      "description": "Derrière une nouvelle formation, il y a peut-être un projet qui vous ressemble.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "halloween",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Ouvrez la porte aux possibles.",
+        "introduction": "Derrière une nouvelle formation, il y a peut-être un projet qui vous ressemble.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_halloween_bonbons",
+      "family": "saas",
+      "name": "Général · Halloween · Les bonbons de l’avenir",
+      "description": "Un Halloween plein de bonne humeur, et de belles envies pour la suite.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "halloween",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Des bonbons. Des idées. Des projets.",
+        "introduction": "Un Halloween plein de bonne humeur, et de belles envies pour la suite.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_noel_sapin",
+      "family": "saas",
+      "name": "Général · Noël · Le sapin des projets",
+      "description": "Toute l’équipe Intégrale Academy vous souhaite de beaux moments à partager.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "noel",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Joyeux Noël à tous !",
+        "introduction": "Toute l’équipe Intégrale Academy vous souhaite de beaux moments à partager.",
+        "cta": "Découvrir notre univers"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_noel_cadeau",
+      "family": "saas",
+      "name": "Général · Noël · Le cadeau d’avenir",
+      "description": "À Noël, faites aussi une place à vos envies, à vos talents et à vos projets.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "noel",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Le plus beau cadeau ? Croire en vous.",
+        "introduction": "À Noël, faites aussi une place à vos envies, à vos talents et à vos projets.",
+        "cta": "Découvrir notre univers"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_noel_etoile",
+      "family": "saas",
+      "name": "Général · Noël · L’étoile des envies",
+      "description": "Que cette période de fêtes vous inspire de nouvelles perspectives.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "noel",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Faites briller vos envies.",
+        "introduction": "Que cette période de fêtes vous inspire de nouvelles perspectives.",
+        "cta": "Découvrir notre univers"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_noel_pause",
+      "family": "saas",
+      "name": "Général · Noël · La pause enchantée",
+      "description": "Profitez des fêtes pour vous retrouver et laisser grandir vos idées.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "noel",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Une pause pour mieux rêver.",
+        "introduction": "Profitez des fêtes pour vous retrouver et laisser grandir vos idées.",
+        "cta": "Découvrir notre univers"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_noel_collectif",
+      "family": "saas",
+      "name": "Général · Noël · La magie du collectif",
+      "description": "Apprenants, formateurs, partenaires : merci de faire vivre notre communauté.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "noel",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "La magie, c’est aussi vous.",
+        "introduction": "Apprenants, formateurs, partenaires : merci de faire vivre notre communauté.",
+        "cta": "Découvrir notre univers"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_saint_valentin_coeur",
+      "family": "saas",
+      "name": "Général · Saint-Valentin · Le coup de cœur métier",
+      "description": "Pour la Saint-Valentin, faites une place à ce que vous aimez vraiment.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "saint_valentin",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Et si votre avenir vous faisait vibrer ?",
+        "introduction": "Pour la Saint-Valentin, faites une place à ce que vous aimez vraiment.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_saint_valentin_lettre",
+      "family": "saas",
+      "name": "Général · Saint-Valentin · La lettre à soi",
+      "description": "Croyez en vos envies. Prenez le temps de leur donner une direction.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "saint_valentin",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Un petit mot pour votre futur vous.",
+        "introduction": "Croyez en vos envies. Prenez le temps de leur donner une direction.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_saint_valentin_match",
+      "family": "saas",
+      "name": "Général · Saint-Valentin · Le match des envies",
+      "description": "Explorez les formations qui font écho à votre personnalité et à vos intérêts.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "saint_valentin",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Vos envies. Votre projet. Le bon match.",
+        "introduction": "Explorez les formations qui font écho à votre personnalité et à vos intérêts.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_saint_valentin_confiance",
+      "family": "saas",
+      "name": "Général · Saint-Valentin · Le cœur confiance",
+      "description": "Votre curiosité et vos ambitions méritent aussi toute votre attention.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "saint_valentin",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Faites-vous une place dans vos projets.",
+        "introduction": "Votre curiosité et vos ambitions méritent aussi toute votre attention.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_saint_valentin_bouquet",
+      "family": "saas",
+      "name": "Général · Saint-Valentin · Le bouquet des talents",
+      "description": "Un peu de curiosité, de nouvelles compétences et des perspectives à explorer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "saint_valentin",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Faites fleurir vos talents.",
+        "introduction": "Un peu de curiosité, de nouvelles compétences et des perspectives à explorer.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_bonne_annee_confettis",
+      "family": "saas",
+      "name": "Général · Bonne année 2027 · Les confettis 2027",
+      "description": "Toute l’équipe Intégrale Academy vous souhaite une très belle année !",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "bonne_annee",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Bonjour 2027. Place aux possibles.",
+        "introduction": "Toute l’équipe Intégrale Academy vous souhaite une très belle année !",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_bonne_annee_chapitre",
+      "family": "saas",
+      "name": "Général · Bonne année 2027 · Le nouveau chapitre",
+      "description": "Une nouvelle année pour apprendre, explorer et construire la suite.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "bonne_annee",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "2027, votre prochain chapitre.",
+        "introduction": "Une nouvelle année pour apprendre, explorer et construire la suite.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_bonne_annee_elan",
+      "family": "saas",
+      "name": "Général · Bonne année 2027 · L’élan de janvier",
+      "description": "Transformez une idée en projet, à votre rythme et avec curiosité.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "bonne_annee",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "En 2027, donnez de l’élan à vos envies.",
+        "introduction": "Transformez une idée en projet, à votre rythme et avec curiosité.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_bonne_annee_horizon",
+      "family": "saas",
+      "name": "Général · Bonne année 2027 · L’horizon 2027",
+      "description": "Que 2027 vous apporte de belles découvertes et de nouvelles perspectives.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "bonne_annee",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Un nouvel horizon s’ouvre à vous.",
+        "introduction": "Que 2027 vous apporte de belles découvertes et de nouvelles perspectives.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_bonne_annee_ensemble",
+      "family": "saas",
+      "name": "Général · Bonne année 2027 · L’année à construire ensemble",
+      "description": "Merci pour votre confiance. Continuons à apprendre, partager et avancer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "seasonalEvent": "bonne_annee",
+      "collection": "GÉNÉRAL · FÊTES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "2027 se construit aussi ensemble.",
+        "introduction": "Merci pour votre confiance. Continuons à apprendre, partager et avancer.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
     }
   ]
 }

@@ -68,7 +68,7 @@ test('Tous nos BTS has five discoverable carousels covering all six diplomas in 
 test('session captions use user data and keep DESP initial and VAE separate',()=>{
  const t=models.find(t=>t.id==='session_ssiap1_1'),p=createProject();applySocialTemplate(p,t);
  Object.assign(p.slides[0].content,{startDate:'12 octobre',endDate:'23 octobre',availability:'Deux places disponibles'});
- for(const network of ['facebook','instagram','linkedin']){const text=publicationText(p,t,network);assert.ok(text.includes('Du 12 octobre au 23 octobre'));assert.ok(text.includes('Deux places disponibles'));assert.ok(text.includes('SSIAP 1'));assert.ok(!text.includes('175 h'));assert.ok(!text.includes('🎄'));}
+ for(const network of ['facebook','instagram','linkedin']){const text=publicationText(p,t,network);assert.ok(text.includes('Prochaine session SSIAP 1 : du 12 octobre au 23 octobre'));assert.ok(text.includes('Deux places disponibles'));assert.ok(text.includes('SSIAP 1'));assert.ok(!text.includes('175 h'));assert.ok(!text.includes('🎄'));}
  const vae=models.find(t=>t.id==='carousel_desp_vae_5');applySocialTemplate(p,vae);assert.ok(publicationText(p,vae).includes('jury'));
 });
 test('legacy placeholder facts are not promoted into publication claims',()=>{
@@ -83,7 +83,7 @@ test('the 120 social models have three distinct complete network captions withou
   assert.equal(new Set(texts).size,3,t.id);
   for(const text of texts){
    assert.ok(text.length>220,t.id);assert.equal((text.match(/https:\/\//g)||[]).length,1,t.id);
-   assert.ok(text.includes('#IntegraleAcademy'));assert.ok(!/undefined|\[object Object\]|175 h|CPF|🎄|🛡|07\/10/.test(text),t.id);
+   assert.ok(text.includes('#IntegraleAcademy'));assert.ok(!/undefined|\[object Object\]|175 h\b|CPF|🎄|🛡|07\/10/.test(text),t.id);
    if(!t.isCarousel)assert.ok(!/carrousel|Faites défiler/i.test(text),t.id);
    if(t.formationPreset==='A3P')assert.ok(text.includes('https://www.integraleacademy.com/securiteprivee'));
   }
@@ -107,4 +107,54 @@ test('ZIP contains binary files and UTF-8 caption in a single archive',async()=>
  const blob=createCarouselZip([{name:'01.png',bytes:new Uint8Array([137,80,78,71,0,255])},{name:'texte-publication.txt',bytes:new TextEncoder().encode('🔥 Formation SSIAP 1')}]);
  const buffer=Buffer.from(await blob.arrayBuffer());assert.equal(buffer.readUInt32LE(0),0x04034b50);assert.equal(buffer.readUInt32LE(buffer.length-22),0x06054b50);assert.equal(buffer.readUInt16LE(buffer.length-14),2);
  writeFileSync('/tmp/studio-social-zip-test.zip',buffer);
+});
+
+test('APS and A3P announcements follow the supplied posts on all three networks',()=>{
+ const cases=[
+  ['aps','2026-11-03','2026-12-08','2026-12-09','175 heures','1 650 €','Prochaine session APS : du 3 novembre 2026 au 8 décembre 2026'],
+  ['a3p','2026-11-09','2027-01-19','2027-01-20','9 semaines, soit 328 heures hors examen','4 200 €','Prochaine session A3P : du 9 novembre 2026 au 19 janvier 2027']
+ ];
+ for(const [key,startDate,endDate,examDate,duration,price,dates] of cases){
+  const t=models.find(t=>t.id===`session_${key}_1`),p=createProject();applySocialTemplate(p,t);
+  // Confirmed course facts are available without inserting a dated session.
+  assert.ok(!publicationText(p,t).includes('📅'));
+  Object.assign(p.slides[0].content,{startDate,endDate,examDate});
+  for(const network of ['facebook','instagram','linkedin']){
+   const text=publicationText(p,t,network);
+   for(const value of [dates,'📝 Examen le ','🎓 ','⏱️ Durée : '+duration,'💶 Tarif : '+price,'👉 Informations et inscriptions sur https://www.integraleacademy.com'])assert.ok(text.includes(value),value);
+   assert.ok(text.indexOf('📅')<text.indexOf('🎓'));assert.ok(text.indexOf('🎓')<text.indexOf('💶'));
+   assert.ok(!/CPF|Places limitées|🛡|message privé/i.test(text));
+  }
+ }
+});
+
+test('price, duration and clearing a field take precedence across carousel slides',()=>{
+ const t=models.find(t=>t.id==='carousel_a3p_1'),p=createProject();applySocialTemplate(p,t);
+ Object.assign(p.slides[2].content,{price:'3999.50',duration:'330 heures',_publicationFields:['price','duration']});
+ for(const network of ['facebook','instagram','linkedin']){
+  const text=publicationText(p,t,network);assert.ok(text.includes('Tarif : 3 999,50 €'));assert.ok(text.includes('Durée : 330 heures'));
+  assert.ok(!text.includes('4 200 €'));assert.ok(!text.includes('328 heures'));
+ }
+ p.slides[0].content.price='4 200 €';p.slides[2].content.price='';p.slides[2].content.duration='';
+ assert.ok(!/💶|⏱️/.test(publicationText(p,t)));
+ p.slides[2].content.price=0;assert.ok(publicationText(p,t).includes('Tarif : 0 €'));
+});
+
+test('course facts and the subject of the visual stay specific to the chosen formation',()=>{
+ const t=templates.find(t=>t.id==='metier_aps_logistique'),p=createProject({formation:'SSIAP'});
+ p.slides[0].content={...p.slides[0].content,...t.contentDefaults};
+ const text=publicationText(p,t);
+ assert.ok(text.startsWith('👀 Vous envisagez de devenir agent de prévention et de sécurité ?'));
+ assert.ok(text.includes('Sur une plateforme logistique'));assert.ok(text.includes('Tarif : 1 650 €'));assert.ok(!text.includes('SSIAP'));
+ for(const key of ['desp_initial','desp_vae','ssiap1','vtc','bts_mos','bts_pi','bts_mco','bts_ndrc','bts_ci','bts_cg']){
+  const model=models.find(t=>t.id===`carousel_${key}_1`);applySocialTemplate(p,model);
+  assert.ok(!/175|328|1 650|4 200|💶|⏱️/.test(publicationText(p,model)),key);
+ }
+});
+
+test('DESP VAE custom visuals use an experience-based invitation and a jury date',()=>{
+ const t=templates.find(t=>t.id==='new_manifesto_highlight'),p=createProject({formation:'DIRIGEANT'});
+ Object.assign(p.slides[0].content,{title:'Préparez votre VAE DESP',examDate:'2027-01-20',_manual:true});
+ const text=publicationText(p,t);assert.ok(text.includes('📝 Jury le 20 janvier 2027'));assert.ok(text.includes('La décision de validation appartient au jury.'));
+ assert.ok(!/Au programme|Examen le|créer ou de diriger/.test(text));
 });

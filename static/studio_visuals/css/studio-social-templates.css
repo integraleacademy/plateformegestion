@@ -50,16 +50,19 @@
 .social-cover-art-editorial{transform:rotate(-12deg)}.social-cover-art-path{right:-80px;transform:rotate(10deg)}.social-cover-art-bento{top:-10px}
 .studio-v2.social-cover .studio-brand-logo:before,.studio-v2.social-cover .studio-brand-logo:after,.studio-v2.social-cover .sv-brand__slogan:before,.studio-v2.social-cover .sv-footer:before,.studio-v2.social-cover .sv-footer:after{display:none!important}
 .social-cover .social-studio-safe{inset:20px 240px 20px 290px}
+/* Facebook covers have three separate columns. The illustration must fit in
+   its own column, including cards and strokes, instead of hanging off-canvas. */
 .studio-v2.social-cover.studio-format-facebook_cover{--cover-logo-max:180px}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-brand{inset:40px auto auto 135px!important;width:180px!important;height:180px!important}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-safe>main.social-cover-main{inset:26px 85px 90px 340px!important;gap:12px}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-brand{inset:42px auto auto 40px!important;width:180px!important;height:180px!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-safe>main.social-cover-main{inset:38px 264px 98px 244px!important;gap:12px}
 .studio-v2.social-cover.studio-format-facebook_cover .social-cover-title{font-size:37px}
 .studio-v2.social-cover.studio-format-facebook_cover .social-cover-intro{font-size:18px}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-footer{inset:auto 65px 21px 340px!important;height:62px!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-footer{inset:auto 30px 26px 244px!important;height:54px!important}
 .studio-v2.social-cover.studio-format-facebook_cover .sv-brand__slogan{font-size:15px}
-.studio-format-facebook_cover .social-cover-art{width:250px;right:-135px;top:14px;height:270px;opacity:.6}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-art{inset:48px 24px auto auto!important;width:224px!important;height:180px!important;opacity:1!important;transform:none!important}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-art svg{display:block;width:100%;height:100%}
 .studio-format-facebook_cover.social-cover:after{left:-200px}
-.studio-format-facebook_cover.social-cover .social-studio-safe{inset:26px 65px 21px 135px}
+.studio-format-facebook_cover.social-cover .social-studio-safe{inset:24px}
 
 /* Personal LinkedIn profile, 1584 × 396. Keep the bottom left empty for the
    avatar. The complete illustration sits above it; the logo is on the right.

@@ -119,6 +119,13 @@ export function validateStudioSlide(slideNode,options={}){
   if(regionOverlap(canvas,brand,content))blockingErrors.push({message:'Le contenu chevauche la zone du logo.',element:content});
   if(regionOverlap(canvas,content,footer))blockingErrors.push({message:'Le contenu chevauche le pied de page.',element:content});
   if(regionOverlap(canvas,brand,footer))blockingErrors.push({message:'Le logo chevauche le pied de page.',element:brand});
+  // Cover illustrations are decorative but still need their own visible area.
+  // Pulling a cropped drawing inward must not hide the logo or the copy.
+  for(const art of canvas.querySelectorAll('[data-cover-illustration]')){
+    for(const [region,label] of [[brand,'le logo'],[content,'le texte'],[footer,'le pied de page']]){
+      if(regionOverlap(canvas,art,region))blockingErrors.push({message:`L’illustration de couverture chevauche ${label}.`,element:art});
+    }
+  }
 
   const scale=(canvas.getBoundingClientRect().width/(w||canvas.offsetWidth||1))||1,safe=70*scale,c=canvas.getBoundingClientRect();
   canvas.querySelectorAll('[data-exportable="true"]').forEach(el=>{

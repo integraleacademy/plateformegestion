@@ -37,7 +37,7 @@ export function renderSocialTemplateBody({slide,template}){
  const page=Math.max(0,Math.min(4,Number(slide.carouselPage)||0)),c={...socialDefaultContent(template,page),...slide.content};
  const title=text('title',c.title,'h1','social-title','title'),intro=text('introduction',c.introduction,'p','social-intro','body');
  const kicker=text('eyebrow',c.eyebrow,'p','social-kicker','badge');
- const cta=`<div class="social-action">${text('cta',c.cta,'span','social-cta','cta')}<b aria-hidden="true">↗</b></div>`;
+ const cta=`<div class="social-action">${text('cta',c.cta,'span','social-cta','cta')}<b aria-hidden="true">${d.pages?'→':'↗'}</b></div>`;
  const art=`<figure class="social-art" data-studio-decorative="true"><div ${template.motion?'data-motion="float"':''}>${renderSocialIllustration(d.course?.art||'portal',d.index+(d.pages?page:0))}</div></figure>`;
  const tags=`<div class="social-tags">${(d.course?.tags||['Sécurité','Mobilité','BTS']).map(t=>`<span>${e(t)}</span>`).join('')}</div>`;
  const details=template.isSession?`<div class="social-session-details">${[['startDate','📅'],['endDate','→'],['date','📅'],['availability','⏳']].filter(([key])=>c[key]).map(([key,icon])=>`<span>${icon} ${text(key,c[key],'b','social-session-value','meta')}</span>`).join('')}</div>`:'';

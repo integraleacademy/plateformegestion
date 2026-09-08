@@ -42,6 +42,11 @@ test('session captions use user data and keep DESP initial and VAE separate',()=
  for(const network of ['facebook','instagram','linkedin']){const text=publicationText(p,t,network);assert.ok(text.includes('Du 12 octobre au 23 octobre'));assert.ok(text.includes('Deux places disponibles'));assert.ok(text.includes('SSIAP 1'));assert.ok(!text.includes('175 h'));assert.ok(!text.includes('🎄'));}
  const vae=models.find(t=>t.id==='carousel_desp_vae_5');applySocialTemplate(p,vae);assert.ok(publicationText(p,vae).includes('jury'));
 });
+test('legacy placeholder facts are not promoted into publication claims',()=>{
+ const t=templates.find(t=>t.id==='new_manifesto_highlight'),p=createProject({formation:'A3P'});
+ const automatic=publicationText(p,t);assert.ok(!automatic.includes('175 h'));assert.ok(!automatic.includes('CPF'));
+ p.slides[0].content._publicationFields=['duration'];assert.ok(publicationText(p,t).includes('175 h'));
+});
 test('ZIP contains binary files and UTF-8 caption in a single archive',async()=>{
  const blob=createCarouselZip([{name:'01.png',bytes:new Uint8Array([137,80,78,71,0,255])},{name:'texte-publication.txt',bytes:new TextEncoder().encode('🔥 Formation SSIAP 1')}]);
  const buffer=Buffer.from(await blob.arrayBuffer());assert.equal(buffer.readUInt32LE(0),0x04034b50);assert.equal(buffer.readUInt32LE(buffer.length-22),0x06054b50);assert.equal(buffer.readUInt16LE(buffer.length-14),2);

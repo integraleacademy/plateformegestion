@@ -281,8 +281,8 @@ const LAYOUTS=['portal','editorial','bento','path','orbit'];
 export const CAROUSEL_DESIGNS=Object.entries(SOCIAL_COURSES).flatMap(([key,course])=>course.stories.map(([title,introduction,items],index)=>{
  const points=items.map(item=>{const [title,text]=item.split('|');return {title,text}});
  const id=`carousel_${key}_${index+1}`;
- const pages=[{title,introduction,eyebrow:`${course.emoji} ${course.label}`,cta:'Faites défiler →',kind:'cover'},
-  ...points.map((p,i)=>({title:p.title,introduction:p.text,eyebrow:`${course.emoji} ${course.label} · ${CONCEPTS[index]}`,cta:i===2?'Votre prochaine étape →':'La suite →',kind:['focus','detail','takeaway'][i]})),
+ const pages=[{title,introduction,eyebrow:`${course.emoji} ${course.label}`,cta:'Faites défiler',kind:'cover'},
+  ...points.map((p,i)=>({title:p.title,introduction:p.text,eyebrow:`${course.emoji} ${course.label} · ${CONCEPTS[index]}`,cta:i===2?'Votre prochaine étape':'La suite',kind:['focus','detail','takeaway'][i]})),
   {title:key==='desp_vae'?'Donnons du sens à votre expérience.':'Et si on préparait votre projet ?',introduction:`Découvrez ${key==='general'?'nos formations':`le parcours ${course.label}`} et échangez avec notre équipe.`,eyebrow:`${course.emoji} INTÉGRALE ACADEMY`,cta:key==='desp_vae'?'Parlons de votre VAE':'Découvrir la formation',kind:'closing'}];
  return {id,key,course,index,layout:LAYOUTS[index],name:`CARROUSEL · ${course.label} · ${title.replace(/\.$/,'')}`,pages,
   caption:`${course.emoji} ${title}\n\n${introduction}\n\n${points.map(p=>`✨ ${p.title}\n${p.text}`).join('\n\n')}\n\n${key==='desp_vae'?'📂 Un projet de VAE DESP ? Étudions votre parcours. La décision de validation appartient au jury.':'🎯 Envie d’aller plus loin ? Échangeons sur votre projet de formation.'}`};

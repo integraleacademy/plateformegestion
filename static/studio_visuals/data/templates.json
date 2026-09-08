@@ -16608,7 +16608,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une mission commence avant le départ.",
@@ -16666,7 +16666,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La discrétion est une compétence.",
@@ -16724,7 +16724,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un déplacement. Plusieurs scénarios.",
@@ -16782,7 +16782,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet mérite une préparation.",
@@ -16840,7 +16840,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "A3P : au-delà des idées reçues.",
@@ -16898,7 +16898,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une ronde, un vrai regard métier.",
@@ -16956,7 +16956,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "À l’accueil, chaque détail compte.",
@@ -17014,7 +17014,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Du PC sécurité au terrain.",
@@ -17072,7 +17072,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Les compétences derrière l’uniforme.",
@@ -17130,7 +17130,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre première étape vers l’APS.",
@@ -17188,7 +17188,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "De l’idée à l’entreprise de sécurité.",
@@ -17246,7 +17246,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Diriger, c’est aussi anticiper.",
@@ -17304,7 +17304,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un contrat engage toute l’équipe.",
@@ -17362,7 +17362,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Vos décisions ont besoin de repères.",
@@ -17420,7 +17420,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "DESP initial : préparons votre projet.",
@@ -17478,7 +17478,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre expérience a des choses à dire.",
@@ -17536,7 +17536,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un dossier se construit avec du concret.",
@@ -17594,7 +17594,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Raconter une mission, montrer un savoir-faire.",
@@ -17652,7 +17652,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Préparez votre échange avec le jury.",
@@ -17710,7 +17710,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "VAE : commençons par les bonnes questions.",
@@ -17768,7 +17768,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une course réussie se prépare.",
@@ -17826,7 +17826,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le service se joue dans les détails.",
@@ -17884,7 +17884,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le métier VTC va au-delà du volant.",
@@ -17942,7 +17942,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre préparation mérite un itinéraire.",
@@ -18000,7 +18000,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "S’adapter fait partie du trajet.",
@@ -18058,7 +18058,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Au PC sécurité, gardez le bon cap.",
@@ -18116,7 +18116,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une ronde incendie, ça s’observe.",
@@ -18174,7 +18174,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une alarme appelle une méthode.",
@@ -18232,7 +18232,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prévention commence au quotidien.",
@@ -18290,7 +18290,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "SSIAP 1 : préparez votre prochaine étape.",
@@ -18348,7 +18348,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Les onglets des possibles.",
@@ -18406,7 +18406,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Changer de voie, étape par étape.",
@@ -18464,7 +18464,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une formation, des gestes concrets.",
@@ -18522,7 +18522,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet n’a pas besoin d’attendre.",
@@ -18580,7 +18580,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Avant de choisir votre formation…",
@@ -18638,7 +18638,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La sécurité se pilote en équipe.",
@@ -18696,7 +18696,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Du terrain à la coordination.",
@@ -18754,7 +18754,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une prestation, plusieurs regards.",
@@ -18812,7 +18812,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre avenir côté opérations.",
@@ -18870,7 +18870,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "BTS MOS : les bonnes questions.",
@@ -18928,7 +18928,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "L’immobilier commence par un projet.",
@@ -18986,7 +18986,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Derrière une visite, une préparation.",
@@ -19044,7 +19044,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un bien. Plusieurs interlocuteurs.",
@@ -19102,7 +19102,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre avenir a une nouvelle adresse.",
@@ -19160,7 +19160,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "L’immobilier, c’est aussi de la méthode.",
@@ -19218,7 +19218,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Faites vivre le commerce.",
@@ -19276,7 +19276,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Une vitrine ne fait pas tout.",
@@ -19334,7 +19334,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Dans les coulisses d’une opération.",
@@ -19392,7 +19392,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre énergie, un projet commercial.",
@@ -19450,7 +19450,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le commerce évolue. Vos compétences aussi.",
@@ -19508,7 +19508,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Chaque échange peut ouvrir une porte.",
@@ -19566,7 +19566,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La bonne question change l’échange.",
@@ -19624,7 +19624,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Du premier clic au prochain échange.",
@@ -19682,7 +19682,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre aisance peut devenir un savoir-faire.",
@@ -19740,7 +19740,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "NDRC : au-delà du discours commercial.",
@@ -19798,7 +19798,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet peut dépasser les frontières.",
@@ -19856,7 +19856,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "À l’international, les détails comptent.",
@@ -19914,7 +19914,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un échange international, tout un parcours.",
@@ -19972,7 +19972,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Donnez une dimension internationale à vos envies.",
@@ -20030,7 +20030,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le commerce international, en trois questions.",
@@ -20088,7 +20088,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Les chiffres racontent une activité.",
@@ -20146,7 +20146,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La rigueur se construit.",
@@ -20204,7 +20204,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "D’une facture à une vision d’ensemble.",
@@ -20262,7 +20262,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre sens du détail a de l’avenir.",
@@ -20320,7 +20320,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La comptabilité, au-delà des calculs.",
@@ -20371,7 +20371,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un nouvel horizon professionnel.",
@@ -20421,7 +20421,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Les onglets des possibles.",
@@ -20471,7 +20471,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre parcours prend forme.",
@@ -20521,7 +20521,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Révélez ce qui vous anime.",
@@ -20571,7 +20571,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prochaine étape, c’est vous.",
@@ -20621,7 +20621,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un nouvel horizon professionnel.",
@@ -20671,7 +20671,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Les onglets des possibles.",
@@ -20721,7 +20721,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre parcours prend forme.",
@@ -20771,7 +20771,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Révélez ce qui vous anime.",
@@ -20821,7 +20821,7 @@
       "motion": "",
       "hasEmojis": false,
       "renderer": "renderSocialCover",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prochaine étape, c’est vous.",
@@ -20881,7 +20881,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre place dans la prochaine promo.",
@@ -20941,7 +20941,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Dernières places. Nouveau départ.",
@@ -21001,7 +21001,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prochaine étape vous attend.",
@@ -21061,7 +21061,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet prend sa place.",
@@ -21121,7 +21121,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un métier en vue. Une place à saisir.",
@@ -21181,7 +21181,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre place dans la prochaine promo.",
@@ -21241,7 +21241,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Dernières places. Nouveau départ.",
@@ -21301,7 +21301,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prochaine étape vous attend.",
@@ -21361,7 +21361,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet prend sa place.",
@@ -21421,7 +21421,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un métier en vue. Une place à saisir.",
@@ -21481,7 +21481,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre place dans la prochaine promo.",
@@ -21541,7 +21541,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Dernières places. Nouveau départ.",
@@ -21601,7 +21601,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prochaine étape vous attend.",
@@ -21661,7 +21661,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet prend sa place.",
@@ -21721,7 +21721,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un métier en vue. Une place à saisir.",
@@ -21781,7 +21781,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre place dans la prochaine promo.",
@@ -21841,7 +21841,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Dernières places. Nouveau départ.",
@@ -21901,7 +21901,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "La prochaine étape vous attend.",
@@ -21961,7 +21961,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre projet prend sa place.",
@@ -22021,7 +22021,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Un métier en vue. Une place à saisir.",
@@ -22081,7 +22081,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre prochaine étape commence ici.",
@@ -22141,7 +22141,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Nouvelle session. Nouvelle perspective.",
@@ -22201,7 +22201,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Prêt à passer à la pratique ?",
@@ -22261,7 +22261,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre futur parcours se dessine.",
@@ -22321,7 +22321,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le bon moment pour vous lancer.",
@@ -22381,7 +22381,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre prochaine étape commence ici.",
@@ -22441,7 +22441,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Nouvelle session. Nouvelle perspective.",
@@ -22501,7 +22501,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Prêt à passer à la pratique ?",
@@ -22561,7 +22561,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre futur parcours se dessine.",
@@ -22621,7 +22621,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le bon moment pour vous lancer.",
@@ -22681,7 +22681,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre prochaine étape commence ici.",
@@ -22741,7 +22741,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Nouvelle session. Nouvelle perspective.",
@@ -22801,7 +22801,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Prêt à passer à la pratique ?",
@@ -22861,7 +22861,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre futur parcours se dessine.",
@@ -22921,7 +22921,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le bon moment pour vous lancer.",
@@ -22981,7 +22981,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre prochaine étape commence ici.",
@@ -23041,7 +23041,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Nouvelle session. Nouvelle perspective.",
@@ -23101,7 +23101,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Prêt à passer à la pratique ?",
@@ -23161,7 +23161,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Votre futur parcours se dessine.",
@@ -23221,7 +23221,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSocialTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1,
       "contentDefaults": {
         "title": "Le bon moment pour vous lancer.",

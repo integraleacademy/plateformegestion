@@ -178,7 +178,7 @@ function refreshTemplateOptions(){
  const active=state.templateRegistry[current];if(active&&!items.some(t=>t.id===current))items.unshift(active);
  optionize($('#inspectorTemplate'),items,t=>t.id,t=>`${state.used[t.id]?'✅ ':''}${t.name}`);$('#inspectorTemplate').value=current;
 }
-function renderPublication(){const panel=$('#publicationPanel');if(panel)panel.innerHTML=renderPublicationPanel(store.project,getActiveTemplate(),state.publicationNetwork)}
+function renderPublication(){const panel=$('#publicationPanel');if(!panel)return;const template=getActiveTemplate(),key=publicationKey(template,state.publicationNetwork),expected=store.project.publications?.[key]??publicationText(store.project,template,state.publicationNetwork);if(panel.dataset.publicationKey===key&&$('#publicationText')?.value===expected)return;panel.dataset.publicationKey=key;panel.innerHTML=renderPublicationPanel(store.project,template,state.publicationNetwork)}
 async function copyPublication(){
  const field=$('#publicationText');if(!field)return;
  try{await navigator.clipboard.writeText(field.value);showToast('Texte complet copié, avec emojis et hashtags','success')}

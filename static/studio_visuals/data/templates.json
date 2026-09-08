@@ -14967,7 +14967,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15008,7 +15008,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15049,7 +15049,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15090,7 +15090,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15131,7 +15131,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15172,7 +15172,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15213,7 +15213,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15254,7 +15254,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15295,7 +15295,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15336,7 +15336,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15377,7 +15377,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15418,7 +15418,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15459,7 +15459,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15500,7 +15500,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15541,7 +15541,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15582,7 +15582,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15623,7 +15623,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15664,7 +15664,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15705,7 +15705,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15746,7 +15746,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15787,7 +15787,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15828,7 +15828,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15869,7 +15869,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15910,7 +15910,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15951,7 +15951,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -15992,7 +15992,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16033,7 +16033,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16074,7 +16074,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16115,7 +16115,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16156,7 +16156,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16197,7 +16197,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16238,7 +16238,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16279,7 +16279,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16320,7 +16320,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16361,7 +16361,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16402,7 +16402,7 @@
       "motion": "float",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16443,7 +16443,7 @@
       "motion": "bob",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16484,7 +16484,7 @@
       "motion": "pulse",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16525,7 +16525,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     },
     {
@@ -16566,7 +16566,7 @@
       "motion": "",
       "hasEmojis": true,
       "renderer": "renderSeasonalTemplate",
-      "status": "preview",
+      "status": "ready",
       "version": 1
     }
   ]

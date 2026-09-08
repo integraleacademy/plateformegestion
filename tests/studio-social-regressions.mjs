@@ -5,6 +5,7 @@ import {SOCIAL_COURSES,CAROUSEL_DESIGNS,COVER_DESIGNS,SESSION_DESIGNS} from '../
 import {createProject,ALL_FORMATS,FORMATION_CONFIG} from '../static/studio_visuals/js/studio-store.js';
 import {applySocialTemplate,matchesTemplateSearch,compatibleFormat,publicationText,renderPublicationPanel,publicationKey,createCarouselZip} from '../static/studio_visuals/js/studio-social-tools.js';
 import {renderSocialTemplateBody,renderSocialCoverBody} from '../static/studio_visuals/js/studio-social-templates.js';
+import {isOutsideCanvas} from '../static/studio_visuals/js/studio-validation.js';
 const {templates}=JSON.parse(readFileSync('static/studio_visuals/data/templates.json'));
 const themes=JSON.parse(readFileSync('static/studio_visuals/data/themes.json'));
 const models=templates.filter(t=>t.isSocialSuite);
@@ -30,6 +31,18 @@ test('native covers switch format and leave one compatible slide; post templates
  const p=createProject();applySocialTemplate(p,models.find(t=>t.isCarousel));
  for(const t of models.filter(t=>t.isCover)){applySocialTemplate(p,t);assert.equal(p.slides.length,1);assert.equal(p.format.id,t.network+'_cover');assert.ok(renderSocialCoverBody({slide:p.slides[0],template:t}).includes('social-cover-title'));}
  const old=templates.find(t=>!t.isSocialSuite);assert.equal(compatibleFormat(old,p.format).id,'instagram_square');
+});
+test('Facebook cover drawings participate in the export bounds checks',()=>{
+ const covers=models.filter(t=>t.isCover&&t.network==='facebook');assert.equal(covers.length,5);
+ for(const t of covers){
+  const p=createProject();applySocialTemplate(p,t);
+  const html=renderSocialCoverBody({slide:p.slides[0],template:t});
+  assert.match(html,/<div[^>]*class="social-cover-art [^"]+"[^>]*data-layout-role="cover-illustration"[^>]*data-cover-illustration="true"/);
+ }
+ // Bounds measured in the user's failing preview: 135 pixels of the drawing
+ // were outside the 851-pixel canvas, but decorative art was not monitored.
+ const box=(left,top,width,height)=>({getBoundingClientRect:()=>({left,top,right:left+width,bottom:top+height,width,height})});
+ assert.equal(isOutsideCanvas(box(736,14,250,270),box(0,0,851,315)),true);
 });
 test('search handles accents, apostrophes, partial names, DESP VAE and collections',()=>{
  for(const query of ['les onglets des possibles','LES ONGLETS DES POSSIBLES','onglets possibles'])assert.ok(models.some(t=>matchesTemplateSearch(t,query)));

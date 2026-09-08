@@ -82,5 +82,5 @@ export function renderLinkedInCoverIllustration(variant=0){
 }
 export function renderSocialCoverBody({slide,template}){
  const d=SOCIAL_BY_ID[template.id],c={...socialDefaultContent(template),...slide.content};
- return `<main class="social-cover-main" data-layout-role="cover-${d.layout}">${text('title',c.title,'h1','social-cover-title','title')}${text('introduction',c.introduction,'p','social-cover-intro','body')}</main><div class="social-cover-art social-cover-art-${d.layout}" ${d.network==='linkedin'?'data-layout-role="cover-illustration" data-cover-illustration="true"':''} data-studio-decorative="true">${d.network==='linkedin'?renderLinkedInCoverIllustration(d.index):renderSocialIllustration('portal',d.index)}</div>`;
+ return `<main class="social-cover-main" data-layout-role="cover-${d.layout}">${text('title',c.title,'h1','social-cover-title','title')}${text('introduction',c.introduction,'p','social-cover-intro','body')}</main><div class="social-cover-art social-cover-art-${d.layout}" data-layout-role="cover-illustration" data-cover-illustration="true" data-element-name="Illustration de couverture" data-studio-decorative="true">${d.network==='linkedin'?renderLinkedInCoverIllustration(d.index):renderSocialIllustration('portal',d.index)}</div>`;
 }

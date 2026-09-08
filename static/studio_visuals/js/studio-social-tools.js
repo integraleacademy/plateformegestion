@@ -1,4 +1,4 @@
-import {PUBLICATION_COURSES,COVER_PUBLICATIONS,PUBLICATION_ACTIONS} from './studio-publication-copy.js';
+import {PUBLICATION_COURSES,PUBLICATION_TOPICS,COVER_PUBLICATIONS,PUBLICATION_ACTIONS} from './studio-publication-copy.js';
 import {SOCIAL_BY_ID,SOCIAL_COURSES} from './studio-social-content.js';
 import {SEASONAL_DESIGNS} from './studio-seasonal-templates.js';
 import {socialDefaultContent,escapeSocial as e} from './studio-social-templates.js';
@@ -35,93 +35,133 @@ export function applySocialTemplate(project,template){
 }
 
 const WEBSITE='https://www.integraleacademy.com';
-const FACT_FIELDS=['date','startDate','endDate','examDate','location','availability','duration','financing'];
+export const PUBLICATION_DATA_FIELDS=[
+ ['startDate','Date de début'],['endDate','Date de fin'],['date','Dates (texte libre)'],
+ ['examDate','Date d’examen'],['location','Lieu'],['duration','Durée'],
+ ['price','Tarif'],['financing','Financement'],['availability','Places disponibles']
+];
+const FACT_FIELDS=PUBLICATION_DATA_FIELDS.map(([key])=>key);
 const clean=value=>String(value??'').trim();
 const paragraphs=parts=>parts.map(clean).filter(Boolean).join('\n\n');
-const shortAngle=text=>text.split(/(?<=[.!?])\s+/)[0];
-const SESSION_ANGLES=[
- 'Vous aimeriez vous projeter dans le quotidien du métier ? Commencez par découvrir les compétences à travailler.',
- 'Une envie de changer de voie ou de faire évoluer votre activité ? Donnez à votre projet une prochaine étape concrète.',
- 'Vous avez envie d’apprendre à partir de situations métier ? Regardez ce que ce parcours peut vous permettre de travailler.',
- 'Choisir une formation, c’est aussi penser à son organisation : objectifs, prérequis, déroulement et démarches.',
- 'Vous comparez les possibilités pour la suite de votre parcours ? Faites le lien entre vos envies et les missions du métier.'
+const SESSION_INTROS=[
+ 'Préparez dès maintenant votre projet de formation.',
+ 'Découvrez le parcours et préparez votre dossier avec notre équipe.',
+ 'Renseignez-vous sur le programme et les conditions d’entrée en formation.',
+ 'Anticipez les démarches pour organiser votre entrée en formation.',
+ 'Faites le point sur votre projet avant de choisir votre session.'
 ];
-const SESSION_PRO_ANGLES=[
- 'Un projet professionnel se prépare en identifiant les compétences à développer et les missions auxquelles elles répondent.',
- 'Pour préparer une évolution ou une reconversion, rapprochez votre objectif des contenus et des conditions du parcours.',
- 'Relier les apprentissages à des situations métier permet de mieux se projeter dans une formation.',
- 'Objectifs, prérequis, déroulement et démarches : ces repères permettent de planifier un parcours de formation.',
- 'Comparer les parcours commence par une lecture concrète des missions et des compétences à travailler.'
-];
-function infoLines(content){
- const date=content.startDate&&content.endDate?`Du ${content.startDate} au ${content.endDate}`:content.startDate?`À partir du ${content.startDate}`:content.date||'';
- return [date?`📅 ${date}`:'',content.examDate?`📝 Examen : ${content.examDate}`:'',content.location?`📍 ${content.location}`:'',content.availability?`⏳ ${content.availability}`:'',content.duration?`⏱️ ${content.duration}`:'',content.financing?`💡 Financement : ${content.financing}`:''].filter(Boolean).join('\n');
-}
+const LEGACY_FACTS={duration:['175 h'],financing:['CPF','CPF / autres'],availability:['Places limitées']};
 function factualContent(content){
- const factual={...content};
- for(const [key,defaultValue] of [['duration','175 h'],['financing','CPF'],['availability','Places limitées']])if(content[key]===defaultValue&&!content._publicationFields?.includes(key))factual[key]='';
- return factual;
+ const facts={};
+ for(const field of FACT_FIELDS){
+  const value=clean(content[field]);
+  facts[field]=LEGACY_FACTS[field]?.includes(value)&&!content._publicationFields?.includes(field)?'':value;
+ }
+ return facts;
 }
 function stableIndex(id){return Array.from(id||'').reduce((n,c)=>n+c.codePointAt(0),0)%5}
-function courseFor(project,d){
- const key=d?.key||Object.keys(SOCIAL_COURSES).find(k=>SOCIAL_COURSES[k].formation===project.formation)||'general';
+function courseFor(project,template,d=SOCIAL_BY_ID[template.id]){
+ const formation=template.formationPreset||project.formation;
+ let key=d?.key||template.courseKey;
+ if(!PUBLICATION_COURSES[key]){
+  const c=project.slides[project.activeSlideIndex]?.content||{};
+  const isVae=formation==='DIRIGEANT'&&/\bvae\b/.test(normalizeSearch([template.id,template.name,c.eyebrow,c.title].join(' ')));
+  key=isVae?'desp_vae':Object.keys(SOCIAL_COURSES).find(k=>SOCIAL_COURSES[k].formation===formation)||'general';
+ }
  return {key,course:SOCIAL_COURSES[key],copy:PUBLICATION_COURSES[key]};
+}
+function publicationPages(project,template,d){
+ if(!d?.pages)return [project.slides[project.activeSlideIndex]?.content||{}];
+ return d.pages.map((page,i)=>project.slides.find(s=>s.templateId===template.id&&s.carouselPage===i)?.content||page);
+}
+export function publicationFacts(project,template){
+ const d=SOCIAL_BY_ID[template.id],pages=publicationPages(project,template,d);
+ const {copy}=courseFor(project,template,d),facts={};
+ for(const field of FACT_FIELDS){
+  // An explicit edit, including clearing a value, wins over an earlier slide.
+  const edited=pages.find(p=>p._publicationFields?.includes(field));
+  facts[field]=edited?clean(edited[field]):pages.map(factualContent).find(p=>p[field])?.[field]||copy.defaults?.[field]||'';
+ }
+ return facts;
+}
+function frenchDate(value){
+ const raw=clean(value);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;
+ const date=new Date(raw+'T12:00:00Z');
+ if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==raw)return raw;
+ return new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(date);
+}
+function priceLabel(value){
+ const raw=clean(value),number=raw.replace(/[\s\u00a0\u202f]/g,'').replace(',','.');
+ if(!/^\d+(?:\.\d{1,2})?$/.test(number))return raw;
+ return new Intl.NumberFormat('fr-FR',{minimumFractionDigits:Number.isInteger(Number(number))?0:2,maximumFractionDigits:2}).format(Number(number)).replace(/[\u00a0\u202f]/g,' ')+' €';
+}
+function scheduleLines(content,course,{upcoming=false,vae=false}={}){
+ const start=frenchDate(content.startDate),end=frenchDate(content.endDate);
+ const dates=start&&end?'du '+start+' au '+end:start?'à partir du '+start:content.date||'';
+ const label=vae?'Parcours DESP VAE':(upcoming?'Prochaine session ':'Session ')+course.label;
+ return [dates?'📅 '+label+' : '+dates:'',content.location?'📍 '+content.location:'',
+  content.examDate?(vae?'📝 Jury le ':'📝 Examen le ')+frenchDate(content.examDate):'',
+  content.availability?'⏳ '+content.availability:''].filter(Boolean).join('\n');
+}
+function practicalLines(content){
+ return [content.duration?'⏱️ Durée : '+content.duration:'',content.price?'💶 Tarif : '+priceLabel(content.price):'',
+  content.financing?'💡 Financement : '+content.financing:''].filter(Boolean).join('\n');
 }
 function changedCopy(content,defaults,keys=['title','introduction']){
  return keys.filter(key=>clean(content[key])!==clean(defaults[key])).map(key=>clean(content[key])).filter(Boolean).join('\n\n');
 }
-function finishPublication(body,action,course,network,index){
- const tags=[...new Set(['#IntegraleAcademy',...(course?.hashtags||'#Formation #ProjetProfessionnel').split(/\s+/),...(network==='instagram'?['#FormationProfessionnelle']:[])])];
- return paragraphs([body,`👉 ${action||PUBLICATION_ACTIONS[network][index]}\n${course?.formation==='A3P'?WEBSITE+'/securiteprivee':WEBSITE}`,tags.join(' ')]).replace(/\n{3,}/g,'\n\n');
+function finishPublication(body,action,course,copy,network){
+ const tags=[...new Set([...(copy.hashtags||course.hashtags).split(/\s+/),'#IntegraleAcademy',...(network==='instagram'?['#FormationProfessionnelle']:[])])];
+ const url=course.formation==='A3P'?WEBSITE+'/securiteprivee':WEBSITE;
+ return paragraphs([body,action||PUBLICATION_ACTIONS[network], '👉 Informations et inscriptions sur '+url,tags.join(' ')]);
 }
 export function publicationText(project,template,network='facebook'){
  if(!PUBLICATION_ACTIONS[network])network='facebook';
  const c=project.slides[project.activeSlideIndex]?.content||{},d=SOCIAL_BY_ID[template.id],seasonal=SEASONAL_DESIGNS.find(x=>x.id===template.id);
- const {key,course,copy}=courseFor(project,d),emoji=course.emoji,index=d?.index??stableIndex(template.id);
- let body,action;
+ const {key,course,copy}=courseFor(project,template,d),index=d?.index??stableIndex(template.id);
+ const customCta=c._publicationFields?.includes('cta')&&clean(c.cta)&&c.cta!=='Faites le premier pas vers votre futur métier';
+ const facts=publicationFacts(project,template),schedule=scheduleLines(facts,course,{upcoming:Boolean(d?.kind),vae:key==='desp_vae'});
+ const practical=practicalLines(facts),program='🎓 '+copy.program,hook=copy.emoji+' '+copy.hook;
+ let body,action=key.startsWith('bts_')?'Échangez avec notre équipe pour découvrir le parcours et préparer votre candidature en '+course.label+'.':copy.action;
  if(d?.pages){
-  // Resolve each page independently, including a partially edited carrousel.
-  const pages=d.pages.map((page,i)=>project.slides.find(s=>s.templateId===template.id&&s.carouselPage===i)?.content||page);
-  const lead=clean(pages[0].introduction)!==clean(d.pages[0].introduction)?pages[0].introduction:network==='instagram'?shortAngle(copy.angles[index]):copy.angles[index];
-  const points=pages.slice(1,4).map((p,i)=>{
-   const includeBody=key==='bts_all'||network==='linkedin'||clean(p.introduction)!==clean(d.pages[i+1].introduction);
-   return `${network==='linkedin'?'•':copy.bullets[i]} ${clean(p.title)}${includeBody&&clean(p.introduction)?`\n${clean(p.introduction)}`:''}`;
-  }).join(network==='linkedin'?'\n\n':'\n');
-  const facts=Object.fromEntries(FACT_FIELDS.map(field=>[field,pages.find(p=>clean(p[field]))?.[field]||'']));
-  body=paragraphs([
-   `${emoji} ${clean(pages[0].title)}`,lead,
-   `${network==='instagram'?'Faites défiler pour découvrir 👇':network==='linkedin'?'Trois repères à explorer dans ce carrousel :':'Au fil des images 👇'}\n${points}`,
-   changedCopy(pages[4],d.pages[4]),infoLines(facts),
-   key==='desp_vae'?'La décision de validation appartient au jury.':''
-  ]);
-  action=network==='instagram'?`Envie d’aller plus loin ? Découvrez le parcours et préparons ${copy.goal}.`:network==='linkedin'?`Pour préparer ${copy.goal}, consultez les modalités du parcours et contactez notre équipe sur le site.`:`${copy.question} Retrouvez le parcours sur notre site et parlons de vos prochaines étapes.`;
+  const pages=publicationPages(project,template,d);
+  const titleChanged=clean(pages[0].title)!==clean(d.pages[0].title);
+  const introChanged=clean(pages[0].introduction)!==clean(d.pages[0].introduction);
+  const lead=introChanged?pages[0].introduction:copy.angles[index];
+  const editedPoints=pages.slice(1,4).map((p,i)=>changedCopy(p,d.pages[i+1])).filter(Boolean);
+  const points=network==='linkedin'||key==='bts_all'
+   ?'Dans ce carrousel :\n'+pages.slice(1,4).map((p,i)=>'• '+clean(p.title)+(key==='bts_all'||clean(p.introduction)!==clean(d.pages[i+1].introduction)?'\n'+clean(p.introduction):'')).join('\n')
+   :paragraphs(editedPoints);
+  body=paragraphs([titleChanged?copy.emoji+' '+clean(pages[0].title):hook,lead,schedule,
+   program,points,network==='instagram'?'Faites défiler pour découvrir le parcours.':'',
+   changedCopy(pages[4],d.pages[4]),practical]);
  }else if(d?.kind){
-  const label=d.key==='desp_initial'?'DESP':course.label;
-  const title=`${d.kind==='places'?'⏳ DERNIÈRES PLACES':'📅 PROCHAINE SESSION'} · ${label}\n${clean(c.title)}`;
-  const lead=clean(c.introduction)!==clean(d.introduction)?c.introduction:network==='instagram'?copy.question:network==='linkedin'?SESSION_PRO_ANGLES[index]:SESSION_ANGLES[index];
-  body=paragraphs([title,lead,network==='instagram'?`${emoji} ${course.tags.join(' · ')}`:`${emoji} ${copy.reason}`,infoLines(c)]);
-  action=d.kind==='places'
-   ?network==='instagram'?'Intéressé ? Vérifiez les places restantes et préparez votre inscription avec notre équipe sur le site.':`Vous souhaitez rejoindre la session ? Vérifiez les disponibilités et les conditions d’entrée pour préparer ${copy.goal} avec notre équipe.`
-   :network==='instagram'?'Dates, programme, inscription : retrouvez les informations de la session sur notre site.':`Pour organiser ${copy.goal}, retrouvez le programme et renseignez-vous sur les dates, les prérequis et l’inscription sur notre site.`;
+  body=paragraphs([hook,changedCopy(c,d)||SESSION_INTROS[index],
+   d.kind==='places'?'⏳ Vous souhaitez rejoindre la session ? Vérifiez les dernières disponibilités auprès de notre équipe.':'',
+   schedule,program,practical]);
  }else if(d?.network){
-  body=paragraphs([`✨ ${clean(c.title)}`,COVER_PUBLICATIONS[index][network],changedCopy(c,d,['introduction'])]);
+  body=paragraphs(['✨ '+clean(c.title),COVER_PUBLICATIONS[index],changedCopy(c,socialDefaultContent(template),['introduction']),program]);
  }else if(seasonal&&!c._manual){
-  // These seasonal posts already have authored event-specific copy.
   return seasonal.socialCopy[network==='instagram'?'instagram':'facebook'];
  }else{
-  const intro=clean(c.introduction||template.description),title=clean(c.title||template.name);
-  body=paragraphs([`${emoji} ${title}`,intro,network==='instagram'?'':key==='general'?'':copy.reason,infoLines(factualContent(c))]);
-  if(network==='instagram'&&key!=='general')action=`${copy.question} Découvrez le programme et les modalités sur notre site.`;
-  // A CTA explicitly edited in the visual remains part of the generated post.
-  const customCta=c._publicationFields?.includes('cta')&&clean(c.cta)&&c.cta!=='Faites le premier pas vers votre futur métier';
-  if(customCta)action=`${clean(c.cta).replace(/[.!]+$/,'')}. Retrouvez les informations sur notre site.`;
+  const defaults=template.contentDefaults||defaultContentForFormation(project.formation);
+  const titleChanged=Boolean(c._manual||c._publicationFields?.includes('title'))&&clean(c.title)!==clean(defaults.title);
+  const introChanged=clean(c.introduction)!==clean(defaults.introduction);
+  const lead=introChanged?clean(c.introduction):PUBLICATION_TOPICS[template.id]||clean(c.introduction)||copy.angles[index];
+  body=paragraphs([titleChanged?copy.emoji+' '+clean(c.title):key==='general'?'✨ '+clean(c.title||copy.hook):hook,lead,schedule,program,practical]);
  }
- return finishPublication(body,action,course,network,index);
+ // Keep practical facts on every network; vary the invitation without adding
+ // a second web CTA or asking candidates to send a private message.
+ if(network==='instagram')action=key==='desp_vae'?copy.action:'Parlons de votre projet et préparons votre '+(key.startsWith('bts_')?'candidature.':'inscription.');
+ if(network==='linkedin')action=paragraphs([action,'Programme et modalités du parcours à retrouver sur notre site.']);
+ if(customCta)action=clean(c.cta);
+ return finishPublication(body,action,course,copy,network);
 }
 export function publicationKey(template,network){return `${template.id}:${network}`}
 export function renderPublicationPanel(project,template,network='facebook'){
  const value=project.publications?.[publicationKey(template,network)]??publicationText(project,template,network);
- return `${template.isCover&&template.network==='facebook'?'<div class="studio-publication-actions"><button type="button" data-action="previewFacebook">Aperçu Facebook mobile</button></div>':''}<section class="studio-publication" aria-labelledby="publicationTitle"><div class="studio-publication-heading"><span>✎</span><h3 id="publicationTitle">Texte de publication</h3></div><p>${template.isCarousel?'Le texte accompagne le carrousel complet.':'Votre publication, prête à personnaliser et à copier.'}</p><label>Réseau social<select id="publicationNetwork">${[['facebook','Facebook'],['instagram','Instagram'],['linkedin','LinkedIn']].map(([id,label])=>`<option value="${id}" ${id===network?'selected':''}>${label}</option>`).join('')}</select></label><div class="studio-publication-actions"><button type="button" class="social-studio__primary" data-action="copyPublication">Copier le texte complet</button><button type="button" data-action="resetPublication">Actualiser depuis le visuel</button></div><label class="studio-publication-label" for="publicationText">Texte, emojis et hashtags</label><textarea id="publicationText" spellcheck="true" rows="13">${e(value)}</textarea><small>Vos retouches sont enregistrées avec le projet. « Actualiser » régénère le texte à partir du visuel.</small></section>`;
+ return `${template.isCover&&template.network==='facebook'?'<div class="studio-publication-actions"><button type="button" data-action="previewFacebook">Aperçu Facebook mobile</button></div>':''}<section class="studio-publication" aria-labelledby="publicationTitle"><div class="studio-publication-heading"><span>✎</span><h3 id="publicationTitle">Texte de publication</h3></div><p>${template.isCarousel?'Le texte accompagne le carrousel complet.':'Votre publication, prête à personnaliser et à copier.'}</p><label>Réseau social<select id="publicationNetwork">${[['facebook','Facebook'],['instagram','Instagram'],['linkedin','LinkedIn']].map(([id,label])=>`<option value="${id}" ${id===network?'selected':''}>${label}</option>`).join('')}</select></label><div class="studio-publication-actions"><button type="button" class="social-studio__primary" data-action="copyPublication">Copier le texte complet</button><button type="button" data-action="resetPublication">Actualiser depuis le visuel</button><button type="button" data-action="publicationData">Dates, durée et tarif</button></div><label class="studio-publication-label" for="publicationText">Texte, emojis et hashtags</label><textarea id="publicationText" spellcheck="true" rows="13">${e(value)}</textarea><small>Vos retouches sont enregistrées avec le projet. « Actualiser » régénère le texte à partir du visuel.</small></section>`;
 }
 
 // One ordered ZIP avoids browsers blocking multiple carousel downloads. PNGs

@@ -1,5 +1,7 @@
+import {CAMPAIGN_EVENTS,CAMPAIGN_DESIGNS,renderCampaignIllustration} from './studio-campaign-templates.js';
 // General holiday collection: local vector artwork, editable copy and native motion.
 export const SEASONAL_EVENTS={
+ ...CAMPAIGN_EVENTS,
  halloween:{label:'Halloween',emoji:'🎃',window:'Autour du 31 octobre 2026',tags:['Audace','Envies','Avenir']},
  noel:{label:'Noël',emoji:'🎁',window:'Du 20 au 25 décembre 2026',tags:['Partage','Projets','Ensemble']},
  saint_valentin:{label:'Saint-Valentin',emoji:'💝',window:'Autour du 14 février 2027',tags:['Passion','Confiance','Avenir']},
@@ -39,13 +41,13 @@ const stories={
 const layouts=['spotlight','poster','bento','editorial','orbit'];
 const motions=['float','bob','pulse','',''];
 const hashtags={halloween:'#Halloween #Formation #ProjetProfessionnel',noel:'#JoyeuxNoel #FetesDeFinDAnnee',saint_valentin:'#SaintValentin #Orientation #Formation',bonne_annee:'#BonneAnnee2027 #NouveauxProjets #Formation'};
-export const SEASONAL_DESIGNS=Object.entries(stories).flatMap(([event,rows])=>rows.map(([slug,name,title,introduction,art,body],i)=>{
+export const SEASONAL_DESIGNS=[...CAMPAIGN_DESIGNS,...Object.entries(stories).flatMap(([event,rows])=>rows.map(([slug,name,title,introduction,art,body],i)=>{
  const cta=event==='noel'?'Découvrir notre univers':'Explorer nos formations';
  const ending=event==='noel'?'✨ Découvrez notre univers':'🎓 Découvrez nos formations';
  const tags=`#IntegraleAcademy ${hashtags[event]}`;
  return {id:`general_${event}_${slug}`,event,name:`Général · ${SEASONAL_EVENTS[event].label} · ${name}`,title,introduction,art,layout:layouts[i],motion:motions[i],index:i+1,
   contentDefaults:{title,introduction,cta},socialCopy:{facebook:`${body}\n\n${ending} : https://www.integraleacademy.com\n\n${tags}`,instagram:`${body}\n\n${ending} via le lien en bio.\n\n${tags}`}};
-}));
+}))];
 const byId=new Map(SEASONAL_DESIGNS.map(d=>[d.id,d]));
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gold='#CF992F',pale='#F8E8BC',ink='#283147',white='#FFFFFF';
@@ -57,6 +59,7 @@ const heart=(x,y,s,fill)=>`<g transform="translate(${x} ${y}) scale(${s})">${pat
 function tree(x,y,s=1){return `<g transform="translate(${x} ${y}) scale(${s})">${rect(-10,58,20,36,gold,6)}${path('M0-99-62-9H-42L-87 55H87L42-9H62Z','#428269')}${star(0,-104,.7)}${[-33,24,-9,48].map((cx,i)=>circle(cx,-11+i*17,7,i%2?gold:'#fff1d6')).join('')}</g>`;}
 function present(x,y,s=1){return `<g transform="translate(${x} ${y}) scale(${s})">${rect(-69,-20,138,107,'#D46568',14)}${rect(-77,-40,154,35,'#E68079',10)}${rect(-10,-39,20,126,pale,0)}${path('M0-40C-73-95-69-14 0-40 73-95 69-14 0-40','none',gold,8)}</g>`;}
 export function renderSeasonalIllustration(d){
+ if(d.isCampaign)return renderCampaignIllustration(d);
  let art='';const accent=d.event==='halloween'?'#E38536':d.event==='noel'?'#428269':d.event==='saint_valentin'?'#D56686':gold;
  const backdrop=circle(250,180,153,'#FFF4D8')+circle(250,180,128,'#FFFCF3');
  const confetti=[star(73,76,.6),star(438,104,.85),star(75,275,.8),circle(429,277,8,accent),circle(135,46,6,gold),path('M393 36l12 16','none',accent,7),path('M93 164l-15 6','none',gold,6)].join('');

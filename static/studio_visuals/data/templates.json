@@ -14928,6 +14928,1646 @@
       "renderer": "renderSeasonalTemplate",
       "status": "ready",
       "version": 1
+    },
+    {
+      "id": "general_paques_eclosion",
+      "family": "saas",
+      "name": "Général · Pâques · L’éclosion dorée",
+      "description": "Une envie à cultiver, un métier à découvrir, une nouvelle étape à imaginer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "paques",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Faites éclore votre projet.",
+        "introduction": "Une envie à cultiver, un métier à découvrir, une nouvelle étape à imaginer.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_paques_pepites",
+      "family": "saas",
+      "name": "Général · Pâques · La chasse aux pépites",
+      "description": "Curiosité, motivation, expérience : découvrez ce que vous avez déjà en vous.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "paques",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Vos talents sont de belles pépites.",
+        "introduction": "Curiosité, motivation, expérience : découvrez ce que vous avez déjà en vous.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_paques_lapin",
+      "family": "saas",
+      "name": "Général · Pâques · Le lapin créatif",
+      "description": "Laissez votre curiosité vous guider vers un univers qui vous ressemble.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "paques",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Un bond vers de nouvelles envies.",
+        "introduction": "Laissez votre curiosité vous guider vers un univers qui vous ressemble.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_paques_panier",
+      "family": "saas",
+      "name": "Général · Pâques · Le panier des possibles",
+      "description": "Des idées à découvrir aujourd’hui. Un projet à faire grandir demain.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "paques",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Faites le plein de possibles.",
+        "introduction": "Des idées à découvrir aujourd’hui. Un projet à faire grandir demain.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_paques_declic",
+      "family": "saas",
+      "name": "Général · Pâques · La coquille du déclic",
+      "description": "Posez une question. Explorez une formation. Imaginez la suite.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "paques",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Une idée peut tout faire éclore.",
+        "introduction": "Posez une question. Explorez une formation. Imaginez la suite.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_printemps_floraison",
+      "family": "saas",
+      "name": "Général · Printemps · La floraison des projets",
+      "description": "Au printemps, faites une place aux envies qui demandent à grandir.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "printemps",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Un nouvel élan pour votre avenir.",
+        "introduction": "Au printemps, faites une place aux envies qui demandent à grandir.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_printemps_serre",
+      "family": "saas",
+      "name": "Général · Printemps · La serre des ambitions",
+      "description": "Un peu de curiosité, des questions et le temps de trouver votre direction.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "printemps",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Les projets se cultivent.",
+        "introduction": "Un peu de curiosité, des questions et le temps de trouver votre direction.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_printemps_arrosage",
+      "family": "saas",
+      "name": "Général · Printemps · L’arrosoir des talents",
+      "description": "Développez vos idées et découvrez ce que vous avez envie d’apprendre.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "printemps",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Donnez de l’attention à vos talents.",
+        "introduction": "Développez vos idées et découvrez ce que vous avez envie d’apprendre.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_printemps_fenetre",
+      "family": "saas",
+      "name": "Général · Printemps · La fenêtre ouverte",
+      "description": "Un regard neuf sur vos envies peut vous aider à imaginer la suite.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "printemps",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Ouvrez vos perspectives.",
+        "introduction": "Un regard neuf sur vos envies peut vous aider à imaginer la suite.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_printemps_envol",
+      "family": "saas",
+      "name": "Général · Printemps · L’envol du printemps",
+      "description": "Gardez votre curiosité en mouvement et explorez de nouvelles pistes.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "printemps",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Laissez vos idées prendre leur envol.",
+        "introduction": "Gardez votre curiosité en mouvement et explorez de nouvelles pistes.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ete_valise",
+      "family": "saas",
+      "name": "Général · Été · La valise des envies",
+      "description": "Cet été, gardez une petite place pour les idées qui vous donnent envie.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "ete",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Emportez vos projets avec vous.",
+        "introduction": "Cet été, gardez une petite place pour les idées qui vous donnent envie.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ete_boussole",
+      "family": "saas",
+      "name": "Général · Été · La boussole solaire",
+      "description": "Une pause pour écouter vos envies et retrouver votre direction.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "ete",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Votre prochain horizon se prépare.",
+        "introduction": "Une pause pour écouter vos envies et retrouver votre direction.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ete_carte",
+      "family": "saas",
+      "name": "Général · Été · La carte postale du futur",
+      "description": "Explorez un métier, une formation ou une envie encore à préciser.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "ete",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Des idées pour votre prochaine aventure.",
+        "introduction": "Explorez un métier, une formation ou une envie encore à préciser.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ete_pause",
+      "family": "saas",
+      "name": "Général · Été · La pause lumineuse",
+      "description": "Profitez d’un autre rythme pour laisser mûrir vos envies.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "ete",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Soufflez. Imaginez. Avancez.",
+        "introduction": "Profitez d’un autre rythme pour laisser mûrir vos envies.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_ete_horizon",
+      "family": "saas",
+      "name": "Général · Été · Le cap d’été",
+      "description": "Une saison pour prendre du recul et imaginer votre prochaine étape.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "ete",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Gardez le cap sur vos envies.",
+        "introduction": "Une saison pour prendre du recul et imaginer votre prochaine étape.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_rentree_sac",
+      "family": "saas",
+      "name": "Général · Rentrée · Le sac des ambitions",
+      "description": "De nouvelles envies, des compétences à développer, un projet à construire.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "rentree",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Votre avenir fait sa rentrée.",
+        "introduction": "De nouvelles envies, des compétences à développer, un projet à construire.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_rentree_agenda",
+      "family": "saas",
+      "name": "Général · Rentrée · L’agenda des objectifs",
+      "description": "Commencez par une envie claire et une première question à poser.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "rentree",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Faites une place à vos objectifs.",
+        "introduction": "Commencez par une envie claire et une première question à poser.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_rentree_crayon",
+      "family": "saas",
+      "name": "Général · Rentrée · Le trait du nouveau départ",
+      "description": "Vos expériences et vos envies peuvent donner forme à un nouveau projet.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "rentree",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Dessinez la suite de votre parcours.",
+        "introduction": "Vos expériences et vos envies peuvent donner forme à un nouveau projet.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_rentree_onglets",
+      "family": "saas",
+      "name": "Général · Rentrée · Les onglets des possibles",
+      "description": "Découvrez vos options et préparez une rentrée qui vous ressemble.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "rentree",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Explorez. Choisissez. Lancez-vous.",
+        "introduction": "Découvrez vos options et préparez une rentrée qui vous ressemble.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_rentree_tableau",
+      "family": "saas",
+      "name": "Général · Rentrée · Le tableau de bord des envies",
+      "description": "Un projet clair commence par des questions simples et les bonnes informations.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "rentree",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Donnez une direction à votre rentrée.",
+        "introduction": "Un projet clair commence par des questions simples et les bonnes informations.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_fete_travail_metiers",
+      "family": "saas",
+      "name": "Général · Fête du travail · La mallette des métiers",
+      "description": "À l’occasion du 1er mai, mettons les savoir-faire à l’honneur.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "fete_travail",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Derrière chaque métier, des talents.",
+        "introduction": "À l’occasion du 1er mai, mettons les savoir-faire à l’honneur.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_fete_travail_savoir_faire",
+      "family": "saas",
+      "name": "Général · Fête du travail · L’atelier des savoir-faire",
+      "description": "Apprendre, pratiquer, progresser : les compétences prennent forme avec le temps.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "fete_travail",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Le savoir-faire se construit.",
+        "introduction": "Apprendre, pratiquer, progresser : les compétences prennent forme avec le temps.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_fete_travail_collectif",
+      "family": "saas",
+      "name": "Général · Fête du travail · Les talents en équipe",
+      "description": "Des rôles différents, des compétences complémentaires, une énergie collective.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "fete_travail",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Les métiers nous relient.",
+        "introduction": "Des rôles différents, des compétences complémentaires, une énergie collective.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_fete_travail_rouages",
+      "family": "saas",
+      "name": "Général · Fête du travail · Les rouages des compétences",
+      "description": "Chaque apprentissage peut enrichir votre façon d’agir et de travailler.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "fete_travail",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Vos compétences font la différence.",
+        "introduction": "Chaque apprentissage peut enrichir votre façon d’agir et de travailler.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_fete_travail_passerelles",
+      "family": "saas",
+      "name": "Général · Fête du travail · Les passerelles professionnelles",
+      "description": "Sécurité, transport, commerce, gestion : explorez de nouveaux univers.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "fete_travail",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Des métiers à découvrir.",
+        "introduction": "Sécurité, transport, commerce, gestion : explorez de nouveaux univers.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reussite_chapeau",
+      "family": "saas",
+      "name": "Général · Réussite aux examens · Le chapeau de la réussite",
+      "description": "Bravo pour cette étape et pour le travail accompli tout au long du parcours.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reussite",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Votre réussite mérite de briller.",
+        "introduction": "Bravo pour cette étape et pour le travail accompli tout au long du parcours.",
+        "cta": "Découvrir nos parcours"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reussite_diplome",
+      "family": "saas",
+      "name": "Général · Réussite aux examens · Le diplôme à célébrer",
+      "description": "Félicitations pour votre réussite et pour l’énergie consacrée à votre formation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reussite",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Une étape franchie. Quelle fierté !",
+        "introduction": "Félicitations pour votre réussite et pour l’énergie consacrée à votre formation.",
+        "cta": "Découvrir nos parcours"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reussite_podium",
+      "family": "saas",
+      "name": "Général · Réussite aux examens · Le podium des efforts",
+      "description": "Votre réussite est aussi l’histoire de tout ce que vous avez appris.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reussite",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Aujourd’hui, on célèbre vos efforts.",
+        "introduction": "Votre réussite est aussi l’histoire de tout ce que vous avez appris.",
+        "cta": "Découvrir nos parcours"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reussite_medaille",
+      "family": "saas",
+      "name": "Général · Réussite aux examens · La médaille du parcours",
+      "description": "Une belle réussite à savourer, et de nouvelles perspectives à explorer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reussite",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Vous pouvez être fiers de vous.",
+        "introduction": "Une belle réussite à savourer, et de nouvelles perspectives à explorer.",
+        "cta": "Découvrir nos parcours"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reussite_marches",
+      "family": "saas",
+      "name": "Général · Réussite aux examens · Les marches de la progression",
+      "description": "Célébrez le chemin parcouru et gardez votre curiosité pour la suite.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reussite",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Une réussite. De nouvelles perspectives.",
+        "introduction": "Célébrez le chemin parcouru et gardez votre curiosité pour la suite.",
+        "cta": "Découvrir nos parcours"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reconversion_boussole",
+      "family": "saas",
+      "name": "Général · Reconversion · La boussole du nouveau cap",
+      "description": "Votre expérience peut nourrir un projet professionnel qui vous ressemble.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reconversion",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Changez de cap. Gardez votre ambition.",
+        "introduction": "Votre expérience peut nourrir un projet professionnel qui vous ressemble.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reconversion_directions",
+      "family": "saas",
+      "name": "Général · Reconversion · Le carrefour des envies",
+      "description": "Écoutez vos envies, comparez vos options et précisez votre direction.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reconversion",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Une nouvelle voie à explorer.",
+        "introduction": "Écoutez vos envies, comparez vos options et précisez votre direction.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reconversion_declic",
+      "family": "saas",
+      "name": "Général · Reconversion · Le déclic du changement",
+      "description": "Faites le lien entre votre parcours et les compétences que vous voulez développer.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reconversion",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Votre expérience a de l’avenir.",
+        "introduction": "Faites le lien entre votre parcours et les compétences que vous voulez développer.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reconversion_itineraire",
+      "family": "saas",
+      "name": "Général · Reconversion · L’itinéraire professionnel",
+      "description": "Un projet se précise avec des informations, des échanges et du temps.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reconversion",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Votre parcours peut prendre un tournant.",
+        "introduction": "Un projet se précise avec des informations, des échanges et du temps.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_reconversion_passage",
+      "family": "saas",
+      "name": "Général · Reconversion · Le passage vers la suite",
+      "description": "Explorez un nouvel univers professionnel à partir de ce qui compte pour vous.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "reconversion",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Osez imaginer un autre quotidien.",
+        "introduction": "Explorez un nouvel univers professionnel à partir de ce qui compte pour vous.",
+        "cta": "Explorer nos formations"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_portes_ouvertes_centre",
+      "family": "saas",
+      "name": "Général · Portes ouvertes · Le centre à découvrir",
+      "description": "Des formations à explorer et des questions à poser pour préciser votre projet.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "portes_ouvertes",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 1,
+      "composition": "spotlight",
+      "contentDefaults": {
+        "title": "Venez découvrir votre futur univers.",
+        "introduction": "Des formations à explorer et des questions à poser pour préciser votre projet.",
+        "cta": "Préparer ma visite"
+      },
+      "motion": "float",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_portes_ouvertes_porte",
+      "family": "saas",
+      "name": "Général · Portes ouvertes · La porte de la rencontre",
+      "description": "Une rencontre peut vous aider à mieux comprendre vos possibilités.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "portes_ouvertes",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 2,
+      "composition": "poster",
+      "contentDefaults": {
+        "title": "Ouvrez la porte à votre projet.",
+        "introduction": "Une rencontre peut vous aider à mieux comprendre vos possibilités.",
+        "cta": "Préparer ma visite"
+      },
+      "motion": "bob",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_portes_ouvertes_repere",
+      "family": "saas",
+      "name": "Général · Portes ouvertes · Le repère orientation",
+      "description": "Découvrez le centre et échangez autour de vos envies de formation.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "motion",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "portes_ouvertes",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 3,
+      "composition": "bento",
+      "contentDefaults": {
+        "title": "Votre projet mérite une rencontre.",
+        "introduction": "Découvrez le centre et échangez autour de vos envies de formation.",
+        "cta": "Préparer ma visite"
+      },
+      "motion": "pulse",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_portes_ouvertes_echange",
+      "family": "saas",
+      "name": "Général · Portes ouvertes · Le moment d’échange",
+      "description": "Vos envies, vos questions, nos univers de formation : faisons connaissance.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "portes_ouvertes",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 4,
+      "composition": "editorial",
+      "contentDefaults": {
+        "title": "Parlons de votre prochaine étape.",
+        "introduction": "Vos envies, vos questions, nos univers de formation : faisons connaissance.",
+        "cta": "Préparer ma visite"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
+    },
+    {
+      "id": "general_portes_ouvertes_invitation",
+      "family": "saas",
+      "name": "Général · Portes ouvertes · L’invitation aux possibles",
+      "description": "Explorez nos formations et préparez votre découverte d’Intégrale Academy.",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "comfortable",
+      "style": "saas",
+      "brandLayout": "top-horizontal",
+      "isSeasonal": true,
+      "isCampaign": true,
+      "seasonalEvent": "portes_ouvertes",
+      "collection": "GÉNÉRAL · 8 THÈMES",
+      "formationPreset": "OR",
+      "professionIndex": 5,
+      "composition": "orbit",
+      "contentDefaults": {
+        "title": "Une invitation à voir plus loin.",
+        "introduction": "Explorez nos formations et préparez votre découverte d’Intégrale Academy.",
+        "cta": "Préparer ma visite"
+      },
+      "motion": "",
+      "hasEmojis": true,
+      "renderer": "renderSeasonalTemplate",
+      "status": "preview",
+      "version": 1
     }
   ]
 }

@@ -19,6 +19,13 @@ const glyph=(art,x,y,size,color='var(--social-accent)')=>`<g transform="translat
 const rect=(x,y,w,h,fill,rx=24)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}"/>`;
 export function renderSocialIllustration(art='portal',variant=0){
  const a='var(--social-accent)',s='var(--social-tint)',l='var(--social-line)';let shapes='';
+ if(art==='campus'){
+  shapes=rect(8,12,484,336,s,32)+['monitor','home','shop','chat','globe','ledger'].map((icon,i)=>{
+   const x=25+(i%3)*154,y=31+Math.floor(i/3)*154,active=i===(variant%6);
+   return rect(x,y,142,142,active?a:'#fff',22)+glyph(icon,x+34,y+25,74,active?'#fff':a)+rect(x+44,y+117,54,5,active?'#fff':l,3);
+  }).join('');
+  return `<svg viewBox="0 0 500 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${shapes}</svg>`;
+ }
  if(variant%5===0)shapes=rect(18,22,464,312,'#fff',30)+rect(18,22,464,48,s,30)+[44,62,80].map(x=>`<circle cx="${x}" cy="46" r="5" fill="${a}"/>`).join('')+rect(42,91,234,217,s)+glyph(art,80,120,156)+rect(295,92,164,82,a)+glyph('portal',350,106,55,'#fff')+[205,243,281].map((y,i)=>rect(297,y,159-i*25,13,l,6)).join('');
  if(variant%5===1)shapes=`<circle cx="250" cy="176" r="155" fill="${s}"/><circle cx="250" cy="176" r="119" fill="#fff"/>`+glyph(art,165,90,172)+rect(32,254,144,74,a,22)+glyph('portal',81,264,51,'#fff')+rect(363,27,110,99,'#fff')+glyph(art,388,46,65);
  if(variant%5===2)shapes=rect(22,23,274,312,'#fff')+rect(43,44,232,220,s)+glyph(art,87,84,143)+rect(48,285,206,14,l,7)+rect(316,23,163,143,a)+glyph(art,354,52,86,'#fff')+rect(316,185,163,150,'#fff')+glyph('portal',354,215,86);

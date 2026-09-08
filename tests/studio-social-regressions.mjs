@@ -9,13 +9,13 @@ import {isOutsideCanvas} from '../static/studio_visuals/js/studio-validation.js'
 const {templates}=JSON.parse(readFileSync('static/studio_visuals/data/templates.json'));
 const themes=JSON.parse(readFileSync('static/studio_visuals/data/themes.json'));
 const models=templates.filter(t=>t.isSocialSuite);
-test('115 catalog entries: 65 genuine five-slide carousels, 10 covers and 40 announcements',()=>{
- assert.equal(models.length,115);assert.equal(CAROUSEL_DESIGNS.length,65);assert.equal(COVER_DESIGNS.length,10);assert.equal(SESSION_DESIGNS.length,40);
+test('120 catalog entries: 70 genuine five-slide carousels, 10 covers and 40 announcements',()=>{
+ assert.equal(models.length,120);assert.equal(CAROUSEL_DESIGNS.length,70);assert.equal(COVER_DESIGNS.length,10);assert.equal(SESSION_DESIGNS.length,40);
  for(const [key,course] of Object.entries(SOCIAL_COURSES)){assert.equal(CAROUSEL_DESIGNS.filter(d=>d.key===key).length,5);assert.ok(themes[course.formation]);assert.ok(FORMATION_CONFIG[course.formation]);}
  for(const kind of ['places','session'])for(const key of ['aps','a3p','desp_initial','ssiap1'])assert.equal(SESSION_DESIGNS.filter(d=>d.kind===kind&&d.key===key).length,5);
  for(const t of models){assert.ok(t.supportedFormats.every(id=>ALL_FORMATS[id]));assert.ok(['preview','ready'].includes(t.status));assert.equal(t.contentDefaults.duration,'');assert.equal(t.contentDefaults.availability,'');assert.ok(t.renderer==='renderSocialCover'||t.renderer==='renderSocialTemplate');}
 });
-test('all 325 slides are real editable pages, preserve their ordering and have complete matching captions',()=>{
+test('all 350 slides are real editable pages, preserve their ordering and have complete matching captions',()=>{
  for(const t of models.filter(t=>t.isCarousel)){
   const p=createProject();p.slides[0].content.footer.phone='0123456789';applySocialTemplate(p,t);
   assert.equal(p.slides.length,5);assert.equal(new Set(p.slides.map(s=>s.content.title)).size,5);assert.deepEqual(p.slides.map(s=>s.carouselPage),[0,1,2,3,4]);
@@ -49,6 +49,22 @@ test('search handles accents, apostrophes, partial names, DESP VAE and collectio
  const t=models.find(t=>t.id==='carousel_desp_vae_1');assert.ok(matchesTemplateSearch(t,'carrousel desp vae'));assert.ok(!matchesTemplateSearch(t,'BTS MCO'));
  assert.ok(matchesTemplateSearch(models.find(t=>t.id==='places_aps_1'),'dernieres places aps'));
 });
+test('Tous nos BTS has five discoverable carousels covering all six diplomas in slides and captions',()=>{
+ const aggregate=models.filter(t=>t.courseKey==='bts_all');
+ assert.equal(aggregate.length,5);
+ assert.equal(new Set(aggregate.map(t=>t.composition)).size,5);
+ for(const t of aggregate){
+  assert.ok(t.isCarousel);assert.equal(t.formationPreset,'BTS');
+  for(const query of ['BTS tous nos BTS','carrousel tous bts','carroussel BTS','carrousels tous nos BTS'])assert.ok(matchesTemplateSearch(t,query),query);
+  const p=createProject();applySocialTemplate(p,t);
+  const slides=p.slides.map(s=>s.content.title+' '+s.content.introduction).join(' ');
+  for(const diploma of ['MOS','PI','MCO','NDRC','CI','CG']){
+   assert.ok(slides.includes('BTS '+diploma),`${t.id}: ${diploma}`);
+   for(const network of ['facebook','instagram','linkedin'])assert.ok(publicationText(p,t,network).includes('BTS '+diploma),`${t.id}: ${network} ${diploma}`);
+  }
+  assert.equal(p.slides[4].content.cta,'Découvrir nos BTS');
+ }
+});
 test('session captions use user data and keep DESP initial and VAE separate',()=>{
  const t=models.find(t=>t.id==='session_ssiap1_1'),p=createProject();applySocialTemplate(p,t);
  Object.assign(p.slides[0].content,{startDate:'12 octobre',endDate:'23 octobre',availability:'Deux places disponibles'});
@@ -60,7 +76,7 @@ test('legacy placeholder facts are not promoted into publication claims',()=>{
  const automatic=publicationText(p,t);assert.ok(!automatic.includes('175 h'));assert.ok(!automatic.includes('CPF'));
  p.slides[0].content._publicationFields=['duration'];assert.ok(publicationText(p,t).includes('175 h'));
 });
-test('the 115 social models have three distinct complete network captions without invented facts',()=>{
+test('the 120 social models have three distinct complete network captions without invented facts',()=>{
  for(const t of models){
   const p=createProject();applySocialTemplate(p,t);
   const texts=['facebook','instagram','linkedin'].map(network=>publicationText(p,t,network));

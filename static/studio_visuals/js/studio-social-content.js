@@ -253,6 +253,28 @@ export const SOCIAL_COURSES = {
    'Seulement des langues ?|Le commerce, la coordination et le suivi des opérations comptent aussi.',
    'Pourquoi s’intéresser aux cultures ?|Les usages professionnels influencent la qualité des échanges.',
    'Pourquoi être rigoureux ?|Une information fiable facilite le travail entre partenaires.']]]},
+ bts_all:{formation:'BTS',label:'BTS · Tous nos BTS',emoji:'🎓',art:'campus',tags:['6 BTS','Alternance','Votre avenir'],hashtags:'#BTS #Alternance #Orientation',
+  closingTitle:'Quel BTS vous ressemble ?',closingIntroduction:'Explorez nos six BTS et préparez votre candidature avec Intégrale Academy.',closingCta:'Découvrir nos BTS',stories:[
+  ['Six BTS. Votre prochaine direction.','Sécurité, immobilier, commerce, relation client, international ou gestion : explorez nos BTS.',[
+   'BTS MOS · BTS PI|Coordonner des opérations de sécurité avec le MOS. Accompagner des projets immobiliers avec le PI.',
+   'BTS MCO · BTS NDRC|Animer une activité commerciale avec le MCO. Développer la relation client avec le NDRC.',
+   'BTS CI · BTS CG|Organiser des échanges internationaux avec le CI. Comprendre les chiffres de l’entreprise avec le CG.']],
+  ['Vos envies ont plusieurs avenirs.','Partez de ce que vous aimez faire pour découvrir le BTS qui vous correspond.',[
+   'BTS MOS · BTS MCO|Vous aimez organiser et travailler en équipe ? Explorez le management en sécurité ou dans le commerce.',
+   'BTS PI · BTS NDRC|Vous aimez écouter et conseiller ? Découvrez les projets immobiliers et la relation commerciale.',
+   'BTS CI · BTS CG|Les langues vous attirent ? Regardez le CI. Les chiffres et l’analyse vous parlent ? Explorez le CG.']],
+  ['Entrez dans les coulisses de nos BTS.','Six parcours, des missions concrètes pour vous projeter dans votre avenir.',[
+   'BTS MOS · BTS PI|Préparer une prestation de sécurité. Organiser une visite immobilière. Deux façons d’accompagner un besoin.',
+   'BTS MCO · BTS NDRC|Préparer une animation commerciale. Assurer le suivi d’un prospect. La relation client se construit.',
+   'BTS CI · BTS CG|Suivre une opération internationale. Contrôler des pièces comptables. Chaque information compte.']],
+  ['Votre talent cherche sa formation.','Découvrez les compétences à développer dans nos six BTS en alternance.',[
+   'BTS MOS · BTS CG|Organisation, rigueur, analyse : coordonner la sécurité ou suivre l’activité comptable d’une entreprise.',
+   'BTS PI · BTS MCO|Écoute, conseil, sens du service : accompagner un projet immobilier ou l’activité d’un commerce.',
+   'BTS NDRC · BTS CI|Communication et relation commerciale : développer les échanges, du digital à l’international.']],
+  ['Après le bac, ouvrez les possibles.','Comparez nos six BTS à partir des univers professionnels qui vous donnent envie.',[
+   'BTS MOS · BTS PI|La sécurité ou l’immobilier ? Comparez les missions, les interlocuteurs et les environnements de travail.',
+   'BTS MCO · BTS NDRC|Commerce ou développement de la relation client ? Explorez les programmes pour préciser votre choix.',
+   'BTS CI · BTS CG|International ou comptabilité ? Faites le lien entre vos centres d’intérêt et les compétences du parcours.']]]},
  bts_cg:{formation:'BTS CG',label:'BTS CG',emoji:'📊',art:'ledger',tags:['Comptabilité','Gestion','Analyse'],hashtags:'#BTSCG #Comptabilite #Gestion',stories:[
   ['Les chiffres racontent une activité.','Découvrez le BTS Comptabilité et gestion.',[
    'Suivre les opérations|Comprendre comment les activités de l’entreprise sont enregistrées.',
@@ -283,7 +305,7 @@ export const CAROUSEL_DESIGNS=Object.entries(SOCIAL_COURSES).flatMap(([key,cours
  const id=`carousel_${key}_${index+1}`;
  const pages=[{title,introduction,eyebrow:`${course.emoji} ${course.label}`,cta:'Faites défiler',kind:'cover'},
   ...points.map((p,i)=>({title:p.title,introduction:p.text,eyebrow:`${course.emoji} ${course.label} · ${CONCEPTS[index]}`,cta:i===2?'Votre prochaine étape':'La suite',kind:['focus','detail','takeaway'][i]})),
-  {title:key==='desp_vae'?'Donnons du sens à votre expérience.':'Et si on préparait votre projet ?',introduction:`Découvrez ${key==='general'?'nos formations':`le parcours ${course.label}`} et échangez avec notre équipe.`,eyebrow:`${course.emoji} INTÉGRALE ACADEMY`,cta:key==='desp_vae'?'Parlons de votre VAE':'Découvrir la formation',kind:'closing'}];
+  {title:course.closingTitle||(key==='desp_vae'?'Donnons du sens à votre expérience.':'Et si on préparait votre projet ?'),introduction:course.closingIntroduction||`Découvrez ${key==='general'?'nos formations':`le parcours ${course.label}`} et échangez avec notre équipe.`,eyebrow:`${course.emoji} INTÉGRALE ACADEMY`,cta:course.closingCta||(key==='desp_vae'?'Parlons de votre VAE':'Découvrir la formation'),kind:'closing'}];
  return {id,key,course,index,layout:LAYOUTS[index],name:`CARROUSEL · ${course.label} · ${title.replace(/\.$/,'')}`,pages,
   caption:`${course.emoji} ${title}\n\n${introduction}\n\n${points.map(p=>`✨ ${p.title}\n${p.text}`).join('\n\n')}\n\n${key==='desp_vae'?'📂 Un projet de VAE DESP ? Étudions votre parcours. La décision de validation appartient au jury.':'🎯 Envie d’aller plus loin ? Échangeons sur votre projet de formation.'}`};
 }));

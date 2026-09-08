@@ -1,0 +1,52 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><title>Contrôle des 20 templates Général · Fêtes</title>
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-shell.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-canvas.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-themes.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-new-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-new2-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-new3-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-metier-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-bts-templates.css">
+<link rel="stylesheet" href="/static/studio_visuals/css/studio-seasonal-templates.css">
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js" defer></script>
+<style>
+ body{margin:0;background:#e8ecf4;font-family:system-ui;color:#1b253b}.controls{position:sticky;top:0;z-index:1000;background:white;padding:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}.controls select{max-width:300px;padding:8px}.controls button{padding:9px 14px}#preview{zoom:.57;margin:20px}#status,#report{white-space:pre-wrap;font:14px monospace;margin:16px}#audit-stage{position:absolute;left:-20000px;top:0}#sheet{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:16px}.contact-cell{background:#fff;padding:10px;border-radius:12px}.contact-frame{zoom:.28}.contact-cell p{font-size:13px}#export-preview img{max-width:600px}#export-preview video{max-height:600px}
+</style><body class="social-studio">
+<div class="controls"><label>Modèle <select id="model"></select></label><label>Format <select id="format"></select></label><button id="audit">Vérifier les 80 rendus</button><button id="contact">Planche des 5 compositions</button><button id="png">Tester le PNG</button><button id="video">Tester la vidéo</button><label><input type="checkbox" id="long">Texte personnalisé long</label></div>
+<p id="status">Chargement…</p><div id="preview"></div><div id="sheet"></div><div id="export-preview"></div><div id="captions" style="max-width:800px;margin:20px"></div><pre id="report"></pre><div id="audit-stage"></div>
+<script type="module">
+ import {renderSeasonalCaptionPanel} from '/static/studio_visuals/js/studio-seasonal-templates.js';
+ import {renderSlide} from '/static/studio_visuals/js/studio-renderer.js';
+ import {fitSlide} from '/static/studio_visuals/js/studio-text-fit.js';
+ import {validateStudioSlide} from '/static/studio_visuals/js/studio-validation.js';
+ import {waitForImages} from '/static/studio_visuals/js/studio-exporter.js';
+ import {startStudioMotion,recordStudioMotion} from '/static/studio_visuals/js/studio-motion.js';
+ import {createProject,FORMATS,normalizeSlideContentForTemplate} from '/static/studio_visuals/js/studio-store.js';
+ const $=id=>document.getElementById(id);
+ const [{templates},themes]=await Promise.all(['templates','themes'].map(name=>fetch(`/static/studio_visuals/data/${name}.json`).then(r=>r.json())));
+ const models=templates.filter(t=>t.isSeasonal&&t.status!=='development');
+ for(const t of models)$('model').add(new Option(t.name,t.id));
+ for(const [id,f] of Object.entries(FORMATS))$('format').add(new Option(f.label,id));
+ let motion,current;
+ async function render(target,t,formatId,{long=false}={}){
+  const project=createProject({formation:t.formationPreset,templateId:t.id});project.format=FORMATS[formatId];
+  const slide=project.slides[0];normalizeSlideContentForTemplate(slide,t);slide.options.showSafeMargins=false;
+  if(long)Object.assign(slide.content,{_manual:true,title:'Construisez votre avenir professionnel avec notre formation en alternance',introduction:'Découvrez une formation concrète pour développer vos compétences, construire votre projet et préparer votre prochaine étape professionnelle avec notre équipe.',cta:'Préparer mon projet de formation'});
+  const node=renderSlide(project,slide,'export',{templates,themes});target.replaceChildren(node);await waitForImages(node);await fitSlide(node,{waitForPaint:false});await fitSlide(node,{waitForPaint:false});
+  const validation=validateStudioSlide(node),errors=validation.blockingErrors.map(e=>e.message);
+  for(const text of node.querySelectorAll('main [data-content-key]')){
+   const range=document.createRange();range.selectNodeContents(text);const bounds=range.getBoundingClientRect(),main=node.querySelector('main').getBoundingClientRect();
+   if(bounds.bottom>main.bottom+2||bounds.top<main.top-2||bounds.right>main.right+2||bounds.left<main.left-2)errors.push(`Texte hors cadre : ${text.dataset.contentKey}`);
+  }
+  return {node,errors,warnings:validation.warnings,scale:node.querySelector('main').dataset.layoutScale||'1'};
+ }
+ async function preview(){motion?.stop();$('sheet').replaceChildren();const t=models.find(t=>t.id===$('model').value);$('captions').innerHTML=renderSeasonalCaptionPanel(t);current=await render($('preview'),t,$('format').value,{long:$('long').checked});motion=startStudioMotion(current.node);$('status').textContent=current.errors.length?JSON.stringify(current.errors):`${t.name} — rendu vérifié`;}
+ for(const id of ['model','format','long'])$(id).addEventListener('change',preview);
+ $('audit').onclick=async()=>{motion?.stop();$('audit').disabled=true;const rows=[];try{for(const format of Object.keys(FORMATS))for(const t of models){const r=await render($('audit-stage'),t,format,{long:$('long').checked});rows.push({id:t.id,format,errors:r.errors,scale:r.scale});$('status').textContent=`${rows.length} / 80 rendus contrôlés`;}const failures=rows.filter(r=>r.errors.length);$('report').textContent=JSON.stringify({total:rows.length,failed:failures.length,scaled:rows.filter(r=>Number(r.scale)<.99),failures},null,2);$('status').textContent=`Terminé : ${rows.length-failures.length}/80 rendus valides`;}catch(e){$('report').textContent=e.stack}finally{$('audit').disabled=false;$('audit-stage').replaceChildren()}};
+ $('contact').onclick=async()=>{motion?.stop();$('sheet').replaceChildren();const course=models.find(t=>t.id===$('model').value).seasonalEvent;for(const t of models.filter(t=>t.seasonalEvent===course)){const cell=document.createElement('div');cell.className='contact-cell';const frame=document.createElement('div');frame.className='contact-frame';cell.append(frame);const label=document.createElement('p');label.textContent=t.name;cell.append(label);$('sheet').append(cell);await render(frame,t,$('format').value)}$('status').textContent='Planche des cinq compositions';};
+ $('png').onclick=async()=>{try{motion?.stop();const f=FORMATS[$('format').value];const data=await htmlToImage.toPng(current.node,{width:f.width,height:f.height,pixelRatio:1,style:{transform:'none',margin:'0'}});const image=new Image();image.src=data;await image.decode();$('export-preview').replaceChildren(image);$('status').textContent=`PNG vérifié : ${image.naturalWidth} × ${image.naturalHeight}`;}catch(e){$('status').textContent=e.stack}};
+ $('video').onclick=async()=>{try{motion?.stop();const f=FORMATS[$('format').value];const result=await recordStudioMotion(current.node,{width:f.width,height:f.height,onStatus:s=>$('status').textContent=s});const video=document.createElement('video');video.controls=true;video.src=URL.createObjectURL(result.blob);$('export-preview').replaceChildren(video);$('status').textContent=`Vidéo vérifiée : ${result.width} × ${result.height}, ${result.blob.size} octets, ${result.extension}`;}catch(e){$('status').textContent=e.stack}};
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-caption-target]');if(!b)return;const field=$(b.dataset.captionTarget);try{await navigator.clipboard.writeText(field.value);$('status').textContent='Texte de publication copié'}catch{field.focus();field.select();$('status').textContent='Texte sélectionné : utilisez Copier.'}});
+ await preview();
+</script></body></html>

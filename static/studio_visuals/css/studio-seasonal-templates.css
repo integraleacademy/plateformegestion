@@ -1,0 +1,33 @@
+/* General keeps its gold identity; seasonal artwork adds the festive accents. */
+.studio-v2.new2-layout.bts-layout.seasonal-layout{
+ --bts-accent:#A66D08;--bts-tint:#F8EACB;--bts-line:#E9D5A7;--bts-paper:#FFFCF5;
+ background:radial-gradient(ellipse at 95% 8%,#F9E8B7,transparent 53%),linear-gradient(130deg,#FFFCF5,#FFF8E8)!important;
+}
+.seasonal-layout .bts-kicker{text-transform:uppercase;letter-spacing:.08em;font-size:23px}
+.seasonal-layout .bts-visual{background:#FFF7E7;border:2px solid #EDD9AE;padding:20px 0;box-shadow:none;overflow:visible}
+.seasonal-layout .bts-illustration{filter:drop-shadow(0 12px 14px #AB772715)}
+.seasonal-layout .bts-topics>span{border-radius:99px;padding:12px 22px;background:#FFFFFFB3}
+.seasonal-layout .bts-action{border-radius:99px;padding-inline:27px;box-shadow:none}
+.seasonal-layout .bts-poster .bts-visual{background:linear-gradient(160deg,#F3DCB1,#FFF4DD);border:2px solid #E5C997;padding:40px 0;border-radius:180px 180px 30px 30px}
+.seasonal-layout .bts-bento .bts-visual{background:#F8EACB;border:0}
+.seasonal-layout .bts-editorial .bts-visual{background:#FFFCF6;border-left:8px solid #DAB666}
+.seasonal-layout .bts-orbit .bts-visual{background:radial-gradient(circle,#FFFCF6 45%,#F3E2BC);border:2px dashed #D1AB55;padding:45px 0}
+.seasonal-layout .bts-spotlight .bts-visual{background:none;border:0;padding:0}
+.seasonal-layout .bts-spotlight .bts-title{max-width:940px}
+.seasonal-layout .seasonal-halloween.bts-bento .bts-visual{background:#F1E7F4}
+.seasonal-layout .seasonal-noel.bts-poster .bts-visual{background:linear-gradient(140deg,#E8EEE3,#FFF4DC)}
+.seasonal-layout .seasonal-saint_valentin.bts-poster .bts-visual{background:linear-gradient(160deg,#F4DDE3,#FFF2E3)}
+.seasonal-layout .seasonal-saint_valentin.bts-bento .bts-visual{background:#FAE6EB}
+.seasonal-layout .seasonal-bonne_annee.bts-bento .bts-visual{background:#EFE8F5}
+.studio-format-instagram_portrait.seasonal-layout .bts-visual{padding:35px 0}
+.studio-format-instagram_story.seasonal-layout .bts-visual{padding:25px 15px}
+.studio-format-instagram_story.seasonal-layout .bts-spotlight .bts-visual{padding:0}
+.studio-format-linkedin_landscape.seasonal-layout .bts-kicker{font-size:18px}
+.studio-format-linkedin_landscape.seasonal-layout .bts-illustration{inset:12px 4%;width:92%;height:calc(100% - 24px)}
+.studio-format-linkedin_landscape.seasonal-layout .bts-orbit .bts-illustration{inset:16px 4%;width:92%;height:calc(100% - 32px)}
+.studio-seasonal-captions{margin-top:24px;padding:16px;background:#FFF9EC;border:1px solid #E9D5A7;border-radius:14px}
+.studio-seasonal-captions summary{font-weight:750;cursor:pointer}
+.studio-seasonal-captions p{font-size:13px;line-height:1.5;color:#615441}
+.studio-seasonal-captions label{display:block;margin:18px 0 8px;font-weight:650}
+.studio-seasonal-captions textarea{display:block;width:100%;box-sizing:border-box;margin-top:8px;font:400 14px/1.5 system-ui;resize:vertical;background:white;color:#283147;padding:12px;border:1px solid #DACEB5;border-radius:9px}
+.studio-seasonal-captions button{width:100%;padding:11px;border:0;border-radius:9px;background:#A66D08;color:white;cursor:pointer}

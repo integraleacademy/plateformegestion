@@ -54,12 +54,14 @@
    leaves room for the central avatar, note bubble and owner's navigation. */
 .studio-v2.social-cover.studio-format-facebook_cover{--cover-logo-max:240px}
 .studio-v2.social-cover.studio-format-facebook_cover .sv-brand{inset:286px auto auto 1076px!important;width:240px!important;height:240px!important}
-.studio-v2.social-cover.studio-format-facebook_cover .sv-safe>main.social-cover-main{inset:128px 644px 448px 390px!important;gap:4px}
-.studio-v2.social-cover.studio-format-facebook_cover .social-cover-title{font-size:48px;line-height:1.06}
-.studio-v2.social-cover.studio-format-facebook_cover .social-cover-intro{font-size:26px;line-height:1.25}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-safe>main.social-cover-main{inset:132px 644px 450px 390px!important;gap:4px;overflow:visible!important}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-title{font-size:46px;line-height:1.06}
+.studio-v2.social-cover.studio-format-facebook_cover .social-cover-intro{font-size:25px;line-height:1.25}
 .studio-v2.social-cover.studio-format-facebook_cover .sv-footer{inset:276px 644px auto 390px!important;height:32px!important;gap:0!important}
 .studio-v2.social-cover.studio-format-facebook_cover .sv-brand__slogan{font-size:26px;line-height:1.2!important}
 .studio-v2.social-cover.studio-format-facebook_cover .sv-footer__site{font-size:23px!important;line-height:1.2!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-footer__site>b{display:none!important}
+.studio-v2.social-cover.studio-format-facebook_cover .sv-footer__site>span{overflow:visible!important;text-overflow:clip!important;white-space:normal;overflow-wrap:anywhere}
 .studio-v2.social-cover.studio-format-facebook_cover .sv-footer__contacts{position:absolute!important;left:674px!important;top:260px!important;width:264px!important;height:auto!important}
 .studio-v2.social-cover.studio-format-facebook_cover .social-cover-art{inset:330px auto auto 386px!important;width:190px!important;height:156px!important;opacity:1!important;transform:none!important}
 .studio-v2.social-cover.studio-format-facebook_cover .social-cover-art svg{display:block;width:100%;height:100%}

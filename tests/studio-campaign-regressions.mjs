@@ -19,7 +19,7 @@ test('eight campaigns each supply five unique general models, three animated, an
   assert.equal(new Set(group.map(t=>t.composition)).size,5);
  }
  for(const t of models){
-  assert.equal(t.isSeasonal,true);assert.equal(t.formationPreset,'OR');assert.equal(t.status,'preview');
+  assert.equal(t.isSeasonal,true);assert.equal(t.formationPreset,'OR');assert.equal(t.status,'ready');
   assert.deepEqual(t.supportedFormats,Object.keys(FORMATS));
   const d=CAMPAIGN_DESIGNS.find(d=>d.id===t.id);assert.ok(SEASONAL_DESIGNS.includes(d));
   assert.deepEqual(t.contentDefaults,d.contentDefaults);

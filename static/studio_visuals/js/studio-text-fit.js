@@ -73,6 +73,11 @@ function fitOptions(element,canvas){
     maxLines:lines,maxHeight:height,
     lineHeight:designed.lineHeight
   });
+  if(canvas.classList?.contains('social-cover')){
+    if(kind==='title')return options(30,2,110);
+    if(kind==='body')return options(16,2,60);
+    return options(14,2,45);
+  }
   if(canvas.classList?.contains('metier-layout')||canvas.classList?.contains('bts-layout')){
     const landscape=canvas.dataset.studioFormat==='linkedin_landscape';
     const story=canvas.dataset.studioFormat==='instagram_story';

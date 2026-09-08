@@ -310,5 +310,31 @@
       "orbite",
       "premium"
     ]
+  },
+  "BTS CG": {
+    "primary": "#317493",
+    "secondary": "#73B5CA",
+    "accent": "#DFEFF5",
+    "background": "#F8FAFE",
+    "backgroundAlt": "#DFEFF5",
+    "surface": "#FFFFFF",
+    "surfaceDark": "#173B4B",
+    "text": "#20283C",
+    "textMuted": "#45506A",
+    "border": "#DFEFF5",
+    "shadow": "rgba(36,52,91,.12)",
+    "danger": "#B42318",
+    "success": "#167F52",
+    "positioning": "Comptabilité et gestion",
+    "variants": [
+      "clair",
+      "interface",
+      "bento",
+      "éditorial",
+      "minimal",
+      "dynamique",
+      "orbite",
+      "premium"
+    ]
   }
 }

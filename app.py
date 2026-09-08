@@ -12664,6 +12664,33 @@ def social_visuals_studio():
     )
 
 
+@app.get("/api/admin/studio/template-usage")
+def api_studio_template_usage_list():
+    from services.studio_usage_service import load_template_usage
+    response = jsonify({"used": load_template_usage(DATA_DIR, session.get("admin_email") or "admin")})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.post("/api/admin/studio/template-usage")
+def api_studio_template_usage_update():
+    from services.studio_usage_service import set_template_usage
+    from services.studio_template_service import load_studio_config
+    # All admin routes already require a fresh authenticated session above.
+    # A custom header + JSON prevents cross-origin form submissions.
+    if request.headers.get("X-Requested-With") != "XMLHttpRequest" or not request.is_json:
+        return jsonify({"error": "Requête non autorisée."}), 403
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or not isinstance(payload.get("used"), bool):
+        return jsonify({"error": "État d’utilisation invalide."}), 400
+    template_id = payload.get("templateId")
+    known_ids = {item["id"] for item in load_studio_config(current_app.root_path)["templates"]}
+    if not isinstance(template_id, str) or template_id not in known_ids:
+        return jsonify({"error": "Template inconnu."}), 400
+    usage = set_template_usage(DATA_DIR, session.get("admin_email") or "admin", template_id, payload["used"])
+    return jsonify({"ok": True, "used": usage})
+
+
 @app.get("/admin/studio-visuels/prototypes")
 def social_visuals_prototypes():
     """Galerie de validation isolée du Studio et de ses modèles actifs."""

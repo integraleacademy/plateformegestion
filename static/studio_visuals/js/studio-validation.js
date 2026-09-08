@@ -1,3 +1,4 @@
+import {validateFacebookProfilePreview} from './studio-facebook-preview.js';
 function measureUnscaledWidth(element){
   const canvas=element.closest('.social-studio-slide');
   const zoom=canvas?canvas.getBoundingClientRect().width/(canvas.offsetWidth||1):1;
@@ -134,6 +135,8 @@ export function validateStudioSlide(slideNode,options={}){
     if(r.left<c.left+safe||r.top<c.top+safe||r.right>c.right-safe||r.bottom>c.bottom-safe)warnings.push({message:`Le bloc « ${el.dataset.elementName||'élément'} » est proche de la marge de sécurité.`,element:el});
   });
   if(canvas.textContent.match(/(Lieu|Début|Durée|Financement|Places)(?=\S)/))warnings.push({message:'Texte potentiellement concaténé détecté.',element:canvas});
+
+  if(canvas.dataset.studioFormat==='facebook_cover')for(const message of validateFacebookProfilePreview(canvas,{width:w,height:h}))blockingErrors.push({message,element:canvas});
 
   const dedupe=items=>items.filter((item,index)=>items.findIndex(other=>other.message===item.message)===index);
   const errors=dedupe(blockingErrors),notices=dedupe(warnings);

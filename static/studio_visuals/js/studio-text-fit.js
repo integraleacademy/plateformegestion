@@ -79,9 +79,9 @@ function fitOptions(element,canvas){
       if(kind==='body')return options(22,2,78);
       return options(20,2,64);
     }
-    if(kind==='title')return options(30,2,110);
-    if(kind==='body')return options(16,2,60);
-    return options(14,2,45);
+    if(kind==='title')return options(46,2,120);
+    if(kind==='body')return options(24,2,68);
+    return options(20,2,52);
   }
   if(canvas.classList?.contains('metier-layout')||canvas.classList?.contains('bts-layout')){
     const landscape=canvas.dataset.studioFormat==='linkedin_landscape';

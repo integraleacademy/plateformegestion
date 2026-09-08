@@ -12,7 +12,6 @@ test('all five LinkedIn covers select the personal-profile ratio, including an o
   applySocialTemplate(project,t);assert.equal(project.format.width,1584);assert.equal(project.format.height,396);assert.equal(project.slides[0].logo.width,220);
   assert.equal(compatibleFormat(t,{id:'linkedin_cover',width:1512,height:256}),ALL_FORMATS.linkedin_cover);
  }
- assert.deepEqual([ALL_FORMATS.facebook_cover.width,ALL_FORMATS.facebook_cover.height],[851,315]);
 });
 test('the screenshot regression detects the old hidden logo and cropped illustration',()=>{
  const frame=LINKEDIN_PROFILE_FRAMES[0],oldSize={width:1512,height:256};

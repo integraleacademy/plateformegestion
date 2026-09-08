@@ -6,7 +6,7 @@ import {normalizeSlide,defaultContentForFormation,ALL_FORMATS} from './studio-st
 
 export function normalizeSearch(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
 export function matchesTemplateSearch(template,query){
- const haystack=normalizeSearch([template.id,template.name,template.description,template.collection,template.formationPreset,template.courseKey,template.sessionKind,template.contentDefaults?.title,template.contentDefaults?.introduction,template.isCarousel?'carrousel carousel diapositives':'',template.isCover?'couverture cover banniere':''].join(' '));
+ const haystack=normalizeSearch([template.id,template.name,template.description,template.collection,template.formationPreset,template.courseKey,template.sessionKind,template.contentDefaults?.title,template.contentDefaults?.introduction,template.isCarousel?'carrousels carroussels carousels diapositives':'',template.isCover?'couverture cover banniere':''].join(' '));
  return normalizeSearch(query).split(' ').filter(Boolean).every(word=>haystack.includes(word));
 }
 export function compatibleFormat(template,current){const ids=template.supportedFormats||['instagram_square'];return ALL_FORMATS[ids.includes(current?.id)?current.id:ids[0]]||ALL_FORMATS.instagram_square}
@@ -84,7 +84,7 @@ export function publicationText(project,template,network='facebook'){
   const pages=d.pages.map((page,i)=>project.slides.find(s=>s.templateId===template.id&&s.carouselPage===i)?.content||page);
   const lead=clean(pages[0].introduction)!==clean(d.pages[0].introduction)?pages[0].introduction:network==='instagram'?shortAngle(copy.angles[index]):copy.angles[index];
   const points=pages.slice(1,4).map((p,i)=>{
-   const includeBody=network==='linkedin'||clean(p.introduction)!==clean(d.pages[i+1].introduction);
+   const includeBody=key==='bts_all'||network==='linkedin'||clean(p.introduction)!==clean(d.pages[i+1].introduction);
    return `${network==='linkedin'?'•':copy.bullets[i]} ${clean(p.title)}${includeBody&&clean(p.introduction)?`\n${clean(p.introduction)}`:''}`;
   }).join(network==='linkedin'?'\n\n':'\n');
   const facts=Object.fromEntries(FACT_FIELDS.map(field=>[field,pages.find(p=>clean(p[field]))?.[field]||'']));

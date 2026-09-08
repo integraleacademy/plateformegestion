@@ -85,6 +85,13 @@ export const PUBLICATION_COURSES={
   'Vous aimez les langues et comprendre d’autres environnements ? Explorez comment le BTS CI relie cette curiosité au commerce et au suivi des opérations.',
   'Pourquoi les cultures, la rigueur et la coordination comptent-elles autant ? Trois questions pour regarder le commerce international au-delà du voyage et des langues.'
  ]},
+ bts_all:{reason:'Sécurité, immobilier, commerce, relation client, international et comptabilité : nos six BTS ouvrent des pistes différentes pour construire votre projet.',question:'Quel univers vous donne envie de préparer la suite ?',goal:'votre candidature en BTS',bullets:['💡','🤝','🚀'],angles:[
+  'Six BTS, six univers à découvrir. 🎓 Votre prochaine direction se choisit aussi en regardant les missions qui vous attirent : voici les parcours proposés par Intégrale Academy.',
+  'Vous aimez organiser, conseiller, échanger ou analyser ? ✨ Ces envies sont un bon point de départ pour comparer nos BTS et trouver le parcours qui vous ressemble.',
+  'Derrière les sigles, il y a des missions concrètes. 🔎 Faites défiler pour découvrir ce que l’on peut travailler en sécurité, immobilier, commerce, relation client, international et comptabilité.',
+  'Vos points forts peuvent devenir le début d’un projet d’études. 🌱 Organisation, écoute, rigueur ou communication : explorez les compétences à développer dans nos six BTS en alternance.',
+  'Choisir la suite après le bac commence par une question : dans quel univers avez-vous envie de vous investir ? 🧭 Comparez nos six BTS, puis prenez le temps de consulter les programmes.'
+ ]},
  bts_cg:{reason:'Organiser les pièces, contrôler les opérations et analyser l’information : le BTS CG donne des repères pour comprendre l’activité d’une entreprise.',question:'Vous aimez comprendre les chiffres et organiser l’information ?',goal:'votre candidature en BTS CG',bullets:['📊','🧾','🔎'],angles:[
   'Chaque opération laisse une trace de l’activité de l’entreprise. Découvrez comment le BTS CG relie ces informations à leur organisation et à leur analyse.',
   'Une pièce à vérifier, une échéance à suivre, un résultat à expliquer : la rigueur se construit dans des situations concrètes. Zoom sur trois compétences du BTS CG.',

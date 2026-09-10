@@ -1873,6 +1873,21 @@ AFC_CATEGORY_COLORS = {
 }
 
 
+def afc_calendar_half_days(slots):
+    """Keep every category and its actual duration in each calendar half-day."""
+    halves = [{}, {}]
+    noon = 12 * 60 + 30
+    for slot in sorted(slots, key=lambda item: item.get("start") or ""):
+        category = slot.get("afcCategory") or slot.get("uv") or "Formation"
+        start = sum(int(part) * factor for part, factor in zip(slot["start"].split(":"), (60, 1)))
+        end = sum(int(part) * factor for part, factor in zip(slot["end"].split(":"), (60, 1)))
+        for half, (lower, upper) in enumerate(((0, noon), (noon, 24 * 60))):
+            minutes = max(0, min(end, upper) - max(start, lower))
+            if minutes:
+                halves[half][category] = halves[half].get(category, 0) + minutes
+    return halves
+
+
 def is_afc_exam_slot(slot):
     """Return whether a planning slot is one of the two AFC exam days."""
     category = str(
@@ -3840,18 +3855,24 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                         interrupted=is_interrupted_day(curd, parse_interruption_ranges(session_data.get("interruptions")))
                         if interrupted: bg="#d1d5db"
                         c.setFillColor(colors.HexColor(bg)); c.rect(cx,cy-cell_h+2,cell_w-1,cell_h-1,fill=1,stroke=1)
-                        c.setFillColor(colors.HexColor("#111827")); c.drawString(cx+1,cy-5,str(dd))
+                        c.setFillColor(colors.HexColor("#111827")); c.setFont("Helvetica", 5.0); c.drawString(cx+1,cy-5,str(dd))
                         if iso in by_date:
-                            am=[]; pm=[]
-                            for sl in by_date[iso].get("slots",[]):
-                                sm=int(sl["start"][:2])*60+int(sl["start"][3:5]); (am if sm < 12*60+30 else pm).append(sl.get("afcCategory"))
-                            for half,cats in enumerate((am,pm)):
+                            half_height = (cell_h - 14) / 2
+                            for half,cats in enumerate(afc_calendar_half_days(by_date[iso].get("slots", []))):
                                 if not cats: continue
-                                cat=next((c for c in cats if c), cats[0]); yy=cy-9-half*(cell_h/2-2)
-                                c.setFillColor(colors.HexColor(colors_by_cat.get(cat,"#e5e7eb"))); c.rect(cx+9, yy-(cell_h/2-6), cell_w-12, cell_h/2-7, fill=1, stroke=0)
-                                c.setFillColor(colors.white if cat in {"APS","EXAM_APS","EXAM_SSIAP1","BILAN"} else colors.black)
-                                for li,line in enumerate(wrap_text_lines(short_labels.get(cat,cat), cell_w-13, "Helvetica-Bold", 4.6)[:2]):
-                                    c.setFont("Helvetica-Bold",4.6); c.drawString(cx+10, yy-4-li*5, line)
+                                row_height = half_height / len(cats)
+                                for index, (cat, minutes) in enumerate(cats.items()):
+                                    yy = cy - 9 - half * (half_height + 2) - index * row_height
+                                    c.setFillColor(colors.HexColor(colors_by_cat.get(cat, "#e5e7eb")))
+                                    c.rect(cx+3, yy-row_height, cell_w-7, row_height-0.6, fill=1, stroke=0)
+                                    label = f"{short_labels.get(cat, cat)} {format_duration_from_minutes(minutes)}"
+                                    font_size = min(5.0, row_height-1.2)
+                                    label_width = c.stringWidth(label, "Helvetica-Bold", font_size)
+                                    if label_width > cell_w-11:
+                                        font_size *= (cell_w-11) / label_width
+                                    c.setFillColor(colors.white if cat in {"APS", "EXAM_APS", "EXAM_SSIAP1", "BILAN"} else colors.black)
+                                    c.setFont("Helvetica-Bold", font_size)
+                                    c.drawString(cx+5, yy-(row_height+font_size)/2, label)
                         elif interrupted:
                             c.setFillColor(colors.HexColor("#374151")); c.setFont("Helvetica",4.5); c.drawString(cx+2, cy-14, "INTERRUPTION")
             legend_y=54; legend_cols=5; legend_cell=(lw-72)/legend_cols; c.setFont("Helvetica", 6.1)
@@ -4964,21 +4985,33 @@ def set_planning_for_session(sid, filename):
 
 
 def refresh_aps_planning_pdf_file(session_data, sid):
-    if (session_data.get("formation") or "").upper() != "APS" and not is_ssiap1_session(session_data):
+    is_afc = is_afc_aps_ssiap_session(session_data)
+    if (session_data.get("formation") or "").upper() != "APS" and not is_ssiap1_session(session_data) and not is_afc:
         return session_data.get("planning_pdf")
     planning_data = session_data.get("apsPlanningData") or []
     if not planning_data:
         return session_data.get("planning_pdf")
 
-    filename = f"planning_{'ssiap1' if is_ssiap1_session(session_data) else 'aps'}_session_{sid}.pdf"
+    filename = f"planning_{'afc_aps_ssiap' if is_afc else ('ssiap1' if is_ssiap1_session(session_data) else 'aps')}_session_{sid}.pdf"
     output_path = os.path.join(PLANNING_DIR, filename)
-    temp_path = f"{output_path}.tmp"
-    planning_mode = session_data.get("apsPlanningMode") or (
+    planning_mode = "full_presentiel" if is_afc else (session_data.get("apsPlanningMode") or (
         "ssiap1" if is_ssiap1_session(session_data) else
         "elearning_presentiel"
         if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
         else "full_presentiel"
-    )
+    ))
+    document_profile = {"validate": "ssiap1"} if is_ssiap1_session(session_data) else {}
+    if is_afc:
+        document_profile = {
+            "validate": "afc_aps_ssiap",
+            "summary": afc_aps_ssiap_summary_from_data(
+                planning_data,
+                parse_interruption_ranges(session_data.get("interruptions")),
+                contractual_end_date=session_data.get("contractual_end_date"),
+            ),
+        }
+    with tempfile.NamedTemporaryFile(prefix="planning_refresh_", suffix=".pdf", dir=PLANNING_DIR, delete=False) as temp_file:
+        temp_path = temp_file.name
     try:
         result = generate_aps_planning_pdf(
             session_data,
@@ -4988,11 +5021,7 @@ def refresh_aps_planning_pdf_file(session_data, sid):
             planning_mode=planning_mode,
             # APS PDFs are official outputs: unlike editable drafts, they must
             # pass the complete CPNEFP programme validation before rendering.
-            document_profile=(
-                {"validate": "ssiap1"}
-                if is_ssiap1_session(session_data)
-                else {}
-            ),
+            document_profile=document_profile,
         )
         os.replace(temp_path, output_path)
         session_data["planning_pdf"] = filename

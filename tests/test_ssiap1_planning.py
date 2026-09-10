@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -124,6 +124,88 @@ def test_ssiap1_planning_skips_excluded_dates_from_payload():
 def test_ssiap1_revision_part_is_not_treated_as_exam_banner():
     assert is_ssiap1_exam_part("EXAMEN SSIAP 1") is True
     assert is_ssiap1_exam_part("RÉVISIONS GÉNÉRALES ET PRÉPARATION À L’EXAMEN SSIAP 1 — 3 h") is False
+
+
+@pytest.mark.parametrize(
+    "start,end,sst_dates,ssiap_start,excluded",
+    [
+        ("2027-02-11", "2027-02-26", ["2027-02-11", "2027-02-12"], "2027-02-15", []),
+        ("2027-02-12", "2027-03-01", ["2027-02-12", "2027-02-15"], "2027-02-16", []),
+        ("2026-11-10", "2026-11-26", ["2026-11-10", "2026-11-12"], "2026-11-13", []),
+        ("2027-02-08", "2027-02-24", ["2027-02-08", "2027-02-10"], "2027-02-11", ["2027-02-09"]),
+    ],
+    ids=["sst-before-weekend", "sst-across-weekend", "sst-across-holiday", "sst-across-excluded-day"],
+)
+def test_ssiap1_starts_after_two_eligible_sst_days(start, end, sst_dates, ssiap_start, excluded):
+    exam_date = date.fromisoformat(end) + timedelta(days=1)
+    while exam_date.weekday() >= 5:
+        exam_date += timedelta(days=1)
+    planning, totals, total_hours = build_ssiap1_planning_data(
+        date.fromisoformat(start),
+        "Formateur SSIAP",
+        "Salle 1",
+        end_date=date.fromisoformat(end),
+        exam_iso=exam_date.isoformat(),
+        exam_payload={"date": exam_date.isoformat(), "start": "08:30", "end": "16:30", "durationMinutes": 480},
+        excluded_dates=excluded,
+    )
+    assert [day["date"] for day in planning if day.get("category") == "sst"] == sst_dates
+    ssiap_days = [day for day in planning if day.get("category") == "ssiap1"]
+    assert len(ssiap_days) == 10
+    assert ssiap_days[0]["date"] == ssiap_start
+    assert ssiap_days[-1]["date"] == end
+    assert not set(excluded) & {day["date"] for day in planning}
+    assert planning[-1]["date"] == exam_date.isoformat()
+    assert total_hours == 67
+    assert totals == SSIAP1_SEQUENCE_TOTALS
+    summary = ssiap1_summary_from_data(planning)
+    assert summary["sst_hours"] == 14
+    assert summary["revision_hours"] == 3
+    assert summary["presence_total_hours"] == 84
+    assert summary["errors"] == []
+
+
+def test_ssiap1_february_2027_generation_route_and_pdf_dates(tmp_path, monkeypatch):
+    from pypdf import PdfReader
+    import app as application
+
+    monkeypatch.setitem(application.app.config, "TESTING", True)
+    monkeypatch.setitem(application.app.config, "SECRET_KEY", "test")
+    session = {
+        "id": "ssiap-february-2027",
+        "formation": "SSIAP1",
+        "date_debut": "2027-02-11",
+        "date_fin": "2027-02-26",
+        "date_exam": "2027-03-01",
+    }
+    saved = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+    monkeypatch.setattr(application, "PLANNING_DIR", str(tmp_path))
+
+    with application.app.test_client() as client:
+        with client.session_transaction() as flask_session:
+            flask_session["admin_logged"] = True
+            flask_session["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.post(
+            "/api/sessions/ssiap-february-2027/generate-aps-planning",
+            json={"trainer": "Formateur SSIAP", "sstTrainer": "Formateur SST", "examDate": "2027-03-01"},
+        )
+
+    assert response.status_code == 200, response.get_json()
+    assert response.get_json()["ok"] is True
+    assert session["apsPlanningSummary"]["errors"] == []
+    assert session["date_debut"] == "2027-02-11"
+    assert session["date_fin"] == "2027-02-26"
+    assert session["date_exam"] == "2027-03-01"
+    pdf = PdfReader(str(tmp_path / session["planning_pdf"]))
+    pdf_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    assert "11/02/2027 : 7 h" in pdf_text
+    assert "12/02/2027 : 7 h" in pdf_text
+    assert "du 15/02/2027 au 26/02/2027" in pdf_text
+    assert "26/02/2027 de 13h30 à 16h30" in pdf_text
+    assert "01/03/2027 — 08:30 - 16:30 — journée distincte" in pdf_text
+    assert all(old_date not in pdf_text for old_date in ["12/10/2026", "13/10/2026", "27/10/2026", "28/10/2026"])
 
 def test_ssiap1_attendance_uses_same_daily_program_list_as_aps_and_dirigeant(tmp_path):
     pypdf = pytest.importorskip("pypdf")

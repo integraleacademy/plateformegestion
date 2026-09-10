@@ -1856,6 +1856,8 @@ AFC_APS_SSIAP_LABELS = {
     "PAF": "Préparation à l’après-formation (PAF)",
 }
 AFC_DAY_SEGMENTS = ((8 * 60 + 30, 12 * 60 + 30), (13 * 60 + 30, 16 * 60 + 30))
+# Exception validée : fin APS le 20/01 à 16h, compensation SSIAP le 03/02 à 16h.
+AFC_HALF_HOUR_DAYS = {"2027-01-20": "APS", "2027-02-03": "SSIAP1"}
 AFC_TECHNICAL_CODES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
 AFC_ACCOMPANIMENT_CODES = {"SP", "PAF"}
 AFC_EXAM_CATEGORIES = {"EXAM_APS", "EXAM_SSIAP1"}
@@ -2396,6 +2398,9 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
 
     six_hour_days = {date(2026, 11, 25), date(2026, 12, 1), date(2026, 12, 8), date(2027, 1, 6), date(2027, 2, 3), date(2027, 2, 11)}
     daily_targets = {d: (6 * 60 if d in six_hour_days else 7 * 60) for d in eligible_dates}
+    for d in eligible_dates:
+        if d.isoformat() in AFC_HALF_HOUR_DAYS:
+            daily_targets[d] = 6 * 60 + 30
     planning_map = {}
     free_intervals = {d: [(8*60+30, 12*60+30), (13*60+30, 13*60+30 + max(0, daily_targets[d] - 240))] for d in eligible_dates}
 
@@ -2484,6 +2489,8 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
         cur, left = start, minutes
         while left > 0 and idx < len(sequence):
             m = sequence[idx]
+            if m["category"] == "SSIAP1" and d <= exam_aps_date:
+                raise ValueError("Le SSIAP 1 ne peut commencer qu’après la journée d’examen APS.")
             take = min(left, m["remainingMinutes"])
             add(d, cur, take, m)
             m["remainingMinutes"] -= take; cur += take; left -= take
@@ -2549,7 +2556,7 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
                 b["total"] += minutes
                 if cat in AFC_TECHNICAL_CODES: b["technical"] += minutes
                 if cat in {"RAN", "SP", "PAF"}: b[cat] += minutes
-        # Contrôle facturable : FT/RAN/SP/PAF en heures entières par demi-journée.
+        # Heures entières, sauf les deux après-midi FT de 2h30 explicitement validés.
         halfday_totals = {}
         for slot in day.get("slots", []):
             minutes = int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60)))
@@ -2560,7 +2567,13 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
             if billing in {"FT","RAN","SP","PAF"}:
                 halfday_totals[(half,billing)] = halfday_totals.get((half,billing), 0) + minutes
         for (half,billing), minutes in halfday_totals.items():
-            if minutes % 60 != 0:
+            half_hour_exception = (
+                day.get("date") in AFC_HALF_HOUR_DAYS
+                and {slot.get("afcCategory") for slot in day.get("slots", [])} == {AFC_HALF_HOUR_DAYS[day["date"]]}
+                and half == "PM" and billing == "FT" and minutes == 150
+                and day_minutes == 390
+            )
+            if minutes % 60 != 0 and not half_hour_exception:
                 errors.append(f"La demi-journée {half} du {day.get('date')} contient {format_duration_from_minutes(minutes)} en {billing}, non facturable en heures entières.")
         if day_minutes > APS_MAX_DAILY_MINUTES: errors.append(f"La journée {day.get('date')} dépasse 7h.")
     for week, b in week_buckets.items():
@@ -2590,8 +2603,14 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         if dm < 6*60: errors.append(f"La journée {day.get('date')} contient moins de 6h.")
         if dm > 7*60: errors.append(f"La journée {day.get('date')} dépasse 7h.")
         if day.get("date", "") >= "2027-03-01": errors.append("Aucune activité AFC ne doit être planifiée en mars 2027.")
-    if day_values and day_values.count(7*60) != 51: errors.append(f"Le planning AFC doit contenir 51 journées de 7h (actuel: {day_values.count(7*60)}).")
-    if day_values and day_values.count(6*60) != 6: errors.append(f"Le planning AFC doit contenir 6 journées de 6h (actuel: {day_values.count(6*60)}).")
+    if day_values and day_values.count(7*60) != 50: errors.append(f"Le planning AFC doit contenir 50 journées de 7h (actuel: {day_values.count(7*60)}).")
+    if day_values and day_values.count(6*60) != 5: errors.append(f"Le planning AFC doit contenir 5 journées de 6h (actuel: {day_values.count(6*60)}).")
+    if day_values and day_values.count(390) != 2: errors.append(f"Le planning AFC doit contenir 2 journées de 6h30 (actuel: {day_values.count(390)}).")
+    for day in planning_data or []:
+        if day.get("date") in AFC_HALF_HOUR_DAYS:
+            minutes = sum(int(slot.get("durationMinutes") or round(float(slot.get("duration") or 0)*60)) for slot in day.get("slots", []))
+            if minutes != 390:
+                errors.append(f"La journée {day['date']} doit durer 6h30 pour respecter la transition APS / SSIAP.")
     ordered_slots = []
     for day in sorted(planning_data or [], key=lambda d: d.get("date") or ""):
         for slot in sorted(day.get("slots", []), key=lambda s: s.get("start") or ""):
@@ -2677,6 +2696,16 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
             if sum(int(round(float(slot.get("durationMinutes") or float(slot.get("duration") or 0)*60))) for _d, _st, _e, _ccat, slot in day_slots) != expected: errors.append(f"La journée de {label.lower()} doit durer exactement 7h.")
     exam_aps_slots = _cat_slots("EXAM_APS")
     aps_slots = _cat_slots("APS")
+    ssiap_slots = _cat_slots("SSIAP1")
+    if exam_aps_slots and ssiap_slots:
+        last_exam_date = max(d for d, *_ in exam_aps_slots)
+        first_ssiap = min((d, st) for d, st, *_ in ssiap_slots)
+        parsed_exam = parse_date(last_exam_date)
+        expected_ssiap_date = afc_next_working_day(parsed_exam.date(), interruptions) if parsed_exam else None
+        if first_ssiap[0] <= last_exam_date:
+            errors.append("Aucun cours de SSIAP 1 ne peut être placé avant ou pendant la journée d’examen APS.")
+        if expected_ssiap_date and first_ssiap != (expected_ssiap_date.isoformat(), "08:30"):
+            errors.append(f"Le SSIAP 1 doit commencer le lendemain de l’examen APS (ou prochain jour admissible), le {format_date(expected_ssiap_date.isoformat())} à 08:30.")
     if exam_aps_slots and aps_slots:
         first_exam = min(_dt_tuple(d, st) for d, st, _e, _slot, _m in exam_aps_slots)
         aps_before = sum(m for d, _st, e, _slot, m in aps_slots if _dt_tuple(d, e) <= first_exam)
@@ -5232,6 +5261,72 @@ def save_sessions(data):
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp_path, SESSIONS_FILE)
+
+def migrate_afc_ssiap_transition_session():
+    """Appliquer une seule fois à 9f823786 le report SSIAP validé par l’administrateur."""
+    if not os.path.exists(SESSIONS_FILE):
+        return {"status": "not_found"}
+    import fcntl
+    from services.afc_ssiap_transition import correct_saved_ssiap_transition
+
+    version = "2026-09-10-ssiap-after-aps-v1"
+    sid = "9f823786"
+    backup_dir = os.path.join(DATA_DIR, "planning_migrations", version)
+    os.makedirs(backup_dir, exist_ok=True)
+    with open(os.path.join(backup_dir, "migration.lock"), "a") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        data = load_sessions()
+        target = find_session(data, sid)
+        if not target or not is_afc_aps_ssiap_session(target):
+            return {"status": "not_found"}
+        if target.get("afcSsiapTransitionVersion") == version:
+            return {"status": "already_applied"}
+        original_planning = target.get("apsPlanningData") or []
+        if not original_planning:
+            return {"status": "no_saved_planning"}
+
+        corrected = correct_saved_ssiap_transition(original_planning)
+        summary = afc_aps_ssiap_summary_from_data(
+            corrected, parse_interruption_ranges(target.get("interruptions")),
+            contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
+        )
+        if summary["errors"]:
+            raise ValueError("Correction AFC non appliquée : " + " ".join(summary["errors"]))
+        backup_id = datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        backup_base = os.path.join(backup_dir, f"session_{sid}_{backup_id}")
+        with open(backup_base + ".json", "x", encoding="utf-8") as handle:
+            json.dump(target, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        old_pdf = os.path.join(PLANNING_DIR, os.path.basename(str(target.get("planning_pdf") or "")))
+        if os.path.isfile(old_pdf):
+            shutil.copy2(old_pdf, backup_base + ".pdf")
+
+        candidate = deepcopy(target)
+        candidate["apsPlanningData"] = corrected
+        candidate["apsPlanningSummary"] = summary
+        candidate["apsPlanningMode"] = "full_presentiel"
+        candidate["apsPlanningNeedsRegeneration"] = False
+        candidate["afcSsiapTransitionVersion"] = version
+        candidate["planning_modified_at"] = append_planning_history(candidate, "SSIAP à partir du 22/01/2027 ; 20/01 et 03/02 à 6h30")
+        filename = f"planning_afc_aps_ssiap_session_{sid}_ssiap_apres_examen.pdf"
+        with tempfile.NamedTemporaryFile(prefix="afc_transition_", suffix=".pdf", dir=PLANNING_DIR, delete=False) as handle:
+            temp_path = handle.name
+        try:
+            generate_aps_planning_pdf(candidate, "", temp_path, planning_data=corrected, document_profile={"validate": "afc_aps_ssiap", "summary": summary})
+            os.replace(temp_path, os.path.join(PLANNING_DIR, filename))
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        candidate["planning_pdf"] = filename
+        candidate["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data["sessions"] = [candidate if item.get("id") == sid else item for item in data["sessions"]]
+        save_sessions(data)
+        first_ssiap = min((day["date"], slot["start"]) for day in corrected for slot in day["slots"] if slot.get("afcCategory") == "SSIAP1")
+        result = {"status": "applied", "session": sid, "first_ssiap": first_ssiap, "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
+        app.logger.info("AFC_SSIAP_TRANSITION %s", json.dumps(result, ensure_ascii=False))
+        return result
+
 
 def load_price_adaptator_data():
     if os.path.exists(PRICE_ADAPTATOR_FILE):
@@ -12835,3 +12930,10 @@ def api_studio_ai_transform():
 @app.get("/sessions/<sid>/social-post/new")
 def create_social_post_from_session(sid):
     return redirect(url_for("social_visuals_studio", session_id=sid))
+
+
+# Migration ciblée avant le traitement des requêtes, protégée entre workers.
+try:
+    migrate_afc_ssiap_transition_session()
+except Exception:
+    app.logger.exception("AFC_SSIAP_TRANSITION_FAILED session=9f823786 ; données enregistrées conservées")

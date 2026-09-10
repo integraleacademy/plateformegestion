@@ -54,6 +54,10 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert sum(day_minutes("APS").values()) == AFC_APS_SSIAP_EXPECTED_MINUTES["APS"]
     assert max(day_minutes("APS")) == "2027-01-20"
     assert list(day_minutes("EXAM_APS")) == ["2027-01-21"]
+    assert min(day_minutes("SSIAP1")) == "2027-01-22"
+    assert day_minutes("APS")["2027-01-20"] == 390
+    assert day_minutes("SSIAP1")["2027-02-03"] == 390
+    assert all(day["date"] > "2027-01-21" for day in planning if any(slot["afcCategory"] == "SSIAP1" for slot in day["slots"]))
     sst_days = [day for day in planning if any(slot["uv"] == "UV1" and "SST" in slot["title"] for slot in day["slots"])]
     assert sst_days
     assert sum(day_minutes("EXAM_APS").values()) == 420
@@ -70,8 +74,9 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert len(eligible) == 57
     assert set(eligible) == {day["date"] for day in planning}
     daily_totals = [sum(slot["durationMinutes"] for slot in day["slots"]) for day in planning]
-    assert daily_totals.count(7 * 60) == 51
-    assert daily_totals.count(6 * 60) == 6
+    assert daily_totals.count(7 * 60) == 50
+    assert daily_totals.count(6 * 60) == 5
+    assert daily_totals.count(390) == 2
     assert sum(daily_totals) == 393 * 60
     assert not any(day["date"].startswith("2027-03") for day in planning)
 
@@ -235,7 +240,7 @@ def test_afc_calendar_keeps_every_category_and_all_393_hours():
             for category, minutes in half.items():
                 totals[category] = totals.get(category, 0) + minutes
         if day["date"] == "2027-01-20":
-            assert halves == [{"APS": 240}, {"APS": 150, "SSIAP1": 30}]
+            assert halves == [{"APS": 240}, {"APS": 150}]
         if day["date"] == "2027-01-22":
             assert halves == [{"SSIAP1": 120, "PAF": 120}, {"PAF": 180}]
     assert totals == AFC_APS_SSIAP_EXPECTED_MINUTES
@@ -280,7 +285,7 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "Examen APS : 25/01/2027" not in text
     assert "Formateur : —" not in text
     calendar_text = reader.pages[-1].extract_text()
-    assert re.search(r"20\s+APS 4h\s+APS 2h30\s+SSIAP 1 0h30\s+21", calendar_text)
+    assert re.search(r"20\s+APS 4h\s+APS 2h30\s+21", calendar_text)
     assert re.search(r"22\s+SSIAP 1 2h\s+PAF 2h\s+PAF 3h\s+23", calendar_text)
     assert re.search(r"26\s+Accueil 3h30\s+APS 0h30\s+APS 3h\s+27", calendar_text)
     last = reader.pages[-1].mediabox
@@ -319,7 +324,7 @@ def test_afc_existing_pdf_refreshes_from_saved_slots_without_rescheduling(tmp_pa
     assert response.status_code == 200
     assert response.mimetype == "application/pdf"
     reader = PdfReader(BytesIO(response.data))
-    assert re.search(r"20\s+APS 4h\s+APS 2h30\s+SSIAP 1 0h30\s+21", reader.pages[-1].extract_text())
+    assert re.search(r"20\s+APS 4h\s+APS 2h30\s+21", reader.pages[-1].extract_text())
     assert "Intervenant confirmé" in reader.pages[0].extract_text()
     assert session["apsPlanningData"] == before
     assert session["date_exam"] == "2027-02-15"

@@ -1361,7 +1361,7 @@ a.back:hover{ background:#d9a848 !important; }
         <label><strong>Formateur des révisions</strong><input id="ssiapRevisionTrainer" name="revisionTrainer" type="text" value="{{ s.ssiapRevisionTrainer or '' }}" placeholder="Par défaut : formateur SSIAP 1" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;"></label>
         <label><strong>Responsable / intervenant examen</strong><input id="ssiapExamTrainer" name="examTrainer" type="text" value="{{ s.ssiapExamTrainer or '' }}" placeholder="Par défaut : formateur SSIAP 1" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;"></label>
       </div>
-      <p class="muted" style="margin:8px 0 0;">Le parcours comprend 14h de SST, 67h réglementaires SSIAP 1 et 3h de révisions complémentaires le 27/10 après-midi. L’examen reste distinct du total réglementaire.</p>
+      <p class="muted" style="margin:8px 0 0;">Le parcours comprend 14h de SST sur les deux premiers jours ouvrés de la session, puis 67h réglementaires SSIAP 1 et 3h de révisions complémentaires l’après-midi du dernier jour de formation. Les week-ends, jours fériés et jours exclus ne sont pas comptés. L’examen reste distinct du total réglementaire.</p>
       {% endif %}
       <div id="apsPlanningError" class="flash error" style="display:none;margin-top:12px;"></div>
       <div id="apsPlanningWarning" class="flash warning" style="display:none;margin-top:12px;"></div>

@@ -1290,13 +1290,10 @@ def build_ssiap1_planning_data(start_date, formateur, salle, end_date=None, exam
     if len(all_days) < required_total_days:
         raise ValueError(aps_impossible_period_message(start_date, end_date, len(all_days) * APS_MAX_DAILY_MINUTES, (SSIAP1_PRESENCE_TOTAL_HOURS * 60)))
     session_days = all_days[:required_total_days]
-    if session_days[0] != start_date or session_days[1] != start_date + timedelta(days=1):
-        # Keep the rule generic but explicit: SST occupies the first two working days.
-        pass
+    # all_days already excludes weekends, holidays and configured interruptions.
+    # The first two eligible days are SST; SSIAP starts on the third eligible day.
     sst_days = session_days[:2]
     training_days = session_days[2:]
-    if training_days[0] != start_date + timedelta(days=2):
-        raise ValueError("La formation SSIAP 1 doit commencer le troisième jour ouvré de la session, après les 14h SST.")
     if training_days[-1] != end_date:
         raise ValueError(f"La dernière journée SSIAP 1 doit être le {end_date.strftime('%d/%m/%Y')} afin d'y placer les 4 dernières heures et les révisions.")
 
@@ -3712,13 +3709,18 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. SST")
             y -= 14
             c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"12/10/2026 : 7 h • 13/10/2026 : 7 h • Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
+            sst_dates = sorted({day["date"] for day in planning_data if any(slot.get("modality") == "sst" for slot in day.get("slots", []))})
+            sst_details = " • ".join(f"{format_date(day)} : {summary['daily_totals'][day]:g} h" for day in sst_dates)
+            c.drawString(margin, y, f"{sst_details} • Total SST : {summary.get('sst_hours', 0):g} h"); y -= 14
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "B. Formation réglementaire SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
             c.drawString(margin, y, f"du {format_date(modality_ranges.get('presentiel', {}).get('start'))} au {format_date(modality_ranges.get('presentiel', {}).get('end'))} — total : {summary['total_hours']:g} h"); y -= 14
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "C. Révisions et préparation à l’examen"); y -= 14; c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"27/10/2026 de 13h30 à 16h30 — total : {summary.get('revision_hours', 0):g} h — hors total réglementaire des 67 h"); y -= 14
+            revision_day, revision_slot = next((day, slot) for day in planning_data for slot in day.get("slots", []) if slot.get("modality") == "revision")
+            revision_start = revision_slot.get("start", "13:30").replace(":", "h")
+            revision_end = revision_slot.get("end", "16:30").replace(":", "h")
+            c.drawString(margin, y, f"{format_date(revision_day.get('date'))} de {revision_start} à {revision_end} — total : {summary.get('revision_hours', 0):g} h — hors total réglementaire des 67 h"); y -= 14
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "D. Examen SSIAP 1"); y -= 14; c.setFont("Helvetica", 9)
-            c.drawString(margin, y, f"28/10/2026 — {exam_slot.get('start') or '08:30'} - {exam_slot.get('end') or '16:30'} — journée distincte"); y -= 16
+            c.drawString(margin, y, f"{format_date((exam_day or summary.get('exam') or {}).get('date'))} — {exam_slot.get('start') or '08:30'} - {exam_slot.get('end') or '16:30'} — journée distincte"); y -= 16
             c.setFont("Helvetica-Bold", 9)
             y = draw_wrapped_text(c, f"Total SST : {summary.get('sst_hours', 0):g} h • Total SSIAP 1 réglementaire : {summary['total_hours']:g} h • Total révisions complémentaires : {summary.get('revision_hours', 0):g} h • Total de présence avant examen : {summary.get('presence_total_hours', 0):g} h • Examen : distinct", margin, y, printable_width, "Helvetica-Bold", 9, 11) - 11
         else:

@@ -1,6 +1,9 @@
 from datetime import date, datetime
 import sys
 from pathlib import Path
+import re
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -16,6 +19,7 @@ from app import (
     afc_aps_ssiap_summary_from_data,
     calculate_actual_afc_hours,
     afc_nth_working_day,
+    afc_calendar_half_days,
     is_french_working_day,
 )
 
@@ -222,6 +226,26 @@ def test_afc_reuses_detailed_aps_and_ssiap_sequences():
     assert "P1-S1" in uvs
 
 
+def test_afc_calendar_keeps_every_category_and_all_393_hours():
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16))
+    totals = {}
+    for day in planning:
+        halves = afc_calendar_half_days(day["slots"])
+        for half in halves:
+            for category, minutes in half.items():
+                totals[category] = totals.get(category, 0) + minutes
+        if day["date"] == "2027-01-20":
+            assert halves == [{"APS": 240}, {"APS": 150, "SSIAP1": 30}]
+        if day["date"] == "2027-01-22":
+            assert halves == [{"SSIAP1": 120, "PAF": 120}, {"PAF": 180}]
+    assert totals == AFC_APS_SSIAP_EXPECTED_MINUTES
+
+
+def test_afc_calendar_splits_a_slot_crossing_the_half_day_boundary():
+    slots = [{"start": "12:00", "end": "13:00", "afcCategory": "APS"}]
+    assert afc_calendar_half_days(slots) == [{"APS": 30}, {"APS": 30}]
+
+
 def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     from pypdf import PdfReader
     from app import generate_aps_planning_pdf
@@ -255,8 +279,52 @@ def test_afc_pdf_generation_adds_landscape_calendar_and_headers(tmp_path):
     assert "Examen APS : 21/01/2027" in text
     assert "Examen APS : 25/01/2027" not in text
     assert "Formateur : —" not in text
+    calendar_text = reader.pages[-1].extract_text()
+    assert re.search(r"20\s+APS 4h\s+APS 2h30\s+SSIAP 1 0h30\s+21", calendar_text)
+    assert re.search(r"22\s+SSIAP 1 2h\s+PAF 2h\s+PAF 3h\s+23", calendar_text)
+    assert re.search(r"26\s+Accueil 3h30\s+APS 0h30\s+APS 3h\s+27", calendar_text)
     last = reader.pages[-1].mediabox
     assert float(last.width) > float(last.height)
+
+
+@pytest.mark.parametrize("action", ["view", "download"])
+def test_afc_existing_pdf_refreshes_from_saved_slots_without_rescheduling(tmp_path, monkeypatch, action):
+    from copy import deepcopy
+    from io import BytesIO
+    from pypdf import PdfReader
+    import app as application
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle")
+    before = deepcopy(planning)
+    # Stored manual labels must survive reopening; rebuilding the schedule would lose them.
+    planning[0]["slots"][0]["trainer"] = "Intervenant confirmé"
+    before[0]["slots"][0]["trainer"] = "Intervenant confirmé"
+    session = {
+        "id": "afc-calendar", "formation": "AFC_APS_SSIAP", "training_code": "AFC_APS_SSIAP",
+        "date_debut": "2026-11-16", "date_fin": "2027-02-15", "date_exam": "2027-02-15",
+        "contractual_end_date": "2027-02-15", "interruptions": "23/12/2026 au 04/01/2027",
+        "apsPlanningData": planning, "planning_pdf": "planning_afc_aps_ssiap_session_afc-calendar.pdf",
+    }
+    saved = {"sessions": [session], "jurys": []}
+    monkeypatch.setattr(application, "load_sessions", lambda: saved)
+    monkeypatch.setattr(application, "save_sessions", lambda data: saved.update(data))
+    monkeypatch.setattr(application, "PLANNING_DIR", str(tmp_path))
+    (tmp_path / session["planning_pdf"]).write_bytes(b"old cached PDF")
+    with application.app.test_client() as client:
+        with client.session_transaction() as auth:
+            auth["admin_logged"] = True
+            auth["admin_session_version"] = application.ADMIN_SESSION_VERSION
+        response = client.get(f"/sessions/afc-calendar/planning/{action}")
+    assert response.status_code == 200
+    assert response.mimetype == "application/pdf"
+    reader = PdfReader(BytesIO(response.data))
+    assert re.search(r"20\s+APS 4h\s+APS 2h30\s+SSIAP 1 0h30\s+21", reader.pages[-1].extract_text())
+    assert "Intervenant confirmé" in reader.pages[0].extract_text()
+    assert session["apsPlanningData"] == before
+    assert session["date_exam"] == "2027-02-15"
+    assert session["apsPlanningSummary"]["total_hours"] == 393
+    assert not list(tmp_path.glob("planning_refresh_*"))
 
 
 def test_afc_generation_route_repairs_stale_end_date_from_interruptions(tmp_path, monkeypatch):

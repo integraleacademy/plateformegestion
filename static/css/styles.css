@@ -912,6 +912,16 @@ a{color:inherit;text-decoration:none}
 }
 
 .documents-table-wrap { margin-top: 2px; }
+.trainer-detail-shell [hidden] { display: none !important; }
+.trainer-compliance-summary { padding: 18px; border: 1px solid #e5d7b5; border-radius: 16px; background: #fffbf2; }
+.trainer-compliance-summary__heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.trainer-compliance-summary__heading strong { color: #201b12; font-size: 20px; }
+.trainer-compliance-summary__heading > span { font-weight: 800; color: #665126; }
+.trainer-compliance-summary .compliance__bar { height: 10px; }
+.trainer-compliance-summary p { margin: 10px 0 0; font-size: 12px; color: #71654f; }
+.document-expiration-note { display: block; margin-top: 6px; color: #b91c1c; font-size: 11px; }
+.trainer-compliance-summary .document-expiration-note { color: #b91c1c; }
+.compliance small { color: #786d5d; font-size: 10px; }
 .documents-table { min-width: 980px; }
 .documents-table th:nth-child(1) { width: 24%; }
 .documents-table th:nth-child(2) { width: 150px; }

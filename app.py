@@ -6588,10 +6588,8 @@ def get_formateurs_global_non_conformites():
     total_non_conformes = 0
 
     for f in formateurs:
-        for doc in f.get("documents", []):
-            auto_update_document_status(doc)
-            if doc.get("status") in ("non_conforme", "a_controler"):
-                total_non_conformes += 1
+        summary = formateur_document_view(f)["conformite"]
+        total_non_conformes += summary["non_conformes"] + summary["a_controler"]
 
 
     return total_non_conformes
@@ -10653,22 +10651,60 @@ def build_default_documents():
 
 def auto_update_document_status(doc):
     """
-    Si une date d'expiration est renseignée et dépassée,
-    on force le statut à 'non_conforme' (sauf si 'non_concerne').
+    Applique l'expiration et indique si le document est expiré.
+    Un document non concerné reste exclu, même avec une ancienne date.
     """
     if doc.get("status") == "non_concerne":
-        return
+        return False
 
-    exp_str = doc.get("expiration", "").strip()
+    exp_str = (doc.get("expiration") or "").strip()
     if not exp_str:
-        return
+        return False
 
     dt = parse_date(exp_str)
     if not dt:
-        return
+        return False
 
     if dt.date() < datetime.now().date():
         doc["status"] = "non_conforme"
+        return True
+    return False
+
+
+def formateur_document_view(formateur):
+    """Même état documentaire pour les listes, fiches et sauvegardes.
+
+    L'affichage travaille sur des copies : ni les règles de profil ni les
+    statuts enregistrés ne sont réécrits lors d'une simple consultation.
+    """
+    summary = dict(total=0, conformes=0, a_controler=0, non_conformes=0,
+                   non_concernes=0, expires=0)
+    status_counters = {
+        "conforme": "conformes",
+        "a_controler": "a_controler",
+        "non_conforme": "non_conformes",
+        "non_concerne": "non_concernes",
+    }
+    documents = []
+    for stored_doc in formateur.get("documents", []) or []:
+        doc = dict(stored_doc)
+        if doc.get("status") not in status_counters:
+            doc["status"] = "non_conforme"
+        doc["expired"] = auto_update_document_status(doc)
+        summary[status_counters[doc["status"]]] += 1
+        if doc["status"] != "non_concerne":
+            summary["total"] += 1
+        summary["expires"] += int(doc["expired"])
+        documents.append(doc)
+
+    summary["percent"] = (summary["conformes"] * 100 // summary["total"]
+                          if summary["total"] else 0)
+    return {
+        **formateur,
+        "documents": documents,
+        "conformite": summary,
+        "a_controler": summary["a_controler"] > 0,
+    }
 
 
 def replace_formateur_attachment(fid, doc, uploaded_file):
@@ -10785,7 +10821,7 @@ TYPES_CLES = {
 @app.route("/formateurs")
 def formateurs_home():
     filtre_docs = request.args.get("filtre") == "docs_a_controler"
-    formateurs = load_formateurs()
+    formateurs = [formateur_document_view(f) for f in load_formateurs()]
     profils_docs_config = load_formateur_profils_docs_config()
     available_doc_labels = get_all_formateur_document_labels(formateurs, profils_docs_config)
 
@@ -10807,25 +10843,6 @@ def formateurs_home():
                 "numero": "",
                 "statut": "non_attribue"
             }
-
-        # ✅ conformité + simple indicateur "docs à contrôler"
-        total = 0
-        conformes = 0
-        a_controler = False
-
-        for doc in f.get("documents", []):
-            auto_update_document_status(doc)
-
-            status = doc.get("status", "non_conforme")
-            if status != "non_concerne":
-                total += 1
-                if status == "conforme":
-                    conformes += 1
-                if status == "a_controler":
-                    a_controler = True
-
-        f["conformite"] = {"conformes": conformes, "total": total}
-        f["a_controler"] = a_controler
 
     if filtre_docs:
         formateurs = [f for f in formateurs if f.get("a_controler")]
@@ -11074,6 +11091,7 @@ def formateur_detail(fid):
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
+    formateur = formateur_document_view(formateur)
     formateur["profils"] = normalize_formateur_profils(formateur.get("profils", []))
 
     # 🔑🟦 RÉCUPÉRER TOUTES LES CLÉS / BADGES EXISTANTS
@@ -11565,9 +11583,10 @@ def update_formateur_document(fid, doc_id):
     if files:
         replace_formateur_attachment(fid, doc, files[-1])
 
-    if "status" not in request.form:
-        auto_update_document_status(doc)
+    auto_update_document_status(doc)
     save_formateurs(formateurs)
+    document_view = formateur_document_view(formateur)
+    saved_doc = next(d for d in document_view["documents"] if d["id"] == doc_id)
 
     # ⛔️ PLUS AUCUN REDIRECT
     return {
@@ -11577,7 +11596,9 @@ def update_formateur_document(fid, doc_id):
             "expiration": doc.get("expiration", ""),
             "status": doc.get("status", ""),
             "commentaire": doc.get("commentaire", ""),
+            "expired": saved_doc["expired"],
         },
+        "conformite": document_view["conformite"],
     }
 
 
@@ -11724,25 +11745,14 @@ def formateurs_data():
         for f in formateurs:
             nom_complet = f"{f.get('prenom','')} {f.get('nom','')}".strip()
 
-            has_non_conforme = False
-            has_a_controler = False
+            summary = formateur_document_view(f)["conformite"]
+            total_non_conformes += summary["non_conformes"]
+            total_a_controler += summary["a_controler"]
 
-            for doc in f.get("documents", []):
-                auto_update_document_status(doc)
-                st = doc.get("status")
-
-                if st == "non_conforme":
-                    total_non_conformes += 1
-                    has_non_conforme = True
-
-                if st == "a_controler":
-                    total_a_controler += 1
-                    has_a_controler = True
-
-            if has_non_conforme:
+            if summary["non_conformes"]:
                 liste_non_conformes.add(nom_complet)
 
-            if has_a_controler:
+            if summary["a_controler"]:
                 liste_a_controler.add(nom_complet)
 
         payload = {
@@ -11826,6 +11836,7 @@ def print_formateur_dossier(fid):
     formateur = find_formateur(formateurs, fid)
     if not formateur:
         abort(404)
+    formateur = formateur_document_view(formateur)
 
     # Liste des docs non conformes / manquants
     non_conformes = [

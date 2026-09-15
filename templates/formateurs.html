@@ -28,7 +28,7 @@
       {% endif %}
     {% endif %}
     {% if f.a_controler %}
-      {% set stats.a_controler = stats.a_controler + 1 %}
+      {% set stats.a_controler = stats.a_controler + conf.a_controler %}
     {% endif %}
   {% endfor %}
 
@@ -244,13 +244,13 @@
                   <td>
                     {% set conf = f.conformite %}
                     {% if conf.total %}
-                      {% set percent = (conf.conformes * 100 / conf.total)|round(0, 'floor')|int %}
                       <div class="compliance">
-                        <div class="compliance__bar"><span style="width: {{ percent }}%;"></span></div>
+                        <div class="compliance__bar" role="progressbar" aria-label="Critères validés" aria-valuemin="0" aria-valuemax="{{ conf.total }}" aria-valuenow="{{ conf.conformes }}"><span style="width: {{ conf.percent }}%;"></span></div>
                         <strong>{{ conf.conformes }} / {{ conf.total }}</strong>
+                        <small>critères validés</small>
                       </div>
                     {% else %}
-                      <span class="muted-dash">—</span>
+                      <span class="muted-dash">Aucun critère requis</span>
                     {% endif %}
                   </td>
                   <td class="table-actions">
@@ -458,6 +458,11 @@ function assignBadge(numero, fid) {
         }
     });
 }
+</script>
+<script>
+window.addEventListener("pageshow", event => {
+  if (event.persisted) window.location.reload();
+});
 </script>
 </body>
 </html>

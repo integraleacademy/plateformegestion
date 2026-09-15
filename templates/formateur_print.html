@@ -81,6 +81,8 @@
   <b>Téléphone :</b> {{ formateur.telephone or "—" }}
 </div>
 
+<p><strong>{{ formateur.conformite.conformes }} critères validés sur {{ formateur.conformite.total }}</strong> — critères non concernés exclus.</p>
+
 <h2>📂 Détail des documents</h2>
 
 <table>
@@ -101,6 +103,7 @@
       <td>
         {% if doc.status == "conforme" %}✅ Conforme
         {% elif doc.status == "non_conforme" %}❌ Non conforme
+        {% elif doc.status == "a_controler" %}À contrôler
         {% else %}⚪ Non concerné{% endif %}
       </td>
       <td>{{ doc.expiration or "—" }}</td>

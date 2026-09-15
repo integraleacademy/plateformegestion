@@ -19,21 +19,7 @@
 {% endfor %}
 {% set cle = formateur.cle|default({}) %}
 {% set badge = formateur.badge|default({}) %}
-{% set doc_stats = namespace(total=0, conformes=0, a_controler=0, non_conformes=0, non_concernes=0) %}
-{% for doc in formateur.documents or [] %}
-  {% if doc.status == 'non_concerne' %}
-    {% set doc_stats.non_concernes = doc_stats.non_concernes + 1 %}
-  {% else %}
-    {% set doc_stats.total = doc_stats.total + 1 %}
-    {% if doc.status == 'conforme' %}
-      {% set doc_stats.conformes = doc_stats.conformes + 1 %}
-    {% elif doc.status == 'a_controler' %}
-      {% set doc_stats.a_controler = doc_stats.a_controler + 1 %}
-    {% elif doc.status == 'non_conforme' %}
-      {% set doc_stats.non_conformes = doc_stats.non_conformes + 1 %}
-    {% endif %}
-  {% endif %}
-{% endfor %}
+{% set doc_stats = formateur.conformite %}
 {% set initials = ((formateur.prenom or '')[:1] ~ (formateur.nom or '')[:1])|upper %}
 
 <div id="save-toast" class="save-toast">✔️ Sauvegardé</div>
@@ -58,8 +44,8 @@
             {% for profil in formateur.profils or [] %}
               <span class="profile-pill" style="--profile-color: {{ profile_colors.get(profil, '#6b7280') }};">{{ profile_labels.get(profil, profil) }}</span>
             {% endfor %}
-            {% if doc_stats.a_controler %}<span class="status-pill status-pill--warning">{{ doc_stats.a_controler }} doc{{ 's' if doc_stats.a_controler > 1 else '' }} à contrôler</span>{% endif %}
-            {% if doc_stats.non_conformes %}<span class="status-pill status-pill--danger">{{ doc_stats.non_conformes }} non conforme{{ 's' if doc_stats.non_conformes > 1 else '' }}</span>{% endif %}
+            <span class="status-pill status-pill--warning" data-compliance-count="a_controler" data-count-label="à contrôler" data-hide-zero {% if not doc_stats.a_controler %}hidden{% endif %}>{{ doc_stats.a_controler }} à contrôler</span>
+            <span class="status-pill status-pill--danger" data-compliance-count="non_conformes" data-count-label="non conformes" data-hide-zero {% if not doc_stats.non_conformes %}hidden{% endif %}>{{ doc_stats.non_conformes }} non conformes</span>
           </div>
           <p class="trainer-detail-contact">{{ formateur.email or "Email : —" }} <span>•</span> {{ formateur.telephone or "Téléphone : —" }}</p>
           <div class="trainer-media-row">
@@ -90,8 +76,8 @@
 
     <div class="trainer-detail-metrics">
       <div class="hero-metric hero-metric--gold">
-        <span>{{ doc_stats.conformes }}/{{ doc_stats.total }}</span>
-        <small>documents conformes</small>
+        <span data-compliance-ratio>{{ doc_stats.conformes }} / {{ doc_stats.total }}</span>
+        <small>critères validés</small>
       </div>
       <div class="hero-metric">
         <span>{{ cle.numero or '—' }}</span>
@@ -311,12 +297,24 @@
             <h2>Documents & conformité</h2>
           </div>
           <div class="asset-stats">
-            <button type="button" class="status-filter-btn is-active" data-filter="all">{{ doc_stats.total + doc_stats.non_concernes }} total</button>
-            <button type="button" class="status-filter-btn" data-filter="conforme">{{ doc_stats.conformes }} conformes</button>
-            <button type="button" class="status-filter-btn" data-filter="a_controler">{{ doc_stats.a_controler }} à contrôler</button>
-            <button type="button" class="status-filter-btn status-filter-btn--danger" data-filter="non_conforme">{{ doc_stats.non_conformes }} non conformes</button>
-            <button type="button" class="status-filter-btn" data-filter="non_concerne">{{ doc_stats.non_concernes }} non concernés</button>
+            <button type="button" class="status-filter-btn is-active" data-filter="all" data-compliance-count="total" data-count-label="critères requis" aria-pressed="true">{{ doc_stats.total }} critères requis</button>
+            <button type="button" class="status-filter-btn" data-filter="conforme" data-compliance-count="conformes" data-count-label="validés" aria-pressed="false">{{ doc_stats.conformes }} validés</button>
+            <button type="button" class="status-filter-btn" data-filter="a_controler" data-compliance-count="a_controler" data-count-label="à contrôler" aria-pressed="false">{{ doc_stats.a_controler }} à contrôler</button>
+            <button type="button" class="status-filter-btn status-filter-btn--danger" data-filter="non_conforme" data-compliance-count="non_conformes" data-count-label="non conformes" aria-pressed="false">{{ doc_stats.non_conformes }} non conformes</button>
+            <button type="button" class="status-filter-btn" data-filter="non_concerne" data-compliance-count="non_concernes" data-count-label="non concernés" aria-pressed="false">{{ doc_stats.non_concernes }} non concernés</button>
           </div>
+        </div>
+
+        <div class="trainer-compliance-summary" role="status" aria-live="polite">
+          <div class="trainer-compliance-summary__heading">
+            <strong data-compliance-label>{{ doc_stats.conformes }} critères validés sur {{ doc_stats.total }}</strong>
+            <span data-compliance-percent>{{ doc_stats.percent }} %</span>
+          </div>
+          <div class="compliance__bar" data-compliance-progress role="progressbar" aria-label="Critères validés" aria-valuemin="0" aria-valuemax="{{ doc_stats.total }}" aria-valuenow="{{ doc_stats.conformes }}">
+            <span style="width: {{ doc_stats.percent }}%;"></span>
+          </div>
+          <p>Les critères non concernés sont exclus du total requis.</p>
+          <p class="document-expiration-note" data-expiration-summary {% if not doc_stats.expires %}hidden{% endif %}><span data-compliance-count="expires" data-count-label="document(s) expiré(s)">{{ doc_stats.expires }} document(s) expiré(s)</span> : inclus dans les non conformes, à renouveler avant validation.</p>
         </div>
 
         <form method="POST" action="{{ url_for('add_formateur_document', fid=formateur.id) }}" class="add-document-form">
@@ -342,7 +340,10 @@
               {% for doc in formateur.documents %}
               <tr data-doc-id="{{ doc.id }}" data-status="{{ doc.status }}" class="document-row {% if doc.status == 'non_concerne' %}non-concerne{% endif %}">
                 <td><strong>{{ doc.label }}</strong></td>
-                <td><input type="date" name="expiration" value="{{ doc.expiration or '' }}" class="table-input"></td>
+                <td>
+                  <input type="date" name="expiration" value="{{ doc.expiration or '' }}" class="table-input">
+                  <small class="document-expiration-note" data-expiration-note {% if not doc.expired %}hidden{% endif %}>Date d’expiration dépassée</small>
+                </td>
                 <td>
                   <select name="status" class="status-select premium-select" data-status="{{ doc.status }}">
                     <option value="non_concerne" {% if doc.status == "non_concerne" %}selected{% endif %}>Non concerné</option>
@@ -407,23 +408,23 @@
   let documentSaveQueue = Promise.resolve();
   let lastSavedNub = nubInput ? nubInput.value : "";
 
-  // 🎯 Auto-détection expiration
-  function checkExpiration(row) {
-    const dateInput = row.querySelector("input[name='expiration']");
-    const statusSelect = row.querySelector("select[name='status']");
-    if (!dateInput || !statusSelect) return;
-
-    if (!dateInput.value) return;
-
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    const exp = new Date(dateInput.value + "T00:00:00");
-
-    if (exp < today) {
-      statusSelect.value = "non_conforme";
-      updateSelectColor(statusSelect);
-    }
+  function updateCompliance(summary) {
+    if (!summary) return;
+    container.querySelectorAll("[data-compliance-count]").forEach(el => {
+      const count = summary[el.dataset.complianceCount] || 0;
+      el.textContent = `${count} ${el.dataset.countLabel}`;
+      if (el.hasAttribute("data-hide-zero")) el.hidden = count === 0;
+    });
+    container.querySelectorAll("[data-compliance-ratio]").forEach(el => {
+      el.textContent = `${summary.conformes} / ${summary.total}`;
+    });
+    container.querySelector("[data-compliance-label]").textContent = `${summary.conformes} critères validés sur ${summary.total}`;
+    container.querySelector("[data-compliance-percent]").textContent = `${summary.percent} %`;
+    const progress = container.querySelector("[data-compliance-progress]");
+    progress.setAttribute("aria-valuemax", summary.total);
+    progress.setAttribute("aria-valuenow", summary.conformes);
+    progress.querySelector("span").style.width = `${summary.percent}%`;
+    container.querySelector("[data-expiration-summary]").hidden = !summary.expires;
   }
 
   // 🔥 Fonction couleur statut
@@ -601,6 +602,8 @@ function updateSelectColor(selectEl) {
     const fileInput       = row.querySelector("input[name='piece_jointe']");
 
     const formData = new FormData();
+    const saveVersion = (Number(row.dataset.saveVersion) || 0) + 1;
+    row.dataset.saveVersion = saveVersion;
 
     if (expirationInput) formData.append("expiration", expirationInput.value || "");
     if (statusSelect)    formData.append("status", statusSelect.value || "");
@@ -628,13 +631,17 @@ function updateSelectColor(selectEl) {
       })
       .then(data => {
         const savedDocument = data.document || {};
-        if (statusSelect && savedDocument.status) {
+        const isLatestChange = Number(row.dataset.saveVersion) === saveVersion;
+        if (isLatestChange && statusSelect && savedDocument.status) {
           statusSelect.value = savedDocument.status;
           row.dataset.status = savedDocument.status;
           row.classList.toggle("non-concerne", savedDocument.status === "non_concerne");
           updateSelectColor(statusSelect);
+          row.querySelector("[data-expiration-note]").hidden = !savedDocument.expired;
         }
-        if (fileInput) fileInput.value = "";
+        updateCompliance(data.conformite);
+        applyStatusFilter(activeStatusFilter);
+        if (isLatestChange && fileInput) fileInput.value = "";
         showToast();
       })
       .catch(err => {
@@ -652,7 +659,6 @@ function updateSelectColor(selectEl) {
 
     if (expirationInput) {
       expirationInput.addEventListener("change", () => {
-        checkExpiration(row);
         sendUpdate(row);
       });
     }
@@ -817,6 +823,7 @@ if (badgeAttribue && badgeNumero && badgeStatut) {
 
 
 const filterButtons = document.querySelectorAll(".status-filter-btn");
+let activeStatusFilter = "all";
 function applyStatusFilter(filter) {
   document.querySelectorAll("tr[data-doc-id]").forEach(row => {
     const rowStatus = row.dataset.status || "";
@@ -826,9 +833,12 @@ function applyStatusFilter(filter) {
 }
 filterButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    filterButtons.forEach(b => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
-    applyStatusFilter(btn.dataset.filter);
+    activeStatusFilter = btn.dataset.filter;
+    filterButtons.forEach(b => {
+      b.classList.toggle("is-active", b === btn);
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+    applyStatusFilter(activeStatusFilter);
   });
 });
 applyStatusFilter("all");
@@ -915,5 +925,10 @@ if (!window.__mediaLightboxEscBound) {
 })();
 </script>
 
+<script>
+window.addEventListener("pageshow", event => {
+  if (event.persisted) window.location.reload();
+});
+</script>
 </body>
 </html>

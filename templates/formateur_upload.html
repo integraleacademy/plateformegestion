@@ -112,8 +112,12 @@
   <!-- ✅ DOSSIER COMPLET -->
   {% if not docs_ko %}
     <div class="all-good">
-      ✅ Merci, votre dossier formateur est désormais complet.<br>
-      Aucune action supplémentaire n’est nécessaire.
+      {% if docs_pending %}
+      Merci, vos documents ont bien été transmis.<br>
+      Ils sont en attente de vérification par notre équipe.
+      {% else %}
+      Aucun document à remplacer pour le moment.
+      {% endif %}
     </div>
   {% endif %}
 

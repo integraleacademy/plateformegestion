@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import importlib.util
 import smtplib
+import ssl
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -23,6 +24,7 @@ from functools import wraps
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from email.utils import formataddr, formatdate
 import logging
 import math
 import threading
@@ -37,6 +39,10 @@ from werkzeug.utils import secure_filename
 from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
+from services.formateur_expiration_notifications import (
+    process_notifications as process_formateur_notification_queue,
+    last_notification_at as last_formateur_expiration_notification_at,
+)
 from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, compact_a3p_planning, generateA3pSchedule, merge_adjacent_a3p_slots, validate_a3p_planning, is_a3p_non_working_day
 from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
 
@@ -6117,7 +6123,6 @@ def send_daily_overdue_summary():
 
 
 def _list_formateur_expired_documents(formateurs):
-    today = datetime.now().date()
     expired_docs = []
 
     for formateur in formateurs:
@@ -6130,8 +6135,7 @@ def _list_formateur_expired_documents(formateurs):
             if not exp_str:
                 continue
 
-            exp_dt = parse_date(exp_str)
-            if not exp_dt or exp_dt.date() > today:
+            if not auto_update_document_status(dict(doc)):
                 continue
 
             # Une seule alerte par document et par date d'expiration
@@ -6202,6 +6206,118 @@ def send_formateur_expiration_alerts():
     except Exception as e:
         print("❌ Erreur envoi alertes expiration formateurs :", e)
         return 0
+
+
+def _load_formateur_expiration_groups():
+    groups = []
+    for formateur in load_formateurs():
+        view = formateur_document_view(formateur)
+        documents = [
+            {**doc, "expiration": parse_date(doc["expiration"]).date().isoformat()}
+            for doc in view["documents"] if doc["expired"] and doc.get("id")
+        ]
+        if documents and formateur.get("id"):
+            groups.append({**formateur, "documents": documents})
+    return groups
+
+
+def send_formateur_expiration_notification(formateur, documents):
+    smtp_config = get_smtp_config()
+    if not all(smtp_config.get(key) for key in ("login", "password", "from_email")):
+        return False, "smtp_not_configured"
+
+    base_url = os.environ.get("RENDER_EXTERNAL_URL") or "https://plateformegestion.onrender.com"
+    with app.test_request_context(base_url=base_url):
+        upload_url = url_for(
+            "upload_formateur_documents", fid=formateur["id"],
+            token=generate_upload_token(formateur["id"]), _external=True,
+        )
+        html = render_template(
+            "emails/formateur_document_expiration.html", formateur=formateur,
+            documents=documents, upload_url=upload_url,
+        )
+    plain = (
+        f"Bonjour {formateur.get('prenom') or ''},\n\n"
+        "Votre dossier formateur est à mettre à jour. Les documents suivants "
+        "sont arrivés à expiration et sont désormais non conformes :\n"
+        + "\n".join(f"- {doc['label']} (expiration : {format_date(doc['expiration'])})" for doc in documents)
+        + "\n\nMerci de les remplacer dès que possible afin que votre dossier soit à jour en cas de contrôle."
+        + f"\n\nDéposer mes documents à jour : {upload_url}"
+        + "\n\nLes documents transmis seront vérifiés par notre équipe avant validation."
+        + "\n\nMerci pour votre réactivité.\nL’équipe Intégrale Academy\n04 22 47 07 68"
+    )
+    fingerprint = json.dumps([
+        formateur["id"], formateur["email"],
+        sorted((doc["id"], doc["expiration"]) for doc in documents),
+    ], ensure_ascii=False)
+    message = MIMEMultipart("alternative")
+    message["From"] = formataddr(("Intégrale Academy", smtp_config["from_email"]))
+    message["To"] = formateur["email"]
+    message["Subject"] = "Document expiré — Mettez à jour votre dossier formateur" if len(documents) == 1 else "Documents expirés — Mettez à jour votre dossier formateur"
+    message["Date"] = formatdate(localtime=True)
+    message["Message-ID"] = f"<formateur-expiration-{hashlib.sha256(fingerprint.encode()).hexdigest()}@integraleacademy.com>"
+    message.attach(MIMEText(plain, "plain", "utf-8"))
+    message.attach(MIMEText(html, "html", "utf-8"))
+    server = None
+    try:
+        server = smtplib.SMTP(smtp_config["server"], smtp_config["port"], timeout=30)
+        server.starttls(context=ssl.create_default_context())
+        server.login(smtp_config["login"], smtp_config["password"])
+        refused = server.sendmail(smtp_config["from_email"], [formateur["email"]], message.as_string())
+        if refused:
+            return False, "recipient_refused"
+        return True, None
+    except Exception as exc:
+        return False, type(exc).__name__
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                # Une erreur de fermeture n'annule pas un message déjà accepté.
+                try:
+                    server.close()
+                except Exception:
+                    pass
+
+
+def process_formateur_expiration_notifications():
+    return process_formateur_notification_queue(
+        DATA_DIR, _load_formateur_expiration_groups,
+        send_formateur_expiration_notification,
+    )
+
+
+def formateur_expiration_scheduler_loop():
+    while True:
+        try:
+            process_formateur_expiration_notifications()
+        except Exception:
+            logging.getLogger("formateur-expiration").exception("Expiration notification scan failed")
+        threading.Event().wait(15 * 60)
+
+
+_formateur_expiration_thread = None
+
+
+def start_formateur_expiration_scheduler():
+    global _formateur_expiration_thread
+    enabled = os.environ.get("FORMATEUR_EXPIRATION_NOTIFICATIONS_ENABLED", "true" if IS_RENDER else "false")
+    if enabled.lower() != "true":
+        return
+    if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        return
+    if _formateur_expiration_thread is not None and _formateur_expiration_thread.is_alive():
+        return
+    smtp_config = get_smtp_config()
+    logging.getLogger("formateur-expiration").info(
+        "Expiration notification worker started interval_seconds=900 smtp_configured=%s",
+        all(smtp_config.get(key) for key in ("login", "password", "from_email")),
+    )
+    _formateur_expiration_thread = threading.Thread(
+        target=formateur_expiration_scheduler_loop, name="formateur-expiration", daemon=True,
+    )
+    _formateur_expiration_thread.start()
 
 
 def build_jury_invitation_html(session, jury, yes_url, no_url):
@@ -9538,12 +9654,15 @@ def cron_check():
         auto_archive_if_all_done(session)
     reminded = send_jury_reminders(data, request.url_root.rstrip("/"))
     expired_alerts = send_formateur_expiration_alerts()
+    trainer_notifications = process_formateur_expiration_notifications()
     save_sessions(data)
     message = "Cron check terminé"
     if reminded:
         message = f"{message} | Rappels jury envoyés: {', '.join(reminded)}"
     if expired_alerts:
         message = f"{message} | Alertes expiration formateurs: {expired_alerts}"
+    if trainer_notifications["sent"]:
+        message = f"{message} | Mails d’expiration aux formateurs: {trainer_notifications['sent']}"
     return message, 200
 
 @app.route("/cron-daily-summary")
@@ -11112,6 +11231,7 @@ def formateur_detail(fid):
         title=f"Contrôle formateur — {formateur.get('prenom', '')} {formateur.get('nom', '').upper()}",
         formateur=formateur,
         last_relance_display=last_relance_display,
+        last_expiration_notification=last_formateur_expiration_notification_at(DATA_DIR, fid),
         framework_contract_missing_fields=formateur_framework_contract_missing_fields(formateur),
         framework_contract_stale=formateur_framework_contract_is_stale(formateur),
         formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
@@ -11875,9 +11995,10 @@ def upload_formateur_documents(fid):
     if not formateur:
         abort(404)
 
-    # Documents à régulariser
+    # Même statut effectif que dans la fiche, y compris les expirations.
+    document_view = formateur_document_view(formateur)
     docs_ko = [
-        d for d in formateur.get("documents", [])
+        d for d in document_view["documents"]
         if d.get("status") == "non_conforme"
     ]
 
@@ -11885,9 +12006,10 @@ def upload_formateur_documents(fid):
         doc_id = request.form.get("doc_id")
         files = request.files.getlist("files")
 
-        doc = next((d for d in docs_ko if d["id"] == doc_id), None)
-        if not doc:
+        requested_doc = next((d for d in docs_ko if d["id"] == doc_id), None)
+        if not requested_doc:
             abort(400)
+        doc = next(d for d in formateur["documents"] if d["id"] == doc_id)
 
         uploaded_files = [f for f in files if f.filename]
         if not uploaded_files:
@@ -11906,6 +12028,11 @@ def upload_formateur_documents(fid):
         # On remplace l'ancien dépôt et on conserve uniquement le dernier fichier reçu.
         replace_formateur_attachment(fid, doc, uploaded_files[-1])
 
+        # L'ancienne échéance ne s'applique pas au nouveau fichier à vérifier.
+        if requested_doc["expired"]:
+            doc["replaced_expiration"] = doc.get("expiration", "")
+            doc["expiration"] = ""
+        doc["replacement_received_at"] = datetime.now().isoformat(timespec="seconds")
         # Après upload → à contrôler
         doc["status"] = "a_controler"
         save_formateurs(formateurs)
@@ -11915,7 +12042,8 @@ def upload_formateur_documents(fid):
     return render_template(
         "formateur_upload.html",
         formateur=formateur,
-        docs_ko=docs_ko
+        docs_ko=docs_ko,
+        docs_pending=[d for d in document_view["documents"] if d["status"] == "a_controler"],
     )
 
 
@@ -12269,6 +12397,7 @@ def distributeur_reassort_valider(ligne_id, produit_id):
     return redirect(url_for("distributeur_reassort"))
 
 start_price_adaptator_scheduler()
+start_formateur_expiration_scheduler()
 
 import xml.etree.ElementTree as ET
 from flask import Response, request

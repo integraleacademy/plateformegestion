@@ -153,3 +153,15 @@ L'application stocke l'identifiant du signataire formateur et de son champ, le m
 Événements webhook Yousign minimum à activer : `signature_request.done`, `signature_request.declined`, `signature_request.expired`, `signature_request.canceled`, `signer.done`, `signer.declined`, `signer.notification_delivery_failed`, `signer.error`. La route `/webhooks/yousign` est publique via la liste blanche serveur, accepte uniquement POST, n'est pas protégée par l'authentification utilisateur, ne dépend pas de CSRF Flask-WTF, vérifie la signature HMAC SHA-256 lorsque `YOUSIGN_WEBHOOK_SECRET` est configuré, journalise les événements reçus, puis met à jour le statut Yousign du formateur ou du contrat formateur APS correspondant.
 
 La route admin `GET /api/yousign/health` teste `GET {YOUSIGN_BASE_URL}/signature_requests?limit=1` et renvoie un diagnostic sans exposer la clé complète. En cas de `403` lors de `POST /signature_requests`, le webhook n'est généralement pas en cause. Vérifier sur Render : `YOUSIGN_API_KEY`, `YOUSIGN_API_BASE_URL`/`YOUSIGN_BASE_URL`, la cohérence sandbox/production, le workspace éventuel associé à la clé, les scopes/droits de la clé API et le plan/add-on Yousign autorisant la création de demandes de signature en production.
+
+### Mails automatiques d’expiration des documents formateurs
+
+Sur Render, un traitement intégré au service vérifie les échéances toutes les 15 minutes, sans consultation de la fiche. Il utilise la même règle de date que les compteurs : le document expire le lendemain de sa date d’expiration ; les critères non concernés sont exclus.
+
+Le premier passage mémorise les échéances déjà dépassées. Les nouvelles expirations donnent ensuite lieu à un mail par formateur, regroupant les documents détectés lors du passage, avec un lien personnel de remplacement. Le mail reprend la configuration SMTP existante (Brevo prioritaire, puis la configuration habituelle). Les échecs sont réessayés au passage suivant.
+
+Les envois sont suivis dans `DATA_DIR/formateur_expiration_notifications.sqlite3`, sur le disque persistant. Un verrou de processus empêche les workers Gunicorn d’envoyer la même notification simultanément. Un envoi réussi est mémorisé par formateur, document et date d’expiration ; les lectures des fiches ne déclenchent aucun mail. La date du dernier envoi est visible dans la fiche.
+
+`FORMATEUR_EXPIRATION_NOTIFICATIONS_ENABLED=false` désactive le traitement intégré. Par défaut, il est actif sur Render et inactif en local. La route existante `/cron-check` appelle aussi le même traitement et partage son suivi des envois. Le lien de dépôt utilise `RENDER_EXTERNAL_URL` (à défaut, l’adresse de production de la plateforme).
+
+Après le remplacement d’un document expiré, sa précédente échéance est conservée dans `replaced_expiration`, le nouveau fichier passe « à contrôler » et une nouvelle date peut être saisie lors de la vérification administrative.

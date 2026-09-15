@@ -139,6 +139,9 @@
       {% if formateur.last_relance %}
       <div class="last-reminder">Dernière relance : {{ last_relance_display }}</div>
       {% endif %}
+      {% if last_expiration_notification %}
+      <div class="last-reminder">Dernier mail automatique d’expiration : {{ last_expiration_notification|datetimefr }}</div>
+      {% endif %}
 
       {% set framework_contract = formateur.frameworkContract|default({}, true) %}
       {% set yousign = formateur.yousign|default({}, true) %}

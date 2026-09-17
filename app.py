@@ -29,7 +29,6 @@ import logging
 import math
 import threading
 from copy import deepcopy
-from html import escape as escape_html
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -12047,7 +12046,7 @@ def verify_upload_token(fid, token):
     return token == generate_upload_token(fid)
 
 
-FORMATEUR_RELANCE_SUBJECT = "Documents manquants — Dossier formateur"
+FORMATEUR_RELANCE_SUBJECT = "Mise à jour de votre dossier formateur — Intégrale Academy"
 
 
 def build_formateur_relance_email(formateur):
@@ -12057,6 +12056,8 @@ def build_formateur_relance_email(formateur):
         {
             "label": str(d.get("label") or "Document").strip(),
             "commentaire": str(d.get("commentaire") or "").strip(),
+            "expired": bool(d.get("expired")),
+            "expiration": (d.get("expiration") or "").strip(),
         }
         for d in document_view.get("documents", [])
         if d.get("status") == "non_conforme"
@@ -12068,52 +12069,21 @@ def build_formateur_relance_email(formateur):
         fid=formateur["id"],
         token=token,
         _external=True,
+        _scheme="https",
     )
-    first_name = escape_html(str(formateur.get("prenom") or "").strip())
-    safe_link = escape_html(link, quote=True)
-    document_items = "".join(
-        f"<li><b>{escape_html(document['label'])}</b>"
-        + (
-            "<br><span style='color:red;font-weight:600;'>"
-            f"⚠️ {escape_html(document['commentaire'])}</span>"
-            if document["commentaire"]
-            else ""
-        )
-        + "</li><br>"
-        for document in docs_ko
+    logo_url = url_for(
+        "static",
+        filename="img/logo-integrale.png",
+        _external=True,
+        _scheme="https",
     )
-
-    body = f"""
-Bonjour {first_name},<br><br>
-
-Votre dossier formateur nécessite quelques mises à jour. Merci de transmettre vos documents via le bouton ci-dessous.
-<b style='color:#d00000;'>Les envois par mail ne sont plus acceptés.</b><br><br>
-
-<div style="text-align:center;margin:25px 0;">
-  <a href="{safe_link}" style="
-      display:inline-block;
-      padding:14px 28px;
-      background:#0f62fe;
-      color:#ffffff !important;
-      font-size:18px;
-      font-weight:700;
-      border-radius:8px;
-      text-decoration:none;
-      box-shadow:0 4px 12px rgba(0,0,0,0.18);
-  ">
-      📁 Déposer mes documents
-  </a>
-</div>
-
-Voici les éléments à régulariser :<br><br>
-
-<ul style="font-size:15px;line-height:1.5;">
-  {document_items}
-</ul>
-
-Cordialement,<br>
-<b>Intégrale Academy</b>
-"""
+    body = render_template(
+        "emails/formateur_relance.html",
+        first_name=str(formateur.get("prenom") or "").strip(),
+        documents=docs_ko,
+        upload_url=link,
+        logo_url=logo_url,
+    )
 
     return {
         "recipient": (formateur.get("email") or "").strip(),

@@ -9763,6 +9763,50 @@ def send_email(to, subject, body):
     if not recipient:
         return False, "Adresse email manquante"
 
+    # La clé API Brevo déjà utilisée par les invitations jury est le transport
+    # prioritaire. Les anciens identifiants Gmail peuvent rester présents sur
+    # Render sans bloquer les envois transactionnels.
+    sender_email = BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL
+    if BREVO_API_KEY and sender_email:
+        payload = json.dumps({
+            "sender": {
+                "email": sender_email,
+                "name": BREVO_SENDER_NAME or "Intégrale Academy",
+            },
+            "to": [{"email": recipient}],
+            "subject": subject,
+            "htmlContent": body,
+        }).encode("utf-8")
+        request_obj = urllib.request.Request("https://api.brevo.com/v3/smtp/email")
+        request_obj.add_header("Content-Type", "application/json")
+        request_obj.add_header("api-key", BREVO_API_KEY)
+        try:
+            with urllib.request.urlopen(request_obj, data=payload, timeout=10) as response:
+                if 200 <= response.status < 300:
+                    app.logger.info(
+                        "Email envoyé via Brevo destinataire=%s objet=%s",
+                        recipient, subject,
+                    )
+                    return True, None
+                response_body = response.read().decode("utf-8", errors="replace")
+                app.logger.error(
+                    "Envoi Brevo refusé statut=%s destinataire=%s réponse=%s",
+                    response.status, recipient, response_body[:500],
+                )
+                return False, f"Brevo HTTP {response.status}"
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read().decode("utf-8", errors="replace")
+            app.logger.error(
+                "Envoi Brevo refusé statut=%s destinataire=%s réponse=%s",
+                exc.code, recipient, response_body[:500],
+            )
+            return False, f"Brevo HTTP {exc.code}"
+        except Exception as exc:
+            app.logger.exception(
+                "Envoi Brevo impossible destinataire=%s objet=%s", recipient, subject
+            )
+            return False, f"Brevo {type(exc).__name__}"
+
     smtp_config = get_smtp_config()
     if not all(smtp_config.get(key) for key in ("login", "password", "from_email")):
         app.logger.error("Envoi email impossible : configuration SMTP incomplète")

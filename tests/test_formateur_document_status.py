@@ -327,6 +327,7 @@ def test_email_sender_uses_the_shared_brevo_smtp_configuration(monkeypatch):
             return {}
 
     monkeypatch.setattr(application.smtplib, "SMTP", SMTP)
+    monkeypatch.setattr(application, "BREVO_API_KEY", None)
     monkeypatch.setattr(application, "get_smtp_config", lambda: {
         "server": "smtp-relay.brevo.com",
         "port": 587,
@@ -345,3 +346,54 @@ def test_email_sender_uses_the_shared_brevo_smtp_configuration(monkeypatch):
     assert calls[3][0:3] == (
         "sendmail", "contact@example.com", ["trainer@example.com"]
     )
+
+
+def test_email_sender_prefers_the_brevo_transactional_api(monkeypatch):
+    captured = {}
+
+    class Response:
+        status = 201
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def read(self):
+            return b""
+
+    def urlopen(request, data, timeout):
+        captured["url"] = request.full_url
+        captured["api_key"] = request.get_header("Api-key")
+        captured["payload"] = application.json.loads(data.decode("utf-8"))
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(application, "BREVO_API_KEY", "test-api-key")
+    monkeypatch.setattr(application, "BREVO_SENDER_EMAIL", "contact@example.com")
+    monkeypatch.setattr(application, "BREVO_FROM_EMAIL", None)
+    monkeypatch.setattr(application, "BREVO_SENDER_NAME", "Intégrale Academy")
+    monkeypatch.setattr(application.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(
+        application,
+        "get_smtp_config",
+        lambda: pytest.fail("Le SMTP ne doit pas être utilisé quand l’API Brevo est configurée"),
+    )
+
+    success, error = application.send_email(
+        "trainer@example.com", "Relance", "<p>Test</p>"
+    )
+
+    assert (success, error) == (True, None)
+    assert captured == {
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "api_key": "test-api-key",
+        "payload": {
+            "sender": {"email": "contact@example.com", "name": "Intégrale Academy"},
+            "to": [{"email": "trainer@example.com"}],
+            "subject": "Relance",
+            "htmlContent": "<p>Test</p>",
+        },
+        "timeout": 10,
+    }

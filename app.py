@@ -9759,21 +9759,38 @@ def save_dotations(data):
 
 # ✉️ Fonction d’envoi d’email (réutilise la conf SMTP)
 def send_email(to, subject, body):
-    if not FROM_EMAIL or not EMAIL_PASSWORD:
-        print("⚠️ Email non configuré")
-        return
+    recipient = (to or "").strip()
+    if not recipient:
+        return False, "Adresse email manquante"
+
+    smtp_config = get_smtp_config()
+    if not all(smtp_config.get(key) for key in ("login", "password", "from_email")):
+        app.logger.error("Envoi email impossible : configuration SMTP incomplète")
+        return False, "SMTP non configuré"
+
     msg = MIMEText(body, "html", "utf-8")
-    msg["From"] = FROM_EMAIL
-    msg["To"] = to
+    msg["From"] = formataddr(("Intégrale Academy", smtp_config["from_email"]))
+    msg["To"] = recipient
     msg["Subject"] = subject
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
-            s.starttls()
-            s.login(FROM_EMAIL, EMAIL_PASSWORD)
-            s.sendmail(FROM_EMAIL, [to], msg.as_string())
-        print(f"✅ Mail envoyé à {to}")
-    except Exception as e:
-        print("❌ Erreur envoi mail dotation :", e)
+        with smtplib.SMTP(
+            smtp_config["server"], smtp_config["port"], timeout=30
+        ) as server:
+            server.starttls(context=ssl.create_default_context())
+            server.login(smtp_config["login"], smtp_config["password"])
+            refused = server.sendmail(
+                smtp_config["from_email"], [recipient], msg.as_string()
+            )
+        if refused:
+            app.logger.error("Envoi email refusé par le serveur destinataire=%s", recipient)
+            return False, "Destinataire refusé"
+        app.logger.info("Email envoyé destinataire=%s objet=%s", recipient, subject)
+        return True, None
+    except Exception as exc:
+        app.logger.exception(
+            "Envoi email impossible destinataire=%s objet=%s", recipient, subject
+        )
+        return False, type(exc).__name__
 
 
 def send_price_adaptator_email(to, subject, html):
@@ -12054,13 +12071,15 @@ def send_formateur_relance(fid):
     if not formateur:
         abort(404)
 
-    # 📌 Documents non conformes avec commentaire
+    # Utiliser le statut effectif affiché dans la fiche. Un document expiré est
+    # non conforme même si son dernier statut enregistré était « conforme ».
+    document_view = formateur_document_view(formateur)
     docs_ko = [
         {
             "label": d["label"],
             "commentaire": d.get("commentaire", "").strip()
         }
-        for d in formateur.get("documents", [])
+        for d in document_view.get("documents", [])
         if d.get("status") == "non_conforme"
     ]
 
@@ -12116,12 +12135,24 @@ Cordialement,<br>
 """
 
 
-    # 📩 Envoi
-    send_email(
-        formateur.get("email"),
+    recipient = (formateur.get("email") or "").strip()
+    if not recipient:
+        flash("Relance non envoyée : adresse email du formateur manquante.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
+    # La relance n'est datée comme envoyée que si le serveur SMTP l'a acceptée.
+    sent, error = send_email(
+        recipient,
         "Documents manquants — Dossier formateur",
         body
     )
+    if not sent:
+        app.logger.warning(
+            "Relance formateur non envoyée fid=%s destinataire=%s erreur=%s",
+            fid, recipient, error,
+        )
+        flash(f"Relance non envoyée : {error or 'erreur inconnue'}.", "error")
+        return redirect(url_for("formateur_detail", fid=fid))
 
     # 🕒 Trace de la relance
     formateur["last_relance"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

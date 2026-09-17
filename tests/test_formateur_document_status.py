@@ -248,3 +248,100 @@ def test_no_required_criteria_has_zero_progress(documents):
     assert summary["conformes"] == 0
     assert summary["percent"] == 0
     assert summary["expires"] == 0
+
+
+def test_manual_reminder_includes_effectively_expired_documents(monkeypatch):
+    trainer = make_formateur("conforme")
+    trainer["documents"][0]["expiration"] = "2000-01-01"
+    storage = [trainer]
+    sent = []
+
+    monkeypatch.setattr(application, "load_formateurs", lambda: storage)
+    monkeypatch.setattr(application, "save_formateurs", lambda data: None)
+    monkeypatch.setattr(
+        application,
+        "send_email",
+        lambda recipient, subject, body: (
+            sent.append((recipient, subject, body)) is None,
+            None,
+        ),
+    )
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    with application.app.test_client() as client:
+        login(client)
+        response = client.post("/formateurs/trainer-1/send_mail")
+
+    assert response.status_code == 302
+    assert len(sent) == 1
+    assert sent[0][0] == "test@example.com"
+    assert "Pièce d’identité" in sent[0][2]
+    assert "last_relance" in trainer
+
+
+def test_failed_manual_reminder_is_not_recorded_as_sent(monkeypatch):
+    trainer = make_formateur("non_conforme")
+    storage = [trainer]
+    saved = []
+
+    monkeypatch.setattr(application, "load_formateurs", lambda: storage)
+    monkeypatch.setattr(application, "save_formateurs", lambda data: saved.append(data))
+    monkeypatch.setattr(
+        application, "send_email", lambda *args, **kwargs: (False, "SMTP indisponible")
+    )
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    with application.app.test_client() as client:
+        login(client)
+        response = client.post("/formateurs/trainer-1/send_mail")
+        with client.session_transaction() as session:
+            flashes = session.get("_flashes", [])
+
+    assert response.status_code == 302
+    assert "last_relance" not in trainer
+    assert saved == []
+    assert ("error", "Relance non envoyée : SMTP indisponible.") in flashes
+
+
+def test_email_sender_uses_the_shared_brevo_smtp_configuration(monkeypatch):
+    calls = []
+
+    class SMTP:
+        def __init__(self, server, port, timeout):
+            calls.append(("connect", server, port, timeout))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def starttls(self, context):
+            calls.append(("starttls", bool(context)))
+
+        def login(self, login, password):
+            calls.append(("login", login, password))
+
+        def sendmail(self, sender, recipients, message):
+            calls.append(("sendmail", sender, recipients, message))
+            return {}
+
+    monkeypatch.setattr(application.smtplib, "SMTP", SMTP)
+    monkeypatch.setattr(application, "get_smtp_config", lambda: {
+        "server": "smtp-relay.brevo.com",
+        "port": 587,
+        "login": "brevo-user",
+        "password": "test-only",
+        "from_email": "contact@example.com",
+    })
+
+    success, error = application.send_email(
+        "trainer@example.com", "Relance", "<p>Test</p>"
+    )
+
+    assert (success, error) == (True, None)
+    assert calls[0] == ("connect", "smtp-relay.brevo.com", 587, 30)
+    assert calls[2] == ("login", "brevo-user", "test-only")
+    assert calls[3][0:3] == (
+        "sendmail", "contact@example.com", ["trainer@example.com"]
+    )

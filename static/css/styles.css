@@ -755,6 +755,184 @@ a{color:inherit;text-decoration:none}
   font-weight: 900;
 }
 
+body.relance-preview-open { overflow: hidden; }
+
+.relance-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, .68);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.relance-preview.is-open {
+  display: flex;
+  animation: saasFade .16s ease-out both;
+}
+
+.relance-preview__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(920px, 100%);
+  max-height: min(860px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 26px;
+  background: #f8fafc;
+  box-shadow: 0 34px 100px rgba(2, 6, 23, .42);
+  animation: saasPop .2s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.relance-preview__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #fff7ed, #ffffff 55%, #eff6ff);
+}
+
+.relance-preview__eyebrow {
+  margin: 0 0 6px;
+  color: #ea580c;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.relance-preview__header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: -.035em;
+}
+
+.relance-preview__header p:last-child {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.relance-preview__close {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .9);
+  color: #334155;
+  cursor: pointer;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.relance-preview__content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 28px 24px;
+}
+
+.relance-preview__meta {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(300px, 1.2fr);
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.relance-preview__meta div {
+  min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+}
+
+.relance-preview__meta dt,
+.relance-preview__mail > span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.relance-preview__meta dd {
+  overflow-wrap: anywhere;
+  margin: 5px 0 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.relance-preview__mail > span { display: block; margin: 0 0 8px 2px; }
+
+.relance-preview__mail iframe {
+  display: block;
+  width: 100%;
+  height: min(440px, 48vh);
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 12px 26px rgba(15, 23, 42, .06);
+}
+
+.relance-preview__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 17px 28px 22px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.relance-preview__actions form { margin: 0; }
+
+.relance-preview__cancel {
+  min-height: 40px;
+  padding: 10px 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.relance-preview button:focus-visible {
+  outline: 3px solid rgba(249, 115, 22, .3);
+  outline-offset: 3px;
+}
+
+.relance-preview button:disabled,
+#relance-preview-button:disabled {
+  cursor: wait;
+  opacity: .68;
+}
+
+@media (max-width: 680px) {
+  .relance-preview { padding: 10px; }
+  .relance-preview__panel { max-height: calc(100vh - 20px); border-radius: 20px; }
+  .relance-preview__header,
+  .relance-preview__content { padding-left: 18px; padding-right: 18px; }
+  .relance-preview__meta { grid-template-columns: 1fr; }
+  .relance-preview__mail iframe { height: 46vh; }
+  .relance-preview__actions { padding: 15px 18px 18px; }
+  .relance-preview__actions > *,
+  .relance-preview__actions form,
+  .relance-preview__actions button { flex: 1 1 0; }
+}
+
 .profile-update-card {
   display: grid;
   gap: 10px;

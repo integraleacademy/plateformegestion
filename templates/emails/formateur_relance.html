@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only light">
+  <title>Mise à jour de votre dossier formateur</title>
+  <style>
+    @media only screen and (max-width: 640px) {
+      .email-shell { width: 100% !important; }
+      .mobile-padding { padding-left: 22px !important; padding-right: 22px !important; }
+      .brand-logo { width: 62px !important; height: 62px !important; }
+      .email-title { font-size: 29px !important; }
+      .cta-button { display: block !important; padding-left: 14px !important; padding-right: 14px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#f2eee5;font-family:Arial,Helvetica,sans-serif;color:#211d16;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+    Votre dossier formateur nécessite une mise à jour. Consultez les documents concernés et déposez-les dans votre espace sécurisé.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;background:#f2eee5;">
+    <tr>
+      <td align="center" style="padding:34px 12px;">
+        <table class="email-shell" role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:640px;max-width:640px;border-collapse:separate;background:#ffffff;border-radius:24px;box-shadow:0 18px 55px rgba(42,34,20,0.14);overflow:hidden;">
+          <tr>
+            <td style="height:7px;background:#f4c45a;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td class="mobile-padding" bgcolor="#17140f" style="padding:24px 34px;background:#17140f;background-image:linear-gradient(135deg,#17140f 0%,#2b2419 100%);">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;">
+                <tr>
+                  <td width="82" valign="middle" style="width:82px;">
+                    <img class="brand-logo" src="{{ logo_url }}" width="70" height="70" alt="Intégrale Academy" style="display:block;width:70px;height:70px;border:0;border-radius:18px;object-fit:cover;">
+                  </td>
+                  <td valign="middle" style="padding-left:4px;">
+                    <div style="color:#ffffff;font-size:19px;line-height:1.2;font-weight:800;letter-spacing:0.03em;">INTÉGRALE ACADEMY</div>
+                    <div style="margin-top:7px;color:#f4c45a;font-size:11px;line-height:1.3;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;">Suivi administratif · Formateurs</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="mobile-padding" style="padding:40px 42px 18px;">
+              <div style="display:inline-block;padding:7px 12px;border-radius:999px;background:#fff4d4;color:#7b5510;font-size:11px;line-height:1;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;">Action requise</div>
+              <h1 class="email-title" style="margin:18px 0 16px;color:#17140f;font-size:36px;line-height:1.12;font-weight:800;letter-spacing:-0.035em;">Votre dossier est à mettre à jour</h1>
+              <p style="margin:0 0 14px;color:#302a21;font-size:16px;line-height:1.7;">Bonjour{% if first_name %} {{ first_name }}{% endif %},</p>
+              <p style="margin:0;color:#5f574a;font-size:15px;line-height:1.75;">Nous avons effectué un point sur votre dossier formateur. {% if documents|length == 1 %}Un élément doit{% else %}Certains éléments doivent{% endif %} être régularisé{% if documents|length > 1 %}s{% endif %} afin que votre dossier reste complet et conforme en cas de contrôle.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="mobile-padding" style="padding:18px 42px 10px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;">
+                <tr>
+                  <td valign="middle" style="color:#17140f;font-size:16px;font-weight:800;">À régulariser</td>
+                  <td align="right" valign="middle">
+                    <span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#17140f;color:#ffffff;font-size:11px;font-weight:700;">{{ documents|length }} document{% if documents|length > 1 %}s{% endif %}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="mobile-padding" style="padding:6px 42px 26px;">
+              {% for doc in documents %}
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;margin:0 0 10px;background:#fbf9f4;border:1px solid #ebe4d6;border-radius:15px;">
+                <tr>
+                  <td width="58" valign="top" style="width:58px;padding:17px 0 17px 16px;">
+                    <table role="presentation" width="34" cellspacing="0" cellpadding="0" border="0" style="width:34px;border-collapse:separate;">
+                      <tr>
+                        <td align="center" valign="middle" width="34" height="34" bgcolor="#f4c45a" style="width:34px;height:34px;border-radius:50%;background:#f4c45a;color:#17140f;font-size:13px;font-weight:800;">{{ loop.index }}</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td valign="top" style="padding:17px 18px 17px 2px;">
+                    <div style="color:#211d16;font-size:15px;line-height:1.4;font-weight:800;">{{ doc.label }}</div>
+                    {% if doc.commentaire %}
+                    <div style="margin-top:6px;color:#9a3f32;font-size:13px;line-height:1.55;">{{ doc.commentaire }}</div>
+                    {% elif doc.expired and doc.expiration %}
+                    <div style="margin-top:6px;color:#9a3f32;font-size:13px;line-height:1.55;">Ce document est arrivé à expiration le {{ doc.expiration|datefr }}.</div>
+                    {% else %}
+                    <div style="margin-top:6px;color:#756b5c;font-size:13px;line-height:1.55;">Ce document est manquant ou non conforme.</div>
+                    {% endif %}
+                  </td>
+                </tr>
+              </table>
+              {% endfor %}
+            </td>
+          </tr>
+
+          <tr>
+            <td class="mobile-padding" style="padding:0 42px 30px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#17140f" style="width:100%;border-collapse:separate;background:#17140f;background-image:linear-gradient(135deg,#17140f 0%,#2b2419 100%);border-radius:18px;">
+                <tr>
+                  <td align="center" style="padding:28px 24px 26px;">
+                    <div style="color:#f4c45a;font-size:11px;line-height:1;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Dépôt sécurisé</div>
+                    <div style="margin:10px 0 7px;color:#ffffff;font-size:20px;line-height:1.35;font-weight:800;">Transmettez vos documents en quelques clics</div>
+                    <div style="margin:0 0 20px;color:#d8d2c8;font-size:13px;line-height:1.6;">Ils seront directement rattachés à votre dossier puis vérifiés par notre équipe.</div>
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:auto;border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#f4c45a" style="border-radius:11px;background:#f4c45a;box-shadow:0 10px 24px rgba(244,196,90,0.22);">
+                          <a class="cta-button" href="{{ upload_url }}" target="_blank" style="display:inline-block;padding:15px 25px;color:#17140f;font-size:15px;line-height:1.2;font-weight:800;text-decoration:none;">Mettre mon dossier à jour</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="mobile-padding" style="padding:0 42px 34px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;background:#fff8e8;border:1px solid #f1dfb4;border-radius:13px;">
+                <tr>
+                  <td width="42" valign="top" style="width:42px;padding:15px 0 15px 15px;color:#9a6a12;font-size:18px;font-weight:800;">!</td>
+                  <td valign="top" style="padding:14px 16px 14px 0;color:#6c561f;font-size:12px;line-height:1.65;"><strong>Important :</strong> utilisez uniquement l’espace de dépôt sécurisé. Les documents envoyés par e-mail ne sont pas traités.</td>
+                </tr>
+              </table>
+
+              <p style="margin:28px 0 0;color:#5f574a;font-size:14px;line-height:1.7;">Merci pour votre réactivité.</p>
+              <p style="margin:4px 0 0;color:#211d16;font-size:14px;line-height:1.6;font-weight:800;">L’équipe Intégrale Academy</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="mobile-padding" bgcolor="#f8f6f0" style="padding:22px 42px 25px;border-top:1px solid #eee8dc;background:#f8f6f0;color:#786f61;font-size:11px;line-height:1.7;">
+              <strong style="color:#393229;">Une question ?</strong> Appelez-nous au <a href="tel:+33422470768" style="color:#393229;font-weight:700;text-decoration:none;">04 22 47 07 68</a><br>
+              <a href="https://www.integraleacademy.com" target="_blank" style="color:#8a6318;text-decoration:none;font-weight:700;">integraleacademy.com</a>
+              <span style="color:#c5bcac;">&nbsp;·&nbsp;</span>
+              Ce message concerne le suivi administratif de votre dossier formateur.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

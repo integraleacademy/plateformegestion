@@ -499,16 +499,7 @@
 
       relancePreviewRecipient.textContent = data.recipient;
       relancePreviewSubject.textContent = data.subject;
-      relancePreviewFrame.srcdoc = `<!doctype html>
-        <html lang="fr">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <base target="_blank">
-            <style>body{margin:0;padding:24px;font:15px/1.55 Arial,sans-serif;color:#1f2937;background:#fff}</style>
-          </head>
-          <body>${data.body_html}</body>
-        </html>`;
+      relancePreviewFrame.srcdoc = data.body_html;
       relancePreview.classList.add("is-open");
       relancePreview.setAttribute("aria-hidden", "false");
       document.body.classList.add("relance-preview-open");

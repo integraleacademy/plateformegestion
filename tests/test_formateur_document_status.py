@@ -288,7 +288,26 @@ def test_manual_reminder_includes_effectively_expired_documents(monkeypatch):
     )
     assert "Pièce d’identité" in preview["body_html"]
     assert "Document à renouveler" in preview["body_html"]
+    assert "<!DOCTYPE html>" in preview["body_html"]
+    assert "Action requise" in preview["body_html"]
+    assert "Mettre mon dossier à jour" in preview["body_html"]
+    assert "logo-integrale.png" in preview["body_html"]
+    assert "Les documents envoyés par e-mail ne sont pas traités" in preview["body_html"]
     assert "last_relance" in trainer
+
+
+def test_manual_reminder_explains_an_expired_document_without_comment(monkeypatch):
+    trainer = make_formateur("conforme")
+    trainer["documents"][0]["expiration"] = "2000-01-01"
+    monkeypatch.setattr(application, "load_formateurs", lambda: [trainer])
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    with application.app.test_client() as client:
+        login(client)
+        response = client.get("/formateurs/trainer-1/send_mail/preview")
+
+    assert response.status_code == 200
+    assert "Ce document est arrivé à expiration le 01/01/2000." in response.get_json()["body_html"]
 
 
 def test_manual_reminder_preview_escapes_trainer_content(monkeypatch):

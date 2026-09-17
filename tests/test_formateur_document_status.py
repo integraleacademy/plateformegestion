@@ -253,6 +253,7 @@ def test_no_required_criteria_has_zero_progress(documents):
 def test_manual_reminder_includes_effectively_expired_documents(monkeypatch):
     trainer = make_formateur("conforme")
     trainer["documents"][0]["expiration"] = "2000-01-01"
+    trainer["documents"][0]["commentaire"] = "Document à renouveler"
     storage = [trainer]
     sent = []
 
@@ -270,13 +271,77 @@ def test_manual_reminder_includes_effectively_expired_documents(monkeypatch):
     application.app.config.update(TESTING=True, SECRET_KEY="test")
     with application.app.test_client() as client:
         login(client)
+        preview_response = client.get("/formateurs/trainer-1/send_mail/preview")
+        preview = preview_response.get_json()
         response = client.post("/formateurs/trainer-1/send_mail")
 
+    assert preview_response.status_code == 200
+    assert preview["ok"] is True
+    assert preview["recipient"] == "test@example.com"
+    assert preview["subject"] == application.FORMATEUR_RELANCE_SUBJECT
     assert response.status_code == 302
     assert len(sent) == 1
-    assert sent[0][0] == "test@example.com"
-    assert "Pièce d’identité" in sent[0][2]
+    assert sent[0] == (
+        preview["recipient"],
+        preview["subject"],
+        preview["body_html"],
+    )
+    assert "Pièce d’identité" in preview["body_html"]
+    assert "Document à renouveler" in preview["body_html"]
     assert "last_relance" in trainer
+
+
+def test_manual_reminder_preview_escapes_trainer_content(monkeypatch):
+    trainer = make_formateur("non_conforme")
+    trainer["prenom"] = "<script>Prénom</script>"
+    trainer["documents"][0]["label"] = "<img src=x onerror=alert(1)>"
+    trainer["documents"][0]["commentaire"] = "<script>alert(2)</script>"
+    monkeypatch.setattr(application, "load_formateurs", lambda: [trainer])
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    with application.app.test_client() as client:
+        login(client)
+        response = client.get("/formateurs/trainer-1/send_mail/preview")
+
+    body = response.get_json()["body_html"]
+    assert response.status_code == 200
+    assert "<script>" not in body
+    assert "<img src=x" not in body
+    assert "&lt;script&gt;Prénom&lt;/script&gt;" in body
+    assert "&lt;img src=x onerror=alert(1)&gt;" in body
+
+
+def test_manual_reminder_preview_explains_when_nothing_can_be_sent(monkeypatch):
+    trainer = make_formateur("conforme")
+    monkeypatch.setattr(application, "load_formateurs", lambda: [trainer])
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    with application.app.test_client() as client:
+        login(client)
+        response = client.get("/formateurs/trainer-1/send_mail/preview")
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "ok": False,
+        "error": "Aucun document à relancer.",
+    }
+
+
+def test_formateur_detail_opens_reminder_preview_before_sending(monkeypatch):
+    trainer = make_formateur("non_conforme")
+    monkeypatch.setattr(application, "load_formateurs", lambda: [trainer])
+
+    application.app.config.update(TESTING=True, SECRET_KEY="test")
+    with application.app.test_client() as client:
+        login(client)
+        response = client.get("/formateurs/trainer-1")
+
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert 'id="relance-preview-button"' in page
+    assert 'id="relance-preview"' in page
+    assert "Aperçu du mail de relance" in page
+    assert "Envoyer la relance" in page
 
 
 def test_failed_manual_reminder_is_not_recorded_as_sent(monkeypatch):

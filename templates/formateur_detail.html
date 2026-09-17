@@ -131,9 +131,12 @@
       <div class="detail-actions">
         <a href="{{ url_for('export_formateur_dossier', fid=formateur.id) }}" class="btn-premium btn-premium--primary">Exporter le dossier</a>
         <a href="{{ url_for('print_formateur_dossier', fid=formateur.id) }}" target="_blank" class="btn-premium btn-premium--dark">Imprimer</a>
-        <form method="POST" action="{{ url_for('send_formateur_relance', fid=formateur.id) }}">
-          <button type="submit" class="btn-premium btn-premium--orange">Relancer</button>
-        </form>
+        <button
+          type="button"
+          id="relance-preview-button"
+          class="btn-premium btn-premium--orange"
+          data-preview-url="{{ url_for('preview_formateur_relance', fid=formateur.id) }}"
+        >Relancer</button>
       </div>
 
       {% if formateur.last_relance %}
@@ -381,6 +384,55 @@
     </div>
   </section>
 </main>
+
+<div id="relance-preview" class="relance-preview" aria-hidden="true">
+  <section
+    class="relance-preview__panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="relance-preview-title"
+    aria-describedby="relance-preview-description"
+  >
+    <header class="relance-preview__header">
+      <div>
+        <p class="relance-preview__eyebrow">Avant l’envoi</p>
+        <h2 id="relance-preview-title">Aperçu du mail de relance</h2>
+        <p id="relance-preview-description">Vérifiez le destinataire et le contenu exact du message.</p>
+      </div>
+      <button type="button" class="relance-preview__close" data-relance-preview-close aria-label="Fermer l’aperçu">×</button>
+    </header>
+
+    <div class="relance-preview__content">
+      <dl class="relance-preview__meta">
+        <div>
+          <dt>Destinataire</dt>
+          <dd id="relance-preview-recipient"></dd>
+        </div>
+        <div>
+          <dt>Objet</dt>
+          <dd id="relance-preview-subject"></dd>
+        </div>
+      </dl>
+
+      <div class="relance-preview__mail">
+        <span>Contenu du mail</span>
+        <iframe
+          id="relance-preview-frame"
+          title="Contenu du mail de relance"
+          sandbox="allow-popups allow-popups-to-escape-sandbox"
+        ></iframe>
+      </div>
+    </div>
+
+    <footer class="relance-preview__actions">
+      <button type="button" class="relance-preview__cancel" data-relance-preview-close>Annuler</button>
+      <form id="relance-send-form" method="POST" action="{{ url_for('send_formateur_relance', fid=formateur.id) }}">
+        <button type="submit" id="relance-send-button" class="btn-premium btn-premium--orange">Envoyer la relance</button>
+      </form>
+    </footer>
+  </section>
+</div>
+
 <script>
 (function () {
 
@@ -410,6 +462,90 @@
   let identitySaveTimeout = null;
   let documentSaveQueue = Promise.resolve();
   let lastSavedNub = nubInput ? nubInput.value : "";
+
+  const relancePreviewButton = document.getElementById("relance-preview-button");
+  const relancePreview = document.getElementById("relance-preview");
+  const relancePreviewRecipient = document.getElementById("relance-preview-recipient");
+  const relancePreviewSubject = document.getElementById("relance-preview-subject");
+  const relancePreviewFrame = document.getElementById("relance-preview-frame");
+  const relanceSendForm = document.getElementById("relance-send-form");
+  const relanceSendButton = document.getElementById("relance-send-button");
+
+  function closeRelancePreview() {
+    if (!relancePreview) return;
+    relancePreview.classList.remove("is-open");
+    relancePreview.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("relance-preview-open");
+    if (relancePreviewButton) relancePreviewButton.focus();
+  }
+
+  async function openRelancePreview() {
+    if (!relancePreviewButton || !relancePreview) return;
+
+    const initialLabel = relancePreviewButton.textContent.trim();
+    relancePreviewButton.disabled = true;
+    relancePreviewButton.textContent = "Préparation du mail…";
+
+    try {
+      await documentSaveQueue.catch(() => undefined);
+      const response = await fetch(relancePreviewButton.dataset.previewUrl, {
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Impossible de préparer l’aperçu du mail.");
+      }
+
+      relancePreviewRecipient.textContent = data.recipient;
+      relancePreviewSubject.textContent = data.subject;
+      relancePreviewFrame.srcdoc = `<!doctype html>
+        <html lang="fr">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <base target="_blank">
+            <style>body{margin:0;padding:24px;font:15px/1.55 Arial,sans-serif;color:#1f2937;background:#fff}</style>
+          </head>
+          <body>${data.body_html}</body>
+        </html>`;
+      relancePreview.classList.add("is-open");
+      relancePreview.setAttribute("aria-hidden", "false");
+      document.body.classList.add("relance-preview-open");
+      relanceSendButton.focus();
+    } catch (error) {
+      SaasDialog.alert(error.message || "Impossible de préparer l’aperçu du mail.", {
+        title: "Relance impossible",
+        icon: "!"
+      });
+    } finally {
+      relancePreviewButton.disabled = false;
+      relancePreviewButton.textContent = initialLabel;
+    }
+  }
+
+  if (relancePreviewButton) {
+    relancePreviewButton.addEventListener("click", openRelancePreview);
+  }
+  document.querySelectorAll("[data-relance-preview-close]").forEach(button => {
+    button.addEventListener("click", closeRelancePreview);
+  });
+  if (relancePreview) {
+    relancePreview.addEventListener("click", event => {
+      if (event.target === relancePreview) closeRelancePreview();
+    });
+  }
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && relancePreview?.classList.contains("is-open")) {
+      closeRelancePreview();
+    }
+  });
+  if (relanceSendForm) {
+    relanceSendForm.addEventListener("submit", () => {
+      relanceSendButton.disabled = true;
+      relanceSendButton.textContent = "Envoi en cours…";
+    });
+  }
 
   function updateCompliance(summary) {
     if (!summary) return;

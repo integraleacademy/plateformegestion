@@ -29,6 +29,7 @@ import logging
 import math
 import threading
 from copy import deepcopy
+from html import escape as escape_html
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -12045,6 +12046,83 @@ def generate_upload_token(fid):
 def verify_upload_token(fid, token):
     return token == generate_upload_token(fid)
 
+
+FORMATEUR_RELANCE_SUBJECT = "Documents manquants — Dossier formateur"
+
+
+def build_formateur_relance_email(formateur):
+    """Construit l'unique version du mail utilisée pour l'aperçu et l'envoi."""
+    document_view = formateur_document_view(formateur)
+    docs_ko = [
+        {
+            "label": str(d.get("label") or "Document").strip(),
+            "commentaire": str(d.get("commentaire") or "").strip(),
+        }
+        for d in document_view.get("documents", [])
+        if d.get("status") == "non_conforme"
+    ]
+
+    token = generate_upload_token(formateur["id"])
+    link = url_for(
+        "upload_formateur_documents",
+        fid=formateur["id"],
+        token=token,
+        _external=True,
+    )
+    first_name = escape_html(str(formateur.get("prenom") or "").strip())
+    safe_link = escape_html(link, quote=True)
+    document_items = "".join(
+        f"<li><b>{escape_html(document['label'])}</b>"
+        + (
+            "<br><span style='color:red;font-weight:600;'>"
+            f"⚠️ {escape_html(document['commentaire'])}</span>"
+            if document["commentaire"]
+            else ""
+        )
+        + "</li><br>"
+        for document in docs_ko
+    )
+
+    body = f"""
+Bonjour {first_name},<br><br>
+
+Votre dossier formateur nécessite quelques mises à jour. Merci de transmettre vos documents via le bouton ci-dessous.
+<b style='color:#d00000;'>Les envois par mail ne sont plus acceptés.</b><br><br>
+
+<div style="text-align:center;margin:25px 0;">
+  <a href="{safe_link}" style="
+      display:inline-block;
+      padding:14px 28px;
+      background:#0f62fe;
+      color:#ffffff !important;
+      font-size:18px;
+      font-weight:700;
+      border-radius:8px;
+      text-decoration:none;
+      box-shadow:0 4px 12px rgba(0,0,0,0.18);
+  ">
+      📁 Déposer mes documents
+  </a>
+</div>
+
+Voici les éléments à régulariser :<br><br>
+
+<ul style="font-size:15px;line-height:1.5;">
+  {document_items}
+</ul>
+
+Cordialement,<br>
+<b>Intégrale Academy</b>
+"""
+
+    return {
+        "recipient": (formateur.get("email") or "").strip(),
+        "subject": FORMATEUR_RELANCE_SUBJECT,
+        "body_html": body,
+        "documents": docs_ko,
+    }
+
+
 @app.route("/formateurs/<fid>/upload", methods=["GET", "POST"])
 def upload_formateur_documents(fid):
     token = request.args.get("token", "")
@@ -12108,6 +12186,32 @@ def upload_formateur_documents(fid):
     )
 
 
+@app.get("/formateurs/<fid>/send_mail/preview")
+def preview_formateur_relance(fid):
+    formateurs = load_formateurs()
+    formateur = find_formateur(formateurs, fid)
+    if not formateur:
+        abort(404)
+
+    message = build_formateur_relance_email(formateur)
+    if not message["documents"]:
+        return jsonify({"ok": False, "error": "Aucun document à relancer."}), 400
+    if not message["recipient"]:
+        return jsonify({
+            "ok": False,
+            "error": "Adresse email du formateur manquante.",
+        }), 400
+
+    response = jsonify({
+        "ok": True,
+        "recipient": message["recipient"],
+        "subject": message["subject"],
+        "body_html": message["body_html"],
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/formateurs/<fid>/send_mail", methods=["POST"])
 def send_formateur_relance(fid):
     formateurs = load_formateurs()
@@ -12115,71 +12219,13 @@ def send_formateur_relance(fid):
     if not formateur:
         abort(404)
 
-    # Utiliser le statut effectif affiché dans la fiche. Un document expiré est
-    # non conforme même si son dernier statut enregistré était « conforme ».
-    document_view = formateur_document_view(formateur)
-    docs_ko = [
-        {
-            "label": d["label"],
-            "commentaire": d.get("commentaire", "").strip()
-        }
-        for d in document_view.get("documents", [])
-        if d.get("status") == "non_conforme"
-    ]
+    message = build_formateur_relance_email(formateur)
 
-    if not docs_ko:
+    if not message["documents"]:
         flash("Aucun document à relancer.", "ok")
         return redirect(url_for("formateur_detail", fid=fid))
 
-    # 🔗 Génération lien sécurisé pour upload
-    token = generate_upload_token(fid)
-    link = url_for(
-        "upload_formateur_documents",
-        fid=fid,
-        token=token,
-        _external=True
-    )
-
-    # ✉️ Contenu du mail avec bouton visible
-    body = f"""
-Bonjour {formateur.get('prenom')},<br><br>
-
-Votre dossier formateur nécessite quelques mises à jour. Merci de transmettre vos documents via le bouton ci-dessous. 
-<b style='color:#d00000;'>Les envois par mail ne sont plus acceptés.</b><br><br>
-
-<div style="text-align:center;margin:25px 0;">
-  <a href="{link}" style="
-      display:inline-block;
-      padding:14px 28px;
-      background:#0f62fe;
-      color:#ffffff !important;
-      font-size:18px;
-      font-weight:700;
-      border-radius:8px;
-      text-decoration:none;
-      box-shadow:0 4px 12px rgba(0,0,0,0.18);
-  ">
-      📁 Déposer mes documents
-  </a>
-</div>
-
-Voici les éléments à régulariser :<br><br>
-
-<ul style="font-size:15px;line-height:1.5;">
-  {''.join(
-    f"<li><b>{d['label']}</b>"
-    + (f"<br><span style='color:red;font-weight:600;'>⚠️ {d['commentaire']}</span>" if d['commentaire'] else "")
-    + "</li><br>"
-    for d in docs_ko
-  )}
-</ul>
-
-Cordialement,<br>
-<b>Intégrale Academy</b>
-"""
-
-
-    recipient = (formateur.get("email") or "").strip()
+    recipient = message["recipient"]
     if not recipient:
         flash("Relance non envoyée : adresse email du formateur manquante.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
@@ -12187,8 +12233,8 @@ Cordialement,<br>
     # La relance n'est datée comme envoyée que si le serveur SMTP l'a acceptée.
     sent, error = send_email(
         recipient,
-        "Documents manquants — Dossier formateur",
-        body
+        message["subject"],
+        message["body_html"],
     )
     if not sent:
         app.logger.warning(

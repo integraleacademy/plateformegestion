@@ -112,6 +112,7 @@ export function validateStudioSlide(slideNode,options={}){
   }
 
   const brand=canvas.querySelector('[data-region="brand"]'),content=canvas.querySelector('[data-region="content"]'),footer=canvas.querySelector('[data-region="footer"]');
+  if(canvas.classList.contains('manual-layout')&&logo&&brand&&isOutsideRegion(logo,brand))blockingErrors.push({message:'Le logo dépasse de la zone d’identité.',element:logo});
   if(content?.dataset.layoutFitMode==='art-directed'){
     for(const element of content.querySelectorAll('[data-content-key]')){
       if(isVisible(element)&&isOutsideRegion(element,content))blockingErrors.push({message:`Le contenu « ${element.dataset.elementName||element.dataset.contentKey||'élément'} » sort de sa zone de composition.`,element});

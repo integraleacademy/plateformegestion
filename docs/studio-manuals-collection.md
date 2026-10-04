@@ -51,9 +51,19 @@ Contrôles effectués : identifiants uniques, présence des 18 images, champs
 éditables, conservation des textes personnalisés, échappement HTML et
 non-régression des compositions existantes. Les 15 tests passent.
 
-Le contrôle visuel des 168 combinaisons et un export PNG réel restent à exécuter
-dans un navigateur. Le harnais `tests/studio-manual-audit.html` permet ce contrôle ;
-le même contrôle peut être lancé sur l’aperçu statique avec `?audit=1`.
-L’accès au navigateur local est indisponible dans l’environnement de travail.
-La publication sur la branche de production attend l’accord explicite du
-propriétaire après le refus du contrôle automatique d’approbation.
+Le contrôle de géométrie des 168 combinaisons peut être lancé avec
+`static/studio_visuals/manuals-preview.html?audit=1`. Il utilise le moteur,
+les styles, les polices et la validation réels du studio. Il vérifie aussi
+la surface disponible pour les illustrations et le placement du logo.
+Le bouton d’export utilise le même exporteur PNG que l’éditeur.
+
+L’aperçu est public et autonome pour le contrôle des exemples. Le fichier
+`studio-manual-preview.bundle.js` regroupe les dépendances afin de limiter
+les requêtes au démarrage. Le régénérer après toute modification du moteur :
+
+```sh
+npx --yes esbuild@0.28.2 static/studio_visuals/js/studio-manual-preview.js --bundle --format=iife --minify --outfile=static/studio_visuals/js/studio-manual-preview.bundle.js
+```
+
+La collection a été fusionnée sur `main` et déployée sur Render après
+l’accord explicite du propriétaire le 4 octobre 2026.

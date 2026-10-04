@@ -83,7 +83,7 @@ function fitOptions(element,canvas){
     if(kind==='body')return options(24,2,68);
     return options(20,2,52);
   }
-  if(canvas.classList?.contains('metier-layout')||canvas.classList?.contains('bts-layout')){
+  if(canvas.classList?.contains('manual-layout')||canvas.classList?.contains('metier-layout')||canvas.classList?.contains('bts-layout')){
     const landscape=canvas.dataset.studioFormat==='linkedin_landscape';
     const story=canvas.dataset.studioFormat==='instagram_story';
     // A heading's parent often contains only that heading. Multiplying its

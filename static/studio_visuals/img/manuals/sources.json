@@ -1,0 +1,132 @@
+{
+  "collection": "Manuels illustrés",
+  "styleReference": "Manuel SSIAP 1 264 pages(6).pdf, fourni par le propriétaire du studio",
+  "assets": [
+    {
+      "file": "ssiap_plan.webp",
+      "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Manuel SSIAP 1 264 pages(6).pdf, page 8, image 108"
+    },
+    {
+      "file": "ssiap_ronde.webp",
+      "alt": "Une agente vérifie une issue de secours.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Manuel SSIAP 1 264 pages(6).pdf, page 2, image 27"
+    },
+    {
+      "file": "ssiap_evacuation.webp",
+      "alt": "Une équipe accompagne les occupants vers une sortie.",
+      "width": 1054,
+      "height": 1492,
+      "source": "Manuel SSIAP 1 264 pages(6).pdf, page 43, image 343"
+    },
+    {
+      "file": "ssiap_pc.webp",
+      "alt": "Deux agents travaillent au poste de sécurité incendie.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Manuel SSIAP 1 264 pages(6).pdf, page 198, image 1262"
+    },
+    {
+      "file": "ssiap_pratique.webp",
+      "alt": "Un formateur présente les moyens de première intervention.",
+      "width": 1448,
+      "height": 1086,
+      "source": "Manuel SSIAP 1 264 pages(6).pdf, page 215, image 1360"
+    },
+    {
+      "file": "ssiap_equipements.webp",
+      "alt": "Un formateur et un stagiaire vérifient les équipements du bâtiment.",
+      "width": 1054,
+      "height": 1492,
+      "source": "Manuel SSIAP 1 264 pages(6).pdf, page 115, image 786"
+    },
+    {
+      "file": "aps_accueil.webp",
+      "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "aps_pc.webp",
+      "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "a3p_terrain.webp",
+      "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "a3p_briefing.webp",
+      "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "vtc_accueil.webp",
+      "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "vtc_preparation.webp",
+      "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "desp_pilotage.webp",
+      "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "desp_projet.webp",
+      "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "bts_campus.webp",
+      "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "bts_entreprise.webp",
+      "alt": "Une apprentie échange avec son tuteur en entreprise.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "general_accompagnement.webp",
+      "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "general_equipe.webp",
+      "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    }
+  ]
+}

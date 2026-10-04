@@ -23528,6 +23528,2967 @@
         "examDate": "",
         "_manual": false
       }
+    },
+    {
+      "id": "manual_aps_cover",
+      "name": "ILLUSTRÉ · APS · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. Devenez agent de sécurité.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_accueil.webp",
+        "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "Devenez agent de sécurité",
+        "introduction": "Un métier de vigilance, de relation humaine et de responsabilités.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_aps_session",
+      "name": "ILLUSTRÉ · APS · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Votre prochaine session APS.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_accueil.webp",
+        "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Votre prochaine session APS",
+        "introduction": "Préparez votre entrée en formation avec une équipe à vos côtés.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_aps_immersion",
+      "name": "ILLUSTRÉ · APS · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Accueillir. Observer. Protéger..",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_accueil.webp",
+        "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Accueillir. Observer. Protéger.",
+        "introduction": "À chaque prise de poste, une présence attentive et professionnelle.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_aps_skills",
+      "name": "ILLUSTRÉ · APS · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Les bons réflexes s’apprennent.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_accueil.webp",
+        "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Les bons réflexes s’apprennent",
+        "introduction": "Développez une posture professionnelle adaptée à chaque situation.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_aps_path",
+      "name": "ILLUSTRÉ · APS · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. Votre projet APS, étape par étape.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_accueil.webp",
+        "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "Votre projet APS, étape par étape",
+        "introduction": "Échangeons sur votre objectif et préparons votre entrée en formation.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_aps_duo",
+      "name": "ILLUSTRÉ · APS · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Du cours aux situations de terrain.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_accueil.webp",
+        "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "Du cours aux situations de terrain",
+        "introduction": "Des explications claires et des mises en situation pour progresser.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_ssiap_cover",
+      "name": "ILLUSTRÉ · SSIAP 1 · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. La sécurité incendie commence avec vous.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_plan.webp",
+        "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "La sécurité incendie commence avec vous",
+        "introduction": "Formez-vous à la prévention incendie et à l’assistance à personnes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_ssiap_session",
+      "name": "ILLUSTRÉ · SSIAP 1 · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Préparez votre SSIAP 1.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_evacuation.webp",
+        "alt": "Une équipe accompagne les occupants vers une sortie.",
+        "width": 1054,
+        "height": 1492
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Préparez votre SSIAP 1",
+        "introduction": "Découvrez le programme et échangez avec notre équipe sur votre projet.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_ssiap_immersion",
+      "name": "ILLUSTRÉ · SSIAP 1 · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Prévenir, c’est déjà agir.",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_evacuation.webp",
+        "alt": "Une équipe accompagne les occupants vers une sortie.",
+        "width": 1054,
+        "height": 1492
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_pc.webp",
+        "alt": "Deux agents travaillent au poste de sécurité incendie.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Prévenir, c’est déjà agir",
+        "introduction": "Une ronde attentive contribue à la sécurité de tous les occupants.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_ssiap_skills",
+      "name": "ILLUSTRÉ · SSIAP 1 · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Les réflexes de la sécurité incendie.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_pc.webp",
+        "alt": "Deux agents travaillent au poste de sécurité incendie.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_pratique.webp",
+        "alt": "Un formateur présente les moyens de première intervention.",
+        "width": 1448,
+        "height": 1086
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Les réflexes de la sécurité incendie",
+        "introduction": "Apprenez à observer, à transmettre et à appliquer les consignes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_ssiap_path",
+      "name": "ILLUSTRÉ · SSIAP 1 · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. Construisez votre projet SSIAP 1.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_pratique.webp",
+        "alt": "Un formateur présente les moyens de première intervention.",
+        "width": 1448,
+        "height": 1086
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_equipements.webp",
+        "alt": "Un formateur et un stagiaire vérifient les équipements du bâtiment.",
+        "width": 1054,
+        "height": 1492
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "Construisez votre projet SSIAP 1",
+        "introduction": "Nous vous accompagnons dans la préparation de votre entrée en formation.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_ssiap_duo",
+      "name": "ILLUSTRÉ · SSIAP 1 · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Comprendre. Manipuler. Progresser..",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_equipements.webp",
+        "alt": "Un formateur et un stagiaire vérifient les équipements du bâtiment.",
+        "width": 1054,
+        "height": 1492
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_plan.webp",
+        "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "Comprendre. Manipuler. Progresser.",
+        "introduction": "Reliez les explications du cours aux équipements rencontrés sur le terrain.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_a3p_cover",
+      "name": "ILLUSTRÉ · A3P · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. La protection se prépare.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_terrain.webp",
+        "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "La protection se prépare",
+        "introduction": "Découvrez un métier qui conjugue observation, préparation et maîtrise de soi.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_a3p_session",
+      "name": "ILLUSTRÉ · A3P · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Votre projet de formation A3P.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_terrain.webp",
+        "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Votre projet de formation A3P",
+        "introduction": "Échangez avec notre équipe et préparez votre entrée en formation.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_a3p_immersion",
+      "name": "ILLUSTRÉ · A3P · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Discrétion. Anticipation. Protection..",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_terrain.webp",
+        "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Discrétion. Anticipation. Protection.",
+        "introduction": "Un professionnel attentif à la personne protégée et à son environnement.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_a3p_skills",
+      "name": "ILLUSTRÉ · A3P · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Préparer chaque mission.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_terrain.webp",
+        "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Préparer chaque mission",
+        "introduction": "Développez une méthode de travail rigoureuse, en équipe.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_a3p_path",
+      "name": "ILLUSTRÉ · A3P · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. Le premier pas vers la protection.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_terrain.webp",
+        "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "Le premier pas vers la protection",
+        "introduction": "Clarifiez votre objectif et construisez votre parcours avec nous.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_a3p_duo",
+      "name": "ILLUSTRÉ · A3P · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. S’entraîner pour mieux anticiper.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_terrain.webp",
+        "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "S’entraîner pour mieux anticiper",
+        "introduction": "Du briefing aux mises en situation, reliez la méthode à la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_vtc_cover",
+      "name": "ILLUSTRÉ · VTC · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. Donnez une nouvelle direction à votre avenir.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_accueil.webp",
+        "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "Donnez une nouvelle direction à votre avenir",
+        "introduction": "Formez-vous au métier de chauffeur VTC et préparez la suite de votre projet.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_vtc_session",
+      "name": "ILLUSTRÉ · VTC · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Préparez votre projet VTC.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_accueil.webp",
+        "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Préparez votre projet VTC",
+        "introduction": "Programme, organisation et modalités : notre équipe vous renseigne.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_vtc_immersion",
+      "name": "ILLUSTRÉ · VTC · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Le sens du service, à chaque trajet.",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_accueil.webp",
+        "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Le sens du service, à chaque trajet",
+        "introduction": "Une prestation professionnelle commence dès l’accueil du passager.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_vtc_skills",
+      "name": "ILLUSTRÉ · VTC · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Au-delà de la conduite.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_accueil.webp",
+        "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Au-delà de la conduite",
+        "introduction": "Développez les compétences qui font la qualité d’une prestation.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_vtc_path",
+      "name": "ILLUSTRÉ · VTC · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. Votre parcours vers le métier VTC.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_accueil.webp",
+        "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "Votre parcours vers le métier VTC",
+        "introduction": "Construisons ensemble les premières étapes de votre formation.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_vtc_duo",
+      "name": "ILLUSTRÉ · VTC · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Apprendre le métier, concrètement.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_accueil.webp",
+        "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "Apprendre le métier, concrètement",
+        "introduction": "Préparation, relation client et mises en situation : avancez avec méthode.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_direction_cover",
+      "name": "ILLUSTRÉ · Direction · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. Pilotez votre avenir dans la sécurité.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "desp_pilotage.webp",
+        "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "Pilotez votre avenir dans la sécurité",
+        "introduction": "Développez votre projet de direction d’une entreprise de sécurité privée.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_direction_session",
+      "name": "ILLUSTRÉ · Direction · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Préparez votre projet de dirigeant.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_pilotage.webp",
+        "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Préparez votre projet de dirigeant",
+        "introduction": "Échangeons sur votre expérience, votre objectif et le parcours adapté.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_direction_immersion",
+      "name": "ILLUSTRÉ · Direction · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Une vision. Une équipe. Un projet..",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "desp_pilotage.webp",
+        "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Une vision. Une équipe. Un projet.",
+        "introduction": "Apprenez à organiser l’activité et à accompagner vos équipes.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_direction_skills",
+      "name": "ILLUSTRÉ · Direction · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Les compétences du dirigeant.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_pilotage.webp",
+        "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Les compétences du dirigeant",
+        "introduction": "Reliez les enjeux de gestion, de management et de conformité.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_direction_path",
+      "name": "ILLUSTRÉ · Direction · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. Donnez une structure à votre ambition.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "desp_pilotage.webp",
+        "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "Donnez une structure à votre ambition",
+        "introduction": "Faisons le point sur votre projet et préparons les prochaines étapes.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_direction_duo",
+      "name": "ILLUSTRÉ · Direction · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Du projet à la posture de dirigeant.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_pilotage.webp",
+        "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "Du projet à la posture de dirigeant",
+        "introduction": "Des cas concrets pour mieux comprendre les décisions du quotidien.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_bts_cover",
+      "name": "ILLUSTRÉ · BTS · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. Votre avenir prend forme en BTS.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "Votre avenir prend forme en BTS",
+        "introduction": "Un projet professionnel se construit avec des connaissances et de la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_bts_session",
+      "name": "ILLUSTRÉ · BTS · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Construisez votre projet en alternance.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Construisez votre projet en alternance",
+        "introduction": "Découvrez nos BTS et échangez sur le parcours qui vous correspond.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_bts_immersion",
+      "name": "ILLUSTRÉ · BTS · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Apprendre aujourd’hui, agir demain.",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Apprendre aujourd’hui, agir demain",
+        "introduction": "En cours comme en entreprise, chaque expérience vous fait progresser.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_bts_skills",
+      "name": "ILLUSTRÉ · BTS · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Des compétences pour l’entreprise.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Des compétences pour l’entreprise",
+        "introduction": "Préparez votre avenir avec des méthodes de travail professionnelles.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_bts_path",
+      "name": "ILLUSTRÉ · BTS · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. Votre projet BTS, avec nous.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "Votre projet BTS, avec nous",
+        "introduction": "Parlons de votre orientation et préparons votre candidature.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_bts_duo",
+      "name": "ILLUSTRÉ · BTS · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Le cours et l’entreprise se rencontrent.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "Le cours et l’entreprise se rencontrent",
+        "introduction": "Reliez les apprentissages aux situations rencontrées en entreprise.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_general_cover",
+      "name": "ILLUSTRÉ · Général · Couverture illustrée",
+      "description": "Couverture illustrée, grande illustration dans le style des manuels Intégrale Academy. Un nouveau chapitre commence.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "cover",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVRIR LA FORMATION",
+        "title": "Un nouveau chapitre commence",
+        "introduction": "Donnez une nouvelle perspective à votre parcours avec Intégrale Academy.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_general_session",
+      "name": "ILLUSTRÉ · Général · Invitation session",
+      "description": "Invitation session, grande illustration dans le style des manuels Intégrale Academy. Et si on parlait de votre projet ?.",
+      "family": "session",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "session",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "startDate"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAINE ÉTAPE",
+        "title": "Et si on parlait de votre projet ?",
+        "introduction": "Notre équipe vous présente les parcours et vous aide à préparer la suite.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_general_immersion",
+      "name": "ILLUSTRÉ · Général · Immersion métier",
+      "description": "Immersion métier, grande illustration dans le style des manuels Intégrale Academy. Votre avenir se construit ensemble.",
+      "family": "careers",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "immersion",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN IMAGES",
+        "title": "Votre avenir se construit ensemble",
+        "introduction": "Une équipe, des échanges et des apprentissages concrets.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_general_skills",
+      "name": "ILLUSTRÉ · Général · Compétences clés",
+      "description": "Compétences clés, grande illustration dans le style des manuels Intégrale Academy. Une formation qui prend tout son sens.",
+      "family": "program",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "skills",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES DU MÉTIER",
+        "title": "Une formation qui prend tout son sens",
+        "introduction": "Comprendre, pratiquer et progresser avec un accompagnement attentif.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_general_path",
+      "name": "ILLUSTRÉ · Général · Parcours accompagné",
+      "description": "Parcours accompagné, grande illustration dans le style des manuels Intégrale Academy. De votre envie à votre projet.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "path",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "steps"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "CONSTRUISONS LA SUITE",
+        "title": "De votre envie à votre projet",
+        "introduction": "Faites le point sur vos objectifs et préparez votre entrée en formation.",
+        "cta": "Parlons de votre projet",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échangeons",
+            "text": "Présentez-nous votre projet."
+          },
+          {
+            "title": "Préparons",
+            "text": "Étudions les modalités d’entrée."
+          },
+          {
+            "title": "Avançons",
+            "text": "Organisons votre formation."
+          }
+        ]
+      }
+    },
+    {
+      "id": "manual_general_duo",
+      "name": "ILLUSTRÉ · Général · Apprendre en pratique",
+      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Apprendre avec les autres, avancer ensemble.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "duo",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FORMATION EN ACTION",
+        "title": "Apprendre avec les autres, avancer ensemble",
+        "introduction": "Des supports illustrés et des situations concrètes pour apprendre.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ]
+      }
     }
   ]
 }

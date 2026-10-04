@@ -1,11 +1,11 @@
 const status=document.getElementById('status');
 status.textContent='Chargement du moteur de rendu…';
 async function boot(){
-const {renderSlide}=await import('/static/studio_visuals/js/studio-renderer.js');
-const {createProject,FORMATS,normalizeSlideContentForTemplate}=await import('/static/studio_visuals/js/studio-store.js');
-const {fitSlide}=await import('/static/studio_visuals/js/studio-text-fit.js');
-const {waitForImages,SocialVisualExporter}=await import('/static/studio_visuals/js/studio-exporter.js');
-const {validateStudioSlide}=await import('/static/studio_visuals/js/studio-validation.js');
+const {renderSlide}=await import('./studio-renderer.js');
+const {createProject,FORMATS,normalizeSlideContentForTemplate}=await import('./studio-store.js');
+const {fitSlide}=await import('./studio-text-fit.js');
+const {waitForImages,SocialVisualExporter}=await import('./studio-exporter.js');
+const {validateStudioSlide}=await import('./studio-validation.js');
 const $=id=>document.getElementById(id);
 const [{templates},themes]=await Promise.all(['templates','themes'].map(name=>fetch('/static/studio_visuals/data/'+name+'.json').then(r=>r.json())));
 const catalog=templates.filter(t=>t.isManual);

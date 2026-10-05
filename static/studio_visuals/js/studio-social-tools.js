@@ -61,7 +61,7 @@ function factualContent(content){
 }
 function stableIndex(id){return Array.from(id||'').reduce((n,c)=>n+c.codePointAt(0),0)%5}
 function courseFor(project,template,d=SOCIAL_BY_ID[template.id]){
- const formation=template.formationPreset||project.formation;
+ const formation=template.isCanvas?project.formation:template.formationPreset||project.formation;
  let key=d?.key||template.courseKey;
  if(!PUBLICATION_COURSES[key]){
   const c=project.slides[project.activeSlideIndex]?.content||{};
@@ -71,6 +71,7 @@ function courseFor(project,template,d=SOCIAL_BY_ID[template.id]){
  return {key,course:SOCIAL_COURSES[key],copy:PUBLICATION_COURSES[key]};
 }
 function publicationPages(project,template,d){
+ if(template.isCanvas&&template.isCarousel)return project.slides.filter(s=>s.templateId===template.id).map(s=>s.content);
  if(!d?.pages)return [project.slides[project.activeSlideIndex]?.content||{}];
  return d.pages.map((page,i)=>project.slides.find(s=>s.templateId===template.id&&s.carouselPage===i)?.content||page);
 }

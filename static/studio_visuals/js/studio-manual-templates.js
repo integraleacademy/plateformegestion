@@ -1,8 +1,10 @@
+import {EXPANDED_MANUAL_LAYOUTS,renderExpandedManualBody} from './studio-expanded-templates.js';
 // Illustrations are local, optimised assets. Text always remains editable.
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export const MANUAL_LAYOUTS = ['cover','session','immersion','skills','path','duo'];
+export const MANUAL_LAYOUTS = ['cover','session','immersion','skills','path','duo',...EXPANDED_MANUAL_LAYOUTS];
 
 export function renderManualTemplateBody({template, slide, renderMode}) {
+  if(EXPANDED_MANUAL_LAYOUTS.includes(template.manualLayout))return renderExpandedManualBody({template,slide,renderMode});
   const c = {...template.contentDefaults, ...slide.content};
   const layout = template.manualLayout;
   if (!MANUAL_LAYOUTS.includes(layout)) throw new Error('Composition illustrée inconnue : '+layout);

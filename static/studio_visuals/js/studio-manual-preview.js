@@ -1,6 +1,9 @@
 const status=document.getElementById('status');
 status.textContent='Chargement du moteur de rendu…';
 async function boot(){
+ if(document.readyState!=='complete')await new Promise(resolve=>window.addEventListener('load',resolve,{once:true}));
+ const missing=[...document.querySelectorAll('link[rel=stylesheet]')].filter(link=>!link.sheet);
+ if(missing.length)throw new Error('Styles indisponibles : rechargez la page.');
  const {renderSlide}=await import('./studio-renderer.js');
  const {createProject,FORMATS,normalizeSlideContentForTemplate}=await import('./studio-store.js');
  const {applyCanvasTemplate}=await import('./studio-canvas-models.js');

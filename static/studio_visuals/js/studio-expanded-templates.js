@@ -16,7 +16,7 @@ function parts(template, slide, renderMode, defaults=template.contentDefaults) {
   const intro = () => field('introduction','p','body','mi-introduction');
   const action = () => `<div class="mi-action">${field('cta','span','cta')}<b aria-hidden="true">↗</b></div>`;
   const ending = () => `<div class="mi-ending">${intro()}${action()}</div>`;
-  const steps = (limit=4, cls='') => `<ol class="mx-cards ${cls}">${(content.steps||[]).slice(0,limit).map((_,i)=>`<li><i class="mx-index" aria-hidden="true">${String(i+1).padStart(2,'0')}</i><div>${field(`steps.${i}.title`,'strong')}${field(`steps.${i}.text`,'p','meta')}</div></li>`).join('')}</ol>`;
+  const steps = (limit=4, cls='') => `<ol class="mx-cards ${cls}">${(content.steps||[]).slice(0,limit).map((_,i)=>`<li><i class="mx-index" aria-hidden="true">${cls.includes('cv-checks')?'':String(i+1).padStart(2,'0')}</i><div>${field(`steps.${i}.title`,'strong')}${field(`steps.${i}.text`,'p','meta')}</div></li>`).join('')}</ol>`;
   const faq = (limit=4) => `<div class="mx-questions">${(content.faq||[]).slice(0,limit).map((_,i)=>`<section><i aria-hidden="true">?</i><div>${field(`faq.${i}.q`,'h2')}${field(`faq.${i}.a`,'p','body')}</div></section>`).join('')}</div>`;
   return {content,field,image,header,intro,action,ending,steps,faq};
 }

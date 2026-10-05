@@ -127,6 +127,69 @@
       "width": 1536,
       "height": 1024,
       "source": "Illustration générée pour le studio, référence graphique : manuel SSIAP 1 fourni."
+    },
+    {
+      "file": "aps_ronde.webp",
+      "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "Dans une cour d’immeuble de bureaux moderne, une agente de sécurité en polo bleu marine fait une ronde avec un collègue, tenant un petit carnet et un talkie-walkie. Les deux échangent calmement devant un accès piéton. Jardin et façade vitrée lumineux, attitude accueillante et professionnelle. Aucune arme, aucun équipement policier."
+    },
+    {
+      "file": "ssiap_prevention.webp",
+      "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "Dans le hall lumineux d’un établissement, une agente en polo rouge et un formateur en polo rouge examinent visuellement un extincteur fixé à sa patère murale. Ils regardent l’équipement et prennent des notes sur une tablette, sans le manipuler. Une large porte vitrée et un couloir dégagé en arrière-plan, pas de feu, pas de procédure technique illustrée."
+    },
+    {
+      "file": "a3p_evenement.webp",
+      "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "À l’entrée d’un centre de congrès contemporain, un professionnel et une professionnelle de protection rapprochée en costumes bleu marine accompagnent discrètement une cliente adulte portant une veste beige. Ils marchent sereinement, ont une posture attentive et courtoise. Escaliers larges, verrière, quelques silhouettes lointaines. Aucune arme, aucune violence, aucun uniforme de police."
+    },
+    {
+      "file": "vtc_hotel.webp",
+      "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "Devant un élégant hôtel méditerranéen, un chauffeur VTC en costume bleu nuit accueille une voyageuse adulte et prend en charge sa valise à côté d’une berline sombre garée. Ils se regardent et sourient sobrement. Scène de service professionnel, arbres et façade claire, porte arrière visible. Aucune marque automobile ni logo, aucune plaque lisible."
+    },
+    {
+      "file": "direction_audit.webp",
+      "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "Dans un bureau lumineux, une dirigeante d’entreprise de sécurité vêtue d’une veste orange cuivré et un responsable de site en chemise bleu marine étudient un dossier ouvert et des fiches d’organisation. Un tableau mural avec quelques rectangles colorés et schémas abstraits sans chiffres ni texte. Échange professionnel calme et concret, pas de poses de vente ou de poignées de mains."
+    },
+    {
+      "file": "bts_projet.webp",
+      "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "Dans une salle de projet contemporaine, trois étudiants adultes en BTS travaillent autour d’un tableau blanc mobile, avec un ordinateur portable et des post-it colorés sans texte lisible. Une étudiante debout présente une idée, les autres prennent des notes, groupe diversifié, ambiance studieuse et enthousiaste, plantes et grandes fenêtres."
+    },
+    {
+      "file": "general_atelier.webp",
+      "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+      "width": 1536,
+      "height": 1024,
+      "source": "Illustration originale générée avec imagegen · 2026-10-05",
+      "styleReference": "ssiap_plan.webp",
+      "prompt": "Dans une salle de formation lumineuse, une formatrice adulte guide un petit groupe d’adultes en reconversion autour d’une grande table. Cahiers ouverts et fiches de travail, elle explique avec une main ouverte. Visages concentrés et confiants, aucune remise de diplôme, pas de texte imprimé ni de logo."
     }
   ]
 }

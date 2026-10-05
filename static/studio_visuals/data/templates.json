@@ -63,6 +63,4857 @@
   ],
   "templates": [
     {
+      "id": "manual_aps_spotlight",
+      "name": "ILLUSTRÉ · APS · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour APS. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_ronde.webp",
+        "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "La vigilance au quotidien",
+        "introduction": "Un métier de vigilance, de relation humaine et de responsabilités.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ],
+        "highlightedText": "Sécurité"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "aps_ronde.webp",
+          "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_accueil.webp",
+          "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_pc.webp",
+          "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_aps_editorial",
+      "name": "ILLUSTRÉ · APS · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour APS. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_ronde.webp",
+        "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "La vigilance au quotidien",
+        "introduction": "Un métier de vigilance, de relation humaine et de responsabilités.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ],
+        "highlightedText": "Sécurité"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "aps_ronde.webp",
+          "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_accueil.webp",
+          "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_pc.webp",
+          "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_aps_storyboard",
+      "name": "ILLUSTRÉ · APS · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour APS. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_ronde.webp",
+        "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "La vigilance au quotidien",
+        "introduction": "Un métier de vigilance, de relation humaine et de responsabilités.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ],
+        "highlightedText": "Sécurité"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "aps_ronde.webp",
+          "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_accueil.webp",
+          "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_pc.webp",
+          "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_aps_dialogue",
+      "name": "ILLUSTRÉ · APS · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour APS. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_ronde.webp",
+        "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre projet APS",
+        "introduction": "Un métier de vigilance, de relation humaine et de responsabilités.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Repérer une situation inhabituelle."
+          },
+          {
+            "title": "Communiquer",
+            "text": "Accueillir, écouter et transmettre."
+          },
+          {
+            "title": "Rendre compte",
+            "text": "Décrire des faits précis et utiles."
+          }
+        ],
+        "highlightedText": "Sécurité",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "aps_ronde.webp",
+          "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_accueil.webp",
+          "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_pc.webp",
+          "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_aps_roadmap",
+      "name": "ILLUSTRÉ · APS · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour APS. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "APS",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_ronde.webp",
+        "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "aps_pc.webp",
+        "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Votre parcours vers la sécurité privée",
+        "introduction": "Un métier de vigilance, de relation humaine et de responsabilités.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Sécurité"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "aps_ronde.webp",
+          "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_accueil.webp",
+          "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "aps_pc.webp",
+          "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_ssiap_spotlight",
+      "name": "ILLUSTRÉ · SSIAP 1 · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour SSIAP 1. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_prevention.webp",
+        "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "Prévenir commence sur le terrain",
+        "introduction": "Formez-vous à la prévention incendie et à l’assistance à personnes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ],
+        "highlightedText": "Prévenir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "ssiap_prevention.webp",
+          "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_plan.webp",
+          "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_ronde.webp",
+          "alt": "Une agente vérifie une issue de secours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_ssiap_editorial",
+      "name": "ILLUSTRÉ · SSIAP 1 · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour SSIAP 1. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_prevention.webp",
+        "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "Prévenir commence sur le terrain",
+        "introduction": "Formez-vous à la prévention incendie et à l’assistance à personnes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ],
+        "highlightedText": "Prévenir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "ssiap_prevention.webp",
+          "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_plan.webp",
+          "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_ronde.webp",
+          "alt": "Une agente vérifie une issue de secours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_ssiap_storyboard",
+      "name": "ILLUSTRÉ · SSIAP 1 · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour SSIAP 1. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_prevention.webp",
+        "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "Prévenir commence sur le terrain",
+        "introduction": "Formez-vous à la prévention incendie et à l’assistance à personnes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ],
+        "highlightedText": "Prévenir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "ssiap_prevention.webp",
+          "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_plan.webp",
+          "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_ronde.webp",
+          "alt": "Une agente vérifie une issue de secours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_ssiap_dialogue",
+      "name": "ILLUSTRÉ · SSIAP 1 · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour SSIAP 1. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_prevention.webp",
+        "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre projet SSIAP 1",
+        "introduction": "Formez-vous à la prévention incendie et à l’assistance à personnes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Prévenir",
+            "text": "Repérer les anomalies lors des rondes."
+          },
+          {
+            "title": "Alerter",
+            "text": "Transmettre une information précise."
+          },
+          {
+            "title": "Accompagner",
+            "text": "Appliquer les consignes du site."
+          }
+        ],
+        "highlightedText": "Prévenir",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "ssiap_prevention.webp",
+          "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_plan.webp",
+          "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_ronde.webp",
+          "alt": "Une agente vérifie une issue de secours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_ssiap_roadmap",
+      "name": "ILLUSTRÉ · SSIAP 1 · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour SSIAP 1. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "SSIAP",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_prevention.webp",
+        "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "ssiap_ronde.webp",
+        "alt": "Une agente vérifie une issue de secours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Votre parcours en sécurité incendie",
+        "introduction": "Formez-vous à la prévention incendie et à l’assistance à personnes.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Prévenir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "ssiap_prevention.webp",
+          "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_plan.webp",
+          "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "ssiap_ronde.webp",
+          "alt": "Une agente vérifie une issue de secours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_a3p_spotlight",
+      "name": "ILLUSTRÉ · A3P · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour A3P. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_evenement.webp",
+        "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "L’attention fait la différence",
+        "introduction": "Découvrez un métier qui conjugue observation, préparation et maîtrise de soi.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ],
+        "highlightedText": "Protéger"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "a3p_evenement.webp",
+          "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_terrain.webp",
+          "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_briefing.webp",
+          "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_a3p_editorial",
+      "name": "ILLUSTRÉ · A3P · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour A3P. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_evenement.webp",
+        "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "L’attention fait la différence",
+        "introduction": "Découvrez un métier qui conjugue observation, préparation et maîtrise de soi.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ],
+        "highlightedText": "Protéger"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "a3p_evenement.webp",
+          "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_terrain.webp",
+          "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_briefing.webp",
+          "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_a3p_storyboard",
+      "name": "ILLUSTRÉ · A3P · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour A3P. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_evenement.webp",
+        "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "L’attention fait la différence",
+        "introduction": "Découvrez un métier qui conjugue observation, préparation et maîtrise de soi.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ],
+        "highlightedText": "Protéger"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "a3p_evenement.webp",
+          "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_terrain.webp",
+          "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_briefing.webp",
+          "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_a3p_dialogue",
+      "name": "ILLUSTRÉ · A3P · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour A3P. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_evenement.webp",
+        "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre projet A3P",
+        "introduction": "Découvrez un métier qui conjugue observation, préparation et maîtrise de soi.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Comprendre l’environnement."
+          },
+          {
+            "title": "Préparer",
+            "text": "Organiser le déplacement."
+          },
+          {
+            "title": "Coordonner",
+            "text": "Partager les informations utiles."
+          }
+        ],
+        "highlightedText": "Protéger",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "a3p_evenement.webp",
+          "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_terrain.webp",
+          "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_briefing.webp",
+          "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_a3p_roadmap",
+      "name": "ILLUSTRÉ · A3P · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour A3P. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "A3P",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "a3p_evenement.webp",
+        "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "a3p_briefing.webp",
+        "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Votre parcours vers la protection",
+        "introduction": "Découvrez un métier qui conjugue observation, préparation et maîtrise de soi.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Protéger"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "a3p_evenement.webp",
+          "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_terrain.webp",
+          "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "a3p_briefing.webp",
+          "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_vtc_spotlight",
+      "name": "ILLUSTRÉ · VTC · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour VTC. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_hotel.webp",
+        "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "Le service, dans chaque détail",
+        "introduction": "Formez-vous au métier de chauffeur VTC et préparez la suite de votre projet.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ],
+        "highlightedText": "Accueillir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "vtc_hotel.webp",
+          "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_accueil.webp",
+          "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_preparation.webp",
+          "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_vtc_editorial",
+      "name": "ILLUSTRÉ · VTC · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour VTC. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_hotel.webp",
+        "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "Le service, dans chaque détail",
+        "introduction": "Formez-vous au métier de chauffeur VTC et préparez la suite de votre projet.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ],
+        "highlightedText": "Accueillir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "vtc_hotel.webp",
+          "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_accueil.webp",
+          "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_preparation.webp",
+          "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_vtc_storyboard",
+      "name": "ILLUSTRÉ · VTC · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour VTC. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_hotel.webp",
+        "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "Le service, dans chaque détail",
+        "introduction": "Formez-vous au métier de chauffeur VTC et préparez la suite de votre projet.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ],
+        "highlightedText": "Accueillir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "vtc_hotel.webp",
+          "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_accueil.webp",
+          "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_preparation.webp",
+          "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_vtc_dialogue",
+      "name": "ILLUSTRÉ · VTC · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour VTC. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_hotel.webp",
+        "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre projet VTC",
+        "introduction": "Formez-vous au métier de chauffeur VTC et préparez la suite de votre projet.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Préparer",
+            "text": "Organiser une prestation."
+          },
+          {
+            "title": "Accueillir",
+            "text": "Soigner la relation avec le client."
+          },
+          {
+            "title": "Conduire",
+            "text": "Allier sécurité et confort."
+          }
+        ],
+        "highlightedText": "Accueillir",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "vtc_hotel.webp",
+          "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_accueil.webp",
+          "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_preparation.webp",
+          "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_vtc_roadmap",
+      "name": "ILLUSTRÉ · VTC · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour VTC. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "VTC",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_hotel.webp",
+        "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "vtc_preparation.webp",
+        "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Votre projet de chauffeur VTC",
+        "introduction": "Formez-vous au métier de chauffeur VTC et préparez la suite de votre projet.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Accueillir"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "vtc_hotel.webp",
+          "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_accueil.webp",
+          "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "vtc_preparation.webp",
+          "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_direction_spotlight",
+      "name": "ILLUSTRÉ · Direction · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour Direction. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "Donnez du cap à votre équipe",
+        "introduction": "Développez votre projet de direction d’une entreprise de sécurité privée.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ],
+        "highlightedText": "Piloter"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "direction_audit.webp",
+          "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_pilotage.webp",
+          "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_projet.webp",
+          "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_direction_editorial",
+      "name": "ILLUSTRÉ · Direction · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour Direction. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "Donnez du cap à votre équipe",
+        "introduction": "Développez votre projet de direction d’une entreprise de sécurité privée.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ],
+        "highlightedText": "Piloter"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "direction_audit.webp",
+          "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_pilotage.webp",
+          "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_projet.webp",
+          "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_direction_storyboard",
+      "name": "ILLUSTRÉ · Direction · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour Direction. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "Donnez du cap à votre équipe",
+        "introduction": "Développez votre projet de direction d’une entreprise de sécurité privée.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ],
+        "highlightedText": "Piloter"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "direction_audit.webp",
+          "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_pilotage.webp",
+          "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_projet.webp",
+          "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_direction_dialogue",
+      "name": "ILLUSTRÉ · Direction · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour Direction. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre projet Direction",
+        "introduction": "Développez votre projet de direction d’une entreprise de sécurité privée.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Organiser",
+            "text": "Planifier et suivre l’activité."
+          },
+          {
+            "title": "Manager",
+            "text": "Accompagner les équipes."
+          },
+          {
+            "title": "Piloter",
+            "text": "Analyser et décider avec méthode."
+          }
+        ],
+        "highlightedText": "Piloter",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "direction_audit.webp",
+          "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_pilotage.webp",
+          "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_projet.webp",
+          "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_direction_roadmap",
+      "name": "ILLUSTRÉ · Direction · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour Direction. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "DIRIGEANT",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "desp_projet.webp",
+        "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Votre projet de direction",
+        "introduction": "Développez votre projet de direction d’une entreprise de sécurité privée.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Piloter"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "direction_audit.webp",
+          "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_pilotage.webp",
+          "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "desp_projet.webp",
+          "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_bts_spotlight",
+      "name": "ILLUSTRÉ · BTS · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour BTS. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "Apprendre en faisant",
+        "introduction": "Un projet professionnel se construit avec des connaissances et de la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ],
+        "highlightedText": "Progresser"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "bts_projet.webp",
+          "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_campus.webp",
+          "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_entreprise.webp",
+          "alt": "Une apprentie échange avec son tuteur en entreprise.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_bts_editorial",
+      "name": "ILLUSTRÉ · BTS · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour BTS. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "Apprendre en faisant",
+        "introduction": "Un projet professionnel se construit avec des connaissances et de la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ],
+        "highlightedText": "Progresser"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "bts_projet.webp",
+          "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_campus.webp",
+          "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_entreprise.webp",
+          "alt": "Une apprentie échange avec son tuteur en entreprise.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_bts_storyboard",
+      "name": "ILLUSTRÉ · BTS · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour BTS. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "Apprendre en faisant",
+        "introduction": "Un projet professionnel se construit avec des connaissances et de la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ],
+        "highlightedText": "Progresser"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "bts_projet.webp",
+          "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_campus.webp",
+          "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_entreprise.webp",
+          "alt": "Une apprentie échange avec son tuteur en entreprise.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_bts_dialogue",
+      "name": "ILLUSTRÉ · BTS · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour BTS. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre projet BTS",
+        "introduction": "Un projet professionnel se construit avec des connaissances et de la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Apprendre",
+            "text": "Comprendre les méthodes du métier."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Travailler sur des cas concrets."
+          },
+          {
+            "title": "Progresser",
+            "text": "Développer son autonomie."
+          }
+        ],
+        "highlightedText": "Progresser",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "bts_projet.webp",
+          "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_campus.webp",
+          "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_entreprise.webp",
+          "alt": "Une apprentie échange avec son tuteur en entreprise.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_bts_roadmap",
+      "name": "ILLUSTRÉ · BTS · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour BTS. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "BTS",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "bts_entreprise.webp",
+        "alt": "Une apprentie échange avec son tuteur en entreprise.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Votre projet prend forme en BTS",
+        "introduction": "Un projet professionnel se construit avec des connaissances et de la pratique.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Progresser"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "bts_projet.webp",
+          "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_campus.webp",
+          "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "bts_entreprise.webp",
+          "alt": "Une apprentie échange avec son tuteur en entreprise.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_general_spotlight",
+      "name": "ILLUSTRÉ · Général · Portrait de métier",
+      "description": "Portrait de métier, une nouvelle composition illustrée pour Général. Textes modifiables dans les quatre formats.",
+      "family": "cover",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "spotlight",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UN MÉTIER À DÉCOUVRIR",
+        "title": "Osez un nouveau départ",
+        "introduction": "Donnez une nouvelle perspective à votre parcours avec Intégrale Academy.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ],
+        "highlightedText": "Évoluer"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "general_atelier.webp",
+          "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_accompagnement.webp",
+          "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_equipe.webp",
+          "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_general_editorial",
+      "name": "ILLUSTRÉ · Général · Page de magazine",
+      "description": "Page de magazine, une nouvelle composition illustrée pour Général. Textes modifiables dans les quatre formats.",
+      "family": "editorial",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "editorial",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "highlightedText",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE MÉTIER EN PERSPECTIVE",
+        "title": "Osez un nouveau départ",
+        "introduction": "Donnez une nouvelle perspective à votre parcours avec Intégrale Academy.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ],
+        "highlightedText": "Évoluer"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "general_atelier.webp",
+          "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_accompagnement.webp",
+          "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_equipe.webp",
+          "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_general_storyboard",
+      "name": "ILLUSTRÉ · Général · Le métier en trois scènes",
+      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour Général. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "storyboard",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "UNE HISTOIRE DE TERRAIN",
+        "title": "Osez un nouveau départ",
+        "introduction": "Donnez une nouvelle perspective à votre parcours avec Intégrale Academy.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ],
+        "highlightedText": "Évoluer"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "general_atelier.webp",
+          "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_accompagnement.webp",
+          "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_equipe.webp",
+          "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_general_dialogue",
+      "name": "ILLUSTRÉ · Général · Questions de terrain",
+      "description": "Questions de terrain, une nouvelle composition illustrée pour Général. Textes modifiables dans les quatre formats.",
+      "family": "faq",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "dialogue",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON EN PARLE ?",
+        "title": "Parlons de votre avenir",
+        "introduction": "Donnez une nouvelle perspective à votre parcours avec Intégrale Academy.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Des explications accessibles."
+          },
+          {
+            "title": "Pratiquer",
+            "text": "Des situations concrètes."
+          },
+          {
+            "title": "Échanger",
+            "text": "Une équipe à vos côtés."
+          }
+        ],
+        "highlightedText": "Évoluer",
+        "faq": [
+          {
+            "q": "Quel parcours choisir ?",
+            "a": "Présentez votre projet à notre équipe."
+          },
+          {
+            "q": "Comment se préparer ?",
+            "a": "Faites le point sur les conditions d’accès."
+          },
+          {
+            "q": "Et les prochaines dates ?",
+            "a": "Contactez le centre pour les sessions à venir."
+          }
+        ]
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "general_atelier.webp",
+          "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_accompagnement.webp",
+          "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_equipe.webp",
+          "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "manual_general_roadmap",
+      "name": "ILLUSTRÉ · Général · Feuille de route",
+      "description": "Feuille de route, une nouvelle composition illustrée pour Général. Textes modifiables dans les quatre formats.",
+      "family": "process",
+      "renderer": "renderManualTemplate",
+      "status": "ready",
+      "version": 1,
+      "isManual": true,
+      "collection": "Manuels illustrés",
+      "formationPreset": "OR",
+      "manualLayout": "roadmap",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "density": "illustré",
+      "style": "manuel scolaire",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "secondaryIllustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROCHAIN CHAPITRE",
+        "title": "Construisez votre prochain chapitre",
+        "introduction": "Donnez une nouvelle perspective à votre parcours avec Intégrale Academy.",
+        "cta": "Découvrir la formation",
+        "startDate": "Dates sur demande",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre point de départ",
+            "text": "Échangez sur votre expérience et vos envies."
+          },
+          {
+            "title": "Votre formation",
+            "text": "Identifiez le parcours adapté à votre projet."
+          },
+          {
+            "title": "Votre prochaine étape",
+            "text": "Préparez la suite avec notre équipe."
+          }
+        ],
+        "highlightedText": "Évoluer"
+      },
+      "isManualExpansion": true,
+      "isStudioExpansion": true,
+      "illustrations": [
+        {
+          "file": "general_atelier.webp",
+          "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_accompagnement.webp",
+          "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+          "width": 1536,
+          "height": 1024
+        },
+        {
+          "file": "general_equipe.webp",
+          "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+          "width": 1536,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "id": "canvas_session",
+      "name": "CANEVAS · Ticket de session",
+      "description": "Ticket de session illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "ticket",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "startDate",
+        "location",
+        "duration",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "PROCHAINE SESSION",
+        "title": "Votre prochaine session",
+        "introduction": "Présentez ici la formation et le public concerné.",
+        "cta": "Demander les informations",
+        "duration": "Horaires à préciser",
+        "financing": "",
+        "availability": "",
+        "startDate": "Date à préciser",
+        "stats": [],
+        "steps": [],
+        "faq": [],
+        "location": "Lieu à préciser"
+      }
+    },
+    {
+      "id": "canvas_programme",
+      "name": "CANEVAS · Programme en 4 modules",
+      "description": "Programme en 4 modules illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "programme",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE PROGRAMME",
+        "title": "Au programme",
+        "introduction": "Un parcours à construire selon vos objectifs.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Comprendre",
+            "text": "Présentez les notions essentielles."
+          },
+          {
+            "title": "S’exercer",
+            "text": "Décrivez les mises en pratique."
+          },
+          {
+            "title": "Échanger",
+            "text": "Précisez les temps de partage."
+          },
+          {
+            "title": "Faire le point",
+            "text": "Présentez les modalités du bilan."
+          }
+        ],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_checklist",
+      "name": "CANEVAS · Checklist de préparation",
+      "description": "Checklist de préparation illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "checklist",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "aps_ronde.webp",
+        "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA CHECKLIST",
+        "title": "Prêt pour le départ ?",
+        "introduction": "Adaptez cette liste aux informations de votre centre.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Votre inscription",
+            "text": "Vérifier la confirmation."
+          },
+          {
+            "title": "Vos documents",
+            "text": "Préparer les pièces demandées."
+          },
+          {
+            "title": "Votre trajet",
+            "text": "Repérer le lieu de formation."
+          },
+          {
+            "title": "Vos horaires",
+            "text": "Consulter la convocation."
+          },
+          {
+            "title": "Votre matériel",
+            "text": "Suivre les indications reçues."
+          },
+          {
+            "title": "Vos questions",
+            "text": "Noter les points à éclaircir."
+          }
+        ],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_fiche",
+      "name": "CANEVAS · Fiche pratique",
+      "description": "Fiche pratique illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "fiche",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "ssiap_prevention.webp",
+        "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA MÉTHODE EN 3 ÉTAPES",
+        "title": "Votre fiche pratique",
+        "introduction": "Objectif : expliquez ce que le lecteur va apprendre.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Observer",
+            "text": "Décrivez le point à repérer."
+          },
+          {
+            "title": "Comprendre",
+            "text": "Expliquez le principe essentiel."
+          },
+          {
+            "title": "Appliquer",
+            "text": "Proposez une mise en pratique."
+          }
+        ],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_comparatif",
+      "name": "CANEVAS · Comparatif à deux colonnes",
+      "description": "Comparatif à deux colonnes illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "comparatif",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "before",
+        "after",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "POUR BIEN CHOISIR",
+        "title": "Deux pistes, un projet",
+        "introduction": "Remplacez chaque critère par une information vérifiée.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "À qui s’adresse-t-il ?",
+            "text": "Décrivez le public du parcours A."
+          },
+          {
+            "title": "Quel rythme ?",
+            "text": "Précisez son organisation."
+          },
+          {
+            "title": "À qui s’adresse-t-il ?",
+            "text": "Décrivez le public du parcours B."
+          },
+          {
+            "title": "Quel rythme ?",
+            "text": "Précisez son organisation."
+          }
+        ],
+        "faq": [],
+        "before": "Parcours A",
+        "after": "Parcours B"
+      }
+    },
+    {
+      "id": "canvas_chronologie",
+      "name": "CANEVAS · Frise du parcours",
+      "description": "Frise du parcours illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "chronologie",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_accompagnement.webp",
+        "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LA FEUILLE DE ROUTE",
+        "title": "Votre parcours, pas à pas",
+        "introduction": "Présentez les étapes de votre accompagnement.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Échanger",
+            "text": "Clarifier le projet."
+          },
+          {
+            "title": "Préparer",
+            "text": "Constituer le dossier."
+          },
+          {
+            "title": "Se former",
+            "text": "Développer ses compétences."
+          },
+          {
+            "title": "Poursuivre",
+            "text": "Préparer la suite."
+          }
+        ],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_objectifs",
+      "name": "CANEVAS · Objectifs pédagogiques",
+      "description": "Objectifs pédagogiques illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "objectifs",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES OBJECTIFS",
+        "title": "Ce que vous allez développer",
+        "introduction": "À l’issue du parcours : indiquez votre objectif principal.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Connaissances",
+            "text": "Précisez les notions à comprendre."
+          },
+          {
+            "title": "Savoir-faire",
+            "text": "Décrivez les gestes ou méthodes."
+          },
+          {
+            "title": "Posture",
+            "text": "Présentez les attitudes attendues."
+          }
+        ],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_faq",
+      "name": "CANEVAS · Questions et réponses",
+      "description": "Questions et réponses illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "faq",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "faq",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "ON VOUS RÉPOND",
+        "title": "Vos questions, nos réponses",
+        "introduction": "Complétez les réponses avec les informations du centre.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [],
+        "faq": [
+          {
+            "q": "Pour quel public ?",
+            "a": "Indiquez le public concerné."
+          },
+          {
+            "q": "Quels prérequis ?",
+            "a": "Précisez les conditions d’accès."
+          },
+          {
+            "q": "Quel calendrier ?",
+            "a": "Ajoutez les dates confirmées."
+          },
+          {
+            "q": "Comment s’inscrire ?",
+            "a": "Présentez la démarche à suivre."
+          }
+        ]
+      }
+    },
+    {
+      "id": "canvas_chiffres",
+      "name": "CANEVAS · Chiffres clés",
+      "description": "Chiffres clés illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "chiffres",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "stats",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "direction_audit.webp",
+        "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES REPÈRES",
+        "title": "Votre formation en chiffres",
+        "introduction": "Ajoutez vos données vérifiées et leur période de référence.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [
+          {
+            "label": "Durée du parcours",
+            "value": "—"
+          },
+          {
+            "label": "Nombre de modules",
+            "value": "—"
+          },
+          {
+            "label": "Effectif du groupe",
+            "value": "—"
+          },
+          {
+            "label": "Année de référence",
+            "value": "—"
+          }
+        ],
+        "steps": [],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_temoignage",
+      "name": "CANEVAS · Parole d’apprenant",
+      "description": "Parole d’apprenant illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "temoignage",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "quote",
+        "author",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_campus.webp",
+        "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "PAROLE D’APPRENANT",
+        "title": "Une expérience à partager",
+        "introduction": "Insérez un témoignage que vous êtes autorisé à publier.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [],
+        "faq": [],
+        "quote": "Votre témoignage à insérer ici.",
+        "author": "Prénom · Parcours suivi"
+      }
+    },
+    {
+      "id": "canvas_evenement",
+      "name": "CANEVAS · Invitation à un événement",
+      "description": "Invitation à un événement illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "evenement",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "startDate",
+        "location",
+        "duration",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_equipe.webp",
+        "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "VOTRE INVITATION",
+        "title": "Rencontrons-nous",
+        "introduction": "Présentez les activités et les personnes à rencontrer.",
+        "cta": "Demander le programme",
+        "duration": "Horaires à préciser",
+        "financing": "",
+        "availability": "",
+        "startDate": "Date à préciser",
+        "stats": [],
+        "steps": [],
+        "faq": [],
+        "location": "Lieu à préciser"
+      }
+    },
+    {
+      "id": "canvas_annonce",
+      "name": "CANEVAS · Annonce illustrée",
+      "description": "Annonce illustrée illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "annonce",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "vtc_hotel.webp",
+        "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "À LA UNE",
+        "title": "Votre nouvelle commence ici",
+        "introduction": "Présentez votre actualité en une ou deux phrases.",
+        "cta": "En savoir plus",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_carnet",
+      "name": "CANEVAS · Carnet de révision",
+      "description": "Carnet de révision illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "carnet",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "steps",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LE CARNET DE RÉVISION",
+        "title": "L’essentiel à retenir",
+        "introduction": "Transformez vos notes en repères faciles à relire.",
+        "cta": "Contactez notre équipe",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [
+          {
+            "title": "Une notion",
+            "text": "Votre définition en quelques mots."
+          },
+          {
+            "title": "Une méthode",
+            "text": "Les étapes à mémoriser."
+          },
+          {
+            "title": "Un exemple",
+            "text": "Une situation pour comprendre."
+          },
+          {
+            "title": "Une question",
+            "text": "Un point à approfondir."
+          }
+        ],
+        "faq": []
+      }
+    },
+    {
+      "id": "canvas_carousel_decouverte",
+      "name": "CANEVAS · Carrousel découverte · 5 pages",
+      "description": "Carrousel découverte · 5 pages illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "annonce",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "general_atelier.webp",
+        "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "DÉCOUVERTE · 1/5",
+        "title": "Découvrez votre future formation",
+        "introduction": "Présentez en une phrase ce qui rend ce parcours utile.",
+        "cta": "Faites défiler",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [],
+        "faq": []
+      },
+      "isCarousel": true,
+      "pageCount": 5,
+      "pages": [
+        {
+          "layout": "annonce",
+          "contentDefaults": {
+            "eyebrow": "DÉCOUVERTE · 1/5",
+            "title": "Découvrez votre future formation",
+            "introduction": "Présentez en une phrase ce qui rend ce parcours utile.",
+            "cta": "Faites défiler",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "objectifs",
+          "contentDefaults": {
+            "eyebrow": "LES OBJECTIFS · 2/5",
+            "title": "Trois objectifs pour avancer",
+            "introduction": "Votre objectif principal, formulé simplement.",
+            "cta": "La suite du parcours",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Indiquez la première compétence."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Décrivez la mise en application."
+              },
+              {
+                "title": "Progresser",
+                "text": "Présentez le résultat attendu."
+              }
+            ],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "steps",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "programme",
+          "contentDefaults": {
+            "eyebrow": "LE PROGRAMME · 3/5",
+            "title": "Un programme concret",
+            "introduction": "Adaptez les quatre modules à votre formation.",
+            "cta": "Vos questions",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Présentez les notions essentielles."
+              },
+              {
+                "title": "S’exercer",
+                "text": "Décrivez les mises en pratique."
+              },
+              {
+                "title": "Échanger",
+                "text": "Précisez les temps de partage."
+              },
+              {
+                "title": "Faire le point",
+                "text": "Présentez les modalités du bilan."
+              }
+            ],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "steps",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "faq",
+          "contentDefaults": {
+            "eyebrow": "LES REPÈRES · 4/5",
+            "title": "Avant de vous lancer",
+            "introduction": "Remplacez ces réponses par vos informations à jour.",
+            "cta": "Préparons votre projet",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [],
+            "faq": [
+              {
+                "q": "Pour quel public ?",
+                "a": "Indiquez le public concerné."
+              },
+              {
+                "q": "Quels prérequis ?",
+                "a": "Précisez les conditions d’accès."
+              },
+              {
+                "q": "Quel calendrier ?",
+                "a": "Ajoutez les dates confirmées."
+              },
+              {
+                "q": "Comment s’inscrire ?",
+                "a": "Présentez la démarche à suivre."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "faq",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "evenement",
+          "contentDefaults": {
+            "eyebrow": "VOTRE PROCHAINE ÉTAPE · 5/5",
+            "title": "Parlons de votre projet",
+            "introduction": "Invitez votre lecteur à prendre contact avec le centre.",
+            "cta": "Contactez notre équipe",
+            "duration": "Informations sur demande",
+            "financing": "",
+            "availability": "",
+            "startDate": "À votre rythme",
+            "stats": [],
+            "steps": [],
+            "faq": [],
+            "location": "Intégrale Academy"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "startDate",
+            "location",
+            "duration",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canvas_carousel_conseils",
+      "name": "CANEVAS · Carrousel conseils · 5 pages",
+      "description": "Carrousel conseils · 5 pages illustré et personnalisable. Textes, couleurs et quatre formats adaptables à votre formation.",
+      "family": "canvas",
+      "renderer": "renderCanvasTemplate",
+      "status": "ready",
+      "version": 1,
+      "isCanvas": true,
+      "isStudioExpansion": true,
+      "collection": "Canevas personnalisables",
+      "formationPreset": "OR",
+      "canvasLayout": "annonce",
+      "supportedFormats": [
+        "instagram_square",
+        "instagram_portrait",
+        "instagram_story",
+        "linkedin_landscape"
+      ],
+      "suitableRoles": [
+        "cover",
+        "content",
+        "conclusion"
+      ],
+      "supportedContent": [
+        "eyebrow",
+        "title",
+        "introduction",
+        "cta",
+        "footer"
+      ],
+      "contentLabels": {
+        "steps": "Contenu des blocs",
+        "before": "Colonne gauche",
+        "after": "Colonne droite",
+        "startDate": "Date à afficher"
+      },
+      "density": "modulable",
+      "style": "canevas illustré",
+      "brandLayout": "top-horizontal",
+      "illustration": {
+        "file": "bts_projet.webp",
+        "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+        "width": 1536,
+        "height": 1024
+      },
+      "contentDefaults": {
+        "eyebrow": "LES BONS REPÈRES · 1/5",
+        "title": "Préparez votre formation",
+        "introduction": "Quelques repères pour aborder votre parcours sereinement.",
+        "cta": "Faites défiler",
+        "duration": "",
+        "financing": "",
+        "availability": "",
+        "startDate": "",
+        "stats": [],
+        "steps": [],
+        "faq": []
+      },
+      "isCarousel": true,
+      "pageCount": 5,
+      "pages": [
+        {
+          "layout": "annonce",
+          "contentDefaults": {
+            "eyebrow": "LES BONS REPÈRES · 1/5",
+            "title": "Préparez votre formation",
+            "introduction": "Quelques repères pour aborder votre parcours sereinement.",
+            "cta": "Faites défiler",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "checklist",
+          "contentDefaults": {
+            "eyebrow": "SE PRÉPARER · 2/5",
+            "title": "Avant le premier jour",
+            "introduction": "Une liste à adapter aux consignes de votre centre.",
+            "cta": "Pendant la formation",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Votre inscription",
+                "text": "Vérifier la confirmation."
+              },
+              {
+                "title": "Vos documents",
+                "text": "Préparer les pièces demandées."
+              },
+              {
+                "title": "Votre trajet",
+                "text": "Repérer le lieu de formation."
+              },
+              {
+                "title": "Vos horaires",
+                "text": "Consulter la convocation."
+              },
+              {
+                "title": "Votre matériel",
+                "text": "Suivre les indications reçues."
+              },
+              {
+                "title": "Vos questions",
+                "text": "Noter les points à éclaircir."
+              }
+            ],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "steps",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "fiche",
+          "contentDefaults": {
+            "eyebrow": "S’ORGANISER · 3/5",
+            "title": "Apprendre avec méthode",
+            "introduction": "Objectif : construire des habitudes qui vous aident à progresser.",
+            "cta": "Pour vos révisions",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Prendre des notes",
+                "text": "Relever les idées essentielles."
+              },
+              {
+                "title": "Poser des questions",
+                "text": "Faire préciser ce qui reste flou."
+              },
+              {
+                "title": "S’entraîner",
+                "text": "Revenir sur les exercices proposés."
+              }
+            ],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "steps",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "carnet",
+          "contentDefaults": {
+            "eyebrow": "FAIRE LE POINT · 4/5",
+            "title": "Votre carnet de repères",
+            "introduction": "Reprenez chaque point avec vos propres exemples.",
+            "cta": "La prochaine étape",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Une notion",
+                "text": "Votre définition en quelques mots."
+              },
+              {
+                "title": "Une méthode",
+                "text": "Les étapes à mémoriser."
+              },
+              {
+                "title": "Un exemple",
+                "text": "Une situation pour comprendre."
+              },
+              {
+                "title": "Une question",
+                "text": "Un point à approfondir."
+              }
+            ],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "steps",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "layout": "annonce",
+          "contentDefaults": {
+            "eyebrow": "RESTONS EN CONTACT · 5/5",
+            "title": "À vous de jouer",
+            "introduction": "Besoin d’un renseignement ? Échangez avec notre équipe.",
+            "cta": "Parlons de votre projet",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "startDate": "",
+            "stats": [],
+            "steps": [],
+            "faq": []
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
+    },
+    {
       "id": "typographic_poster_center",
       "family": "cover",
       "name": "Affiche typographique centrale",

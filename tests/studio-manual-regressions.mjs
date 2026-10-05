@@ -5,8 +5,8 @@ import {renderManualTemplateBody,MANUAL_LAYOUTS} from '../static/studio_visuals/
 import {createProject,normalizeSlideContentForTemplate} from '../static/studio_visuals/js/studio-store.js';
 const catalog=JSON.parse(readFileSync('static/studio_visuals/data/templates.json','utf8')).templates;
 const manuals=catalog.filter(t=>t.isManual);
-test('42 illustrated designs have unique IDs, local assets and complete editable content',()=>{
- assert.equal(manuals.length,42);assert.equal(new Set(catalog.map(t=>t.id)).size,catalog.length);
+test('77 illustrated designs have unique IDs, local assets and complete editable content',()=>{
+ assert.equal(manuals.length,77);assert.equal(new Set(catalog.map(t=>t.id)).size,catalog.length);
  assert.equal(new Set(manuals.map(t=>t.formationPreset)).size,7);
  for(const t of manuals){
   assert.ok(MANUAL_LAYOUTS.includes(t.manualLayout));assert.equal(t.supportedFormats.length,4);
@@ -15,7 +15,7 @@ test('42 illustrated designs have unique IDs, local assets and complete editable
   const html=renderManualTemplateBody({template:t,slide:p.slides[0]});
   for(const k of ['eyebrow','title','introduction','cta'])assert.equal((html.match(new RegExp(`data-content-key="${k}"`,'g'))||[]).length,1,t.id+' '+k);
   assert.ok(html.includes(t.contentDefaults.title));assert.ok(!html.includes('undefined'));assert.ok(!html.includes('175 h'));
-  assert.equal((html.match(/<img /g)||[]).length,t.manualLayout==='duo'?2:1);
+  assert.equal((html.match(/<img /g)||[]).length,t.manualLayout==='storyboard'?3:t.manualLayout==='duo'?2:1);
  }
 });
 test('all compositions escape editable values and preserve manual edits',()=>{

@@ -100,3 +100,9 @@
 .studio-v2.manual-layout.studio-format-instagram_story .mi.mx.mi-spotlight{grid-template-columns:minmax(0,1fr);grid-template-rows:56% 44%}
 .manual-layout.studio-format-instagram_story .mx.mi-spotlight>.mi-picture{grid-column:1;grid-row:1}
 .manual-layout.studio-format-instagram_story .mx.mi-spotlight>.mx-spotlight-panel{grid-column:1;grid-row:2}
+
+/* Square and portrait use the scene's horizontal proportions. */
+.studio-v2.manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mi.mx.mi-spotlight{grid-template-columns:minmax(0,1fr);grid-template-rows:50% 50%}
+.manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mx.mi-spotlight>.mi-picture{grid-column:1;grid-row:1}
+.manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mx.mi-spotlight>.mx-spotlight-panel{grid-column:1;grid-row:2;padding:28px 32px;gap:18px;border-right:0;border-top:7px solid var(--mi-color)}
+.manual-layout.studio-format-instagram_square .mx.mi-spotlight h1{font-size:54px}

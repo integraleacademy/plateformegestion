@@ -91,3 +91,12 @@
 .manual-layout.studio-format-linkedin_landscape .cv-event{grid-template-columns:1fr 1.3fr;gap:25px}.manual-layout.studio-format-linkedin_landscape .cv-event>section{gap:18px}.manual-layout.studio-format-linkedin_landscape .cv-event .cv-date{font-size:40px}.manual-layout.studio-format-linkedin_landscape .cv-event-place{font-size:20px;padding-top:15px;gap:5px}
 .manual-layout.studio-format-linkedin_landscape .cv.cv-annonce{grid-template-columns:1.15fr 1fr;grid-template-rows:1fr}.manual-layout.studio-format-linkedin_landscape .cv-news-copy{display:flex;flex-direction:column;justify-content:center;gap:25px}.manual-layout.studio-format-linkedin_landscape .cv-news-copy .mi-action{align-self:flex-start}.manual-layout.studio-format-linkedin_landscape .cv-notes li{padding:15px;gap:12px;border-top-width:4px}.manual-layout.studio-format-linkedin_landscape .cv-notes li>div{padding-bottom:10px}.manual-layout.studio-format-linkedin_landscape .cv-pagination{bottom:-17px;font-size:13px}
 .studio-canvas-callout{background:#fff7ed;border-color:#fed7aa}.studio-canvas-callout button{background:#9a4a12}
+
+/* Keep complete scenes visible: text and artwork occupy separate grid cells. */
+.studio-v2.manual-layout .mi.mx.mi-spotlight{display:grid!important;grid-template-columns:49% 51%;grid-template-rows:minmax(0,1fr);gap:0!important}
+.manual-layout .mx.mi-spotlight>.mi-picture{position:relative;inset:auto;height:100%;grid-column:2;grid-row:1}
+.manual-layout .mx.mi-spotlight>.mx-spotlight-panel{position:relative;inset:auto;width:auto;height:auto;min-height:0;grid-column:1;grid-row:1}
+.studio-v2.manual-layout.studio-format-linkedin_landscape .mi.mx.mi-spotlight{grid-template-columns:44% 56%}
+.studio-v2.manual-layout.studio-format-instagram_story .mi.mx.mi-spotlight{grid-template-columns:minmax(0,1fr);grid-template-rows:56% 44%}
+.manual-layout.studio-format-instagram_story .mx.mi-spotlight>.mi-picture{grid-column:1;grid-row:1}
+.manual-layout.studio-format-instagram_story .mx.mi-spotlight>.mx-spotlight-panel{grid-column:1;grid-row:2}

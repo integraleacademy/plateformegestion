@@ -254,8 +254,8 @@
     },
     {
       "id": "manual_aps_storyboard",
-      "name": "ILLUSTRÉ · APS · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour APS. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · APS · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -344,6 +344,133 @@
           "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "aps_ronde.webp",
+            "alt": "Deux agents de sécurité effectuent une ronde dans une cour de bureaux.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Observer",
+            "introduction": "Repérer une situation inhabituelle.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Repérer une situation inhabituelle."
+              },
+              {
+                "title": "Communiquer",
+                "text": "Accueillir, écouter et transmettre."
+              },
+              {
+                "title": "Rendre compte",
+                "text": "Décrire des faits précis et utiles."
+              }
+            ],
+            "highlightedText": "Sécurité"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "aps_accueil.webp",
+            "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Communiquer",
+            "introduction": "Accueillir, écouter et transmettre.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Repérer une situation inhabituelle."
+              },
+              {
+                "title": "Communiquer",
+                "text": "Accueillir, écouter et transmettre."
+              },
+              {
+                "title": "Rendre compte",
+                "text": "Décrire des faits précis et utiles."
+              }
+            ],
+            "highlightedText": "Sécurité"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "aps_pc.webp",
+            "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Rendre compte",
+            "introduction": "Décrire des faits précis et utiles.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Repérer une situation inhabituelle."
+              },
+              {
+                "title": "Communiquer",
+                "text": "Accueillir, écouter et transmettre."
+              },
+              {
+                "title": "Rendre compte",
+                "text": "Décrire des faits précis et utiles."
+              }
+            ],
+            "highlightedText": "Sécurité"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -743,8 +870,8 @@
     },
     {
       "id": "manual_ssiap_storyboard",
-      "name": "ILLUSTRÉ · SSIAP 1 · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour SSIAP 1. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · SSIAP 1 · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -833,6 +960,133 @@
           "alt": "Une agente vérifie une issue de secours.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "ssiap_prevention.webp",
+            "alt": "Une agente et un formateur observent un extincteur dans un hall.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Prévenir",
+            "introduction": "Repérer les anomalies lors des rondes.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Prévenir",
+                "text": "Repérer les anomalies lors des rondes."
+              },
+              {
+                "title": "Alerter",
+                "text": "Transmettre une information précise."
+              },
+              {
+                "title": "Accompagner",
+                "text": "Appliquer les consignes du site."
+              }
+            ],
+            "highlightedText": "Prévenir"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "ssiap_plan.webp",
+            "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Alerter",
+            "introduction": "Transmettre une information précise.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Prévenir",
+                "text": "Repérer les anomalies lors des rondes."
+              },
+              {
+                "title": "Alerter",
+                "text": "Transmettre une information précise."
+              },
+              {
+                "title": "Accompagner",
+                "text": "Appliquer les consignes du site."
+              }
+            ],
+            "highlightedText": "Prévenir"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "ssiap_ronde.webp",
+            "alt": "Une agente vérifie une issue de secours.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Accompagner",
+            "introduction": "Appliquer les consignes du site.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Prévenir",
+                "text": "Repérer les anomalies lors des rondes."
+              },
+              {
+                "title": "Alerter",
+                "text": "Transmettre une information précise."
+              },
+              {
+                "title": "Accompagner",
+                "text": "Appliquer les consignes du site."
+              }
+            ],
+            "highlightedText": "Prévenir"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -1232,8 +1486,8 @@
     },
     {
       "id": "manual_a3p_storyboard",
-      "name": "ILLUSTRÉ · A3P · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour A3P. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · A3P · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -1322,6 +1576,133 @@
           "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "a3p_evenement.webp",
+            "alt": "Une équipe de protection accompagne une cliente à un congrès.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Observer",
+            "introduction": "Comprendre l’environnement.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Comprendre l’environnement."
+              },
+              {
+                "title": "Préparer",
+                "text": "Organiser le déplacement."
+              },
+              {
+                "title": "Coordonner",
+                "text": "Partager les informations utiles."
+              }
+            ],
+            "highlightedText": "Protéger"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "a3p_terrain.webp",
+            "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Préparer",
+            "introduction": "Organiser le déplacement.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Comprendre l’environnement."
+              },
+              {
+                "title": "Préparer",
+                "text": "Organiser le déplacement."
+              },
+              {
+                "title": "Coordonner",
+                "text": "Partager les informations utiles."
+              }
+            ],
+            "highlightedText": "Protéger"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "a3p_briefing.webp",
+            "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Coordonner",
+            "introduction": "Partager les informations utiles.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Comprendre l’environnement."
+              },
+              {
+                "title": "Préparer",
+                "text": "Organiser le déplacement."
+              },
+              {
+                "title": "Coordonner",
+                "text": "Partager les informations utiles."
+              }
+            ],
+            "highlightedText": "Protéger"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -1721,8 +2102,8 @@
     },
     {
       "id": "manual_vtc_storyboard",
-      "name": "ILLUSTRÉ · VTC · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour VTC. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · VTC · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -1811,6 +2192,133 @@
           "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "vtc_hotel.webp",
+            "alt": "Un chauffeur VTC accueille une voyageuse devant un hôtel.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Préparer",
+            "introduction": "Organiser une prestation.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Préparer",
+                "text": "Organiser une prestation."
+              },
+              {
+                "title": "Accueillir",
+                "text": "Soigner la relation avec le client."
+              },
+              {
+                "title": "Conduire",
+                "text": "Allier sécurité et confort."
+              }
+            ],
+            "highlightedText": "Accueillir"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "vtc_accueil.webp",
+            "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Accueillir",
+            "introduction": "Soigner la relation avec le client.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Préparer",
+                "text": "Organiser une prestation."
+              },
+              {
+                "title": "Accueillir",
+                "text": "Soigner la relation avec le client."
+              },
+              {
+                "title": "Conduire",
+                "text": "Allier sécurité et confort."
+              }
+            ],
+            "highlightedText": "Accueillir"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "vtc_preparation.webp",
+            "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Conduire",
+            "introduction": "Allier sécurité et confort.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Préparer",
+                "text": "Organiser une prestation."
+              },
+              {
+                "title": "Accueillir",
+                "text": "Soigner la relation avec le client."
+              },
+              {
+                "title": "Conduire",
+                "text": "Allier sécurité et confort."
+              }
+            ],
+            "highlightedText": "Accueillir"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -2210,8 +2718,8 @@
     },
     {
       "id": "manual_direction_storyboard",
-      "name": "ILLUSTRÉ · Direction · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour Direction. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · Direction · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -2300,6 +2808,133 @@
           "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "direction_audit.webp",
+            "alt": "Une dirigeante et un responsable de site étudient un dossier.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Organiser",
+            "introduction": "Planifier et suivre l’activité.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Organiser",
+                "text": "Planifier et suivre l’activité."
+              },
+              {
+                "title": "Manager",
+                "text": "Accompagner les équipes."
+              },
+              {
+                "title": "Piloter",
+                "text": "Analyser et décider avec méthode."
+              }
+            ],
+            "highlightedText": "Piloter"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "desp_pilotage.webp",
+            "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Manager",
+            "introduction": "Accompagner les équipes.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Organiser",
+                "text": "Planifier et suivre l’activité."
+              },
+              {
+                "title": "Manager",
+                "text": "Accompagner les équipes."
+              },
+              {
+                "title": "Piloter",
+                "text": "Analyser et décider avec méthode."
+              }
+            ],
+            "highlightedText": "Piloter"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "desp_projet.webp",
+            "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Piloter",
+            "introduction": "Analyser et décider avec méthode.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Organiser",
+                "text": "Planifier et suivre l’activité."
+              },
+              {
+                "title": "Manager",
+                "text": "Accompagner les équipes."
+              },
+              {
+                "title": "Piloter",
+                "text": "Analyser et décider avec méthode."
+              }
+            ],
+            "highlightedText": "Piloter"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -2699,8 +3334,8 @@
     },
     {
       "id": "manual_bts_storyboard",
-      "name": "ILLUSTRÉ · BTS · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour BTS. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · BTS · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -2789,6 +3424,133 @@
           "alt": "Une apprentie échange avec son tuteur en entreprise.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "bts_projet.webp",
+            "alt": "Trois étudiants présentent leur projet autour d’un tableau.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Apprendre",
+            "introduction": "Comprendre les méthodes du métier.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Apprendre",
+                "text": "Comprendre les méthodes du métier."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Travailler sur des cas concrets."
+              },
+              {
+                "title": "Progresser",
+                "text": "Développer son autonomie."
+              }
+            ],
+            "highlightedText": "Progresser"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "bts_campus.webp",
+            "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Pratiquer",
+            "introduction": "Travailler sur des cas concrets.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Apprendre",
+                "text": "Comprendre les méthodes du métier."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Travailler sur des cas concrets."
+              },
+              {
+                "title": "Progresser",
+                "text": "Développer son autonomie."
+              }
+            ],
+            "highlightedText": "Progresser"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "bts_entreprise.webp",
+            "alt": "Une apprentie échange avec son tuteur en entreprise.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Progresser",
+            "introduction": "Développer son autonomie.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Apprendre",
+                "text": "Comprendre les méthodes du métier."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Travailler sur des cas concrets."
+              },
+              {
+                "title": "Progresser",
+                "text": "Développer son autonomie."
+              }
+            ],
+            "highlightedText": "Progresser"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -3188,8 +3950,8 @@
     },
     {
       "id": "manual_general_storyboard",
-      "name": "ILLUSTRÉ · Général · Le métier en trois scènes",
-      "description": "Le métier en trois scènes, une nouvelle composition illustrée pour Général. Textes modifiables dans les quatre formats.",
+      "name": "ILLUSTRÉ · Général · Le métier en trois scènes · Carrousel 3 slides",
+      "description": "3 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "process",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -3278,6 +4040,133 @@
           "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
           "width": 1536,
           "height": 1024
+        }
+      ],
+      "isCarousel": true,
+      "pageCount": 3,
+      "pages": [
+        {
+          "illustration": {
+            "file": "general_atelier.webp",
+            "alt": "Une formatrice anime un atelier avec un groupe d’adultes.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 1/3",
+            "title": "Comprendre",
+            "introduction": "Des explications accessibles.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Des explications accessibles."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Des situations concrètes."
+              },
+              {
+                "title": "Échanger",
+                "text": "Une équipe à vos côtés."
+              }
+            ],
+            "highlightedText": "Évoluer"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "general_accompagnement.webp",
+            "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 2/3",
+            "title": "Pratiquer",
+            "introduction": "Des situations concrètes.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Des explications accessibles."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Des situations concrètes."
+              },
+              {
+                "title": "Échanger",
+                "text": "Une équipe à vos côtés."
+              }
+            ],
+            "highlightedText": "Évoluer"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "general_equipe.webp",
+            "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "UNE HISTOIRE DE TERRAIN · 3/3",
+            "title": "Échanger",
+            "introduction": "Une équipe à vos côtés.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Des explications accessibles."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Des situations concrètes."
+              },
+              {
+                "title": "Échanger",
+                "text": "Une équipe à vos côtés."
+              }
+            ],
+            "highlightedText": "Évoluer"
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
         }
       ]
     },
@@ -28735,8 +29624,8 @@
     },
     {
       "id": "manual_aps_duo",
-      "name": "ILLUSTRÉ · APS · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Du cours aux situations de terrain.",
+      "name": "ILLUSTRÉ · APS · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -28801,7 +29690,91 @@
             "text": "Décrire des faits précis et utiles."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "aps_pc.webp",
+            "alt": "Des agents de prévention et de sécurité observent les écrans du poste de sécurité.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Observer",
+            "introduction": "Repérer une situation inhabituelle.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Repérer une situation inhabituelle."
+              },
+              {
+                "title": "Communiquer",
+                "text": "Accueillir, écouter et transmettre."
+              },
+              {
+                "title": "Rendre compte",
+                "text": "Décrire des faits précis et utiles."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "aps_accueil.webp",
+            "alt": "Deux agents de sécurité accueillent un visiteur au contrôle d’accès.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Communiquer",
+            "introduction": "Accueillir, écouter et transmettre.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Repérer une situation inhabituelle."
+              },
+              {
+                "title": "Communiquer",
+                "text": "Accueillir, écouter et transmettre."
+              },
+              {
+                "title": "Rendre compte",
+                "text": "Décrire des faits précis et utiles."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     },
     {
       "id": "manual_ssiap_cover",
@@ -29158,8 +30131,8 @@
     },
     {
       "id": "manual_ssiap_duo",
-      "name": "ILLUSTRÉ · SSIAP 1 · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Comprendre. Manipuler. Progresser..",
+      "name": "ILLUSTRÉ · SSIAP 1 · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -29224,7 +30197,91 @@
             "text": "Appliquer les consignes du site."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "ssiap_equipements.webp",
+            "alt": "Un formateur et un stagiaire vérifient les équipements du bâtiment.",
+            "width": 1054,
+            "height": 1492
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Prévenir",
+            "introduction": "Repérer les anomalies lors des rondes.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Prévenir",
+                "text": "Repérer les anomalies lors des rondes."
+              },
+              {
+                "title": "Alerter",
+                "text": "Transmettre une information précise."
+              },
+              {
+                "title": "Accompagner",
+                "text": "Appliquer les consignes du site."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "ssiap_plan.webp",
+            "alt": "Un formateur explique le plan d’évacuation à un futur agent.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Alerter",
+            "introduction": "Transmettre une information précise.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Prévenir",
+                "text": "Repérer les anomalies lors des rondes."
+              },
+              {
+                "title": "Alerter",
+                "text": "Transmettre une information précise."
+              },
+              {
+                "title": "Accompagner",
+                "text": "Appliquer les consignes du site."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     },
     {
       "id": "manual_a3p_cover",
@@ -29581,8 +30638,8 @@
     },
     {
       "id": "manual_a3p_duo",
-      "name": "ILLUSTRÉ · A3P · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. S’entraîner pour mieux anticiper.",
+      "name": "ILLUSTRÉ · A3P · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -29647,7 +30704,91 @@
             "text": "Partager les informations utiles."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "a3p_briefing.webp",
+            "alt": "Des professionnels de la protection rapprochée préparent un déplacement.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Observer",
+            "introduction": "Comprendre l’environnement.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Comprendre l’environnement."
+              },
+              {
+                "title": "Préparer",
+                "text": "Organiser le déplacement."
+              },
+              {
+                "title": "Coordonner",
+                "text": "Partager les informations utiles."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "a3p_terrain.webp",
+            "alt": "Une équipe de protection rapprochée accompagne une personne à la sortie d’un hôtel.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Préparer",
+            "introduction": "Organiser le déplacement.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Observer",
+                "text": "Comprendre l’environnement."
+              },
+              {
+                "title": "Préparer",
+                "text": "Organiser le déplacement."
+              },
+              {
+                "title": "Coordonner",
+                "text": "Partager les informations utiles."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     },
     {
       "id": "manual_vtc_cover",
@@ -30004,8 +31145,8 @@
     },
     {
       "id": "manual_vtc_duo",
-      "name": "ILLUSTRÉ · VTC · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Apprendre le métier, concrètement.",
+      "name": "ILLUSTRÉ · VTC · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -30070,7 +31211,91 @@
             "text": "Allier sécurité et confort."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "vtc_preparation.webp",
+            "alt": "Un futur chauffeur prépare une prestation avec une formatrice.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Préparer",
+            "introduction": "Organiser une prestation.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Préparer",
+                "text": "Organiser une prestation."
+              },
+              {
+                "title": "Accueillir",
+                "text": "Soigner la relation avec le client."
+              },
+              {
+                "title": "Conduire",
+                "text": "Allier sécurité et confort."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "vtc_accueil.webp",
+            "alt": "Une chauffeuse VTC accueille un passager près de son véhicule.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Accueillir",
+            "introduction": "Soigner la relation avec le client.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Préparer",
+                "text": "Organiser une prestation."
+              },
+              {
+                "title": "Accueillir",
+                "text": "Soigner la relation avec le client."
+              },
+              {
+                "title": "Conduire",
+                "text": "Allier sécurité et confort."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     },
     {
       "id": "manual_direction_cover",
@@ -30427,8 +31652,8 @@
     },
     {
       "id": "manual_direction_duo",
-      "name": "ILLUSTRÉ · Direction · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Du projet à la posture de dirigeant.",
+      "name": "ILLUSTRÉ · Direction · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -30493,7 +31718,91 @@
             "text": "Analyser et décider avec méthode."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "desp_projet.webp",
+            "alt": "Un entrepreneur prépare le développement de son entreprise avec une conseillère.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Organiser",
+            "introduction": "Planifier et suivre l’activité.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Organiser",
+                "text": "Planifier et suivre l’activité."
+              },
+              {
+                "title": "Manager",
+                "text": "Accompagner les équipes."
+              },
+              {
+                "title": "Piloter",
+                "text": "Analyser et décider avec méthode."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "desp_pilotage.webp",
+            "alt": "Une dirigeante anime une réunion avec son équipe de sécurité privée.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Manager",
+            "introduction": "Accompagner les équipes.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Organiser",
+                "text": "Planifier et suivre l’activité."
+              },
+              {
+                "title": "Manager",
+                "text": "Accompagner les équipes."
+              },
+              {
+                "title": "Piloter",
+                "text": "Analyser et décider avec méthode."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     },
     {
       "id": "manual_bts_cover",
@@ -30850,8 +32159,8 @@
     },
     {
       "id": "manual_bts_duo",
-      "name": "ILLUSTRÉ · BTS · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Le cours et l’entreprise se rencontrent.",
+      "name": "ILLUSTRÉ · BTS · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -30916,7 +32225,91 @@
             "text": "Développer son autonomie."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "bts_entreprise.webp",
+            "alt": "Une apprentie échange avec son tuteur en entreprise.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Apprendre",
+            "introduction": "Comprendre les méthodes du métier.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Apprendre",
+                "text": "Comprendre les méthodes du métier."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Travailler sur des cas concrets."
+              },
+              {
+                "title": "Progresser",
+                "text": "Développer son autonomie."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "bts_campus.webp",
+            "alt": "Des étudiants en BTS travaillent en groupe avec leur formatrice.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Pratiquer",
+            "introduction": "Travailler sur des cas concrets.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Apprendre",
+                "text": "Comprendre les méthodes du métier."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Travailler sur des cas concrets."
+              },
+              {
+                "title": "Progresser",
+                "text": "Développer son autonomie."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     },
     {
       "id": "manual_general_cover",
@@ -31273,8 +32666,8 @@
     },
     {
       "id": "manual_general_duo",
-      "name": "ILLUSTRÉ · Général · Apprendre en pratique",
-      "description": "Apprendre en pratique, grande illustration dans le style des manuels Intégrale Academy. Apprendre avec les autres, avancer ensemble.",
+      "name": "ILLUSTRÉ · Général · Apprendre en pratique · Carrousel 2 slides",
+      "description": "2 diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.",
       "family": "cover",
       "renderer": "renderManualTemplate",
       "status": "ready",
@@ -31339,7 +32732,91 @@
             "text": "Une équipe à vos côtés."
           }
         ]
-      }
+      },
+      "isCarousel": true,
+      "pageCount": 2,
+      "pages": [
+        {
+          "illustration": {
+            "file": "general_equipe.webp",
+            "alt": "Des apprenants travaillent ensemble autour de leurs supports de cours.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 1/2",
+            "title": "Comprendre",
+            "introduction": "Des explications accessibles.",
+            "cta": "La suite →",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Des explications accessibles."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Des situations concrètes."
+              },
+              {
+                "title": "Échanger",
+                "text": "Une équipe à vos côtés."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        },
+        {
+          "illustration": {
+            "file": "general_accompagnement.webp",
+            "alt": "Une conseillère accompagne un candidat dans son projet de formation.",
+            "width": 1536,
+            "height": 1024
+          },
+          "contentDefaults": {
+            "eyebrow": "APPRENDRE EN PRATIQUE · 2/2",
+            "title": "Pratiquer",
+            "introduction": "Des situations concrètes.",
+            "cta": "Découvrir la formation",
+            "startDate": "Dates sur demande",
+            "duration": "",
+            "financing": "",
+            "availability": "",
+            "stats": [],
+            "steps": [
+              {
+                "title": "Comprendre",
+                "text": "Des explications accessibles."
+              },
+              {
+                "title": "Pratiquer",
+                "text": "Des situations concrètes."
+              },
+              {
+                "title": "Échanger",
+                "text": "Une équipe à vos côtés."
+              }
+            ]
+          },
+          "supportedContent": [
+            "eyebrow",
+            "title",
+            "introduction",
+            "cta",
+            "footer"
+          ]
+        }
+      ]
     }
   ]
 }

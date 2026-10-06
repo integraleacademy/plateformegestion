@@ -104,6 +104,27 @@ for key,name,pages,picture in [('decouverte','Carrousel découverte',discovery,'
 assert len(new)==50 and sum(bool(t.get('isCanvas')) for t in new)==15
 ids={t['id'] for t in new}
 catalog['templates']=new+[t for t in catalog['templates'] if t['id'] not in ids]
+# Multi-scene illustrations are true carousels: one large scene per page.
+for t in catalog['templates']:
+    if not t.get('isManual') or t.get('manualLayout') not in ('storyboard','duo'):
+        continue
+    is_story = t['manualLayout'] == 'storyboard'
+    scenes = t['illustrations'][:3] if is_story else [t['illustration'], t['secondaryIllustration']]
+    pages = []
+    for index, illustration in enumerate(scenes):
+        c = copy.deepcopy(t['contentDefaults'])
+        step = c.get('steps', [])[index] if index < len(c.get('steps', [])) else {}
+        c.update(eyebrow=f"{'UNE HISTOIRE DE TERRAIN' if is_story else 'APPRENDRE EN PRATIQUE'} · {index+1}/{len(scenes)}",
+                 title=step.get('title') or c['title'],
+                 introduction=step.get('text') or c['introduction'],
+                 cta=t['contentDefaults']['cta'] if index == len(scenes)-1 else 'La suite →')
+        pages.append(dict(illustration=illustration, contentDefaults=c,
+                          supportedContent=['eyebrow','title','introduction','cta','footer']))
+    name = t['name'].split(' · Carrousel')[0]
+    t.update(isCarousel=True, pageCount=len(pages), pages=pages,
+             name=name+f" · Carrousel {len(pages)} slides",
+             description=f"{len(pages)} diapositives illustrées, une grande scène par page. Textes modifiables et export du carrousel.")
+
 assert len({t['id'] for t in catalog['templates']})==len(catalog['templates'])
 PATH.write_text(json.dumps(catalog,ensure_ascii=False,indent=2)+'\n')
 print(f'{len(new)} nouveaux modèles · {len(catalog["templates"])} modèles au total')

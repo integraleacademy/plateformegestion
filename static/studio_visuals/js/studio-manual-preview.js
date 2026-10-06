@@ -7,6 +7,7 @@ async function boot(){
  const {renderSlide}=await import('./studio-renderer.js');
  const {createProject,FORMATS,normalizeSlideContentForTemplate}=await import('./studio-store.js');
  const {applyCanvasTemplate}=await import('./studio-canvas-models.js');
+ const {applyManualCarousel}=await import('./studio-manual-carousels.js');
  const {fitSlide}=await import('./studio-text-fit.js');
  const {waitForImages,SocialVisualExporter}=await import('./studio-exporter.js');
  const {validateStudioSlide}=await import('./studio-validation.js');
@@ -20,6 +21,7 @@ async function boot(){
  function projectFor(t,format){
   const p=createProject({formation:t.formationPreset,templateId:t.id});
   if(t.isCanvas)applyCanvasTemplate(p,t);
+  else if(t.isManual&&t.isCarousel)applyManualCarousel(p,t);
   p.format=FORMATS[format];
   for(const slide of p.slides){slide.options.showSafeMargins=false;normalizeSlideContentForTemplate(slide,t);}
   return p;
@@ -40,6 +42,8 @@ async function boot(){
    for(const t of catalog)for(let page=0;page<(t.pages?.length||1);page++)for(const format of t.supportedFormats){
     const {node,v}=await render($('stage'),t,format,page);
     const images=[...node.querySelectorAll('.mi-picture img')],errors=v.blockingErrors.map(x=>x.message);
+    if(t.isManual&&t.isCarousel&&images.length!==1)errors.push('Une seule illustration attendue par diapositive');
+    if(t.isManual&&t.isCarousel&&images.some(i=>i.parentElement.getBoundingClientRect().width<350||i.parentElement.getBoundingClientRect().height<300))errors.push('Scène du carrousel trop petite');
     if(images.some(i=>!i.complete||!i.naturalWidth))errors.push('Illustration non chargée');
     if(images.some(i=>i.parentElement.getBoundingClientRect().height<95))errors.push('Illustration trop petite');
     if(images.some(i=>getComputedStyle(i).objectFit!=='cover'))errors.push('Illustration avec bandes vides');

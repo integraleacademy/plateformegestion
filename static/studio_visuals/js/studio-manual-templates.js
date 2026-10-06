@@ -4,6 +4,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 export const MANUAL_LAYOUTS = ['cover','session','immersion','skills','path','duo',...EXPANDED_MANUAL_LAYOUTS];
 
 export function renderManualTemplateBody({template, slide, renderMode}) {
+  if(template.isCarousel&&template.pages?.length)return renderManualCarouselBody({template,slide,renderMode});
   if(EXPANDED_MANUAL_LAYOUTS.includes(template.manualLayout))return renderExpandedManualBody({template,slide,renderMode});
   const c = {...template.contentDefaults, ...slide.content};
   const layout = template.manualLayout;
@@ -29,4 +30,17 @@ export function renderManualTemplateBody({template, slide, renderMode}) {
     duo: () => `<div class="mi-diptych">${picture()}${picture(true)}</div>${header()}${ending()}`
   };
   return `<main class="mi mi-${layout}" data-manual-layout="${layout}">${bodies[layout]()}</main>`;
+}
+
+function renderManualCarouselBody({template,slide,renderMode}) {
+  const index=Math.max(0,Math.min(Number(slide.carouselPage)||0,template.pages.length-1));
+  const page=template.pages[index], asset=page.illustration;
+  const c={...page.contentDefaults,...slide.content};
+  const field=(key,tag,fit,cls='')=>`<${tag} class="${cls}" data-content-key="${key}" data-fit="${fit}">${esc(c[key])}</${tag}>`;
+  return `<main class="mi mi-carousel-scene" data-manual-layout="carousel" data-layout-role="manual-carousel-${template.manualLayout}">
+    <header class="mi-heading">${field('eyebrow','span','badge','mi-eyebrow')}${field('title','h1','title')}</header>
+    <figure class="mi-picture" data-element-name="Illustration de la scène ${index+1}"><img src="/static/studio_visuals/img/manuals/${esc(asset.file)}" alt="${esc(asset.alt)}" width="${asset.width||1536}" height="${asset.height||1024}" ${renderMode==='thumbnail'?'loading="lazy"':''} decoding="async" crossorigin="anonymous"></figure>
+    <div class="mi-ending">${field('introduction','p','body','mi-introduction')}<div class="mi-action">${field('cta','span','cta')}<b aria-hidden="true">↗</b></div></div>
+    <small class="mi-scene-pagination" aria-label="Diapositive ${index+1} sur ${template.pages.length}">${index+1} / ${template.pages.length}</small>
+  </main>`;
 }

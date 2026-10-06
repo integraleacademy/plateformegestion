@@ -42,7 +42,7 @@ async function boot(){
     const images=[...node.querySelectorAll('.mi-picture img')],errors=v.blockingErrors.map(x=>x.message);
     if(images.some(i=>!i.complete||!i.naturalWidth))errors.push('Illustration non chargée');
     if(images.some(i=>i.parentElement.getBoundingClientRect().height<95))errors.push('Illustration trop petite');
-    if(images.some(i=>getComputedStyle(i).objectFit!=='contain'))errors.push('Illustration recadrée');
+    if(images.some(i=>getComputedStyle(i).objectFit!=='cover'))errors.push('Illustration avec bandes vides');
     const art=node.querySelector('.mi-spotlight>.mi-picture'),panel=node.querySelector('.mx-spotlight-panel');
     if(art&&panel){const a=art.getBoundingClientRect(),b=panel.getBoundingClientRect();if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)errors.push('Texte superposé à l’illustration');}
 

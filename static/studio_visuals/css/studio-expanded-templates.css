@@ -106,3 +106,20 @@
 .manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mx.mi-spotlight>.mi-picture{grid-column:1;grid-row:1}
 .manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mx.mi-spotlight>.mx-spotlight-panel{grid-column:1;grid-row:2;padding:28px 32px;gap:18px;border-right:0;border-top:7px solid var(--mi-color)}
 .manual-layout.studio-format-instagram_square .mx.mi-spotlight h1{font-size:54px}
+
+/* Edge-to-edge artwork, with separate text and scene areas. */
+.studio-v2.manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mi.mx.mi-spotlight{grid-template-rows:minmax(0,1fr) auto}
+.manual-layout:is(.studio-format-instagram_square,.studio-format-instagram_portrait) .mx.mi-spotlight>.mx-spotlight-panel{padding:24px 32px;gap:14px}
+.manual-layout .mi-spotlight .mi-picture img{object-position:50% 35%!important}
+/* Three wide scenes read as a sequence instead of narrow cropped strips. */
+.manual-layout:not(.studio-format-instagram_story) .mx-story-panels{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:16px}
+.manual-layout:not(.studio-format-instagram_story) .mx-story-panels>section{grid-template-columns:44% minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.manual-layout:not(.studio-format-instagram_story) .mx-story-panels>section>div{min-height:0;padding:16px 22px;gap:8px;align-content:center;grid-template-columns:36px minmax(0,1fr)}
+.manual-layout:not(.studio-format-instagram_story) .mx-story-panels>section>div .mx-index{grid-row:1/3;align-self:center}
+.manual-layout:not(.studio-format-instagram_story) .mx-story-panels>section>div p{grid-column:2}
+.manual-layout.studio-format-instagram_story .mx-story-panels>section{grid-template-columns:60% minmax(0,1fr)}
+.manual-layout.studio-format-linkedin_landscape .mx-story-panels>section{grid-template-columns:32% minmax(0,1fr)}
+.manual-layout.studio-format-linkedin_landscape .mx-story-panels>section>div{padding:10px 15px;gap:5px;grid-template-columns:28px minmax(0,1fr)}
+/* Give group scenes enough width to retain both people. */
+.manual-layout:not(.studio-format-instagram_story) .mx-dialogue-scene{grid-template-columns:1.3fr 1fr}
+.manual-layout.studio-format-linkedin_landscape .mx-dialogue-scene{grid-template-columns:1fr 1.2fr}

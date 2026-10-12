@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js', v='e0c5fd0') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/formateur-framework-contract.js', v='20261012') }}" defer></script>
 </head>
 
 <body class="formateurs-page formateur-detail-page">
@@ -174,6 +175,7 @@
         {% if framework_contract.filename %}
           <p class="framework-contract-meta">
             PDF de 15 pages généré{% if framework_contract.generatedAt %} le {{ framework_contract.generatedAt|datetimefr }}{% endif %}.
+            {% if framework_contract.contractDate %}<br>Date indiquée dans le contrat : {{ framework_contract.contractDate|datefr }}.{% endif %}
             {% if framework_contract.sentAt %}<br>Envoyé le {{ framework_contract.sentAt|datetimefr }} au formateur {{ yousign.recipientEmail or formateur.email }} avec vérification par code SMS.{% endif %}
             {% if yousign.lastReminderAt %}<br>Dernière relance Yousign le {{ yousign.lastReminderAt|datetimefr }}.{% endif %}
           </p>
@@ -182,9 +184,12 @@
         {% endif %}
         {% if yousign.error %}<div class="framework-contract-alert framework-contract-alert--error">Erreur Yousign : {{ yousign.error }}</div>{% endif %}
         {% if yousign.signatureUrl %}<a href="{{ yousign.signatureUrl }}" target="_blank" rel="noopener" class="action-link">Ouvrir le lien de signature du formateur</a>{% endif %}
+        {% if framework_contract_excludes_clauses %}
+          <p class="framework-contract-meta">Pour Véronique LISCIA, les nouveaux contrats sont générés sans les points 6.2 et 7.2.</p>
+        {% endif %}
 
         <div class="detail-actions framework-contract-actions">
-          <form method="POST" action="{{ url_for('generate_formateur_framework_contract', fid=formateur.id) }}" onsubmit="return confirm('{% if ys_active %}Une signature est en cours. Le contrat ne pourra pas être régénéré.{% elif yousign.signatureRequestId %}Créer une nouvelle version du contrat cadre ?{% else %}Générer le contrat cadre avec les informations de cette fiche ?{% endif %}');">
+          <form method="POST" action="{{ url_for('generate_formateur_framework_contract', fid=formateur.id) }}" data-framework-contract-action="generate" data-contract-date="{{ framework_contract.contractDate|default('', true) }}" data-contract-message="{% if yousign.signatureRequestId %}Une nouvelle version du contrat sera créée. Le contrat précédent restera dans l’historique.{% else %}Le contrat reprendra les informations de cette fiche et la date choisie ci-dessous.{% endif %}">
             <button type="submit" id="framework-contract-generate-button" class="btn-premium btn-premium--soft" data-yousign-active="{{ 'true' if ys_active else 'false' }}" {% if framework_contract_missing_fields or ys_active %}disabled{% endif %}>
               {% if framework_contract.filename %}Régénérer le contrat{% else %}Générer le contrat{% endif %}
             </button>
@@ -193,7 +198,7 @@
             <a href="{{ url_for('view_formateur_framework_contract', fid=formateur.id) }}" target="_blank" rel="noopener" class="btn-premium btn-premium--dark">Voir le contrat</a>
           {% endif %}
           {% if (not ys_active or ys_legacy_center_request) and ys_status not in ['done', 'signed'] %}
-          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" onsubmit="return confirm('{% if ys_legacy_center_request %}L’ancienne demande à deux signataires sera annulée et remplacée. Continuer ?{% else %}Générer si nécessaire puis envoyer le contrat au formateur pour signature électronique avec code SMS ?{% endif %}');">
+          <form method="POST" action="{{ url_for('send_formateur_contract_yousign', fid=formateur.id) }}" data-framework-contract-action="send" data-contract-date="{{ framework_contract.contractDate|default('', true) }}" data-contract-message="{% if ys_legacy_center_request %}L’ancienne demande à deux signataires sera annulée et remplacée. {% endif %}Le contrat sera généré si nécessaire, puis envoyé au formateur pour signature électronique avec code SMS.">
             <button type="submit" id="framework-contract-send-button" class="btn-premium btn-premium--primary" data-recipient-complete="{{ 'true' if formateur.email and formateur.telephone else 'false' }}" {% if framework_contract_missing_fields or not formateur.email or not formateur.telephone %}disabled{% endif %}>
               {% if ys_legacy_center_request %}Remplacer la demande de signature{% elif ys_status == 'error' %}Réessayer l’envoi Yousign{% elif framework_contract.filename and not framework_contract_stale %}Envoyer pour signature électronique{% else %}Générer et envoyer pour signature{% endif %}
             </button>
@@ -384,6 +389,21 @@
     </div>
   </section>
 </main>
+
+<dialog id="framework-contract-date-dialog" class="framework-contract-dialog" aria-labelledby="framework-contract-date-title" aria-describedby="framework-contract-date-description">
+  <form method="POST" id="framework-contract-date-form">
+    <p class="framework-contract-dialog__eyebrow">Contrat cadre de sous-traitance</p>
+    <h2 id="framework-contract-date-title">Choisir la date de signature</h2>
+    <p id="framework-contract-date-description"></p>
+    <label for="framework-contract-date">Date de signature à indiquer dans le contrat</label>
+    <input id="framework-contract-date" name="contract_date" type="date" required min="0001-01-01" max="9999-12-31" aria-describedby="framework-contract-date-help">
+    <p id="framework-contract-date-help">Cette date figurera sur le PDF. Yousign conserve la date réelle de signature électronique.</p>
+    <div class="framework-contract-dialog__actions">
+      <button type="button" id="framework-contract-date-cancel" class="btn-premium btn-premium--soft">Annuler</button>
+      <button type="submit" id="framework-contract-date-submit" class="btn-premium btn-premium--primary">Générer le contrat</button>
+    </div>
+  </form>
+</dialog>
 
 <div id="relance-preview" class="relance-preview" aria-hidden="true">
   <section

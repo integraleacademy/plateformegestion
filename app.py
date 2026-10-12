@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import secrets
+import unicodedata
 from io import BytesIO
 from datetime import datetime, timedelta, date, time as dt_time
 from functools import wraps
@@ -10071,6 +10072,9 @@ FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE = os.path.join(
 )
 FORMATEUR_FRAMEWORK_CONTRACT_DIRNAME = "_contrats_cadres"
 FORMATEUR_FRAMEWORK_CONTRACT_GENERATOR_VERSION = "2-center-signature-stamp"
+FORMATEUR_FRAMEWORK_CONTRACT_LISCIA_TEMPLATE = os.path.join(
+    BASE_DIR, "static", "documents", "contrat_cadre_sans_6_2_7_2_template.pdf"
+)
 YOUSIGN_FRAMEWORK_TRAINER_SIGNATURE_FIELD = {"x": 337, "y": 662, "width": 174, "height": 45}
 os.makedirs(FORMATEUR_FILES_DIR, exist_ok=True)
 
@@ -10270,6 +10274,35 @@ def formateur_framework_contract_display_name(formateur):
     return " ".join(part for part in (first_name, last_name) if part)
 
 
+def formateur_framework_contract_excludes_clauses(formateur):
+    """Exception nominative demandée uniquement pour Véronique LISCIA."""
+    def normalized(value):
+        return " ".join(
+            "".join(
+                char for char in unicodedata.normalize("NFKD", str(value or ""))
+                if not unicodedata.combining(char)
+            ).casefold().split()
+        )
+
+    return normalized(formateur.get("prenom")) == "veronique" and normalized(formateur.get("nom")) == "liscia"
+
+
+def normalize_formateur_contract_date(value):
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, date):
+        return value.isoformat()
+    value = str(value or "").strip()
+    if not value:
+        raise ValueError("Choisissez la date de signature à indiquer dans le contrat.")
+    try:
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+            raise ValueError
+        return date.fromisoformat(value).isoformat()
+    except ValueError as exc:
+        raise ValueError("La date de signature est invalide.") from exc
+
+
 def formateur_framework_contract_payload(formateur):
     try:
         birth_date = normalize_formateur_birth_date(
@@ -10305,9 +10338,12 @@ def formateur_framework_contract_missing_fields(formateur):
 
 
 def formateur_framework_contract_source_hash(formateur):
+    version = FORMATEUR_FRAMEWORK_CONTRACT_GENERATOR_VERSION
+    if formateur_framework_contract_excludes_clauses(formateur):
+        version += "-without-6.2-7.2-v1"
     serialized = json.dumps(
         {
-            "generatorVersion": FORMATEUR_FRAMEWORK_CONTRACT_GENERATOR_VERSION,
+            "generatorVersion": version,
             "payload": formateur_framework_contract_payload(formateur),
         },
         ensure_ascii=False,
@@ -10354,7 +10390,12 @@ def generate_formateur_framework_contract_pdf(formateur, output_path, contract_d
     missing = formateur_framework_contract_missing_fields(formateur)
     if missing:
         raise ValueError("Informations manquantes : " + ", ".join(missing) + ".")
-    if not os.path.exists(FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE):
+    template_path = (
+        FORMATEUR_FRAMEWORK_CONTRACT_LISCIA_TEMPLATE
+        if formateur_framework_contract_excludes_clauses(formateur)
+        else FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE
+    )
+    if not os.path.exists(template_path):
         raise FileNotFoundError("Le modèle du contrat cadre de sous-traitance est introuvable.")
 
     try:
@@ -10375,7 +10416,7 @@ def generate_formateur_framework_contract_pdf(formateur, output_path, contract_d
         pdfmetrics.registerFont(TTFont(regular_font, os.path.join(reportlab_font_dir, "Vera.ttf")))
     if bold_font not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont(bold_font, os.path.join(reportlab_font_dir, "VeraBd.ttf")))
-    template_reader = PdfReader(FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE)
+    template_reader = PdfReader(template_path)
     if len(template_reader.pages) != 15:
         raise RuntimeError("Le modèle du contrat cadre doit contenir exactement 15 pages.")
 
@@ -10517,7 +10558,7 @@ def formateur_framework_contract_directory(fid):
     return os.path.join(FORMATEUR_FILES_DIR, fid, FORMATEUR_FRAMEWORK_CONTRACT_DIRNAME)
 
 
-def create_formateur_framework_contract(formateur, generated_at=None):
+def create_formateur_framework_contract(formateur, generated_at=None, contract_date=None):
     state = normalize_yousign_state(formateur.get("yousign"))
     if state.get("signatureRequestId") and state.get("status") in {"draft", "approval", "ongoing", "partially_signed"}:
         raise ValueError("Une demande de signature est déjà en cours pour ce contrat.")
@@ -10527,10 +10568,9 @@ def create_formateur_framework_contract(formateur, generated_at=None):
         raise ValueError("Informations manquantes : " + ", ".join(missing) + ".")
 
     previous_contract = formateur.get("frameworkContract") or {}
-    if previous_contract.get("filename") and state.get("signatureRequestId"):
-        history = formateur.setdefault("frameworkContractHistory", [])
-        history.append({"contract": dict(previous_contract), "yousign": dict(state)})
-        del history[:-20]
+    selected_date = normalize_formateur_contract_date(
+        contract_date if contract_date is not None else previous_contract.get("contractDate")
+    )
 
     generated_at = generated_at or datetime.now()
     safe_name = secure_filename(formateur_framework_contract_display_name(formateur)) or formateur.get("id") or "formateur"
@@ -10540,11 +10580,15 @@ def create_formateur_framework_contract(formateur, generated_at=None):
     )
     contract_dir = formateur_framework_contract_directory(formateur.get("id") or "formateur")
     output_path = os.path.join(contract_dir, filename)
-    generate_formateur_framework_contract_pdf(formateur, output_path, generated_at.date())
+    generate_formateur_framework_contract_pdf(formateur, output_path, selected_date)
+    if previous_contract.get("filename") and state.get("signatureRequestId"):
+        history = formateur.setdefault("frameworkContractHistory", [])
+        history.append({"contract": dict(previous_contract), "yousign": dict(state)})
+        del history[:-20]
     formateur["frameworkContract"] = {
         "filename": filename,
         "generatedAt": generated_at.isoformat(timespec="seconds"),
-        "contractDate": generated_at.date().isoformat(),
+        "contractDate": selected_date,
         "sourceHash": formateur_framework_contract_source_hash(formateur),
         "pageCount": 15,
     }
@@ -10552,13 +10596,18 @@ def create_formateur_framework_contract(formateur, generated_at=None):
     return output_path
 
 
-def ensure_formateur_framework_contract_pdf(formateur):
+def ensure_formateur_framework_contract_pdf(formateur, contract_date=None):
     contract = formateur.get("frameworkContract") or {}
+    selected_date = normalize_formateur_contract_date(
+        contract_date if contract_date is not None else contract.get("contractDate")
+    )
     filename = os.path.basename(contract.get("filename") or "")
     path = os.path.join(formateur_framework_contract_directory(formateur.get("id") or "formateur"), filename) if filename else ""
-    if path and os.path.exists(path) and not formateur_framework_contract_is_stale(formateur):
+    if (path and os.path.exists(path)
+            and not formateur_framework_contract_is_stale(formateur)
+            and contract.get("contractDate") == selected_date):
         return path
-    return create_formateur_framework_contract(formateur)
+    return create_formateur_framework_contract(formateur, contract_date=selected_date)
 
 
 def normalize_formateur_profils(values):
@@ -11321,6 +11370,7 @@ def formateur_detail(fid):
         last_expiration_notification=last_formateur_expiration_notification_at(DATA_DIR, fid),
         framework_contract_missing_fields=formateur_framework_contract_missing_fields(formateur),
         framework_contract_stale=formateur_framework_contract_is_stale(formateur),
+        framework_contract_excludes_clauses=formateur_framework_contract_excludes_clauses(formateur),
         formateur_profile_options=FORMATEUR_PROFILE_OPTIONS,
         etat_cles=etat_cles,       # 👈 indispensable
         etat_badges=etat_badges    # 👈 indispensable
@@ -11335,7 +11385,8 @@ def generate_formateur_framework_contract(fid):
     if not formateur:
         abort(404)
     try:
-        create_formateur_framework_contract(formateur)
+        contract_date = normalize_formateur_contract_date(request.form.get("contract_date"))
+        create_formateur_framework_contract(formateur, contract_date=contract_date)
         save_formateurs(formateurs)
         flash("Contrat cadre de sous-traitance généré.", "ok")
     except (ValueError, FileNotFoundError, RuntimeError) as exc:
@@ -11381,6 +11432,12 @@ def send_formateur_contract_yousign(fid):
         flash("Une demande Yousign active existe déjà pour ce contrat. Actualisez son statut avant tout nouvel envoi.", "error")
         return redirect(url_for("formateur_detail", fid=fid))
 
+    try:
+        contract_date = normalize_formateur_contract_date(request.form.get("contract_date"))
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("formateur_detail", fid=fid))
+
     email = (formateur.get("email") or "").strip()
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         flash("Email formateur invalide ou manquant.", "error")
@@ -11418,9 +11475,9 @@ def send_formateur_contract_yousign(fid):
 
     try:
         if state.get("signatureRequestId"):
-            pdf_path = create_formateur_framework_contract(formateur)
+            pdf_path = create_formateur_framework_contract(formateur, contract_date=contract_date)
         else:
-            pdf_path = ensure_formateur_framework_contract_pdf(formateur)
+            pdf_path = ensure_formateur_framework_contract_pdf(formateur, contract_date=contract_date)
     except (ValueError, FileNotFoundError, RuntimeError) as exc:
         flash(f"Génération du contrat impossible : {exc}", "error")
         return redirect(url_for("formateur_detail", fid=fid))

@@ -1,5 +1,9 @@
 from pathlib import Path
+from copy import deepcopy
+from datetime import datetime
+from io import BytesIO
 
+import pytest
 from pypdf import PdfReader
 
 import app
@@ -81,8 +85,11 @@ def test_identity_update_persists_birth_date(monkeypatch):
     assert saved["data"] == [formateur]
 
 
-def test_yousign_send_creates_only_trainer_signer_with_sms_otp(monkeypatch, tmp_path):
+@pytest.mark.parametrize("liscia", [False, True])
+def test_yousign_send_creates_only_trainer_signer_with_sms_otp(monkeypatch, tmp_path, liscia):
     formateur = complete_formateur()
+    if liscia:
+        formateur.update(prenom="Véronique", nom="LISCIA")
     formateur["yousign"] = app.normalize_yousign_state({
         "signatureRequestId": "sr-legacy-center",
         "signerId": "signer-trainer-old",
@@ -145,13 +152,21 @@ def test_yousign_send_creates_only_trainer_signer_with_sms_otp(monkeypatch, tmp_
     monkeypatch.setattr(app, "save_formateurs", lambda data: saved.setdefault("data", data))
     monkeypatch.setattr(app, "is_yousign_configured", lambda: True)
     monkeypatch.setattr(app, "YousignClient", FakeYousignClient)
-    response = authenticated_client().post("/formateurs/dfff0664/yousign/send")
+    response = authenticated_client().post(
+        "/formateurs/dfff0664/yousign/send", data={"contract_date": "2024-02-29"}
+    )
 
     assert response.status_code == 302
     assert calls["canceled"]["signature_request_id"] == "sr-legacy-center"
     assert "seul le formateur signe" in calls["canceled"]["custom_note"]
     assert calls["upload"]["pdf_bytes"].startswith(b"%PDF")
     assert calls["upload"]["parse_anchors"] is False
+    uploaded = PdfReader(BytesIO(calls["upload"]["pdf_bytes"]))
+    uploaded_text = "\n".join(page.extract_text() or "" for page in uploaded.pages)
+    assert "jeudi 29 février 2024" in uploaded_text
+    assert ("6.2 Le Sous" in uploaded_text) is (not liscia)
+    assert ("7.2 Cession" in uploaded_text) is (not liscia)
+    assert formateur["frameworkContract"]["contractDate"] == "2024-02-29"
     assert [signer["email"] for signer in calls["signers"]] == ["elodie@example.com"]
     assert calls["signers"][0]["force_sms_otp"] is True
     assert calls["signers"][0]["phone_number"] == "+33612345678"
@@ -187,6 +202,10 @@ def test_formateur_detail_shows_framework_contract_actions(monkeypatch):
     assert "Générer et envoyer pour signature" in html
     assert 'id="framework-contract-missing-fields"' in html
     assert 'id="framework-contract-generate-button"' in html
+    assert 'data-framework-contract-action="generate"' in html
+    assert 'data-framework-contract-action="send"' in html
+    assert 'name="contract_date" type="date" required' in html
+    assert 'id="framework-contract-date-dialog"' in html
     assert "saas-dialogs.js?v=e0c5fd0" in html
 
 
@@ -317,3 +336,92 @@ def test_framework_contract_requires_address_and_valid_siret():
         "adresse postale",
         "SIRET valide à 14 chiffres",
     ]
+
+
+@pytest.mark.parametrize("first,last,excluded", [
+    ("Véronique", "LISCIA", True),
+    ("  Ve\u0301ronique ", " Liscia ", True),
+    ("VERONIQUE", "liscia", True),
+    ("Élodie", "LISCIA", False),
+    ("Véronique", "Dupont", False),
+    ("Véronique-Marie", "LISCIA", False),
+    ("Véronique", "LISCIA DUPONT", False),
+    ("", "LISCIA", False),
+])
+def test_clause_exception_requires_full_identity(first, last, excluded):
+    assert app.formateur_framework_contract_excludes_clauses({"prenom": first, "nom": last}) is excluded
+
+
+def test_variant_removes_only_requested_clauses_including_continuation():
+    standard = PdfReader(app.FORMATEUR_FRAMEWORK_CONTRACT_TEMPLATE)
+    variant = PdfReader(app.FORMATEUR_FRAMEWORK_CONTRACT_LISCIA_TEMPLATE)
+    assert len(variant.pages) == len(standard.pages) == 15
+    for index, (original, changed) in enumerate(zip(standard.pages, variant.pages)):
+        before = original.extract_text() or ""
+        after = changed.extract_text() or ""
+        if index == 6:
+            prefix = before[:before.index("6.2 Le Sous")]
+            retained = before[before.index("7. Propriété"):before.index("7.2 Cession")]
+            assert " ".join(after.split()) == " ".join((prefix + retained).split())
+        elif index == 7:
+            prefix = before[:before.index("en autant d’exemplaires")]
+            retained = before[before.index("8. Intuitu personae"):]
+            assert " ".join(after.split()) == " ".join((prefix + retained).split())
+        else:
+            assert before == after
+
+
+def test_selected_date_survives_regeneration_and_changed_date_rebuilds_pdf(monkeypatch, tmp_path):
+    trainer = complete_formateur()
+    monkeypatch.setattr(app, "FORMATEUR_FILES_DIR", str(tmp_path))
+    initial = app.create_formateur_framework_contract(
+        trainer, generated_at=datetime(2026, 10, 12, 9, 30), contract_date="2022-09-01"
+    )
+    assert trainer["frameworkContract"]["generatedAt"] == "2026-10-12T09:30:00"
+    assert trainer["frameworkContract"]["contractDate"] == "2022-09-01"
+    assert app.ensure_formateur_framework_contract_pdf(trainer) == initial
+    trainer["adresse_postale"] = "20 rue Nouvelle, 83480 Puget-sur-Argens"
+    refreshed = app.ensure_formateur_framework_contract_pdf(trainer)
+    assert refreshed != initial
+    assert trainer["frameworkContract"]["contractDate"] == "2022-09-01"
+    assert "jeudi 1 septembre 2022" in PdfReader(refreshed).pages[-1].extract_text()
+    changed = app.ensure_formateur_framework_contract_pdf(trainer, contract_date="2023-10-02")
+    assert changed != refreshed
+    assert "lundi 2 octobre 2023" in PdfReader(changed).pages[-1].extract_text()
+    assert Path(initial).exists() and Path(refreshed).exists()
+
+
+@pytest.mark.parametrize("route", ["contrat-cadre/generate", "yousign/send"])
+@pytest.mark.parametrize("value", [None, "", "2026-02-30", "not-a-date", "2026-1-2", "2026-10-12junk"])
+def test_invalid_date_has_no_side_effects(monkeypatch, route, value):
+    trainer = complete_formateur()
+    trainer["yousign"] = app.normalize_yousign_state({
+        "signatureRequestId": "legacy", "centerSignerId": "center", "status": "ongoing"
+    })
+    before = deepcopy(trainer)
+    monkeypatch.setattr(app, "load_formateurs", lambda: [trainer])
+    monkeypatch.setattr(app, "save_formateurs", lambda *_: pytest.fail("No write expected"))
+    monkeypatch.setattr(app, "YousignClient", lambda: pytest.fail("No Yousign call expected"))
+    response = authenticated_client().post(
+        f"/formateurs/dfff0664/{route}", data={} if value is None else {"contract_date": value}
+    )
+    assert response.status_code == 302
+    assert trainer == before
+
+
+def test_generate_route_uses_chosen_date_and_keeps_active_signature(monkeypatch, tmp_path):
+    trainer = complete_formateur()
+    monkeypatch.setattr(app, "FORMATEUR_FILES_DIR", str(tmp_path))
+    monkeypatch.setattr(app, "load_formateurs", lambda: [trainer])
+    saves = []
+    monkeypatch.setattr(app, "save_formateurs", lambda _: saves.append(True))
+    client = authenticated_client()
+    response = client.post("/formateurs/dfff0664/contrat-cadre/generate", data={"contract_date": "2020-05-18"})
+    assert response.status_code == 302
+    assert trainer["frameworkContract"]["contractDate"] == "2020-05-18"
+    assert saves == [True]
+    trainer["yousign"] = app.normalize_yousign_state({"signatureRequestId": "active", "status": "ongoing"})
+    before = deepcopy(trainer)
+    client.post("/formateurs/dfff0664/contrat-cadre/generate", data={"contract_date": "2021-01-01"})
+    assert trainer == before
+    assert saves == [True]

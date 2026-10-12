@@ -1013,6 +1013,34 @@ body.relance-preview-open { overflow: hidden; }
   opacity: .55;
 }
 
+.framework-contract-dialog {
+  box-sizing: border-box;
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 28px;
+  border: 1px solid #ead8b1;
+  border-radius: 20px;
+  background: #fffdf8;
+  color: #15120d;
+  box-shadow: 0 24px 80px #15120d30;
+}
+.framework-contract-dialog::backdrop { background: #15120d80; }
+.framework-contract-dialog__eyebrow { color: #987021; font-size: 12px; font-weight: 800; }
+.framework-contract-dialog h2 { margin: 8px 0 12px; font-size: 23px; }
+.framework-contract-dialog p { line-height: 1.5; }
+.framework-contract-dialog label { display: block; margin: 20px 0 8px; font-size: 14px; font-weight: 800; }
+.framework-contract-dialog input[type="date"] {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbbd9f;
+  border-radius: 10px;
+  background: white;
+  font: inherit;
+}
+#framework-contract-date-help { color: #786d5d; font-size: 12px; }
+.framework-contract-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
 .trainer-detail-main {
   display: grid;
   gap: 16px;

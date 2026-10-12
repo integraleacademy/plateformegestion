@@ -2,6 +2,7 @@ from pathlib import Path
 from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
+import re
 
 import pytest
 from pypdf import PdfReader
@@ -425,3 +426,110 @@ def test_generate_route_uses_chosen_date_and_keeps_active_signature(monkeypatch,
     client.post("/formateurs/dfff0664/contrat-cadre/generate", data={"contract_date": "2021-01-01"})
     assert trainer == before
     assert saves == [True]
+
+
+@pytest.mark.parametrize("status", ["draft", "approval", "ongoing", "partially_signed"])
+def test_regenerate_button_is_available_during_pending_signature(monkeypatch, status):
+    trainer = complete_formateur()
+    trainer["frameworkContract"] = {"filename": "old.pdf", "contractDate": "2026-09-03"}
+    trainer["yousign"] = app.normalize_yousign_state({"signatureRequestId": "sr-pending", "status": status})
+    monkeypatch.setattr(app, "load_formateurs", lambda: [trainer])
+    monkeypatch.setattr(app, "get_etat_cles_badges", lambda *_: ({}, {}))
+    response = authenticated_client().get("/formateurs/dfff0664")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    button = re.search(r'<button\b[^>]*id="framework-contract-generate-button"[^>]*>', html).group()
+    assert "disabled" not in button
+    assert 'data-replace-signature-request-id="sr-pending"' in html
+    assert "La demande de signature en cours sera annulée" in html
+    assert 'id="framework-contract-replace-request"' in html
+    assert 'formateur-framework-contract.js?v=20261012-2' in html
+
+
+def pending_trainer(monkeypatch, tmp_path):
+    trainer = complete_formateur()
+    trainer.update(prenom="Véronique", nom="LISCIA")
+    monkeypatch.setattr(app, "FORMATEUR_FILES_DIR", str(tmp_path))
+    app.create_formateur_framework_contract(trainer, contract_date="2026-09-03")
+    trainer["yousign"] = app.normalize_yousign_state({
+        "signatureRequestId": "sr-pending", "signerId": "signer-trainer", "status": "ongoing"
+    })
+    monkeypatch.setattr(app, "load_formateurs", lambda: [trainer])
+    monkeypatch.setattr(app, "is_yousign_configured", lambda: True)
+    return trainer
+
+
+@pytest.mark.parametrize("remote_status", ["ongoing", "approval", "draft", "expired", "canceled"])
+def test_confirmed_regeneration_archives_request_and_prepares_pdf_without_sending(monkeypatch, tmp_path, remote_status):
+    trainer = pending_trainer(monkeypatch, tmp_path)
+    previous = deepcopy(trainer)
+    calls, saves = [], []
+
+    class FakeClient:
+        def get_signature_request(self, request_id):
+            assert request_id == "sr-pending"
+            calls.append("status")
+            return {"status": remote_status}
+
+        def cancel_signature_request(self, request_id, note):
+            assert request_id == "sr-pending"
+            assert len(list(tmp_path.rglob("*.pdf"))) == 2  # The replacement PDF exists first.
+            calls.append("cancel")
+
+        def request(self, method, path):
+            assert (method, path) == ("DELETE", "signature_requests/sr-pending")
+            calls.append("delete")
+
+    monkeypatch.setattr(app, "YousignClient", FakeClient)
+    monkeypatch.setattr(app, "save_formateurs", lambda _: saves.append(True))
+    response = authenticated_client().post("/formateurs/dfff0664/contrat-cadre/generate", data={
+        "contract_date": "2022-09-01", "replace_signature_request_id": "sr-pending"
+    })
+    assert response.status_code == 302
+    expected_action = [] if remote_status in {"expired", "canceled"} else ["delete" if remote_status == "draft" else "cancel"]
+    assert calls == ["status", *expected_action]
+    assert saves == [True]
+    assert not trainer["yousign"]["signatureRequestId"]
+    assert trainer["frameworkContract"]["contractDate"] == "2022-09-01"
+    assert trainer["frameworkContract"]["filename"] != previous["frameworkContract"]["filename"]
+    archived = trainer["frameworkContractHistory"][-1]
+    assert archived["contract"] == previous["frameworkContract"]
+    assert archived["yousign"]["signatureRequestId"] == "sr-pending"
+    assert archived["yousign"]["status"] == ("expired" if remote_status == "expired" else "canceled")
+    path = Path(app.formateur_framework_contract_directory(trainer["id"])) / trainer["frameworkContract"]["filename"]
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
+    assert "jeudi 1 septembre 2022" in text
+    assert "6.2 Le Sous" not in text and "7.2 Cession" not in text
+    assert len(list(tmp_path.rglob("*.pdf"))) == 2
+
+
+@pytest.mark.parametrize("failure", ["cancel", "signed", "pdf", "changed_request", "unknown_status"])
+def test_regeneration_failure_preserves_previous_contract_and_request(monkeypatch, tmp_path, failure):
+    trainer = pending_trainer(monkeypatch, tmp_path)
+    previous = deepcopy(trainer)
+    calls = []
+
+    class FakeClient:
+        def get_signature_request(self, request_id):
+            calls.append("status")
+            return {"status": "done" if failure == "signed" else "unknown" if failure == "unknown_status" else "ongoing"}
+
+        def cancel_signature_request(self, request_id, note):
+            calls.append("cancel")
+            raise app.YousignError("Annulation refusée", 409, {"message": "Cannot cancel"})
+
+    def fail_pdf(*_args, **_kwargs):
+        raise RuntimeError("PDF indisponible")
+
+    monkeypatch.setattr(app, "YousignClient", FakeClient)
+    monkeypatch.setattr(app, "save_formateurs", lambda _: pytest.fail("No state should be saved"))
+    if failure == "pdf":
+        monkeypatch.setattr(app, "generate_formateur_framework_contract_pdf", fail_pdf)
+    response = authenticated_client().post("/formateurs/dfff0664/contrat-cadre/generate", data={
+        "contract_date": "2022-09-01",
+        "replace_signature_request_id": "different-request" if failure == "changed_request" else "sr-pending",
+    })
+    assert response.status_code == 302
+    assert trainer == previous
+    assert calls == ([] if failure == "changed_request" else ["status", "cancel"] if failure == "cancel" else ["status"])
+    assert len(list(tmp_path.rglob("*.pdf"))) == 1

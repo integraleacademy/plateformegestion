@@ -10610,6 +10610,59 @@ def ensure_formateur_framework_contract_pdf(formateur, contract_date=None):
     return create_formateur_framework_contract(formateur, contract_date=selected_date)
 
 
+def replace_pending_formateur_framework_contract(formateur, contract_date, expected_request_id):
+    """Prépare le PDF, puis annule la demande explicitement confirmée par l’admin."""
+    state = normalize_yousign_state(formateur.get("yousign"))
+    request_id = state.get("signatureRequestId")
+    active_statuses = {"draft", "approval", "ongoing", "partially_signed"}
+    if not expected_request_id or request_id != expected_request_id or state.get("status") not in active_statuses:
+        raise ValueError("La demande de signature a changé. Actualisez la fiche avant de régénérer le contrat.")
+    if not is_yousign_configured():
+        raise ValueError("Yousign doit être configuré pour annuler la demande de signature en cours.")
+
+    selected_date = normalize_formateur_contract_date(contract_date)
+    client = YousignClient()
+    remote = client.get_signature_request(request_id)
+    remote_status = extract_yousign_status(remote)
+    if remote_status in {"done", "signed"}:
+        raise ValueError("Le contrat est déjà signé. Actualisez le statut Yousign avant de créer une nouvelle version.")
+    terminal_statuses = {"canceled", "expired", "declined", "rejected"}
+    if not isinstance(remote, dict) or not remote.get("status") or remote_status not in active_statuses | terminal_statuses:
+        raise ValueError("Impossible de confirmer le statut Yousign. La demande actuelle est conservée.")
+
+    # Générer sur une copie : une erreur PDF ne doit pas annuler la demande en cours.
+    replacement = deepcopy(formateur)
+    replacement["yousign"] = normalize_yousign_state({})
+    path = create_formateur_framework_contract(replacement, contract_date=selected_date)
+    now = datetime.now().isoformat(timespec="seconds")
+    try:
+        if remote_status == "draft":
+            client.request("DELETE", f"signature_requests/{urllib.parse.quote(request_id)}")
+        elif remote_status not in terminal_statuses:
+            client.cancel_signature_request(
+                request_id, "Remplacée par une nouvelle version du contrat cadre, à vérifier avant envoi."
+            )
+    except Exception:
+        if os.path.exists(path):
+            os.remove(path)
+        raise
+
+    archived_state = normalize_yousign_state({
+        **state,
+        "status": remote_status if remote_status in terminal_statuses else "canceled",
+        "lastSyncedAt": now,
+        "error": None,
+    })
+    if remote_status not in terminal_statuses:
+        archived_state.update(canceledAt=now, lastEvent="signature_request.canceled_for_regeneration")
+    history = formateur.setdefault("frameworkContractHistory", [])
+    history.append({"contract": dict(formateur.get("frameworkContract") or {}), "yousign": archived_state})
+    del history[:-20]
+    formateur["frameworkContract"] = replacement["frameworkContract"]
+    formateur["yousign"] = replacement["yousign"]
+    return path
+
+
 def normalize_formateur_profils(values):
     profils = []
     for value in values or []:
@@ -11386,10 +11439,20 @@ def generate_formateur_framework_contract(fid):
         abort(404)
     try:
         contract_date = normalize_formateur_contract_date(request.form.get("contract_date"))
-        create_formateur_framework_contract(formateur, contract_date=contract_date)
+        replaced_request_id = (request.form.get("replace_signature_request_id") or "").strip()
+        if replaced_request_id:
+            replace_pending_formateur_framework_contract(formateur, contract_date, replaced_request_id)
+        else:
+            create_formateur_framework_contract(formateur, contract_date=contract_date)
         save_formateurs(formateurs)
-        flash("Contrat cadre de sous-traitance généré.", "ok")
-    except (ValueError, FileNotFoundError, RuntimeError) as exc:
+        flash(
+            "L’ancienne demande de signature est clôturée. Le nouveau contrat est prêt à vérifier avant envoi."
+            if replaced_request_id else "Contrat cadre de sous-traitance généré.",
+            "ok",
+        )
+    except YousignError as exc:
+        flash(f"Régénération impossible : l’annulation Yousign n’a pas été confirmée. {exc}", "error")
+    except (ValueError, OSError, RuntimeError) as exc:
         flash(f"Génération du contrat impossible : {exc}", "error")
     return redirect(url_for("formateur_detail", fid=fid))
 

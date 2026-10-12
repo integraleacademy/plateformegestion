@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js', v='e0c5fd0') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/formateur-framework-contract.js', v='20261012') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/formateur-framework-contract.js', v='20261012-2') }}" defer></script>
 </head>
 
 <body class="formateurs-page formateur-detail-page">
@@ -187,10 +187,13 @@
         {% if framework_contract_excludes_clauses %}
           <p class="framework-contract-meta">Pour Véronique LISCIA, les nouveaux contrats sont générés sans les points 6.2 et 7.2.</p>
         {% endif %}
+        {% if ys_active %}
+          <p class="framework-contract-meta">La régénération vous permettra d’annuler la demande de signature en cours et de préparer un nouveau contrat.</p>
+        {% endif %}
 
         <div class="detail-actions framework-contract-actions">
-          <form method="POST" action="{{ url_for('generate_formateur_framework_contract', fid=formateur.id) }}" data-framework-contract-action="generate" data-contract-date="{{ framework_contract.contractDate|default('', true) }}" data-contract-message="{% if yousign.signatureRequestId %}Une nouvelle version du contrat sera créée. Le contrat précédent restera dans l’historique.{% else %}Le contrat reprendra les informations de cette fiche et la date choisie ci-dessous.{% endif %}">
-            <button type="submit" id="framework-contract-generate-button" class="btn-premium btn-premium--soft" data-yousign-active="{{ 'true' if ys_active else 'false' }}" {% if framework_contract_missing_fields or ys_active %}disabled{% endif %}>
+          <form method="POST" action="{{ url_for('generate_formateur_framework_contract', fid=formateur.id) }}" data-framework-contract-action="generate" data-contract-date="{{ framework_contract.contractDate|default('', true) }}" data-replace-signature-request-id="{{ yousign.signatureRequestId if ys_active else '' }}" data-contract-message="{% if ys_active %}La demande de signature en cours sera annulée. Le contrat précédent restera dans l’historique. Vous pourrez vérifier le nouveau PDF avant de l’envoyer pour signature.{% elif yousign.signatureRequestId %}Une nouvelle version du contrat sera créée. Le contrat précédent restera dans l’historique.{% else %}Le contrat reprendra les informations de cette fiche et la date choisie ci-dessous.{% endif %}">
+            <button type="submit" id="framework-contract-generate-button" class="btn-premium btn-premium--soft" {% if framework_contract_missing_fields %}disabled{% endif %}>
               {% if framework_contract.filename %}Régénérer le contrat{% else %}Générer le contrat{% endif %}
             </button>
           </form>
@@ -392,6 +395,7 @@
 
 <dialog id="framework-contract-date-dialog" class="framework-contract-dialog" aria-labelledby="framework-contract-date-title" aria-describedby="framework-contract-date-description">
   <form method="POST" id="framework-contract-date-form">
+    <input type="hidden" name="replace_signature_request_id" id="framework-contract-replace-request" value="">
     <p class="framework-contract-dialog__eyebrow">Contrat cadre de sous-traitance</p>
     <h2 id="framework-contract-date-title">Choisir la date de signature</h2>
     <p id="framework-contract-date-description"></p>
@@ -634,8 +638,7 @@ function updateSelectColor(selectEl) {
     }
 
     if (frameworkGenerateButton) {
-      frameworkGenerateButton.disabled = missingFields.length > 0
-        || frameworkGenerateButton.dataset.yousignActive === "true";
+      frameworkGenerateButton.disabled = missingFields.length > 0;
     }
 
     if (frameworkSendButton) {

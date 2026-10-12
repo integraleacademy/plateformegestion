@@ -9745,16 +9745,28 @@ DOTATIONS_FILE = os.path.join(DATA_DIR, "dotations.json")
 
 def load_dotations():
     if os.path.exists(DOTATIONS_FILE):
-        try:
-            with open(DOTATIONS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
+        with open(DOTATIONS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            raise ValueError("Le fichier des dotations est invalide.")
+        return data
     return []
 
 def save_dotations(data):
-    with open(DOTATIONS_FILE, "w", encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=os.path.dirname(DOTATIONS_FILE), delete=False) as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+        temporary_path = f.name
+    os.replace(temporary_path, DOTATIONS_FILE)
+
+
+from services.dotation_workflow import DotationWorkflow
+
+dotation_workflow = DotationWorkflow(
+    app, lambda: load_dotations(), lambda data: save_dotations(data),
+    DOTATIONS_FILE + ".lock", os.path.join(DATA_DIR, "dotation_contracts"),
+)
 
 
 # ✉️ Fonction d’envoi d’email (réutilise la conf SMTP)
@@ -9908,7 +9920,11 @@ def dotations_home():
 
 
 @app.route("/dotations/add", methods=["POST"])
+@dotation_workflow.locked
 def add_dotation():
+    if not all(request.form.get(key, "").strip() for key in ("nom", "prenom", "email")):
+        flash("Le nom, le prénom et l'e-mail sont obligatoires.", "error")
+        return redirect(url_for("dotations_home"))
     data = load_dotations()
     item = {
         "id": str(uuid.uuid4())[:8],
@@ -9924,12 +9940,17 @@ def add_dotation():
     data.append(item)
     save_dotations(data)
     flash("Dotation ajoutée avec succès.", "ok")
-    return redirect(url_for("dotations_home"))
+    return redirect(url_for("dotation_contracts.detail", id=item["id"]))
 
 
 @app.route("/dotations/<id>/delete", methods=["POST"])
+@dotation_workflow.locked
 def delete_dotation(id):
     data = load_dotations()
+    dotation = next((d for d in data if d.get("id") == id), {})
+    if any(c.get("yousign", {}).get("signatureRequestId") or c.get("yousign", {}).get("creationUncertain") for c in dotation_workflow.records(dotation)):
+        flash("Cette dotation possède un historique de signature. Elle est conservée avec ses conventions.", "error")
+        return redirect(url_for("dotations_home"))
     data = [d for d in data if d["id"] != id]
     save_dotations(data)
     flash("Dotation supprimée.", "ok")
@@ -9937,6 +9958,7 @@ def delete_dotation(id):
 
 
 @app.route("/dotations/<id>/edit", methods=["POST"])
+@dotation_workflow.locked
 def edit_dotation(id):
     data = load_dotations()
     for d in data:
@@ -9954,6 +9976,7 @@ def edit_dotation(id):
     return redirect(url_for("dotations_home"))
 
 @app.route("/dotations/<id>/update_date", methods=["POST"])
+@dotation_workflow.locked
 def update_date_remise(id):
     data = load_dotations()
     for d in data:
@@ -9965,6 +9988,7 @@ def update_date_remise(id):
     return redirect(url_for("dotations_home"))
 
 @app.route("/dotations/<id>/rupture", methods=["POST"])
+@dotation_workflow.locked
 def rupture_contrat(id):
     data = load_dotations()
     for d in data:
@@ -9995,6 +10019,7 @@ def rupture_contrat(id):
 
 
 @app.route("/dotations/<id>/badge_fin", methods=["POST"])
+@dotation_workflow.locked
 def badge_fin(id):
     data = load_dotations()
     for d in data:
@@ -10019,6 +10044,7 @@ def badge_fin(id):
 
 
 @app.route("/dotations/<id>/changer_statut", methods=["POST"])
+@dotation_workflow.locked
 def changer_statut(id):
     nouveau_statut = request.form.get("statut")
     data = load_dotations()
@@ -11645,6 +11671,10 @@ def yousign_webhook():
         if not hmac.compare_digest(expected, provided):
             logger.warning("YOUSIGN WEBHOOK IGNORED event=%s reason=invalid_signature", event_name)
             return {"ok": True, "ignored": True}
+
+    dotation_result = dotation_workflow.webhook(payload)
+    if dotation_result is not None:
+        return dotation_result
 
     if event_name not in YOUSIGN_HANDLED_WEBHOOK_EVENTS:
         logger.info("YOUSIGN WEBHOOK IGNORED event=%s", event_name)

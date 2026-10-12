@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }}</title>
   <style>
     body {
@@ -114,6 +115,13 @@
     .back-btn:hover {background:#166f3d;}
 
     .center {text-align: center; margin-top: 25px;}
+    .table-wrap {overflow-x:auto;}
+    .contract-link {display:inline-block;background:#1e8449;color:white;text-decoration:none;padding:8px 12px;border-radius:6px;font-weight:600;white-space:nowrap;}
+    .signature-label {display:block;margin-top:6px;font-size:12px;color:#536458;}
+    .flash {padding:12px 18px;background:#e4f5e8;color:#225934;border-radius:8px;margin:0 auto 18px;max-width:1100px;}
+    .flash.error {background:#fff0ed;color:#9d3129;}
+    @media(max-width:700px){body{padding:15px}h1{font-size:22px}.logo{height:80px}}
+
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
@@ -125,8 +133,12 @@
     <h1>Gestion des dotations</h1>
   </header>
 
+  {% for category,message in get_flashed_messages(with_categories=true) %}
+  <div class="flash {{ category }}" role="status">{{ message }}</div>
+  {% endfor %}
   <!-- ✅ Formulaire ajout -->
   <form class="form-add" method="POST" action="{{ url_for('add_dotation') }}">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
     <h3>Ajouter une dotation</h3>
     <input name="nom" placeholder="Nom" required>
     <input name="prenom" placeholder="Prénom" required>
@@ -135,11 +147,11 @@
     <input name="badge" placeholder="N° badge café">
     <input type="date" name="date_remise">
     <input name="commentaire" placeholder="Commentaire">
-    <button type="submit" class="btn-green">+ Ajouter</button>
+    <button type="submit" class="btn-green">+ Ajouter et préparer le contrat</button>
   </form>
 
   <!-- ✅ Tableau principal -->
-  <table>
+  <div class="table-wrap"><table>
     <tr>
       <th>Nom</th>
       <th>Prénom</th>
@@ -149,6 +161,7 @@
       <th>Date remise</th>
       <th>Statut</th>
       <th>Commentaire</th>
+      <th>Contrat et signature</th>
       <th>Actions</th>
     </tr>
 
@@ -161,6 +174,7 @@
       <td>{{ d.badge }}</td>
       <td>
         <form method="POST" action="{{ url_for('update_date_remise', id=d.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
           <input type="date" name="date_remise" value="{{ d.date_remise }}">
           <button class="btn-blue" title="Mettre à jour la date">💾</button>
         </form>
@@ -169,6 +183,7 @@
       <!-- ✅ Statut avec couleurs dynamiques -->
       <td>
         <form method="POST" action="{{ url_for('changer_statut', id=d.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
           <select name="statut" onchange="updateSelectColor(this); this.form.submit();"
             style="padding:4px 8px;border-radius:6px;border:1px solid #ccc; font-weight:600;">
             <option value="Dotation à distribuer" {% if d.statut=='Dotation à distribuer' %}selected{% endif %}>À distribuer</option>
@@ -182,26 +197,34 @@
       <!-- ✅ Commentaire modifiable -->
       <td>
         <form method="POST" action="{{ url_for('edit_dotation', id=d.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
           <input name="commentaire" value="{{ d.commentaire }}" placeholder="Commentaire" style="width:160px;padding:4px 6px;">
           <button class="btn-blue" title="Sauvegarder">💾</button>
         </form>
       </td>
 
+  <td>
+    <a class="contract-link" href="{{ url_for('dotation_contracts.detail', id=d.id) }}">Contrat</a>
+    {% if d.get('contract') %}<span class="signature-label">{{ dotation_signature_label(d.contract.get('yousign', {}).get('status', 'draft')) }}</span>{% else %}<span class="signature-label">À préparer</span>{% endif %}
+  </td>
   <td class="actions">
   <form method="POST" action="{{ url_for('rupture_contrat', id=d.id) }}" onsubmit="return confirmSend(this)">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
     <button class="btn-green rupture" data-action="rupture" title="Rupture contrat">⚠️ Rupture</button>
   </form>
   <form method="POST" action="{{ url_for('badge_fin', id=d.id) }}" onsubmit="return confirmSend(this)">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
     <button class="btn-green badge" data-action="badge" title="Fin d'études">🎓 Badge</button>
   </form>
   <form method="POST" action="{{ url_for('delete_dotation', id=d.id) }}" onsubmit="return confirm('Supprimer cette dotation ?')">
+    <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}">
     <button class="btn-red" title="Supprimer">🗑️</button>
   </form>
 </td>
 
     </tr>
     {% endfor %}
-  </table>
+  </table></div>
 
   <div class="center">
     <a href="{{ url_for('index') }}" class="back-btn">⬅ Retour à l'accueil</a>

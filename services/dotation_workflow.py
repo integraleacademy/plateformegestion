@@ -15,7 +15,7 @@ from io import BytesIO
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 
-from services.dotation_contracts import contract_values, fingerprint, generate_pdf, read_contract_form, FORMATIONS, GENERATOR_VERSION, SIGNATURE_FIELDS
+from services.dotation_contracts import contract_values, fingerprint, generate_pdf, read_contract_form, CENTER_SIGNED_VERSIONS, FORMATIONS, GENERATOR_VERSION, PDF_PAGE_COUNT, SIGNATURE_FIELDS
 from yousign_service import YousignClient, YousignError, get_yousign_config, normalizeFrenchPhoneNumber
 
 LABELS = {"draft": "PDF prêt", "creating": "Préparation Yousign", "ongoing": "En attente de signature",
@@ -135,7 +135,7 @@ class DotationWorkflow:
                     dotation.setdefault("contract_history", []).insert(0, contract)
                 dotation.update(values)
                 dotation["contract"] = {"id": version, "filename": filename, "generatedAt": now(), "snapshot": values,
-                                        "fingerprint": fingerprint(values), "sha256": checksum, "generatorVersion": GENERATOR_VERSION,
+                                        "fingerprint": fingerprint(values), "sha256": checksum, "generatorVersion": GENERATOR_VERSION, "pageCount": PDF_PAGE_COUNT,
                                         "yousign": {"status": "draft"}}
                 self.save(data)
                 flash("Convention générée. Vérifiez le PDF avant de l'envoyer en signature.", "ok")
@@ -154,7 +154,8 @@ class DotationWorkflow:
         return render_template("dotation_contract.html", d=dotation, values=values, contract=contract, state=state,
                                formation_options=FORMATIONS,
                                blocked=self.blocked(contract), stale=bool(contract and fingerprint(contract_values(dotation)) != fingerprint(contract.get("snapshot") or {})),
-                               center_signed=contract.get("generatorVersion") == GENERATOR_VERSION,
+                               center_signed=contract.get("generatorVersion") in CENTER_SIGNED_VERSIONS,
+                               current_template=contract.get("generatorVersion") == GENERATOR_VERSION,
                                configured=bool(get_yousign_config().api_key), sms=get_yousign_config().authentication_mode == "otp_sms",
                                sandbox="sandbox" in get_yousign_config().base_url, history=dotation.get("contract_history", []))
 
@@ -181,7 +182,7 @@ class DotationWorkflow:
             return self.back(id)
         try:
             if contract.get("generatorVersion") != GENERATOR_VERSION:
-                raise ValueError("Générez une nouvelle version pour intégrer le tampon et la signature du centre avant l'envoi au stagiaire.")
+                raise ValueError("Générez une nouvelle version pour utiliser le contrat enrichi, avec le tampon et la signature du centre, avant l'envoi au stagiaire.")
             if contract.get("fingerprint") != fingerprint(contract_values(dotation)):
                 raise ValueError("Les données de la dotation ont changé. Générez une nouvelle version avant l'envoi.")
             values = contract["snapshot"]
@@ -316,7 +317,8 @@ class DotationWorkflow:
             raise ValueError("Yousign n'a pas retourné un PDF signé valide.")
         from pypdf import PdfReader
         try:
-            if len(PdfReader(BytesIO(content)).pages) < 3:
+            minimum_pages = PDF_PAGE_COUNT if contract.get("generatorVersion") == GENERATOR_VERSION else 3
+            if len(PdfReader(BytesIO(content)).pages) < minimum_pages:
                 raise ValueError("PDF signé incomplet.")
         except Exception as exc:
             raise ValueError("Le PDF signé reçu est illisible ou incomplet.") from exc

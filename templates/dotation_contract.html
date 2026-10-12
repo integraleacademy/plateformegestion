@@ -62,7 +62,7 @@
               {% for label, title in formation_options.items() %}<option value="{{ title }}" {% if values.formation == title %}selected{% endif %}>{{ label }}</option>{% endfor %}
             </select></label>
             <label>Date de remise du matériel<input type="date" name="date_remise" value="{{ values.date_remise }}" required></label>
-            <label>Fin de la convention<input type="date" name="date_fin" value="{{ values.date_fin }}" required></label>
+            <label>Date de fin de formation<input type="date" name="date_fin" value="{{ values.date_fin }}" required></label>
           </div>
           <h3>Matériel et pénalités prévues au contrat</h3>
           <div class="grid">
@@ -75,7 +75,7 @@
             <label>Pénalité badge (€)<input type="number" name="penalite_badge" value="{{ values.penalite_badge }}" min="0" max="100000" step="0.01" required></label>
           </div>
           <p class="fine">L'iPad et le badge figurent au contrat uniquement si leur numéro est renseigné.</p>
-          <p class="fine">Comme dans le modèle : cession gratuite du matériel à l'échéance ; restitution en parfait état sous 5 jours en cas d'abandon avant cette date.</p>
+          <p class="fine">Cession gratuite du matériel à la date de fin de formation ; restitution sous 5 jours en cas d'abandon, selon les conditions du contrat.</p>
           <h3>Signature du centre de formation</h3>
           <p class="muted">Le tampon et la signature de Clément VAILLANT, directeur général, sont intégrés automatiquement au PDF. Seul le stagiaire reçoit la demande de signature Yousign.</p>
           <div class="actions"><button class="primary" type="submit">{{ 'Générer une nouvelle version' if contract else 'Générer le contrat PDF' }}</button></div>
@@ -91,7 +91,7 @@
           <span class="status {{ state.get('status','draft') }}" id="signature-status">{{ dotation_signature_label(state.get('status','draft')) }}</span>
           <p class="fine">PDF généré le {{ contract.generatedAt[:10].split('-')|reverse|join('/') }} à {{ contract.generatedAt[11:16] }}</p>
           {% if stale %}<div class="notice">La dotation a été modifiée depuis ce PDF. Le document conserve les informations de sa génération. Préparez une nouvelle version pour intégrer les changements.</div>{% endif %}
-          {% if not center_signed %}<div class="notice">Ce PDF utilise l'ancien modèle. {% if blocked %}Annulez la demande en cours puis générez{% else %}Générez{% endif %} une nouvelle version pour intégrer le tampon et la signature du centre et demander uniquement la signature du stagiaire.</div>{% endif %}
+          {% if not current_template %}<div class="notice">Ce PDF utilise l'ancien modèle. {% if state.get('status') == 'done' %}Le contrat signé est conservé ; les prochains contrats utiliseront le modèle enrichi.{% else %}{% if blocked %}Annulez la demande en cours puis générez{% else %}Générez{% endif %} une nouvelle version pour utiliser le contrat enrichi{% if not center_signed %}, avec le tampon et la signature du centre{% endif %}.{% endif %}</div>{% endif %}
           {% if state.get('error') %}<p class="error-text">{{ state.error }}</p>{% endif %}
           {% if state.get('creationUncertain') %}<p class="notice">L'envoi n'a pas pu être confirmé. Vérifiez la présence de cette demande dans Yousign avant toute nouvelle tentative. Référence : {{ state.externalId }}</p>{% endif %}
           <div class="actions">
@@ -106,7 +106,7 @@
             <form class="signature-action" id="send-form" method="post" action="{{ url_for('dotation_contracts.send', id=d.id) }}" data-confirm="Envoyer cette convention par e-mail au stagiaire pour signature ?">
               <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}"><input type="hidden" name="version" value="{{ contract.id }}">
               <p><label class="check"><input type="checkbox" required>J'ai vérifié le PDF et les coordonnées du stagiaire.</label></p>
-              <button class="button primary full" {% if stale or not center_signed or not configured %}disabled{% endif %}>Envoyer en signature Yousign</button>
+              <button class="button primary full" {% if stale or not current_template or not configured %}disabled{% endif %}>Envoyer en signature Yousign</button>
               <p class="notice" id="unsaved-notice" hidden>Vous avez modifié des informations. Générez une nouvelle version du PDF avant l'envoi.</p>
             </form>
           {% else %}

@@ -3,7 +3,7 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
-from pypdf import PdfReader
+from pypdf import PdfReader, PdfWriter
 
 import app
 from services.dotation_contracts import CENTER_SIGNATURE_AREA, DEFAULTS, GENERATOR_VERSION, SIGNATURE_FIELDS, generate_pdf, read_contract_form
@@ -93,19 +93,25 @@ def test_pdf_content_and_center_images_leave_student_signature_blank(tmp_path):
     generate_pdf(values(), str(path), app.dotation_workflow.logo, "2026-10-12",
                  center_signature_path=app.find_center_image("signature"), center_stamp_path=app.find_center_image("tampon"))
     reader = PdfReader(path)
-    text = "\n".join(page.extract_text() for page in reader.pages)
-    assert len(reader.pages) == 3
+    text = " ".join(" ".join(page.extract_text() for page in reader.pages).split())
+    assert len(reader.pages) == 4
     assert all(value in text for value in ("Élodie DUPONT", "12 avenue des Écoles", "SERIAL-TEST-123", "BADGE-456", "30 juin 2028"))
-    assert all(f"Article {i}" in text for i in range(1, 6))
+    assert all(f"Article {i} -" in text for i in range(1, 11))
+    assert "Date de fin de formation : 30 juin 2028" in text
+    assert "5 jours suivant la rupture du contrat d'apprentissage" in text
+    assert "cédé gratuitement au stagiaire" in text
+    assert "usure normale" in text and "mise en demeure" in text
+    assert "Fréjus sera seul compétent" not in text
     assert "400,00 euros" in text and "20,00 euros" in text
     assert "64GB" not in text and "MINTSA" not in text and "sc_sign1" not in text
-    assert len(reader.pages[0].images) == 1  # Logo only on the first two pages.
-    assert len(reader.pages[2].images) == 3  # Logo, authorized center signature and stamp.
+    assert all(len(page.images) == 1 for page in reader.pages[:-1])
+    assert len(reader.pages[-1].images) == 3  # Logo, authorized center signature and stamp.
     assert text.count("Signature électronique via Yousign") == 1
     assert "Tampon et signature du centre" in text
     for field in [*SIGNATURE_FIELDS.values(), CENTER_SIGNATURE_AREA]:
-        assert field["x"] + field["width"] < float(reader.pages[2].mediabox.width)
-        assert field["y"] + field["height"] < float(reader.pages[2].mediabox.height)
+        assert field["page"] == 4
+        assert field["x"] + field["width"] < float(reader.pages[-1].mediabox.width)
+        assert field["y"] + field["height"] < float(reader.pages[-1].mediabox.height)
 
 
 def test_generate_and_preview_works_for_existing_legacy_dotation(workflow):
@@ -114,11 +120,12 @@ def test_generate_and_preview_works_for_existing_legacy_dotation(workflow):
     assert client.get("/dotations/dot-test/contrat").status_code == 200
     post = prepare(workflow)
     pdf = client.get("/dotations/dot-test/contrat/pdf?version=" + post["version"])
-    assert pdf.mimetype == "application/pdf" and len(PdfReader(BytesIO(pdf.data)).pages) == 3
+    assert pdf.mimetype == "application/pdf" and len(PdfReader(BytesIO(pdf.data)).pages) == 4
     html = client.get("/dotations/dot-test/contrat").get_data(as_text=True)
     assert "Envoyer en signature Yousign" in html and "Générer une nouvelle version" in html
     assert 'name="centre_email"' not in html and 'name="centre_telephone"' not in html
     assert "Tampon et signature intégrés au PDF" in html
+    assert "Date de fin de formation" in html and "Fin de la convention" not in html
     assert store["data"][0]["contract"]["generatorVersion"] == GENERATOR_VERSION
 
 
@@ -141,7 +148,8 @@ def test_only_student_signs_no_duplicates_and_signed_download(workflow, monkeypa
     assert [c[1] for c in api.calls if c[0] == "signer"] == ["elodie@example.test"]
     assert [c[2] for c in api.calls if c[0] == "field"] == [SIGNATURE_FIELDS["stagiaire"]]
     assert "centreSignerId" not in store["data"][0]["contract"]["yousign"]
-    assert len(PdfReader(BytesIO(api.content)).pages[2].images) == 3
+    assert len(PdfReader(BytesIO(api.content)).pages[-1].images) == 3
+    assert [c[2]["page"] for c in api.calls if c[0] == "field"] == [4]
     count = len(api.calls)
     client.post("/dotations/dot-test/contrat/send", data=post)
     assert len(api.calls) == count
@@ -242,6 +250,42 @@ def test_old_pdf_must_be_regenerated_before_sending(workflow, monkeypatch):
     assert new_post["version"] != post["version"]
     client.post("/dotations/dot-test/contrat/send", data=new_post)
     assert [c[1] for c in api.calls if c[0] == "signer"] == ["elodie@example.test"]
+
+
+def test_previous_center_signed_template_cannot_use_new_signature_page(workflow, monkeypatch):
+    client, manager, store, _ = workflow
+    post = prepare(workflow)
+    store["data"][0]["contract"]["generatorVersion"] = "dotation-center-signature-v2"
+    api = FakeYousign()
+    monkeypatch.setattr(manager, "client", lambda: api)
+    html = client.get("/dotations/dot-test/contrat").get_data(as_text=True)
+    assert "Ce PDF utilise l'ancien modèle" in html
+    assert "Tampon et signature intégrés au PDF" in html
+    client.post("/dotations/dot-test/contrat/send", data=post)
+    assert api.calls == []
+
+
+def test_signed_download_rejects_truncated_new_pdf_but_keeps_legacy_downloads(workflow, monkeypatch):
+    client, manager, store, _ = workflow
+    post = prepare(workflow)
+    api = FakeYousign()
+    monkeypatch.setattr(manager, "client", lambda: api)
+    client.post("/dotations/dot-test/contrat/send", data=post)
+    writer = PdfWriter()
+    for page in PdfReader(BytesIO(api.content)).pages[:3]:
+        writer.add_page(page)
+    truncated = BytesIO()
+    writer.write(truncated)
+    api.content, api.status = truncated.getvalue(), "done"
+    response = client.post("/dotations/dot-test/contrat/signed", data=post)
+    assert response.status_code == 302
+    assert not store["data"][0]["contract"].get("signedFilename")
+    with client.session_transaction() as session:
+        assert any("incomplet" in message for _, message in session.get("_flashes", []))
+    store["data"][0]["contract"]["generatorVersion"] = "dotation-center-signature-v2"
+    response = client.post("/dotations/dot-test/contrat/signed", data=post)
+    assert response.mimetype == "application/pdf"
+    assert response.data == api.content
 
 
 @pytest.mark.parametrize("missing", ["signature", "tampon"])

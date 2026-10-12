@@ -15,11 +15,11 @@ from io import BytesIO
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 
-from services.dotation_contracts import contract_values, fingerprint, generate_pdf, read_contract_form, SIGNATURE_FIELDS
+from services.dotation_contracts import contract_values, fingerprint, generate_pdf, read_contract_form, GENERATOR_VERSION, SIGNATURE_FIELDS
 from yousign_service import YousignClient, YousignError, get_yousign_config, normalizeFrenchPhoneNumber
 
 LABELS = {"draft": "PDF prêt", "creating": "Préparation Yousign", "ongoing": "En attente de signature",
-          "approval": "En préparation", "partially_signed": "Une signature sur deux", "done": "Signé par les deux parties",
+          "approval": "En préparation", "partially_signed": "Signature partielle", "finalizing": "Signature en cours de finalisation", "done": "Signé",
           "declined": "Refusé", "expired": "Expiré", "canceled": "Annulé", "rejected": "Refusé", "error": "Envoi à vérifier"}
 TERMINAL = {"done", "declined", "expired", "canceled", "rejected"}
 
@@ -29,10 +29,11 @@ def now():
 
 
 class DotationWorkflow:
-    def __init__(self, app, load, save, lock_path, directory):
+    def __init__(self, app, load, save, lock_path, directory, find_center_image):
         self.app, self.load, self.save = app, load, save
         self.lock_path, self.directory = lock_path, directory
         self.logo = os.path.join(app.root_path, "static", "img", "logo-integrale.png")
+        self.find_center_image = find_center_image
         app.jinja_env.globals["dotation_csrf"] = self.csrf
         app.jinja_env.globals["dotation_signature_label"] = lambda status: LABELS.get(status, "À vérifier")
         bp = Blueprint("dotation_contracts", __name__)
@@ -125,14 +126,17 @@ class DotationWorkflow:
                 os.makedirs(self.directory, exist_ok=True)
                 filename = f"convention_dotation_{id}_{version}.pdf"
                 path = os.path.join(self.directory, filename)
-                generate_pdf(values, path, self.logo)
+                generate_pdf(values, path, self.logo,
+                             center_signature_path=self.find_center_image("signature", "sign"),
+                             center_stamp_path=self.find_center_image("tampon", "cachet", "stamp"))
                 with open(path, "rb") as pdf_file:
                     checksum = hashlib.sha256(pdf_file.read()).hexdigest()
                 if contract:
                     dotation.setdefault("contract_history", []).insert(0, contract)
                 dotation.update(values)
                 dotation["contract"] = {"id": version, "filename": filename, "generatedAt": now(), "snapshot": values,
-                                        "fingerprint": fingerprint(values), "sha256": checksum, "yousign": {"status": "draft"}}
+                                        "fingerprint": fingerprint(values), "sha256": checksum, "generatorVersion": GENERATOR_VERSION,
+                                        "yousign": {"status": "draft"}}
                 self.save(data)
                 flash("Convention générée. Vérifiez le PDF avant de l'envoyer en signature.", "ok")
                 return self.back(id)
@@ -148,7 +152,8 @@ class DotationWorkflow:
             values = contract_values(dotation)
         state = contract.get("yousign") or {}
         return render_template("dotation_contract.html", d=dotation, values=values, contract=contract, state=state,
-                               blocked=self.blocked(contract), stale=bool(contract and fingerprint(contract_values(dotation)) != contract.get("fingerprint")),
+                               blocked=self.blocked(contract), stale=bool(contract and fingerprint(contract_values(dotation)) != fingerprint(contract.get("snapshot") or {})),
+                               center_signed=contract.get("generatorVersion") == GENERATOR_VERSION,
                                configured=bool(get_yousign_config().api_key), sms=get_yousign_config().authentication_mode == "otp_sms",
                                sandbox="sandbox" in get_yousign_config().base_url, history=dotation.get("contract_history", []))
 
@@ -174,17 +179,19 @@ class DotationWorkflow:
             flash("Une demande existe déjà. Actualisez son statut ; annulez-la avant de préparer une nouvelle version.", "error")
             return self.back(id)
         try:
+            if contract.get("generatorVersion") != GENERATOR_VERSION:
+                raise ValueError("Générez une nouvelle version pour intégrer le tampon et la signature du centre avant l'envoi au stagiaire.")
             if contract.get("fingerprint") != fingerprint(contract_values(dotation)):
                 raise ValueError("Les données de la dotation ont changé. Générez une nouvelle version avant l'envoi.")
             values = contract["snapshot"]
             client = self.client()
             use_sms = client.config.authentication_mode == "otp_sms"
-            phones = [None, None]
+            phone = None
             if use_sms:
                 try:
-                    phones = [normalizeFrenchPhoneNumber(values.get(key) or "") for key in ("telephone", "centre_telephone")]
+                    phone = normalizeFrenchPhoneNumber(values.get("telephone") or "")
                 except YousignError:
-                    raise ValueError("La signature par SMS nécessite un mobile français valide pour le stagiaire et le centre.")
+                    raise ValueError("La signature par SMS nécessite un mobile français valide pour le stagiaire.")
             with open(self.path(contract), "rb") as pdf_file:
                 content = pdf_file.read()
             if hashlib.sha256(content).hexdigest() != contract.get("sha256"):
@@ -204,24 +211,21 @@ class DotationWorkflow:
                 raise YousignError("Le document n'a pas été identifié par Yousign.")
             state["documentId"] = document["id"]
             self.save(data)
-            for first, last, email, phone, role in (
-                (values["prenom"], values["nom"], values["email"], phones[0], "stagiaire"),
-                ("Clément", "VAILLANT", values["centre_email"], phones[1], "centre"),
-            ):
-                signer = client.add_signer(srid, first, last, email, use_text_tags=True, phone_number=phone, force_sms_otp=use_sms)
-                if not signer.get("id"):
-                    raise YousignError("Un signataire n'a pas été identifié par Yousign.")
-                state[role + "SignerId"] = signer["id"]
-                self.save(data)
-                field = client.add_signature_field(srid, document["id"], signer["id"], **SIGNATURE_FIELDS[role])
-                if not field.get("id"):
-                    raise YousignError("Le champ de signature n'a pas été créé.")
-                state[role + "FieldId"] = field["id"]
-                self.save(data)
+            signer = client.add_signer(srid, values["prenom"], values["nom"], values["email"],
+                                       use_text_tags=True, phone_number=phone, force_sms_otp=use_sms)
+            if not signer.get("id"):
+                raise YousignError("Le stagiaire n'a pas été identifié par Yousign.")
+            state["stagiaireSignerId"] = signer["id"]
+            self.save(data)
+            field = client.add_signature_field(srid, document["id"], signer["id"], **SIGNATURE_FIELDS["stagiaire"])
+            if not field.get("id"):
+                raise YousignError("Le champ de signature n'a pas été créé.")
+            state["stagiaireFieldId"] = field["id"]
+            self.save(data)
             result = client.activate_signature_request(srid)
             state.update(status=result.get("status") or "ongoing", sentAt=now(), error=None)
             self.save(data)
-            flash("Convention envoyée par Yousign au stagiaire et à Clément VAILLANT.", "ok")
+            flash("Convention envoyée par Yousign au stagiaire. Le tampon et la signature du centre figurent déjà dans le PDF.", "ok")
         except (ValueError, YousignError, OSError) as exc:
             if isinstance(exc, YousignError) and exc.status_code and 400 <= exc.status_code < 500 and not state.get("signatureRequestId"):
                 state["creationUncertain"] = False
@@ -243,9 +247,9 @@ class DotationWorkflow:
             signers = client.get_signature_request_signers(state["signatureRequestId"])
             signers = signers.get("data", signers.get("signers", [])) if isinstance(signers, dict) else signers
             if any(s.get("status") in {"signed", "done"} for s in (signers or [])):
-                status = "partially_signed"
-        # Only the authenticated signature request status can mark both parties
-        # as done. A single signer.done webhook is insufficient.
+                status = "finalizing" if all(s.get("status") in {"signed", "done"} for s in signers) else "partially_signed"
+        # Only the authenticated request status confirms the final document is
+        # ready. A signer.done webhook alone is insufficient, including legacy requests.
         state.update(status=status, lastSyncedAt=now(), error=None)
         if status == "done":
             state.setdefault("signedAt", now())
@@ -280,7 +284,7 @@ class DotationWorkflow:
         try:
             state = self.sync_record(contract)
             if state["status"] == "done":
-                raise ValueError("Cette convention est déjà signée par les deux parties.")
+                raise ValueError("Cette convention est déjà signée.")
             client = self.client()
             if state["status"] == "draft":
                 client.request("DELETE", f"signature_requests/{state['signatureRequestId']}")
@@ -299,7 +303,7 @@ class DotationWorkflow:
             return
         state = contract.get("yousign") or {}
         if state.get("status") != "done":
-            raise ValueError("Le document n'est pas encore signé par les deux parties.")
+            raise ValueError("Le document signé n'est pas encore disponible.")
         content = self.client().download_signed_documents(state["signatureRequestId"])
         if zipfile.is_zipfile(BytesIO(content)):
             with zipfile.ZipFile(BytesIO(content)) as archive:

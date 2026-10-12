@@ -65,11 +65,7 @@
           <p class="fine">L'iPad et le badge figurent au contrat uniquement si leur numéro est renseigné.</p>
           <p class="fine">Comme dans le modèle : cession gratuite du matériel à l'échéance ; restitution en parfait état sous 5 jours en cas d'abandon avant cette date.</p>
           <h3>Signature du centre de formation</h3>
-          <p class="muted">Clément VAILLANT · Directeur général</p>
-          <div class="grid">
-            <label>E-mail du signataire du centre<input type="email" name="centre_email" value="{{ values.centre_email }}" maxlength="254" required></label>
-            <label>Mobile du centre{% if sms %} (obligatoire){% endif %}<input type="tel" name="centre_telephone" value="{{ values.centre_telephone }}" maxlength="25" {% if sms %}required{% endif %}></label>
-          </div>
+          <p class="muted">Le tampon et la signature de Clément VAILLANT, directeur général, sont intégrés automatiquement au PDF. Seul le stagiaire reçoit la demande de signature Yousign.</p>
           <div class="actions"><button class="primary" type="submit">{{ 'Générer une nouvelle version' if contract else 'Générer le contrat PDF' }}</button></div>
         </fieldset>
       </form>
@@ -83,6 +79,7 @@
           <span class="status {{ state.get('status','draft') }}" id="signature-status">{{ dotation_signature_label(state.get('status','draft')) }}</span>
           <p class="fine">PDF généré le {{ contract.generatedAt[:10].split('-')|reverse|join('/') }} à {{ contract.generatedAt[11:16] }}</p>
           {% if stale %}<div class="notice">La dotation a été modifiée depuis ce PDF. Le document conserve les informations de sa génération. Préparez une nouvelle version pour intégrer les changements.</div>{% endif %}
+          {% if not center_signed %}<div class="notice">Ce PDF utilise l'ancien modèle. {% if blocked %}Annulez la demande en cours puis générez{% else %}Générez{% endif %} une nouvelle version pour intégrer le tampon et la signature du centre et demander uniquement la signature du stagiaire.</div>{% endif %}
           {% if state.get('error') %}<p class="error-text">{{ state.error }}</p>{% endif %}
           {% if state.get('creationUncertain') %}<p class="notice">L'envoi n'a pas pu être confirmé. Vérifiez la présence de cette demande dans Yousign avant toute nouvelle tentative. Référence : {{ state.externalId }}</p>{% endif %}
           <div class="actions">
@@ -90,18 +87,18 @@
             <a class="button secondary" href="{{ url_for('dotation_contracts.pdf', id=d.id, version=contract.id, download=1) }}">Télécharger</a>
           </div>
           <div class="recipient"><strong>{{ contract.snapshot.prenom }} {{ contract.snapshot.nom }}</strong><span class="muted">{{ contract.snapshot.email }}</span></div>
-          <div class="recipient"><strong>Clément VAILLANT</strong><span class="muted">{{ contract.snapshot.centre_email }}</span></div>
+          {% if center_signed %}<div class="recipient"><strong>Clément VAILLANT</strong><span class="muted">Tampon et signature intégrés au PDF</span></div>{% elif state.get('centreSignerId') %}<div class="recipient"><strong>Clément VAILLANT</strong><span class="muted">Ancienne demande Yousign · {{ contract.snapshot.centre_email }}</span></div>{% endif %}
           {% if sandbox %}<div class="notice">Yousign est configuré en mode test.</div>{% endif %}
           {% if not configured %}<div class="notice">La connexion Yousign doit être configurée sur l'application pour envoyer les contrats. Le PDF est disponible.</div>{% endif %}
           {% if not state.get('signatureRequestId') and not state.get('creationUncertain') %}
-            <form class="signature-action" id="send-form" method="post" action="{{ url_for('dotation_contracts.send', id=d.id) }}" data-confirm="Envoyer cette convention par e-mail aux deux signataires affichés ?">
+            <form class="signature-action" id="send-form" method="post" action="{{ url_for('dotation_contracts.send', id=d.id) }}" data-confirm="Envoyer cette convention par e-mail au stagiaire pour signature ?">
               <input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}"><input type="hidden" name="version" value="{{ contract.id }}">
-              <p><label class="check"><input type="checkbox" required>J'ai vérifié le PDF et les coordonnées des deux signataires.</label></p>
-              <button class="button primary full" {% if stale or not configured %}disabled{% endif %}>Envoyer en signature Yousign</button>
+              <p><label class="check"><input type="checkbox" required>J'ai vérifié le PDF et les coordonnées du stagiaire.</label></p>
+              <button class="button primary full" {% if stale or not center_signed or not configured %}disabled{% endif %}>Envoyer en signature Yousign</button>
               <p class="notice" id="unsaved-notice" hidden>Vous avez modifié des informations. Générez une nouvelle version du PDF avant l'envoi.</p>
             </form>
           {% else %}
-            {% if state.get('sentAt') %}<p class="fine">Invitations envoyées le {{ state.sentAt[:10].split('-')|reverse|join('/') }} à {{ state.sentAt[11:16] }}</p>{% endif %}
+            {% if state.get('sentAt') %}<p class="fine">Demande envoyée le {{ state.sentAt[:10].split('-')|reverse|join('/') }} à {{ state.sentAt[11:16] }}</p>{% endif %}
             {% if state.get('signatureRequestId') %}
               <div class="actions">
                 <form class="signature-action" method="post" action="{{ url_for('dotation_contracts.sync', id=d.id) }}"><input type="hidden" name="csrf_token" value="{{ dotation_csrf() }}"><input type="hidden" name="version" value="{{ contract.id }}"><button class="secondary">Actualiser le statut</button></form>

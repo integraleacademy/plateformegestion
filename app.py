@@ -9767,6 +9767,7 @@ from services.dotation_workflow import DotationWorkflow
 dotation_workflow = DotationWorkflow(
     app, lambda: load_dotations(), lambda data: save_dotations(data),
     DOTATIONS_FILE + ".lock", os.path.join(DATA_DIR, "dotation_contracts"),
+    find_center_image=find_center_image,
 )
 
 

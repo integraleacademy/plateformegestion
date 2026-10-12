@@ -6,7 +6,7 @@ import pytest
 from pypdf import PdfReader
 
 import app
-from services.dotation_contracts import DEFAULTS, SIGNATURE_FIELDS, generate_pdf, read_contract_form
+from services.dotation_contracts import CENTER_SIGNATURE_AREA, DEFAULTS, GENERATOR_VERSION, SIGNATURE_FIELDS, generate_pdf, read_contract_form
 from yousign_service import YousignError
 
 
@@ -43,7 +43,7 @@ class FakeYousign:
     def __init__(self):
         self.config = SimpleNamespace(authentication_mode="no_otp")
         self.calls, self.content = [], b""
-        self.status, self.signer_statuses = "ongoing", ["notified", "notified"]
+        self.status, self.signer_statuses = "ongoing", ["notified"]
         self.fail_activation = False
 
     def create_signature_request(self, name, external_id):
@@ -88,9 +88,10 @@ class FakeYousign:
         return {}
 
 
-def test_pdf_content_inventory_amounts_and_blank_signature_areas(tmp_path):
+def test_pdf_content_and_center_images_leave_student_signature_blank(tmp_path):
     path = tmp_path / "convention.pdf"
-    generate_pdf(values(), str(path), app.dotation_workflow.logo, "2026-10-12")
+    generate_pdf(values(), str(path), app.dotation_workflow.logo, "2026-10-12",
+                 center_signature_path=app.find_center_image("signature"), center_stamp_path=app.find_center_image("tampon"))
     reader = PdfReader(path)
     text = "\n".join(page.extract_text() for page in reader.pages)
     assert len(reader.pages) == 3
@@ -98,8 +99,11 @@ def test_pdf_content_inventory_amounts_and_blank_signature_areas(tmp_path):
     assert all(f"Article {i}" in text for i in range(1, 6))
     assert "400,00 euros" in text and "20,00 euros" in text
     assert "64GB" not in text and "MINTSA" not in text and "sc_sign1" not in text
-    assert len(reader.pages[2].images) == 1  # logo only: no pasted signature
-    for field in SIGNATURE_FIELDS.values():
+    assert len(reader.pages[0].images) == 1  # Logo only on the first two pages.
+    assert len(reader.pages[2].images) == 3  # Logo, authorized center signature and stamp.
+    assert text.count("Signature électronique via Yousign") == 1
+    assert "Tampon et signature du centre" in text
+    for field in [*SIGNATURE_FIELDS.values(), CENTER_SIGNATURE_AREA]:
         assert field["x"] + field["width"] < float(reader.pages[2].mediabox.width)
         assert field["y"] + field["height"] < float(reader.pages[2].mediabox.height)
 
@@ -113,6 +117,9 @@ def test_generate_and_preview_works_for_existing_legacy_dotation(workflow):
     assert pdf.mimetype == "application/pdf" and len(PdfReader(BytesIO(pdf.data)).pages) == 3
     html = client.get("/dotations/dot-test/contrat").get_data(as_text=True)
     assert "Envoyer en signature Yousign" in html and "Générer une nouvelle version" in html
+    assert 'name="centre_email"' not in html and 'name="centre_telephone"' not in html
+    assert "Tampon et signature intégrés au PDF" in html
+    assert store["data"][0]["contract"]["generatorVersion"] == GENERATOR_VERSION
 
 
 @pytest.mark.parametrize("field,value", [("adresse", ""), ("date_fin", "2025-01-01"), ("email", "invalid"),
@@ -125,20 +132,22 @@ def test_validation_does_not_change_data_or_generate_contract(workflow, field, v
     assert store["data"] == before
 
 
-def test_two_signatures_no_duplicates_and_signed_download(workflow, monkeypatch):
+def test_only_student_signs_no_duplicates_and_signed_download(workflow, monkeypatch):
     client, manager, store, _ = workflow
     post = prepare(workflow)
     api = FakeYousign()
     monkeypatch.setattr(manager, "client", lambda: api)
     assert client.post("/dotations/dot-test/contrat/send", data=post).status_code == 302
-    assert [c[1] for c in api.calls if c[0] == "signer"] == ["elodie@example.test", "clement@integraleacademy.com"]
-    assert [c[2] for c in api.calls if c[0] == "field"] == list(SIGNATURE_FIELDS.values())
+    assert [c[1] for c in api.calls if c[0] == "signer"] == ["elodie@example.test"]
+    assert [c[2] for c in api.calls if c[0] == "field"] == [SIGNATURE_FIELDS["stagiaire"]]
+    assert "centreSignerId" not in store["data"][0]["contract"]["yousign"]
+    assert len(PdfReader(BytesIO(api.content)).pages[2].images) == 3
     count = len(api.calls)
     client.post("/dotations/dot-test/contrat/send", data=post)
     assert len(api.calls) == count
-    api.signer_statuses = ["signed", "notified"]
+    api.signer_statuses = ["signed"]
     response = client.post("/dotations/dot-test/contrat/sync", data=post, headers={"Accept": "application/json"})
-    assert response.json["status"] == "partially_signed"
+    assert response.json["status"] == "finalizing"
     assert client.post("/dotations/dot-test/contrat/signed", data=post).status_code == 302
     api.status = "done"
     response = client.post("/dotations/dot-test/contrat/signed", data=post)
@@ -198,10 +207,71 @@ def test_webhook_uses_request_status_not_single_signer_event(workflow, monkeypat
     monkeypatch.setattr(manager, "client", lambda: api)
     monkeypatch.delenv("YOUSIGN_WEBHOOK_SECRET", raising=False)
     client.post("/dotations/dot-test/contrat/send", data=post)
-    api.signer_statuses = ["signed", "notified"]
+    api.signer_statuses = ["signed"]
     event = {"event_name": "signer.done", "data": {"signature_request": {"id": "sr-test", "status": "done"}}}
     assert client.post("/webhooks/yousign", json=event).json["target"] == "dotation"
-    assert store["data"][0]["contract"]["yousign"]["status"] == "partially_signed"
+    assert store["data"][0]["contract"]["yousign"]["status"] == "finalizing"
+
+
+def test_sms_signature_requires_only_student_phone(workflow, monkeypatch):
+    client, manager, _, _ = workflow
+    post = prepare(workflow)
+    api = FakeYousign()
+    api.config.authentication_mode = "otp_sms"
+    monkeypatch.setattr(manager, "client", lambda: api)
+    client.post("/dotations/dot-test/contrat/send", data=post)
+    signers = [call for call in api.calls if call[0] == "signer"]
+    assert len(signers) == 1
+    assert signers[0][2]["phone_number"] == "+33612345678"
+    assert signers[0][2]["force_sms_otp"] is True
+
+
+def test_old_pdf_must_be_regenerated_before_sending(workflow, monkeypatch):
+    client, manager, store, _ = workflow
+    post = prepare(workflow)
+    del store["data"][0]["contract"]["generatorVersion"]
+    api = FakeYousign()
+    monkeypatch.setattr(manager, "client", lambda: api)
+    html = client.get("/dotations/dot-test/contrat").get_data(as_text=True)
+    assert "Ce PDF utilise l'ancien modèle" in html
+    assert "Tampon et signature intégrés au PDF" not in html
+    client.post("/dotations/dot-test/contrat/send", data=post)
+    assert api.calls == []
+    assert "tampon" in store["data"][0]["contract"]["yousign"]["error"]
+    new_post = prepare(workflow)
+    assert new_post["version"] != post["version"]
+    client.post("/dotations/dot-test/contrat/send", data=new_post)
+    assert [c[1] for c in api.calls if c[0] == "signer"] == ["elodie@example.test"]
+
+
+@pytest.mark.parametrize("missing", ["signature", "tampon"])
+def test_missing_center_asset_prevents_generation(workflow, monkeypatch, missing):
+    client, manager, store, form = workflow
+    monkeypatch.setattr(manager, "find_center_image", lambda *keys: None if missing in keys else app.find_center_image(*keys))
+    before = deepcopy(store["data"])
+    response = client.post("/dotations/dot-test/contrat", data=form)
+    assert response.status_code == 200
+    assert "Le tampon et la signature du centre doivent être disponibles" in response.get_data(as_text=True)
+    assert store["data"] == before
+
+
+def test_legacy_request_remains_trackable_and_must_be_canceled_before_regenerating(workflow, monkeypatch):
+    client, manager, store, form = workflow
+    post = prepare(workflow)
+    legacy = store["data"][0]["contract"]
+    del legacy["generatorVersion"]
+    legacy["yousign"] = {"signatureRequestId": "sr-test", "centreSignerId": "center-test", "status": "ongoing"}
+    api = FakeYousign()
+    api.signer_statuses = ["signed", "notified"]
+    monkeypatch.setattr(manager, "client", lambda: api)
+    response = client.post("/dotations/dot-test/contrat/sync", data=post, headers={"Accept": "application/json"})
+    assert response.json["status"] == "partially_signed"
+    client.post("/dotations/dot-test/contrat", data=form)
+    assert store["data"][0]["contract"]["id"] == post["version"]
+    client.post("/dotations/dot-test/contrat/cancel", data=post)
+    prepare(workflow)
+    assert store["data"][0]["contract_history"][0]["yousign"]["status"] == "canceled"
+    assert store["data"][0]["contract"]["generatorVersion"] == GENERATOR_VERSION
 
 
 def test_auth_csrf_and_creation_redirect(workflow):

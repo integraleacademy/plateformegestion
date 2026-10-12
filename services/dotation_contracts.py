@@ -1,7 +1,7 @@
-"""Convention de mise à disposition : données validées et PDF non signé.
+"""Convention de mise à disposition avec tampon et signature du centre.
 
-Modèle fourni par Intégrale Academy (31/10/2025). Aucune signature du modèle
-signé n'est réutilisée. Les deux signatures sont recueillies par Yousign.
+Modèle fourni par Intégrale Academy (31/10/2025). Les images du centre déjà
+utilisées sur la plateforme sont apposées au PDF ; seul le stagiaire signe via Yousign.
 """
 import hashlib
 import json
@@ -16,18 +16,18 @@ DEFAULTS = {
     "formation": "Brevet de Technicien Supérieur Management Opérationnel de la Sécurité",
     "modele_ipad": "iPad Apple Wi-Fi 256 Go silver", "chargeur": True,
     "penalite_ipad": "400.00", "penalite_chargeur": "20.00", "penalite_badge": "20.00",
-    "centre_email": "clement@integraleacademy.com", "centre_telephone": "",
 }
 TEXT_LIMITS = {
     "nom": 80, "prenom": 80, "email": 254, "telephone": 25, "adresse": 350,
     "formation": 250, "modele_ipad": 150, "ipad": 100, "badge": 100,
-    "date_remise": 10, "date_fin": 10, "centre_email": 254, "centre_telephone": 25,
+    "date_remise": 10, "date_fin": 10,
 }
 FIELDS = tuple(TEXT_LIMITS) + ("chargeur", "penalite_ipad", "penalite_chargeur", "penalite_badge")
+GENERATOR_VERSION = "dotation-center-signature-v2"
 SIGNATURE_FIELDS = {
     "stagiaire": {"page": 3, "x": 50, "y": 650, "width": 205, "height": 75},
-    "centre": {"page": 3, "x": 335, "y": 650, "width": 205, "height": 75},
 }
+CENTER_SIGNATURE_AREA = {"page": 3, "x": 335, "y": 650, "width": 205, "height": 75}
 
 
 def contract_values(dotation):
@@ -60,11 +60,8 @@ def validate_contract(values):
     for key, limit in TEXT_LIMITS.items():
         if len(str(values.get(key) or "")) > limit:
             raise ValueError(f"Le champ {key.replace('_', ' ')} est trop long (maximum {limit} caractères).")
-    for key in ("email", "centre_email"):
-        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values.get(key) or ""):
-            raise ValueError("Veuillez renseigner une adresse e-mail valide pour chacun des deux signataires.")
-    if values["email"].lower() == values["centre_email"].lower():
-        raise ValueError("Les deux signataires doivent avoir des adresses e-mail distinctes.")
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values.get("email") or ""):
+        raise ValueError("Veuillez renseigner une adresse e-mail valide pour le stagiaire.")
     try:
         start, end = date.fromisoformat(values["date_remise"]), date.fromisoformat(values["date_fin"])
     except (ValueError, TypeError):
@@ -98,16 +95,25 @@ def french_date(value):
     return f"{day.day} {months[day.month - 1]} {day.year}"
 
 
-def generate_pdf(values, output_path, logo_path, generated_on=None):
+def generate_pdf(values, output_path, logo_path, generated_on=None, *, center_signature_path, center_stamp_path):
     import reportlab
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.utils import ImageReader
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 
     validate_contract(values)
+    if not all(path and os.path.isfile(path) for path in (center_signature_path, center_stamp_path)):
+        raise ValueError("Le tampon et la signature du centre doivent être disponibles pour générer le contrat.")
+    try:
+        center_images = [ImageReader(path) for path in (center_signature_path, center_stamp_path)]
+        for image in center_images:
+            image.getSize()
+    except (OSError, ValueError) as exc:
+        raise ValueError("Le tampon ou la signature du centre est illisible.") from exc
     fonts = os.path.join(os.path.dirname(reportlab.__file__), "fonts")
     for name, filename in (("DotationSans", "Vera.ttf"), ("DotationSansBold", "VeraBd.ttf")):
         if name not in pdfmetrics.getRegisteredFontNames():
@@ -149,9 +155,8 @@ def generate_pdf(values, output_path, logo_path, generated_on=None):
         canvas.drawCentredString(width / 2, 25, "SIRET 840 899 884 00026 - RCS FRÉJUS - APE 8559A - NDA 93830600283 - UAI 0831774C")
         canvas.drawRightString(width - 44, 58, f"{doc.page} / 3")
         if doc.page == 3:
-            for label, name, key in (("Pour le stagiaire", full_name, "stagiaire"),
-                                     ("Pour le centre de formation", "Clément VAILLANT - Directeur général", "centre")):
-                field = SIGNATURE_FIELDS[key]
+            for label, name, key, field in (("Pour le stagiaire", full_name, "stagiaire", SIGNATURE_FIELDS["stagiaire"]),
+                                            ("Pour le centre de formation", "Clément VAILLANT - Directeur général", "centre", CENTER_SIGNATURE_AREA)):
                 x, top = field["x"], height - field["y"]
                 canvas.setFillColor(ink)
                 canvas.setFont("DotationSansBold", 9.5)
@@ -161,9 +166,18 @@ def generate_pdf(values, output_path, logo_path, generated_on=None):
                 name_p.drawOn(canvas, x, top + 66 - text_height)
                 canvas.setStrokeColor(colors.HexColor("#c4c8c4"))
                 canvas.roundRect(x, top - field["height"], field["width"], field["height"], 4)
+                if key == "centre":
+                    for image, offset, max_width in zip(center_images, (6, 82), (70, 117)):
+                        image_width, image_height = image.getSize()
+                        scale = min(max_width / image_width, (field["height"] - 12) / image_height)
+                        drawn_width, drawn_height = image_width * scale, image_height * scale
+                        canvas.drawImage(image, x + offset + (max_width - drawn_width) / 2,
+                                         top - field["height"] + (field["height"] - drawn_height) / 2,
+                                         width=drawn_width, height=drawn_height, mask="auto")
                 canvas.setFillColor(colors.HexColor("#777777"))
                 canvas.setFont("DotationSans", 8)
-                canvas.drawString(x, top - field["height"] - 14, "Signature électronique via Yousign")
+                canvas.drawString(x, top - field["height"] - 14,
+                                  "Tampon et signature du centre" if key == "centre" else "Signature électronique via Yousign")
         canvas.restoreState()
 
     story += [p("Convention de mise à disposition<br/>de matériel", ParagraphStyle("Title", parent=heading, fontSize=20, leading=27, spaceAfter=28)),

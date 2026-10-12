@@ -15,7 +15,7 @@ from io import BytesIO
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 
-from services.dotation_contracts import contract_values, fingerprint, generate_pdf, read_contract_form, GENERATOR_VERSION, SIGNATURE_FIELDS
+from services.dotation_contracts import contract_values, fingerprint, generate_pdf, read_contract_form, FORMATIONS, GENERATOR_VERSION, SIGNATURE_FIELDS
 from yousign_service import YousignClient, YousignError, get_yousign_config, normalizeFrenchPhoneNumber
 
 LABELS = {"draft": "PDF prêt", "creating": "Préparation Yousign", "ongoing": "En attente de signature",
@@ -152,6 +152,7 @@ class DotationWorkflow:
             values = contract_values(dotation)
         state = contract.get("yousign") or {}
         return render_template("dotation_contract.html", d=dotation, values=values, contract=contract, state=state,
+                               formation_options=FORMATIONS,
                                blocked=self.blocked(contract), stale=bool(contract and fingerprint(contract_values(dotation)) != fingerprint(contract.get("snapshot") or {})),
                                center_signed=contract.get("generatorVersion") == GENERATOR_VERSION,
                                configured=bool(get_yousign_config().api_key), sms=get_yousign_config().authentication_mode == "otp_sms",

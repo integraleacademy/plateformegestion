@@ -11,9 +11,15 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from html import escape
 
+FORMATIONS = {
+    "BTS CI": "Brevet de Technicien Supérieur Commerce International",
+    "BTS MOS": "Brevet de Technicien Supérieur Management Opérationnel de la Sécurité",
+    "BTS MCO": "Brevet de Technicien Supérieur Management Commercial Opérationnel",
+    "BTS PI": "Brevet de Technicien Supérieur Professions Immobilières",
+}
 DEFAULTS = {
-    "adresse": "", "telephone": "", "date_fin": "",
-    "formation": "Brevet de Technicien Supérieur Management Opérationnel de la Sécurité",
+    "adresse": "", "telephone": "", "date_fin": "2028-07-01",
+    "formation": FORMATIONS["BTS MOS"],
     "modele_ipad": "iPad Apple Wi-Fi 256 Go silver", "chargeur": True,
     "penalite_ipad": "400.00", "penalite_chargeur": "20.00", "penalite_badge": "20.00",
 }
@@ -33,11 +39,14 @@ CENTER_SIGNATURE_AREA = {"page": 3, "x": 335, "y": 650, "width": 205, "height": 
 def contract_values(dotation):
     values = {**DEFAULTS, **{key: dotation.get(key, "") for key in ("nom", "prenom", "email", "ipad", "badge", "date_remise")}}
     values.update({key: dotation[key] for key in DEFAULTS if key in dotation})
+    values["date_fin"] = values.get("date_fin") or DEFAULTS["date_fin"]
+    values["formation"] = FORMATIONS.get(values.get("formation"), values.get("formation")) or DEFAULTS["formation"]
     return values
 
 
 def read_contract_form(form):
     values = {key: " ".join(form.get(key, "").split()) for key in TEXT_LIMITS}
+    values["formation"] = FORMATIONS.get(values["formation"], values["formation"])
     values["chargeur"] = form.get("chargeur") == "1"
     for key in ("penalite_ipad", "penalite_chargeur", "penalite_badge"):
         raw = form.get(key, "").strip().replace(",", ".")
@@ -60,6 +69,8 @@ def validate_contract(values):
     for key, limit in TEXT_LIMITS.items():
         if len(str(values.get(key) or "")) > limit:
             raise ValueError(f"Le champ {key.replace('_', ' ')} est trop long (maximum {limit} caractères).")
+    if values.get("formation") not in FORMATIONS.values():
+        raise ValueError("Veuillez sélectionner une formation : BTS CI, BTS MOS, BTS MCO ou BTS PI.")
     if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values.get("email") or ""):
         raise ValueError("Veuillez renseigner une adresse e-mail valide pour le stagiaire.")
     try:

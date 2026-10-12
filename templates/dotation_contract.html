@@ -6,6 +6,7 @@
   <title>Convention de dotation - {{ d.prenom }} {{ d.nom }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/address-autocomplete.js') }}" defer></script>
   <style>
     *{box-sizing:border-box}body{margin:0;background:#fdfaf5;color:#26352d;font:15px/1.5 Inter,Arial,sans-serif}
     main{max-width:1240px;margin:auto;padding:28px}header{display:flex;align-items:center;gap:24px;margin-bottom:24px}header img{width:88px;height:88px;object-fit:contain}
@@ -13,7 +14,8 @@
     p{margin:8px 0 14px}.muted{color:#67746c}.back{color:#1e8449;font-weight:700;text-decoration:none}.layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(320px,1fr);gap:22px;align-items:start}
     .card{background:#fff;border:1px solid #e5e8e1;border-radius:15px;padding:24px;margin-bottom:20px;box-shadow:0 3px 12px #26352d05}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.wide{grid-column:1/-1}label{display:block;font-size:13px;font-weight:600}
-    input,textarea{width:100%;padding:10px;border:1px solid #cdd5cf;border-radius:7px;background:#fff;font:inherit;color:inherit;margin-top:5px}input:focus,textarea:focus{outline:2px solid #91bda1;outline-offset:1px}textarea{resize:vertical;min-height:75px}
+    input,textarea,select{width:100%;padding:10px;border:1px solid #cdd5cf;border-radius:7px;background:#fff;font:inherit;color:inherit;margin-top:5px}input:focus,textarea:focus,select:focus{outline:2px solid #91bda1;outline-offset:1px}textarea{resize:vertical;min-height:75px}
+    .address-input{position:relative}.address-suggestions{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 4px);margin:0;padding:5px;list-style:none;border:1px solid #cdd5cf;border-radius:8px;background:#fff;box-shadow:0 8px 24px #26352d20;max-height:240px;overflow-y:auto}.address-suggestions li{padding:10px;border-radius:5px;font-size:14px;cursor:pointer;overflow-wrap:anywhere}.address-suggestions li:hover,.address-suggestions li[aria-selected="true"]{background:#e7f4eb;color:#205932}.address-autocomplete .fine{margin:5px 0 0}
     fieldset{border:0;padding:0;margin:0;min-width:0}fieldset:disabled{opacity:.65}.check{display:flex;gap:9px;align-items:center}.check input{width:auto;margin:0}
     button,.button{border:0;border-radius:8px;padding:11px 15px;font:600 14px/1.4 Inter,Arial,sans-serif;cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
     .primary{background:#1e8449;color:white}.secondary{background:#eef3ef;color:#256541}.danger{background:#fff0ed;color:#a33228}.full{width:100%}button:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}.actions form{margin:0}
@@ -47,8 +49,18 @@
             <label>Prénom<input name="prenom" value="{{ values.prenom }}" maxlength="80" required></label>
             <label>E-mail du stagiaire<input type="email" name="email" value="{{ values.email }}" maxlength="254" required></label>
             <label>Mobile{% if sms %} (obligatoire){% endif %}<input type="tel" name="telephone" value="{{ values.telephone }}" maxlength="25" {% if sms %}required{% endif %}></label>
-            <label class="wide">Adresse postale complète<textarea name="adresse" maxlength="350" required>{{ values.adresse }}</textarea></label>
-            <label class="wide">Intitulé de la formation<input name="formation" value="{{ values.formation }}" maxlength="250" required></label>
+            <div class="wide address-autocomplete">
+              <label for="adresse">Adresse postale complète</label>
+              <div class="address-input">
+                <input id="adresse" name="adresse" value="{{ values.adresse }}" maxlength="350" required autocomplete="off" spellcheck="false" placeholder="Commencez à saisir le numéro et la rue…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="adresse-suggestions" aria-describedby="adresse-status" data-address-autocomplete>
+                <ul id="adresse-suggestions" class="address-suggestions" role="listbox" aria-label="Adresses proposées" hidden></ul>
+              </div>
+              <p id="adresse-status" class="fine" role="status">Saisissez au moins 3 caractères pour voir les adresses proposées.</p>
+            </div>
+            <label class="wide">Intitulé de la formation<select name="formation" required>
+              {% if values.formation not in formation_options.values() %}<option value="" selected disabled>Choisir une formation</option>{% endif %}
+              {% for label, title in formation_options.items() %}<option value="{{ title }}" {% if values.formation == title %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select></label>
             <label>Date de remise du matériel<input type="date" name="date_remise" value="{{ values.date_remise }}" required></label>
             <label>Fin de la convention<input type="date" name="date_fin" value="{{ values.date_fin }}" required></label>
           </div>

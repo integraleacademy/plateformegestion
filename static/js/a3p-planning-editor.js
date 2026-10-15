@@ -92,7 +92,6 @@ function clientErrors(){
     seenDates.add(day.date);
     if(!(day.slots||[]).length)errors.push(`Le ${formatDate(day.date)} ne contient aucun créneau : ajoutez un cours ou supprimez la journée vide.`);
     if(day.date===examDate)errors.push(`Le ${formatDate(day.date)} est la date d’examen et ne peut pas compter dans les heures de formation.`);
-    if([0,6].includes(new Date(`${day.date}T12:00:00Z`).getUTCDay()))errors.push(`Le ${formatDate(day.date)} tombe un week-end.`);
     const intervals=[];
     (day.slots||[]).forEach(slot=>{
       const start=minutes(slot.start),end=minutes(slot.end);

@@ -3,6 +3,7 @@ from pathlib import Path
 import datetime as dt
 import os
 import sys
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import app
@@ -282,3 +283,33 @@ def test_a3p_editor_draft_rejects_unusable_dates_duplicates_and_times(monkeypatc
             assert response.status_code == 400
             assert session['a3pPlanningData'] == original
             assert 'a3pPlanningEditorDraft' not in session
+
+
+@pytest.mark.parametrize('weekend_date', ['2026-03-07', '2026-03-08'])
+def test_a3p_editor_can_save_weekend_and_generate_real_planning_pdf(monkeypatch, tmp_path, weekend_date):
+    session = _session()
+    changed = deepcopy(session['a3pPlanningData'])
+    changed[0]['date'] = weekend_date
+    data = {'sessions': [session], 'jurys': []}
+    monkeypatch.setattr(app, 'load_sessions', lambda: data)
+    monkeypatch.setattr(app, 'save_sessions', lambda value: None)
+    monkeypatch.setattr(app, 'load_formateurs', lambda: [])
+    monkeypatch.setattr(app, 'A3P_DOC_DIR', str(tmp_path))
+    app.app.config.update(TESTING=True, SECRET_KEY='test')
+    with app.app.test_client() as client:
+        _login(client)
+        response = client.put('/api/sessions/a3p-edit/a3p-planning', json={
+            'planningData': changed, 'saveDraft': True, 'regeneratePdf': True,
+        })
+        assert response.status_code == 200, response.json
+        assert response.json['isDraft'] is False
+        assert response.json['needsRegeneration'] is False
+        assert response.json['summary']['totalHours'] == 328
+        reloaded = client.get('/api/sessions/a3p-edit/a3p-planning').json
+        assert reloaded['validationErrors'] == []
+        assert any(day['date'] == weekend_date for day in reloaded['planningData'])
+    pdf = tmp_path / 'planning_a3p_session_a3p-edit.pdf'
+    assert pdf.read_bytes().startswith(b'%PDF')
+    from pypdf import PdfReader
+    pdf_text = '\n'.join(page.extract_text() or '' for page in PdfReader(pdf).pages)
+    assert dt.date.fromisoformat(weekend_date).strftime('%d/%m/%Y') in pdf_text

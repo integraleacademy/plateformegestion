@@ -145,7 +145,7 @@ def a3p_summary_from_planning(planning):
     return {"totalHours": round(total/60,2), "moduleTotals": {k: round(v/60,2) for k,v in totals.items()}, "rows": rows, "errors": errors}
 
 def is_a3p_non_working_day(day: date) -> bool:
-    """Return True when A3P must not schedule training on this French calendar day."""
+    """Return True when the automatic planner skips this date by default."""
     return day.weekday() >= 5 or day in _french_public_holidays(day.year)
 
 def is_a3p_training_day(day: date) -> bool:
@@ -161,8 +161,10 @@ def validate_a3p_planning(planning, exam_date=None):
         seen_dates.add(day_iso)
         try:
             parsed_day = datetime.strptime(day_iso, "%Y-%m-%d").date()
-            if is_a3p_non_working_day(parsed_day):
-                errors.append(f"La journée du {day_iso} est un jour non travaillé (week-end ou jour férié français).")
+            # A weekend explicitly chosen in the editor is a valid training day.
+            # Keep the automatic planner's weekday defaults separate from validation.
+            if parsed_day in _french_public_holidays(parsed_day.year):
+                errors.append(f"La journée du {day_iso} est un jour non travaillé (jour férié français).")
         except Exception:
             errors.append(f"Date invalide: {day_iso}")
         distinct_codes = {

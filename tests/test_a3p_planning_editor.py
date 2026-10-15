@@ -65,7 +65,7 @@ def _login(client):
 
 
 def test_a3p_editor_page_exposes_day_trainer_controls_and_session_button():
-    editor = Path("templates/a3p_planning_editor.html").read_text(encoding="utf-8")
+    editor = Path("templates/a3p_planning_editor.html").read_text(encoding="utf-8") + Path("static/js/a3p-planning-editor.js").read_text(encoding="utf-8")
     detail = Path("templates/session_detail.html").read_text(encoding="utf-8")
     assert "Formateur de la journée" in editor
     assert "data-apply-field=\"trainer\"" in editor
@@ -95,7 +95,7 @@ def test_a3p_editor_api_persists_per_slot_trainer_and_recalculates_duration(monk
         _login(client)
         page_response = client.get("/sessions/a3p-edit/a3p-planning/edit")
         assert page_response.status_code == 200
-        assert "Formateur de la journée" in page_response.get_data(as_text=True)
+        assert "/static/js/a3p-planning-editor.js" in page_response.get_data(as_text=True)
         get_response = client.get("/api/sessions/a3p-edit/a3p-planning")
         assert get_response.status_code == 200
         assert get_response.get_json()["maxDistinctModulesPerDay"] == 3
@@ -185,3 +185,100 @@ def test_a3p_editor_can_regenerate_only_the_planning_pdf(monkeypatch, tmp_path):
     assert response.get_json()["needsRegeneration"] is False
     assert (tmp_path / "planning_a3p_session_a3p-pdf.pdf").exists()
     assert session["a3p_documents"]["planning"]["path"].endswith("planning_a3p_session_a3p-pdf.pdf")
+
+
+def test_a3p_editor_deleted_day_is_saved_as_draft_without_changing_documents(monkeypatch):
+    session = _session()
+    original = deepcopy(session['a3pPlanningData'])
+    original_builder = deepcopy(session['a3pPlanningBuilder'])
+    changed = deepcopy(original[1:])
+    data = {'sessions': [session], 'jurys': []}
+    saved = []
+    monkeypatch.setattr(app, 'load_sessions', lambda: data)
+    monkeypatch.setattr(app, 'save_sessions', lambda value: saved.append(deepcopy(value)))
+    monkeypatch.setattr(app, 'load_formateurs', lambda: [])
+    app.app.config.update(TESTING=True, SECRET_KEY='test')
+    with app.app.test_client() as client:
+        _login(client)
+        response = client.put('/api/sessions/a3p-edit/a3p-planning', json={'planningData': changed, 'saveDraft': True})
+        assert response.status_code == 200
+        assert response.json['isDraft'] is True
+        assert response.json['validationErrors']
+        assert saved
+        assert session['a3pPlanningData'] == original
+        assert session['a3pPlanningBuilder'] == original_builder
+        reloaded = client.get('/api/sessions/a3p-edit/a3p-planning').json
+        assert reloaded['isDraft'] is True
+        assert [day['date'] for day in reloaded['planningData']] == [day['date'] for day in changed]
+        blocked_pdf = client.put('/api/sessions/a3p-edit/a3p-planning', json={'planningData': changed, 'saveDraft': True, 'regeneratePdf': True})
+        assert blocked_pdf.status_code == 400
+        assert session['a3pPlanningData'] == original
+        assert len(saved) == 1
+
+
+def test_a3p_editor_keeps_empty_drafts_and_empty_days_on_reload(monkeypatch):
+    session = _session()
+    original = deepcopy(session['a3pPlanningData'])
+    data = {'sessions': [session], 'jurys': []}
+    monkeypatch.setattr(app, 'load_sessions', lambda: data)
+    monkeypatch.setattr(app, 'save_sessions', lambda value: None)
+    monkeypatch.setattr(app, 'load_formateurs', lambda: [])
+    app.app.config.update(TESTING=True, SECRET_KEY='test')
+    with app.app.test_client() as client:
+        _login(client)
+        for planning in ([], [{'date': '2026-04-27', 'slots': []}]):
+            response = client.put('/api/sessions/a3p-edit/a3p-planning', json={'planningData': planning, 'saveDraft': True})
+            assert response.status_code == 200
+            assert response.json['isDraft'] is True
+            reloaded = client.get('/api/sessions/a3p-edit/a3p-planning').json
+            assert reloaded['isDraft'] is True
+            assert len(reloaded['planningData']) == len(planning)
+            assert all(day['slots'] == [] for day in reloaded['planningData'])
+            assert session['a3pPlanningData'] == original
+
+
+def test_a3p_editor_relocated_day_replaces_draft_and_keeps_hours_and_trainers(monkeypatch):
+    session = _session()
+    original = deepcopy(session['a3pPlanningData'])
+    changed = deepcopy(original)
+    removed_day = changed.pop(0)
+    removed_day['date'] = '2026-04-27'
+    changed.append(removed_day)
+    session['a3pPlanningEditorDraft'] = original[1:]
+    session['a3pPlanningEditorDraftModifiedAt'] = '2026-01-01 09:00:00'
+    data = {'sessions': [session], 'jurys': []}
+    monkeypatch.setattr(app, 'load_sessions', lambda: data)
+    monkeypatch.setattr(app, 'save_sessions', lambda value: None)
+    monkeypatch.setattr(app, 'load_formateurs', lambda: [])
+    app.app.config.update(TESTING=True, SECRET_KEY='test')
+    with app.app.test_client() as client:
+        _login(client)
+        response = client.put('/api/sessions/a3p-edit/a3p-planning', json={'planningData': changed, 'saveDraft': True})
+        assert response.status_code == 200
+        assert response.json['isDraft'] is False
+        assert response.json['summary']['totalHours'] == 328
+        assert 'a3pPlanningEditorDraft' not in session
+        assert 'a3pPlanningEditorDraftModifiedAt' not in session
+        new_day = next(day for day in response.json['planningData'] if day['date'] == '2026-04-27')
+        assert new_day['slots'] == app.normalize_a3p_editor_planning([removed_day])[0]['slots']
+        assert all(day['date'] != original[0]['date'] for day in response.json['planningData'])
+        assert session['a3pPlanningBuilder']['preview'] == session['a3pPlanningData']
+        assert client.get('/api/sessions/a3p-edit/a3p-planning').json['isDraft'] is False
+
+
+def test_a3p_editor_draft_rejects_unusable_dates_duplicates_and_times(monkeypatch):
+    session = _session()
+    original = deepcopy(session['a3pPlanningData'])
+    data = {'sessions': [session], 'jurys': []}
+    monkeypatch.setattr(app, 'load_sessions', lambda: data)
+    monkeypatch.setattr(app, 'save_sessions', lambda value: None)
+    app.app.config.update(TESTING=True, SECRET_KEY='test')
+    with app.app.test_client() as client:
+        _login(client)
+        bad_time = deepcopy(original[:1])
+        bad_time[0]['slots'][0]['end'] = '08:00'
+        for planning in ([{'date': '2026-02-30', 'slots': []}], [original[0], original[0]], bad_time):
+            response = client.put('/api/sessions/a3p-edit/a3p-planning', json={'planningData': planning, 'saveDraft': True})
+            assert response.status_code == 400
+            assert session['a3pPlanningData'] == original
+            assert 'a3pPlanningEditorDraft' not in session

@@ -957,6 +957,9 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 
   {% if s.formation == "A3P" %}
+    {% if s.get('a3pPlanningEditorDraft') is not none %}
+      <p class="muted" style="margin-top:12px;">📝 Un brouillon du planning est enregistré. <a href="{{ url_for('edit_a3p_planning_page', sid=s.id) }}">Reprendre les modifications</a>. Les documents utilisent encore le dernier planning validé.</p>
+    {% endif %}
     {% if a3p_document_exists(s, 'planning') %}
       <div class="planning-status">✅ Planning généré le {{ ((s.a3p_documents or {}).get('planning') or {}).get('generated_at', s.a3pDocumentsGeneratedAt)|datetimefr }}</div>
       <p class="muted" style="margin-top:8px;">Fichier actuel : <strong>{{ s.a3pPlanningFilename }}</strong></p>

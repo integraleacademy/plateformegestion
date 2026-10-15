@@ -8977,6 +8977,8 @@ def generate_a3p_documents(sid):
             a3p_documents[kind] = {"path": path, "generated_at": now}
             docs.append({"kind":kind,"path":path})
         session_data["a3p_documents"] = a3p_documents
+        session_data.pop("a3pPlanningEditorDraft", None)
+        session_data.pop("a3pPlanningEditorDraftModifiedAt", None)
         session_data["a3pDocumentsGeneratedAt"]=now; save_sessions(data)
         app.logger.info("Documents A3P créés session_id=%s documents=%s chemins_sauvegardés=%s", sid, [d["kind"] for d in docs], docs)
         return jsonify({"ok":True,"generatedAt":now,"planningUrl":session_data["a3pPlanningPdfUrl"],"attendanceUrl":session_data["a3pAttendanceSheetsPdfUrl"]})
@@ -9147,10 +9149,21 @@ def normalize_a3p_editor_planning(planning_data):
         raise ValueError("planningData est obligatoire.")
     module_by_code = {module["code"]: module for module in A3P_MODULES}
     normalized = []
+    seen_dates = set()
     for raw_day in planning_data:
         if not isinstance(raw_day, dict):
             raise ValueError("Une journée du planning A3P est invalide.")
         date_value = str(raw_day.get("date") or "").strip()
+        try:
+            if datetime.strptime(date_value, "%Y-%m-%d").strftime("%Y-%m-%d") != date_value:
+                raise ValueError
+        except ValueError:
+            raise ValueError(f"Date invalide : {date_value or 'vide'}.")
+        if date_value in seen_dates:
+            raise ValueError(f"La date {date_value} apparaît plusieurs fois dans le planning.")
+        seen_dates.add(date_value)
+        if not isinstance(raw_day.get("slots", []), list):
+            raise ValueError(f"Les créneaux du {date_value} sont invalides.")
         slots = []
         for raw_slot in raw_day.get("slots") or []:
             if not isinstance(raw_slot, dict):
@@ -9198,6 +9211,15 @@ def a3p_editor_trainer_options(session_data):
     return sorted(names, key=str.casefold)
 
 
+def validate_a3p_editor_planning(planning_data, exam_date=None):
+    errors, summary = validate_a3p_planning(planning_data, exam_date)
+    errors.extend(
+        f"La journée du {day['date']} ne contient aucun créneau."
+        for day in planning_data if not day.get("slots")
+    )
+    return errors, summary
+
+
 @app.get("/sessions/<sid>/a3p-planning/edit")
 def edit_a3p_planning_page(sid):
     data = load_sessions()
@@ -9220,8 +9242,10 @@ def get_a3p_planning_api(sid):
         return jsonify({"ok": False, "error": "Session introuvable."}), 404
     if (session_data.get("formation") or "").upper() != "A3P":
         return jsonify({"ok": False, "error": "La session n'est pas A3P."}), 400
-    planning_data = compact_a3p_planning(session_data.get("a3pPlanningData") or [])
-    errors, summary = validate_a3p_planning(planning_data, session_data.get("date_exam"))
+    is_draft = isinstance(session_data.get("a3pPlanningEditorDraft"), list)
+    source = session_data["a3pPlanningEditorDraft"] if is_draft else session_data.get("a3pPlanningData") or []
+    planning_data = compact_a3p_planning(source)
+    errors, summary = validate_a3p_editor_planning(planning_data, session_data.get("date_exam"))
     return jsonify({
         "ok": True,
         "planningData": planning_data,
@@ -9233,6 +9257,8 @@ def get_a3p_planning_api(sid):
         "maxDistinctModulesPerDay": A3P_MAX_DISTINCT_MODULES_PER_DAY,
         "pdfUrl": url_for("view_a3p_document", sid=sid, kind="planning") if a3p_document_exists(session_data, "planning") else None,
         "needsRegeneration": bool(session_data.get("a3pPlanningNeedsRegeneration")),
+        "isDraft": is_draft,
+        "examDate": session_data.get("date_exam"),
     })
 
 
@@ -9249,8 +9275,19 @@ def update_a3p_planning_api(sid):
         planning_data = normalize_a3p_editor_planning(payload.get("planningData"))
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc), "errors": [str(exc)]}), 400
-    errors, summary = validate_a3p_planning(planning_data, session_data.get("date_exam"))
+    errors, summary = validate_a3p_editor_planning(planning_data, session_data.get("date_exam"))
     if errors:
+        if payload.get("saveDraft") is True and not payload.get("regeneratePdf"):
+            # A partial edit must not replace the validated schedule consumed by
+            # attendance sheets, trainer contracts and the published planning PDF.
+            session_data["a3pPlanningEditorDraft"] = planning_data
+            session_data["a3pPlanningEditorDraftModifiedAt"] = append_planning_history(session_data, "brouillon du planning A3P enregistré")
+            save_sessions(data)
+            return jsonify({
+                "ok": True, "planningData": planning_data, "summary": summary,
+                "isDraft": True, "validationErrors": errors,
+                "needsRegeneration": bool(session_data.get("a3pPlanningNeedsRegeneration")),
+            })
         return jsonify({"ok": False, "error": "Validation impossible.", "errors": errors, "summary": summary}), 400
 
     session_data["a3pPlanningData"] = planning_data
@@ -9292,6 +9329,8 @@ def update_a3p_planning_api(sid):
         session_data["planning_pdf_regenerated_at"] = append_planning_history(session_data, "PDF A3P régénéré")
         pdf_url = session_data["a3pPlanningPdfUrl"]
 
+    session_data.pop("a3pPlanningEditorDraft", None)
+    session_data.pop("a3pPlanningEditorDraftModifiedAt", None)
     save_sessions(data)
     return jsonify({
         "ok": True,
@@ -9301,6 +9340,8 @@ def update_a3p_planning_api(sid):
         "pdfUrl": pdf_url,
         "needsRegeneration": session_data.get("a3pPlanningNeedsRegeneration", False),
         "modifiedAt": session_data.get("planning_modified_at"),
+        "isDraft": False,
+        "validationErrors": [],
     })
 
 

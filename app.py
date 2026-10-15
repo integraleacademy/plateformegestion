@@ -9381,7 +9381,7 @@ def get_aps_planning_api(sid):
         else "full_presentiel"
     )
     compliance_errors = []
-    if formation == "APS" and planning_data:
+    if formation == "APS":
         planning_data = normalize_aps_slot_durations(planning_data)
         planning_data = normalize_aps_compliance_metadata(planning_data, planning_mode)
         compliance_errors, _ = validate_aps_planning_data(
@@ -9425,7 +9425,10 @@ def update_aps_planning_api(sid):
     is_afc = normalize_training_code(session_data) == "AFC_APS_SSIAP"
     if formation != "APS" and not is_desp and not is_ssiap1 and not is_afc:
         return jsonify({"ok": False, "error": "La session n'est pas APS/DESP."}), 400
-    if not session_data.get("apsPlanningData") and not session_data.get("planning_pdf"):
+    # An intentionally emptied APS draft still exists and can be saved again.
+    has_planning = (isinstance(session_data.get("apsPlanningData"), list)
+                    if formation == "APS" else bool(session_data.get("apsPlanningData")))
+    if not has_planning and not session_data.get("planning_pdf"):
         return jsonify({"ok": False, "error": "Aucun planning APS n'existe encore."}), 400
     payload = request.get_json(silent=True) or {}
     planning_data = payload.get("planningData")

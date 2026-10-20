@@ -40,6 +40,7 @@ from werkzeug.utils import secure_filename
 from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
+from services.aps_day_distribution import grouped_day_minutes
 from services.formateur_expiration_notifications import (
     process_notifications as process_formateur_notification_queue,
     last_notification_at as last_formateur_expiration_notification_at,
@@ -1066,6 +1067,13 @@ def log_aps_generation_diagnostics(session_id=None, planning_mode="full_presenti
 
 def build_aps_planning(start_date, end_date=None, exam_iso=""):
     modules = [{"name": name, "hours": float(hours), "remaining": float(hours)} for name, hours in APS_MODULES]
+    total_minutes = sum(round(module["hours"] * 60) for module in modules)
+    day_count = math.ceil(total_minutes / APS_MAX_DAILY_MINUTES)
+    day_limits = grouped_day_minutes(
+        [{"uv": split_uv_title(module["name"])[0], "durationMinutes": round(module["hours"] * 60)} for module in modules],
+        [APS_MAX_DAILY_MINUTES] * day_count,
+        [min(APS_MAX_DAILY_MINUTES, total_minutes - i * APS_MAX_DAILY_MINUTES) for i in range(day_count)],
+    )
     module_idx = 0
     days = []
     totals = {}
@@ -1082,7 +1090,7 @@ def build_aps_planning(start_date, end_date=None, exam_iso=""):
         day_blocks = []
         for slot_start, slot_hours in ((dt_time(8, 30), 4.0), (dt_time(13, 30), 3.0)):
             cursor = slot_start
-            remaining_slot = slot_hours
+            remaining_slot = min(slot_hours, day_limits[len(days)] / 60 - sum(block["hours"] for block in day_blocks))
             while remaining_slot > 0 and module_idx < len(modules):
                 module = modules[module_idx]
                 duration = min(remaining_slot, module["remaining"])
@@ -1597,6 +1605,12 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
     current_day = start_date
     planning = []
     totals = {}
+    elearning_day_count = math.ceil(expected_elearning / APS_MAX_DAILY_MINUTES)
+    elearning_day_limits = grouped_day_minutes(
+        [item for item in sequence if item["modality"] == "elearning"],
+        [APS_MAX_DAILY_MINUTES] * elearning_day_count,
+        [min(APS_MAX_DAILY_MINUTES, expected_elearning - i * APS_MAX_DAILY_MINUTES) for i in range(elearning_day_count)],
+    )
 
     # 1) Les 51h maximales d'e-learning sont placées au début de session,
     # sans salle ni formateur, conformément au programme CPNEFP V3.2.
@@ -1611,7 +1625,7 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
         slots = []
         for slot_start, slot_minutes in ((dt_time(8, 30), 240), (dt_time(13, 30), 180)):
             cursor = slot_start
-            remaining_slot = slot_minutes
+            remaining_slot = min(slot_minutes, elearning_day_limits[len(planning)] - sum(slot["durationMinutes"] for slot in slots))
             while remaining_slot > 0 and idx < len(sequence) and sequence[idx]["modality"] == "elearning":
                 module = sequence[idx]
                 duration_minutes = min(remaining_slot, module["remainingMinutes"])
@@ -1665,6 +1679,24 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
         extra = min(APS_EXTENDED_DAILY_MINUTES - APS_MAX_DAILY_MINUTES, missing_minutes)
         day_capacities[day] += extra
         missing_minutes -= extra
+    # Conserver le rythme et les dates du planning, puis ajuster les durées sur
+    # toute la période pour éviter une troisième UV. Si des journées de 8h sont
+    # nécessaires, leur position peut changer pour regrouper les modules.
+    preferred_minutes = []
+    remaining_presentiel = expected_presentiel
+    for day_index, day in enumerate(presentiel_days):
+        days_after = presentiel_days[day_index + 1:]
+        future_capacity = sum(day_capacities[d] for d in days_after)
+        min_today = max(0, remaining_presentiel - future_capacity)
+        average_today = ((remaining_presentiel + len(days_after)) // (len(days_after) + 1) + 59) // 60 * 60
+        daily_limit = min(day_capacities[day], max(min_today, min(average_today, remaining_presentiel)))
+        preferred_minutes.append(daily_limit)
+        remaining_presentiel -= daily_limit
+    maximum_day = APS_EXTENDED_DAILY_MINUTES if expected_presentiel > standard_presentiel_minutes else APS_MAX_DAILY_MINUTES
+    day_capacities = dict(zip(presentiel_days, grouped_day_minutes(
+        [item for item in sequence if item["modality"] == "presentiel"],
+        [maximum_day] * len(presentiel_days), preferred_minutes,
+    )))
     elongated_days = sum(1 for minutes in day_capacities.values() if minutes > APS_MAX_DAILY_MINUTES)
     log_aps_generation_diagnostics(
         session_id, "elearning_presentiel", presentiel_start, presentiel_end, exam_iso,
@@ -1679,18 +1711,7 @@ def generateApsElearningPresentielPlanning(start_date, formateur, salle, end_dat
     for current_day in presentiel_days:
         if idx >= len(sequence):
             break
-        days_after = [d for d in presentiel_days if d > current_day]
-        remaining_presentiel = sum(item["remainingMinutes"] for item in sequence[idx:] if item["modality"] == "presentiel")
-        future_capacity = sum(day_capacities[d] for d in days_after)
-        min_today = max(0, remaining_presentiel - future_capacity)
-        is_last_training_day = current_day == presentiel_days[-1]
-        if is_last_training_day:
-            daily_limit = min(remaining_presentiel, day_capacities[current_day])
-        else:
-            # Répartition souple : le présentiel commence dès le prochain jour ouvré,
-            # tout en gardant assez d'heures à placer pour finir sur date_fin_session.
-            average_today = ((remaining_presentiel + len(days_after)) // (len(days_after) + 1) + 59) // 60 * 60
-            daily_limit = min(day_capacities[current_day], max(min_today, min(average_today, remaining_presentiel)))
+        daily_limit = day_capacities[current_day]
         if daily_limit <= 0:
             continue
         slots = []

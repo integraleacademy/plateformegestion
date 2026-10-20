@@ -107,6 +107,13 @@
     .session-title-input:hover,.session-title-input:focus { border-color:#dfd6bd; background:#fffbf1; }
     .session-save-status { min-height:15px; padding-left:8px; color:var(--success); font-size:10px; }
     .session-save-status.error { color:var(--danger); }
+    .trainer-contract-status { display:flex; align-items:center; gap:7px; width:fit-content; max-width:100%; margin:7px 0 2px; padding:7px 9px; border:1px solid transparent; border-radius:8px; font-size:11px; font-weight:750; line-height:1.4; }
+    .trainer-contract-status__icon { flex:none; font-size:13px; }
+    .trainer-contract-status__label { min-width:0; overflow-wrap:anywhere; }
+    .trainer-contract-status--signed { color:#207451; background:#eaf8f1; border-color:#cce8da; }
+    .trainer-contract-status--pending { color:#8a600d; background:#fff4d8; border-color:#f3dfab; }
+    .trainer-contract-status--attention { color:#a63d3d; background:#fbeaea; border-color:#f4cccc; }
+    .trainer-contract-status--missing { color:#606879; background:#f1f3f6; border-color:#e3e6ec; }
     .session-dates { display:grid; gap:8px; margin-top:13px; padding:13px 0; border-top:1px solid #f0f1f4; border-bottom:1px solid #f0f1f4; }
     .session-sub { display:flex; align-items:center; gap:8px; color:#5f6776; font-size:12px; }
     .countdown { margin-top:11px; color:#4d5666; font-size:12px; font-weight:700; }
@@ -156,6 +163,15 @@
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
 <body>
+{% macro trainer_contract_badge(s) -%}
+  {% set contracts = session_trainer_contract_summary(s) %}
+  {% if contracts %}
+    <div class="trainer-contract-status trainer-contract-status--{{ contracts.tone }}" title="{{ contracts.details }}">
+      <span class="trainer-contract-status__icon" aria-hidden="true">{{ contracts.icon }}</span>
+      <span class="trainer-contract-status__label">{{ contracts.label }}</span>
+    </div>
+  {% endif %}
+{%- endmacro %}
 {% set sorted_active = active_sessions|sort(attribute='date_debut') %}
 {% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
 {% set next_session_found = false %}
@@ -228,6 +244,7 @@
             <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
               <div class="card-top"><span class="session-badge">Active</span>{% if is_next %}<span class="next-badge">★ Prochaine session</span>{% endif %}</div>
               <div class="session-title" onclick="event.preventDefault(); event.stopPropagation();"><input class="session-title-input" type="text" value="{{ (s.display_name or s.formation)|e }}" maxlength="80" data-session-id="{{ s.id }}" aria-label="Nom de la session"><div class="session-save-status" data-session-status="{{ s.id }}"></div></div>
+              {{ trainer_contract_badge(s) }}
               {% set elearning_dates = session_modality_date_range(s, "elearning") %}
               {% set presentiel_dates = session_modality_date_range(s, "presentiel") %}
               <div class="session-dates">
@@ -246,7 +263,7 @@
       </section>
 
       {% if sorted_archived %}<section class="panel" id="archived-section"><div class="section-header"><div><h3 class="panel-title">Sessions archivées / terminées <span class="section-count">{{ sorted_archived|length }}</span></h3><p class="panel-subtitle">Historique des sessions clôturées</p></div><button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions"><span id="toggleArchivedIcon">▸</span><span id="toggleArchivedText">Afficher</span></button></div>
-        <div class="archived-content" id="archivedSessions" hidden><div class="sessions-grid">{% for s in sorted_archived %}{% set elearning_dates = session_modality_date_range(s, "elearning") %}{% set presentiel_dates = session_modality_date_range(s, "presentiel") %}<a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}"><div class="card-top"><span class="session-badge">Archivée</span></div><div class="session-title">{{ s.formation }}</div><div class="session-dates"><div class="session-sub"><span>◷</span><strong>Formation :</strong> {{ format_date_range(s.date_debut, s.date_fin) }}</div><div class="session-sub"><span>☁</span><strong>E-learning :</strong> {% if elearning_dates %}{{ format_date_range(elearning_dates.start, elearning_dates.end) }}{% else %}—{% endif %}</div><div class="session-sub"><span>▣</span><strong>Présentiel :</strong> {% if presentiel_dates %}{{ format_date_range(presentiel_dates.start, presentiel_dates.end) }}{% else %}—{% endif %}</div><div class="session-sub"><span>✓</span><strong>Examen :</strong> {{ s.date_exam|datefr }}</div></div>{% if s.archived %}<div class="countdown" style="color:#777;">Session archivée</div>{% else %}<div class="countdown" style="color:#777;">Session terminée</div>{% endif %}<div class="card-action"><span>Voir la session</span><span>→</span></div></a>{% endfor %}</div></div>
+        <div class="archived-content" id="archivedSessions" hidden><div class="sessions-grid">{% for s in sorted_archived %}{% set elearning_dates = session_modality_date_range(s, "elearning") %}{% set presentiel_dates = session_modality_date_range(s, "presentiel") %}<a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}"><div class="card-top"><span class="session-badge">Archivée</span></div><div class="session-title">{{ s.formation }}</div>{{ trainer_contract_badge(s) }}<div class="session-dates"><div class="session-sub"><span>◷</span><strong>Formation :</strong> {{ format_date_range(s.date_debut, s.date_fin) }}</div><div class="session-sub"><span>☁</span><strong>E-learning :</strong> {% if elearning_dates %}{{ format_date_range(elearning_dates.start, elearning_dates.end) }}{% else %}—{% endif %}</div><div class="session-sub"><span>▣</span><strong>Présentiel :</strong> {% if presentiel_dates %}{{ format_date_range(presentiel_dates.start, presentiel_dates.end) }}{% else %}—{% endif %}</div><div class="session-sub"><span>✓</span><strong>Examen :</strong> {{ s.date_exam|datefr }}</div></div>{% if s.archived %}<div class="countdown" style="color:#777;">Session archivée</div>{% else %}<div class="countdown" style="color:#777;">Session terminée</div>{% endif %}<div class="card-action"><span>Voir la session</span><span>→</span></div></a>{% endfor %}</div></div>
       </section>{% endif %}
     </main>
 

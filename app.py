@@ -41,6 +41,7 @@ from yousign_service import YousignClient, YousignError, detect_yousign_environm
 
 from prospecting import prospecting_bp
 from services.aps_day_distribution import grouped_day_minutes
+from services.aps_pdf_presentation import compact_planning_for_pdf, module_summary_rows
 from services.formateur_expiration_notifications import (
     process_notifications as process_formateur_notification_queue,
     last_notification_at as last_formateur_expiration_notification_at,
@@ -3384,6 +3385,8 @@ def planning_day_title(day, document_profile=None):
 
 
 def planning_slot_title(slot):
+    if slot.get("apsDisplayTitle"):
+        return slot["apsDisplayTitle"]
     if slot.get("partNumber") and slot.get("sequenceNumber"):
         split = f" — {slot.get('splitLabel')}" if slot.get("splitLabel") else ""
         return f"Séquence {slot.get('sequenceNumber')} — {slot.get('sequenceTitle') or slot.get('title')}{split}"
@@ -3488,6 +3491,9 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         raise ValueError(" ".join(errors))
 
     document_profile = planning_pdf_profile(document_profile, planning_mode, summary)
+    simple_aps_pdf = planning_mode in {"full_presentiel", "elearning_presentiel"} and document_profile.get("validate") in {None, "rescheduling"}
+    display_planning = compact_planning_for_pdf(planning_data) if simple_aps_pdf else planning_data
+    display_summary_rows = module_summary_rows(summary) if simple_aps_pdf else (summary.get("uv_rows") or [])
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     margin = 36
@@ -3532,7 +3538,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
         planning_day_height_helper = planning_day_height
         y = first_content_y
         bottom_limit = 84
-        source_days = [day for day in (planning_data or []) if not (document_profile.get("validate") == "ssiap1" and day.get("exam"))]
+        source_days = [day for day in (display_planning or []) if not (document_profile.get("validate") == "ssiap1" and day.get("exam"))]
         for day in source_days:
             day_header_needed = 32
             day_started_on_page = any(existing.get("date") == day.get("date") for existing in current_page)
@@ -3702,6 +3708,16 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             c.showPage()
 
     def summary_table_header(y, continued=False):
+        if simple_aps_pdf:
+            c.setFont("Helvetica-Bold", 10); c.setFillColor(colors.HexColor("#111827"))
+            c.drawString(margin, y, "B. Récapitulatif par module" + (" — suite" if continued else ""))
+            y -= 14
+            c.setFont("Helvetica-Bold", 8); c.drawString(margin, y, "Module")
+            c.drawRightString(width-margin-112, y, "À distance")
+            c.drawRightString(width-margin-54, y, "Présentiel")
+            c.drawRightString(width-margin, y, "Total")
+            c.setStrokeColor(colors.HexColor("#e5e7eb")); c.line(margin, y-4, width-margin, y-4)
+            return y - 12
         c.setFont("Helvetica-Bold", 10); c.setFillColor(colors.HexColor("#111827")); c.drawString(margin, y, "B. Récapitulatif détaillé" + (" — suite" if continued else ""))
         y -= 14
         first_column_label = "Programme" if document_profile.get("validate") == "a3p" else "Partie"
@@ -3801,9 +3817,20 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             c.drawString(margin, y, f"Total : {summary['total_hours']:g}h")
             y -= 20
         y = summary_table_header(y)
-        rows = summary.get("uv_rows") or []
+        rows = display_summary_rows
         continued = False
         for row in rows:
+            if simple_aps_pdf:
+                module_text = row["label"]
+                row_h = max(18, len(wrap_text_lines(module_text, printable_width - 182, "Helvetica", 8)) * 10 + 5)
+                if y - row_h < 132:
+                    c.showPage(); page_no += 1; draw_header_footer(page_no, total_pages); y = summary_table_header(height - 122, continued=True)
+                c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#111827"))
+                draw_wrapped_text(c, module_text, margin, y, printable_width - 182, "Helvetica", 8, 10)
+                for key, offset in (("elearningHours", 112), ("presentielHours", 54), ("hours", 0)):
+                    c.drawRightString(width-margin-offset, y, format_duration_from_minutes(int(round(row[key] * 60))))
+                y -= row_h
+                continue
             module_text = ((row.get("title") or row.get("label")) if document_profile.get("validate") == "afc_aps_ssiap" else (f"Séquence {str(row.get('uv')).split('-S')[-1]} — {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} — {row.get('title') or row.get('label')}"))
             module_lines = wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)
             row_h = max(12, len(module_lines) * 8 + 4)
@@ -3858,9 +3885,12 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             y -= 26
         y -= 20
         y -= 26
-        for row in summary.get("uv_rows") or []:
-            module_text = ((row.get("title") or row.get("label")) if document_profile.get("validate") == "afc_aps_ssiap" else (f"Séquence {str(row.get('uv')).split('-S')[-1]} — {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} — {row.get('title') or row.get('label')}"))
-            row_h = max(12, len(wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)) * 8 + 4)
+        for row in display_summary_rows:
+            if simple_aps_pdf:
+                row_h = max(18, len(wrap_text_lines(row["label"], printable_width - 182, "Helvetica", 8)) * 10 + 5)
+            else:
+                module_text = ((row.get("title") or row.get("label")) if document_profile.get("validate") == "afc_aps_ssiap" else (f"Séquence {str(row.get('uv')).split('-S')[-1]} — {row.get('title') or row.get('label')}" if document_profile.get("validate") == "ssiap1" and str(row.get('uv')).startswith('P') else f"{row.get('uv')} — {row.get('title') or row.get('label')}"))
+                row_h = max(12, len(wrap_text_lines(module_text, width - margin - 300, "Helvetica", 7.2)) * 8 + 4)
             if y - row_h < 132:
                 count += 1
                 y = height - 122 - 26

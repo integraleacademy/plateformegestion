@@ -8165,6 +8165,64 @@ def session_trainer_contracts(session_data):
     return session_data.get(trainer_contracts_key(session_data)) or []
 
 
+def session_trainer_contract_summary(session_data):
+    """Summarize saved signatures, including trainers still missing a contract."""
+    if not is_trainer_contract_session(session_data):
+        return None
+
+    contracts = list(session_trainer_contracts(session_data))
+    legacy = session_data.get("a3pTrainerContract") if (session_data.get("formation") or "").upper() == "A3P" else None
+    if isinstance(legacy, dict) and legacy:
+        legacy_name = legacy.get("planningName") or legacy.get("trainerName") or session_data.get("a3pTrainerName") or ""
+        if not any(
+            (legacy.get("id") and legacy.get("id") == contract.get("id"))
+            or (legacy_name and normalize_lookup_text(legacy_name) == normalize_lookup_text(contract.get("planningName") or contract.get("trainerName")))
+            for contract in contracts
+        ):
+            contracts.insert(0, {**legacy, "planningName": legacy_name})
+
+    trainers = {
+        normalize_lookup_text(name): {"name": name, "status": "missing"}
+        for name in aps_detect_trainers(trainer_contract_planning_data(session_data))
+    }
+    for index, contract in enumerate(contracts):
+        name = (contract.get("planningName") or contract.get("trainerName") or "").strip()
+        key = normalize_lookup_text(name) if name else f"contract:{contract.get('id') or index}"
+        status = (contract.get("yousign") or {}).get("status") or contract.get("yousign_status") or "draft"
+        # The top-level `status` is the trainer's legal status, not a signature.
+        trainers[key] = {"name": name or "Formateur non renseigné", "status": str(status).strip().lower()}
+
+    total = len(trainers)
+    signed = sum(trainer["status"] in {"done", "signed"} for trainer in trainers.values())
+    states = {trainer["status"] for trainer in trainers.values()}
+    if total and signed == total:
+        tone, icon = "signed", "✅"
+        label = "Contrat formateur signé" if total == 1 else f"Contrats formateurs signés ({signed}/{total})"
+    elif not total or states == {"missing"}:
+        tone, icon = "missing", "📝"
+        label = f"Contrats formateurs à générer ({total})" if total > 1 else "Contrat formateur à générer"
+    else:
+        problem = bool(states & {"declined", "rejected", "expired", "canceled", "error"})
+        tone, icon = ("attention", "⚠️") if problem else ("pending", "🕒")
+        if total == 1:
+            state = next(iter(states))
+            label = {
+                "draft": "Contrat formateur à envoyer", "approval": "Contrat formateur en préparation",
+                "ongoing": "Contrat formateur à signer", "partially_signed": "Contrat formateur partiellement signé",
+                "declined": "Contrat formateur refusé", "rejected": "Contrat formateur refusé",
+                "expired": "Contrat formateur expiré", "canceled": "Contrat formateur annulé",
+                "error": "Contrat formateur en erreur",
+            }.get(state, "Contrat formateur à vérifier")
+        else:
+            label = f"Contrats formateurs : {signed}/{total} signés"
+
+    details = "\n".join(
+        f"{trainer['name']} : {'Contrat à générer' if trainer['status'] == 'missing' else yousign_status_label(trainer['status'])}"
+        for trainer in trainers.values()
+    ) or "Aucun contrat formateur généré pour cette session."
+    return {"total": total, "signed": signed, "tone": tone, "icon": icon, "label": label, "details": details}
+
+
 def find_session_trainer_contract(session_data, contract_id):
     return next((contract for contract in session_trainer_contracts(session_data) if contract.get("id") == contract_id), None)
 
@@ -9029,6 +9087,7 @@ def inject_a3p_trainer_helpers():
         "trainer_contract_planning_ready": trainer_contract_planning_ready,
         "trainer_contract_formation_label": trainer_contract_formation_label,
         "session_trainer_contracts": session_trainer_contracts,
+        "session_trainer_contract_summary": session_trainer_contract_summary,
     }
 
 @app.post("/api/admin/sessions/<sid>/a3p/trainer-link")

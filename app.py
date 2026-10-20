@@ -475,11 +475,19 @@ app.jinja_env.filters['datetime'] = to_datetime
 
 
 def session_modality_date_range(session_data, modality):
-    """Return the first and last planning dates for a session modality."""
+    """Return session dates for SSIAP attendance, planning dates otherwise."""
     if not session_data:
         return None
 
     wanted = (modality or "").strip().lower()
+    if is_ssiap1_session(session_data) and wanted in {"presentiel", "elearning"}:
+        # SST and revision slots are also on site. Their separate planning
+        # labels must not shorten the attendance period shown on session cards.
+        start = session_data.get("date_debut")
+        if wanted == "elearning" or not start:
+            return None
+        return {"start": start, "end": session_data.get("date_fin") or start}
+
     dates = []
     for planning_key in ("apsPlanningData", "a3pPlanningData"):
         for day in session_data.get(planning_key) or []:

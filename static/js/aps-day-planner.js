@@ -1,5 +1,20 @@
 /* Day creation and course allocation. All durations come from the current timetable. */
 const APSDayPlanner = (() => {
+  // Module headings from the supplied CPNEFP APS programme (23/07/2026).
+  // These are display labels only; canonical sequence keys remain unchanged.
+  const moduleNames = {
+    UV1: 'Secourisme', UV2: 'Environnement juridique', UV3: 'Gestion des conflits',
+    UV4: 'Stratégique', UV5: 'Prévention des risques d’incendie',
+    UV6: 'Modalité d’appréhension au cours de l’exercice du métier',
+    UV7: 'Sensibilisation aux risques terroristes', UV8: 'Professionnel',
+    UV9: 'Palpation de sécurité et inspection des bagages',
+    UV10: 'Surveillance par moyens électroniques de sécurité', UV11: 'Gestion des risques',
+    UV12: 'Évènementiel spécifique', UV13: 'Gestion des situations conflictuelles dégradées',
+    UV14: 'Industriel spécifique',
+  };
+  const moduleCode = uv => String(uv || '').replace(/^UV\s*(\d+)$/, 'UV $1');
+  const moduleName = uv => moduleNames[uv] ? `Module ${moduleNames[uv]}` : String(uv || '');
+  const moduleLabel = uv => `${moduleCode(uv)} - ${moduleName(uv)}`;
   const copy = value => JSON.parse(JSON.stringify(value));
   const toMinutes = value => {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value || '')) return NaN;
@@ -22,6 +37,21 @@ const APSDayPlanner = (() => {
       }
     }
     return courses;
+  }
+
+  function modules(planning, contents, options = {}) {
+    const groups = new Map();
+    for (const item of remainingCourses(planning, contents)) {
+      if (options.modality && item.modality !== options.modality) continue;
+      if (!groups.has(item.uv)) groups.set(item.uv, {uv: item.uv, label: moduleLabel(item.uv),
+        expectedMinutes: 0, plannedMinutes: 0, remainingMinutes: 0, remainingByModality: {presentiel: 0, elearning: 0}});
+      const group = groups.get(item.uv);
+      group.expectedMinutes += item.expectedMinutes;
+      group.plannedMinutes += item.expectedMinutes - item.remainingMinutes;
+      group.remainingMinutes += Math.max(0, item.remainingMinutes);
+      group.remainingByModality[item.modality] += Math.max(0, item.remainingMinutes);
+    }
+    return [...groups.values()].sort((a, b) => Number(a.uv.replace('UV', '')) - Number(b.uv.replace('UV', '')));
   }
 
   function createDay(planning, fields, options = {}) {
@@ -62,6 +92,7 @@ const APSDayPlanner = (() => {
   function fill(planning, contents, options = {}) {
     const result = copy(planning);
     const courses = remainingCourses(result, contents);
+    const selectedUvs = Array.isArray(options.selectedUvs) ? new Set(options.selectedUvs) : null;
     const addedKeys = new Set();
     let addedMinutes = 0, unusedMinutes = 0;
     const mixed = contents.some(item => item.modality === 'elearning');
@@ -71,7 +102,8 @@ const APSDayPlanner = (() => {
       const occupied = (day.slots || []).filter(scheduled).map(slot => [toMinutes(slot.start), toMinutes(slot.end)]);
       occupied.push(lunch(options));
       const slots = (day.slots || []).filter(scheduled);
-      for (const slot of (day.slots || []).filter(slot => slot.isEmpty).sort((a, b) => toMinutes(a.start) - toMinutes(b.start))) {
+      for (const {slot, index} of (day.slots || []).map((slot, index) => ({slot, index})).filter(item => item.slot.isEmpty).sort((a, b) => toMinutes(a.slot.start) - toMinutes(b.slot.start))) {
+        if (Number.isInteger(options.slotIndex) && index !== options.slotIndex) { slots.push(slot); continue; }
         const start = toMinutes(slot.start), end = toMinutes(slot.end);
         if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) throw new Error(`Vérifiez les horaires du créneau disponible le ${day.date}.`);
         const modality = slot.modality || 'presentiel';
@@ -83,8 +115,9 @@ const APSDayPlanner = (() => {
           if (!conflictsWithPeriod) {
             for (const course of courses) {
               if (cursor >= to) break;
-              if (course.modality !== modality || course.remainingMinutes <= 0) continue;
-              const minutes = Math.min(to - cursor, course.remainingMinutes);
+              if (course.modality !== modality || course.remainingMinutes <= 0 || (selectedUvs && !selectedUvs.has(course.uv))) continue;
+              const minutes = Math.min(to - cursor, course.remainingMinutes, (options.maxMinutes ?? Infinity) - addedMinutes);
+              if (minutes <= 0) break;
               slots.push(timedSlot({...slot, isEmpty: false, uv: course.uv, title: course.title, part: course.part,
                 modality, pedagogicalKey: course.key, deliveryType: course.deliveryType,
                 practiceMinutes: course.deliveryType === 'practice' ? minutes : 0, programVersion: course.programVersion}, cursor, cursor + minutes));
@@ -107,6 +140,6 @@ const APSDayPlanner = (() => {
       remainingMinutes: courses.reduce((total, item) => total + Math.max(0, item.remainingMinutes), 0)};
   }
 
-  return {createDay, fill, remainingCourses};
+  return {createDay, fill, remainingCourses, modules, moduleLabel, moduleName, moduleCode};
 })();
 if (typeof module !== 'undefined') module.exports = APSDayPlanner;

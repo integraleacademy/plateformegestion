@@ -2,6 +2,16 @@ const dayDialog = document.getElementById('dayDialog');
 const dayForm = document.getElementById('dayForm');
 const dayFields = document.getElementById('dayFields');
 let daySaving = false;
+const daySelectedUvs = new Set();
+const dayFillMode = () => document.querySelector('[name="dayFillMode"]:checked').value;
+
+function renderDayModuleChoices() {
+  const groups = APSDayPlanner.modules(planning, curriculum.contents, {modality: document.getElementById('dayModality').value}).filter(item => item.remainingMinutes > 0);
+  for (const uv of daySelectedUvs) if (!groups.some(item => item.uv === uv)) daySelectedUvs.delete(uv);
+  document.getElementById('dayCourseChoices').innerHTML = groups.length ? groups.map(item =>
+    `<label class="module-choice"><input type="checkbox" data-day-module value="${esc(item.uv)}" ${daySelectedUvs.has(item.uv) ? 'checked' : ''}><span><strong>${esc(item.label)}</strong><small>${hours(item.remainingMinutes)} restant à planifier</small></span></label>`).join('')
+    : '<p class="muted">Tous les modules sont déjà planifiés pour cette modalité.</p>';
+}
 
 function dayOptions() {
   return {examDate: planningSession.date_exam, lunchStart: planningSession.apsLunchStart, lunchEnd: planningSession.apsLunchEnd};
@@ -20,7 +30,10 @@ function readDayFields() {
 function prepareDay() {
   const fields = readDayFields();
   const draft = APSDayPlanner.createDay(planning, fields, dayOptions());
-  if (document.getElementById('dayAutoFill').checked) return APSDayPlanner.fill(draft, curriculum.contents, {...dayOptions(), date: fields.date});
+  const mode = dayFillMode();
+  if (mode === 'manual' && !daySelectedUvs.size) throw new Error('Cochez au moins un module, ou choisissez « Journée vide ».');
+  if (mode !== 'empty') return APSDayPlanner.fill(draft, curriculum.contents, {...dayOptions(), date: fields.date,
+    ...(mode === 'manual' ? {selectedUvs: [...daySelectedUvs]} : {})});
   return {planning: draft, addedMinutes: 0};
 }
 
@@ -29,16 +42,29 @@ function updateDayPreview() {
     const enabled = document.getElementById(toggle).checked;
     for (const id of [start, end]) { document.getElementById(id).disabled = !enabled; document.getElementById(id).required = enabled; }
   }
-  const auto = document.getElementById('dayAutoFill').checked;
-  document.getElementById('createDay').textContent = auto ? 'Ajouter et remplir la journée' : 'Ajouter la journée';
+  const mode = dayFillMode();
+  document.getElementById('dayCourseSelection').hidden = mode !== 'manual';
+  document.getElementById('createDay').textContent = mode === 'auto' ? 'Ajouter et remplir la journée' : mode === 'manual' ? 'Ajouter les cours cochés' : 'Ajouter la journée vide';
   const preview = document.getElementById('dayPreview');
   try {
     const result = prepareDay();
     const day = result.planning.find(item => item.date === document.getElementById('dayDate').value);
     const total = day.slots.reduce((value, slot) => value + slotMinutes(slot), 0);
-    preview.textContent = auto
+    preview.textContent = mode !== 'empty'
       ? `${hours(result.addedMinutes)} de cours seront planifiées sur ${hours(total)} disponibles.${result.addedMinutes < total ? ' Le temps restant sera conservé en créneaux libres.' : ''}`
       : `${hours(total)} de créneaux disponibles. Vous pourrez les remplir automatiquement ensuite.`;
+    if (mode === 'manual') {
+      const chosenMinutes = APSDayPlanner.modules(planning, curriculum.contents, {modality: document.getElementById('dayModality').value})
+        .filter(item => daySelectedUvs.has(item.uv)).reduce((n, item) => n + item.remainingMinutes, 0);
+      if (chosenMinutes > result.addedMinutes) preview.textContent += ` ${hours(chosenMinutes - result.addedMinutes)} de votre sélection resteront à planifier.`;
+    }
+    const added = new Map();
+    for (const slot of day.slots.filter(slot => !slot.isEmpty)) added.set(slot.uv, (added.get(slot.uv) || 0) + slotMinutes(slot));
+    if (added.size) {
+      const list = document.createElement('ul');
+      for (const [uv, value] of added) { const row = document.createElement('li'); row.textContent = `${APSDayPlanner.moduleLabel(uv)} : ${hours(value)}`; list.appendChild(row); }
+      preview.appendChild(list);
+    }
     if (total > dailyCapacityMinutes) preview.textContent += ` Durée indicative habituelle : ${hours(dailyCapacityMinutes)} par jour.`;
   } catch (error) { preview.textContent = error.message; }
 }
@@ -66,12 +92,14 @@ function suggestDayModality() {
 function openDayDialog() {
   if (planningChangePending || daySaving || !curriculum) return;
   dayForm.reset();
+  daySelectedUvs.clear();
   document.getElementById('dayDate').value = suggestDayDate();
   const [lunchStart, lunchEnd] = slotLunchBreak();
   document.getElementById('dayMorningEnd').value = slotTime(lunchStart);
   document.getElementById('dayAfternoonStart').value = slotTime(lunchEnd);
   document.getElementById('dayModalityField').hidden = !curriculum.contents.some(item => item.modality === 'elearning');
   suggestDayModality();
+  renderDayModuleChoices();
   document.getElementById('dayDialogError').style.display = 'none';
   updateDayPreview();
   dayDialog.showModal();
@@ -101,8 +129,15 @@ async function fillRemainingCourses(date = '') {
   } catch (error) { show(err, error.message); }
 }
 
-dayForm.addEventListener('input', updateDayPreview);
-document.getElementById('dayDate').addEventListener('change', () => { suggestDayModality(); updateDayPreview(); });
+dayForm.addEventListener('input', event => {
+  document.getElementById('dayDialogError').style.display = 'none';
+  if (event.target.matches('[data-day-module]')) {
+    if (event.target.checked) daySelectedUvs.add(event.target.value); else daySelectedUvs.delete(event.target.value);
+  }
+  if (event.target.id === 'dayModality') renderDayModuleChoices();
+  updateDayPreview();
+});
+document.getElementById('dayDate').addEventListener('change', () => { suggestDayModality(); renderDayModuleChoices(); updateDayPreview(); });
 document.getElementById('cancelDay').addEventListener('click', () => dayDialog.close());
 dayDialog.addEventListener('cancel', event => { if (daySaving) event.preventDefault(); });
 dayForm.addEventListener('submit', async event => {
@@ -111,6 +146,9 @@ dayForm.addEventListener('submit', async event => {
   let result;
   try { result = prepareDay(); }
   catch (error) { show(document.getElementById('dayDialogError'), error.message); return; }
+  if (dayFillMode() === 'manual' && !result.addedMinutes) {
+    show(document.getElementById('dayDialogError'), 'Les modules cochés ne peuvent pas être placés à cette date. Vérifiez la modalité et l’ordre des journées à distance et en présentiel.'); return;
+  }
   const date = document.getElementById('dayDate').value;
   daySaving = true;
   dayFields.disabled = true;
@@ -120,4 +158,29 @@ dayForm.addEventListener('submit', async event => {
     const saved = await savePlanningChange(() => { planning = result.planning; }, message);
     if (saved) { dayDialog.close(); scrollToDay(date); }
   } finally { daySaving = false; dayFields.disabled = false; updateDayPreview(); }
+});
+
+function openModuleInsert(di, si) {
+  const day = planning[di], slot = day.slots[si], available = insertableMinutes(day, slot);
+  selectedSlot = {di, si};
+  modalErr.style.display = 'none';
+  const groups = APSDayPlanner.modules(planning, curriculum.contents, {modality: slot.modality || 'presentiel'}).filter(item => item.remainingMinutes > 0);
+  document.getElementById('modalHint').textContent = `Créneau : ${slot.start}–${slot.end}. Choisissez le module à ajouter, jusqu’à ${hours(available)}.`;
+  document.getElementById('courseChoices').innerHTML = groups.length ? groups.map(item => `<button type="button" class="course-choice" data-action="insert-module" data-uv="${esc(item.uv)}" ${available <= 0 ? 'disabled' : ''}><span><strong>${esc(item.label)}</strong><br><small>${hours(item.remainingMinutes)} restantes</small></span><strong>${hours(Math.min(available, item.remainingMinutes))}</strong></button>`).join('') : '<p>Aucun module restant pour cette modalité.</p>';
+  document.getElementById('courseModal').classList.add('open');
+}
+
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-action="insert-module"]');
+  if (!button || planningChangePending || !selectedSlot) return;
+  const {di, si} = selectedSlot, day = planning[di], slot = day?.slots[si];
+  if (!slot?.isEmpty) return;
+  try {
+    const result = APSDayPlanner.fill(planning, curriculum.contents, {...dayOptions(), date: day.date,
+      slotIndex: si, selectedUvs: [button.dataset.uv], maxMinutes: insertableMinutes(day, slot)});
+    if (!result.addedMinutes) { showActionError('Ce module ne peut pas être ajouté dans ce créneau. Vérifiez la modalité et l’ordre des journées.'); return; }
+    document.querySelectorAll('[data-action="insert-module"]').forEach(item => item.disabled = true);
+    if (await savePlanningChange(() => { planning = result.planning; }, allocationMessage(result))) closeModal();
+  } catch (error) { showActionError(error.message); }
+  finally { document.querySelectorAll('[data-action="insert-module"]').forEach(item => item.disabled = false); }
 });

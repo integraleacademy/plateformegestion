@@ -48,3 +48,39 @@ def test_recreated_day_restores_a_complete_plan_and_survives_save_and_reload(mon
     for unchanged in incomplete:
         restored = next(day for day in refreshed['apsPlanningData'] if day['date'] == unchanged['date'])
         assert restored == unchanged
+
+
+@pytest.mark.parametrize('mode', ['full_presentiel', 'elearning_presentiel'])
+def test_manual_uv_selection_retains_canonical_metadata_and_persists(monkeypatch, mode):
+    contents = app.aps_expected_content(mode)
+    process = subprocess.run(['node', '-e', '''
+      const planner = require('./static/js/aps-day-planner.js');
+      const contents = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
+      const draft = planner.createDay([], {date: '2026-11-02', morning: {start: '08:30', end: '12:30'}, afternoon: {start: '13:30', end: '16:30'}});
+      process.stdout.write(JSON.stringify({groups: planner.modules([], contents), result: planner.fill(draft, contents, {selectedUvs: ['UV4', 'UV6']})}));
+    '''], input=json.dumps(contents), text=True, capture_output=True, check=True)
+    output = json.loads(process.stdout)
+    assert len(output['groups']) == 14
+    plan = output['result']['planning']
+    slots = [slot for day in plan for slot in day['slots'] if not slot.get('isEmpty')]
+    assert slots and {slot['uv'] for slot in slots} <= {'UV4', 'UV6'}
+    by_key = {item['key']: item for item in contents}
+    for slot in slots:
+        canonical = by_key[slot['pedagogicalKey']]
+        assert slot['title'] == canonical['title']
+        assert slot['modality'] == canonical['modality'] == 'presentiel'
+        assert slot['practiceMinutes'] == (slot['durationMinutes'] if canonical.get('deliveryType') == 'practice' else 0)
+    record = {'id': 'manual-uv', 'formation': 'APS', 'apsPlanningMode': mode, 'apsPlanningData': []}
+    data = {'sessions': [record], 'jurys': []}
+    monkeypatch.setattr(app, 'load_sessions', lambda: data)
+    monkeypatch.setattr(app, 'save_sessions', lambda value: None)
+    app.app.config.update(TESTING=True, SECRET_KEY='test')
+    with app.app.test_client() as client:
+        with client.session_transaction() as session:
+            session['admin_logged'] = True
+            session['admin_session_version'] = app.ADMIN_SESSION_VERSION
+        response = client.put('/api/sessions/manual-uv/aps-planning', json={'planningData': plan})
+        assert response.status_code == 200, response.get_json()
+        refreshed = client.get('/api/sessions/manual-uv/aps-planning').get_json()
+    assert refreshed['curriculum']['plannedMinutes'] == output['result']['addedMinutes']
+    assert refreshed['apsPlanningData'] == plan

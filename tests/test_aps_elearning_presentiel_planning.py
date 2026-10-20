@@ -136,7 +136,8 @@ def test_mixed_aps_pdf_summary_has_no_sst_heading_and_lists_both_modalities(tmp_
     assert "Dont pratique en présentiel : 63h30" in text
     assert "Dont théorie en présentiel : 60h30" in text
     assert f"CPNEFP {APS_CPNEFP_PROGRAM_VERSION}" in text
-    assert "UV2 — Livre VI du code de la sécurité intérieure" in text
+    assert "UV 2 - Module Environnement juridique" in text
+    assert "Livre VI du code de la sécurité intérieure" not in text
     assert "E-learning" in text and "Présentiel" in text
 
 

@@ -1,6 +1,11 @@
 """Readable APS PDF labels and blocks, separate from the canonical curriculum."""
 
 from copy import deepcopy
+from decimal import Decimal
+import re
+
+
+APS_CONTRACT_PRESENTATION_VERSION = "aps-modules-v1"
 
 
 APS_MODULE_NAMES = {
@@ -65,3 +70,35 @@ def module_summary_rows(summary):
          "presentielHours": modalities.get("presentiel", {}).get(uv, 0)}
         for uv in APS_MODULE_NAMES
     ]
+
+
+def contract_interventions_for_pdf(interventions):
+    """Present saved contract snapshots using the same modules as the planning.
+
+    Older contracts only store a combined ``module`` string, without a UV key.
+    Work on a copy so the contractual hours and canonical source stay intact.
+    """
+    result = []
+    for row in deepcopy(interventions):
+        match = re.match(r"^UV\s*(\d+)\b", str(row.get("module") or "").strip(), re.IGNORECASE)
+        uv = f"UV{match.group(1)}" if match else None
+        if uv in APS_MODULE_NAMES:
+            row["module"] = module_label(uv)
+        previous = result[-1] if result else None
+        same_block = previous and uv in APS_MODULE_NAMES and all(
+            (previous.get(key) or "") == (row.get(key) or "")
+            for key in ("date", "module", "modality", "room", "trainer", "part")
+        )
+        if same_block and row.get("date") and row.get("start") and previous.get("end") == row["start"]:
+            previous["end"] = row["end"]
+            previous["hours"] = float(Decimal(str(previous.get("hours") or 0)) + Decimal(str(row.get("hours") or 0)))
+        else:
+            result.append(row)
+    return result
+
+
+def contract_module_labels(interventions):
+    """List each assigned module once, in numeric UV order."""
+    order = {module_label(uv): index for index, uv in enumerate(APS_MODULE_NAMES)}
+    labels = {str(row.get("module") or "").strip() for row in interventions}
+    return sorted(labels - {""}, key=lambda label: (order.get(label, len(order)), label))

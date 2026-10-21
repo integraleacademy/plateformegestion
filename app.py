@@ -41,7 +41,10 @@ from yousign_service import YousignClient, YousignError, detect_yousign_environm
 
 from prospecting import prospecting_bp
 from services.aps_day_distribution import grouped_day_minutes
-from services.aps_pdf_presentation import compact_planning_for_pdf, module_summary_rows
+from services.aps_pdf_presentation import (
+    APS_CONTRACT_PRESENTATION_VERSION, compact_planning_for_pdf, module_summary_rows,
+    contract_interventions_for_pdf, contract_module_labels,
+)
 from services.formateur_expiration_notifications import (
     process_notifications as process_formateur_notification_queue,
     last_notification_at as last_formateur_expiration_notification_at,
@@ -4125,7 +4128,13 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
     exam_date = format_date(session_data.get("date_exam"))
     modality_label = "Présentiel"
     interventions = contract.get("interventions") or []
-    modules = sorted({(row.get("module") or "Module non renseigné").strip() for row in interventions if (row.get("module") or "").strip()})
+    simple_aps_modules = str(formation_name).strip().upper() == "APS"
+    if simple_aps_modules:
+        interventions = contract_interventions_for_pdf(interventions)
+        modules = contract_module_labels(interventions)
+    else:
+        modules = sorted({(row.get("module") or "Module non renseigné").strip() for row in interventions if (row.get("module") or "").strip()})
+    modules_label = ("\n" if simple_aps_modules else ", ").join(modules) or "Selon planning annexé"
     room_label = trainer_contract_intervention_location(session_data, interventions)
     total_ht = float(contract.get("totalHT") or 0)
     tva_label = f"TVA {float(contract.get('vatRate') or 20):g}%" if contract.get("vatEnabled") else (contract.get("vatMention") or "TVA non applicable / franchise de TVA si applicable")
@@ -4193,6 +4202,8 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
 
     def compact_module_label(module):
         text = str(module or "Module non renseigné").strip()
+        if simple_aps_modules:
+            return text
         import re
         match = re.search(r"\b(UV\s*\d+)\b\s*[-—:]?\s*(.*)", text, re.IGNORECASE)
         if not match:
@@ -4247,7 +4258,7 @@ def generate_aps_trainer_contract_pdf(session_data, contract, output_path):
         p("Le présent contrat est un contrat de prestation de services et, le cas échéant, de sous-traitance pédagogique. Le formateur intervient exclusivement en qualité de prestataire indépendant : aucune clause, consigne opérationnelle ou modalité de suivi ne peut être interprétée comme créant un lien de subordination juridique avec Intégrale Academy."),
         p("Le formateur organise librement ses moyens humains, matériels et pédagogiques, sous sa responsabilité professionnelle. Cette autonomie s’exerce toutefois dans le cadre strict des référentiels applicables, du planning validé, des horaires communiqués, du règlement intérieur, des procédures qualité, des consignes de sécurité et des exigences administratives du centre."),
         bullet(["le formateur demeure seul responsable de ses déclarations fiscales et sociales, de ses cotisations, assurances, habilitations, qualifications, autorisations administratives et obligations réglementaires ;", "le présent contrat n’emporte aucune exclusivité au profit d’Intégrale Academy, sauf accord écrit distinct ;", "le formateur s’interdit de se présenter comme salarié, représentant permanent, mandataire social ou agent d’Intégrale Academy auprès des stagiaires, financeurs, autorités ou partenaires."])]
-    story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1' if is_ssiap1_session(session_data) else ('Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité')}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", ", ".join(modules) or "Selon planning annexé"), ("Volume horaire formation", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Intervention examen", "Oui" if contract.get("trainerAttendsExam") else "Non"), ("Heures examen", f"{float(contract.get('examTrainerHours') or 0):g} h"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label)], [43 * mm, 133 * mm]),
+    story += [section("2. Objet de la mission"), kv_table([("Formation", f"{formation_name} / {'Service de Sécurité Incendie et d’Assistance à Personnes — Niveau 1' if is_ssiap1_session(session_data) else ('Agent de protection physique des personnes' if str(formation_name).upper()=='A3P' else 'Agent de Prévention et de Sécurité')}"), ("Session", session_name), ("Dates", f"Du {start_date} au {end_date}"), ("Date d’examen", exam_date), ("Modalité", modality_label), ("Modules / UV confiés", modules_label), ("Volume horaire formation", f"{float(contract.get('calculatedHours') or 0):g} heures"), ("Intervention examen", "Oui" if contract.get("trainerAttendsExam") else "Non"), ("Heures examen", f"{float(contract.get('examTrainerHours') or 0):g} h"), ("Montant examen HT", _money(contract.get("examTrainerAmount") or 0)), ("Jours facturés", f"{float(contract.get('billedDays') or 0):g}"), ("Lieu d’intervention", room_label)], [43 * mm, 133 * mm]),
         p("La mission confiée porte sur la réalisation de séquences pédagogiques identifiées dans le planning annexé, pour les modules, dates, horaires et volumes horaires générés dynamiquement par la session. En signant le présent contrat, le formateur accepte les modules confiés, les objectifs pédagogiques, le niveau attendu et les contraintes de continuité pédagogique propres à l’action de formation."),
         p("Le formateur adapte son animation au public accueilli, veille à la progression des apprenants et respecte les contenus réglementaires sans modification non validée. Toute modification de planning, d’horaires, de lieu, de module, de modalité ou d’intervenant doit faire l’objet d’une validation écrite préalable d’Intégrale Academy.")]
     story += [section("3. Obligations générales du formateur"),
@@ -8289,7 +8300,10 @@ def trainer_contract_pdf_prefix(session_data):
 def generate_session_trainer_contract_pdf(session_data, contract, output_path):
     if (session_data.get("formation") or "").upper() == "A3P":
         return generate_a3p_trainer_contract_pdf(session_data, contract, output_path)
-    return generate_aps_trainer_contract_pdf(session_data, contract, output_path)
+    result = generate_aps_trainer_contract_pdf(session_data, contract, output_path)
+    if (session_data.get("formation") or "").upper() == "APS":
+        contract["pdfPresentationVersion"] = APS_CONTRACT_PRESENTATION_VERSION
+    return result
 
 
 def trainer_contract_defaults_for_session(session_data, trainer_name):
@@ -8407,7 +8421,32 @@ def ensure_aps_trainer_contract_pdf(session_data, contract):
         contract["pdfFilename"] = filename
     contract_dir = trainer_contract_directory(session_data)
     path = os.path.join(contract_dir, filename)
-    if not os.path.exists(path):
+    state = contract.get("yousign") or {}
+    signature_started = (
+        state.get("signatureRequestId") or contract.get("yousign_signature_request_id")
+        or state.get("signedAt") or contract.get("yousign_signed_at")
+        or state.get("signedDocumentFilename") or state.get("signedDocumentUrl")
+        or contract.get("yousign_signed_document_url")
+        or state.get("status") in {"signed", "done", "ongoing", "approval"}
+        or contract.get("yousign_status") in {"signed", "done", "ongoing", "approval"}
+    )
+    refresh_presentation = (
+        (session_data.get("formation") or "").upper() == "APS"
+        and contract.get("pdfPresentationVersion") != APS_CONTRACT_PRESENTATION_VERSION
+        and not signature_started
+    )
+    if os.path.exists(path) and refresh_presentation:
+        # Keep the old PDF intact if rendering fails. Signed/requested versions
+        # are immutable; only unsigned local drafts receive this presentation update.
+        with tempfile.NamedTemporaryFile(dir=contract_dir, suffix=".pdf", delete=False) as temporary:
+            temporary_path = temporary.name
+        try:
+            generate_session_trainer_contract_pdf(session_data, contract, temporary_path)
+            os.replace(temporary_path, path)
+        finally:
+            if os.path.exists(temporary_path):
+                os.remove(temporary_path)
+    elif not os.path.exists(path):
         os.makedirs(contract_dir, exist_ok=True)
         generate_session_trainer_contract_pdf(session_data, contract, path)
     return path
@@ -8426,7 +8465,9 @@ def view_aps_trainer_contract(sid, contract_id):
         app.logger.exception("Régénération contrat formateur impossible session=%s contrat=%s", sid, contract_id)
         abort(404)
     save_sessions(data)
-    return send_file(path, mimetype="application/pdf", as_attachment=False)
+    response = send_file(path, mimetype="application/pdf", as_attachment=False, conditional=False, max_age=0)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.post("/api/sessions/<sid>/aps-trainer-contracts/generate")

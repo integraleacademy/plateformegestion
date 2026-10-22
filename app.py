@@ -40,6 +40,10 @@ from werkzeug.utils import secure_filename
 from yousign_service import YousignClient, YousignError, detect_yousign_environment, get_yousign_config, is_yousign_configured, mask_phone_number, normalizeFrenchPhoneNumber, sanitize_yousign_external_id, test_yousign_connection, yousign_config_diagnostics, yousign_service_access_message
 
 from prospecting import prospecting_bp
+from services.session_storage import (
+    SessionStorageError, SessionStorageConflict, load_session_store,
+    save_session_store, storage_diagnostics,
+)
 from services.aps_day_distribution import grouped_day_minutes
 from services.aps_pdf_presentation import (
     APS_CONTRACT_PRESENTATION_VERSION, compact_planning_for_pdf, module_summary_rows,
@@ -5321,25 +5325,22 @@ def a3p_public_payload(session_data):
     }
 
 def load_sessions():
-    if os.path.exists(SESSIONS_FILE):
-        try:
-            with open(SESSIONS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    data.setdefault("sessions", [])
-                    data.setdefault("jurys", [])
-                    return data
-        except Exception:
-            pass
-    return {"sessions": [], "jurys": []}
+    return load_session_store(SESSIONS_FILE, allow_missing=not IS_RENDER)
 
 def save_sessions(data):
-    tmp_path = SESSIONS_FILE + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp_path, SESSIONS_FILE)
+    save_session_store(SESSIONS_FILE, data, allow_missing=not IS_RENDER)
+
+
+@app.errorhandler(SessionStorageError)
+def session_storage_error(error):
+    conflict = isinstance(error, SessionStorageConflict)
+    message = ("Une autre opération a modifié les sessions. Rechargez la page avant de réessayer."
+               if conflict else
+               "Les sessions sont momentanément indisponibles. Une vérification des données est nécessaire. Aucune liste vide n’a été enregistrée.")
+    status = 409 if conflict else 503
+    if request.path.startswith("/api/") or request.is_json or request.path.endswith(".json"):
+        return jsonify({"ok": False, "error": message}), status
+    return render_template("session_storage_error.html", message=message), status
 
 def migrate_afc_ssiap_transition_session():
     """Appliquer une seule fois à 9f823786 le report SSIAP validé par l’administrateur."""
@@ -7238,7 +7239,6 @@ def sessions_home():
     # 🔄 Synchronise automatiquement les étapes manquantes pour chaque session
     for s in data["sessions"]:
         sync_steps(s)
-    save_sessions(data)
 
     today = datetime.now().date()
     active = []
@@ -13520,6 +13520,10 @@ def create_social_post_from_session(sid):
 
 
 # Migration ciblée avant le traitement des requêtes, protégée entre workers.
+try:
+    app.logger.info("SESSION_STORAGE_DIAGNOSTICS %s", json.dumps(storage_diagnostics(SESSIONS_FILE)))
+except Exception:
+    app.logger.exception("SESSION_STORAGE_DIAGNOSTICS_FAILED")
 try:
     migrate_afc_ssiap_transition_session()
 except Exception:

@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime, date, timedelta
 
 A3P_TOTAL_HOURS = 328
+A3P_MAX_DAILY_MINUTES = 8 * 60
 A3P_MAX_DISTINCT_MODULES_PER_DAY = 3
 A3P_FORBIDDEN_TERMS = ("APS", "e-learning", "distanciel", "175h")
 A3P_MODULES = [
@@ -109,7 +110,7 @@ def _french_public_holidays(year: int) -> set[date]:
         easter + timedelta(days=1), easter + timedelta(days=39), easter + timedelta(days=50),
     }
 
-def _day_training_slots(day):
+def _day_training_slots(day, busy=()):
     start = day.get("dayStart") or day.get("morningStart")
     end = day.get("dayEnd") or day.get("afternoonEnd") or day.get("morningEnd")
     if not start or not end:
@@ -119,11 +120,23 @@ def _day_training_slots(day):
         raise ValueError(f"L’heure de fin est avant l’heure de début pour le {day.get('date')}")
     if end_m - start_m < 120:
         raise ValueError(f"La journée du {day.get('date')} doit durer au moins 2h pour intégrer la pause automatique d’1h")
-    training = end_m - start_m - 60
+    training = min(A3P_MAX_DAILY_MINUTES, end_m - start_m - 60)
+    end_m = start_m + training + 60
     first = training // 2
     pause_start = start_m + first
+    # Existing manual courses keep their exact times. Put the full one-hour
+    # break in a free interval instead of splitting it across those courses.
+    if busy:
+        candidates = [
+            max(start, min(pause_start, end - 60))
+            for start, end in _subtract_busy((start_m, end_m), busy)
+            if end - start >= 60
+        ]
+        if not candidates:
+            return []
+        pause_start = min(candidates, key=lambda candidate: (abs(candidate - pause_start), candidate))
     pause_end = pause_start + 60
-    return [(start, _hhmm(pause_start)), (_hhmm(pause_end), end)]
+    return [(_hhmm(s), _hhmm(e)) for s, e in ((start_m, pause_start), (pause_end, end_m)) if e > s]
 
 def a3p_empty_module_totals():
     return {m["code"]: 0 for m in A3P_MODULES}
@@ -198,25 +211,36 @@ def _is_available_training_day(day, exam_date=None):
     except Exception:
         return False
 
-def _max_day_training_slots(day):
-    standard_slots = _day_training_slots(day)
-    first_start = _minutes(standard_slots[0][0])
-    pause_start = _minutes(standard_slots[0][1])
-    pause_end = _minutes(standard_slots[1][0])
-    max_end = first_start + 9 * 60
-    return [(first_start, pause_start), (pause_end, max_end)]
+def _max_day_training_slots(day, busy=()):
+    # Preserve the original break during the optional extension, so previously
+    # placed courses are never followed by automatic courses during that break.
+    standard_slots = _day_training_slots(day, busy)
+    if not standard_slots:
+        return []
+    slots = [(_minutes(start), _minutes(end)) for start, end in standard_slots]
+    first_start = _minutes(day.get("dayStart") or day.get("morningStart"))
+    max_end = min(23 * 60 + 59, first_start + 9 * 60)
+    # If the break is at the end, retain it before the additional interval.
+    configured_end = _minutes(day.get("dayEnd") or day.get("afternoonEnd") or day.get("morningEnd"))
+    if slots[-1][1] <= configured_end - 60:
+        slots.append((configured_end, max_end))
+    else:
+        slots[-1] = (slots[-1][0], max_end)
+    return [(start, end) for start, end in slots if end > start]
 
 def _remaining_minutes(modules):
     return sum(m["remaining"] for m in modules)
 
 def _place_modules_in_free_slots(day, free_slots, modules, idx, trainer, room):
+    capacity = max(0, A3P_MAX_DAILY_MINUTES - sum(_slot_minutes(slot["start"], slot["end"]) for slot in day["slots"]))
     for start_m, end_m in free_slots:
         cursor = start_m
-        while cursor < end_m and idx < len(modules):
-            take = min(end_m - cursor, modules[idx]["remaining"])
+        while cursor < end_m and idx < len(modules) and capacity > 0:
+            take = min(end_m - cursor, modules[idx]["remaining"], capacity)
             code = modules[idx]["code"]
             day["slots"].append({"start": _hhmm(cursor), "end": _hhmm(cursor + take), "durationMinutes": take, "code": code, "title": A3P_MODULE_BY_CODE[code]["title"], "locked": False, "trainer": trainer, "room": room})
             cursor += take
+            capacity -= take
             modules[idx]["remaining"] -= take
             if modules[idx]["remaining"] == 0:
                 idx += 1
@@ -298,6 +322,11 @@ def generateA3pSchedule(config):
                 raise ValueError(f"Chevauchement le {entry['date']} {entry['start']}-{entry['end']}")
         busy_by_date.setdefault(entry["date"], []).append((start_m, end_m))
         locked_totals[entry["code"]] += entry["durationMinutes"]
+    for date_value, busy in busy_by_date.items():
+        used = sum(end - start for start, end in busy)
+        if used > A3P_MAX_DAILY_MINUTES:
+            label = datetime.strptime(date_value, "%Y-%m-%d").strftime("%d/%m/%Y")
+            raise ValueError(f"Les modules imposés du {label} totalisent {used/60:g}h. Répartissez-les sur plusieurs dates à l’étape 3 (maximum 8h par jour).")
     for code in A3P_LOCKED_CODES:
         expected=A3P_MODULE_BY_CODE[code]["hours"]*60
         if locked_totals[code] != expected:
@@ -316,7 +345,7 @@ def generateA3pSchedule(config):
             code = entry["code"]
             slots.append({"start":entry["start"],"end":entry["end"],"durationMinutes":entry["durationMinutes"],"code":code,"title":A3P_MODULE_BY_CODE[code]["title"],"locked":True,"trainer":trainer,"room":room})
         free_slots=[]
-        for start, end in _day_training_slots(day):
+        for start, end in _day_training_slots(day, busy_by_date.get(date_value, [])):
             for f_start, f_end in _subtract_busy((_minutes(start), _minutes(end)), busy_by_date.get(date_value, [])):
                 if f_end > f_start:
                     free_slots.append((f_start, f_end))
@@ -343,7 +372,7 @@ def generateA3pSchedule(config):
                 continue
             capacity = 8 * 60 - used
             free_slots = []
-            for start_m, end_m in _max_day_training_slots(day_config):
+            for start_m, end_m in _max_day_training_slots(day_config, busy_by_date.get(date_value, [])):
                 for f_start, f_end in _subtract_busy((start_m, end_m), busy):
                     if f_end > f_start and capacity > 0:
                         take_end = min(f_end, f_start + capacity)

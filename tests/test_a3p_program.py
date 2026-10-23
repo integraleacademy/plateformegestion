@@ -382,3 +382,85 @@ def test_a3p_manual_override_does_not_include_exam_or_disabled_day(changes):
     from a3p_program import _is_available_training_day
     day = {"date": "2026-11-11", "allowNonWorkingDay": True, **changes}
     assert not _is_available_training_day(day, "2027-01-15")
+
+
+@pytest.mark.parametrize("day_index,day_start,day_end,manual_times,pause", [
+    (2, "11:00", "20:00", [("12:00", "15:30"), ("16:30", "20:00")], ("15:30", "16:30")),
+    (3, "09:00", "18:00", [("09:00", "12:30"), ("13:30", "16:00")], ("12:30", "13:30")),
+    (2, "07:30", "16:30", [("08:30", "12:00"), ("13:00", "16:30")], ("12:00", "13:00")),
+    (2, "09:00", "18:00", [("12:00", "15:30"), ("16:30", "20:00")], None),
+])
+def test_a3p_auto_placement_preserves_manual_courses_and_caps_the_whole_day(day_index, day_start, day_end, manual_times, pause):
+    from a3p_program import _minutes
+    cfg = config()
+    day = cfg["days"][day_index]
+    day.update(dayStart=day_start, dayEnd=day_end)
+    entries = [entry for entry in cfg["lockedModules"]["UV5"] if entry["date"] == day["date"]]
+    for entry, (start, end) in zip(entries, manual_times):
+        entry.update(start=start, end=end, durationMinutes=_minutes(end) - _minutes(start))
+    result = generateA3pSchedule(cfg)
+    planned = next(d for d in result["planning"] if d["date"] == day["date"])
+    assert [(s["start"], s["end"]) for s in planned["slots"] if s["locked"]] == manual_times
+    assert sum(s["durationMinutes"] for s in planned["slots"]) == 480
+    if pause:
+        assert all(_minutes(s["end"]) <= _minutes(pause[0]) or _minutes(s["start"]) >= _minutes(pause[1]) for s in planned["slots"])
+    assert result["summary"]["totalHours"] == 328
+    assert not validate_a3p_planning(result["planning"], cfg["examDate"])[0]
+
+
+def test_a3p_long_input_range_never_generates_an_eighteen_hour_day():
+    cfg = config()
+    cfg["days"][15].update(dayStart="00:00", dayEnd="19:00")
+    result = generateA3pSchedule(cfg)
+    assert result["summary"]["totalHours"] == 328
+    assert all(sum(slot["durationMinutes"] for slot in day["slots"]) <= 480 for day in result["planning"])
+
+
+def test_a3p_excessive_imposed_hours_are_reported_before_automatic_placement():
+    cfg = config()
+    date = cfg["days"][0]["date"]
+    cfg["lockedModules"]["UV1"] = [
+        {"date": date, "start": "06:00", "end": "13:00", "durationMinutes": 420},
+        {"date": date, "start": "14:00", "end": "21:00", "durationMinutes": 420},
+    ]
+    with pytest.raises(ValueError, match="modules imposés du 05/01/2026 totalisent 14h.*étape 3"):
+        generateA3pSchedule(cfg)
+
+
+def test_a3p_forty_one_days_fill_328_hours_with_shifted_manual_courses():
+    import datetime as dt
+    from a3p_program import is_a3p_non_working_day
+    current = dt.date(2026, 11, 10)
+    days = []
+    while len(days) < 41:
+        if not is_a3p_non_working_day(current) or current.isoformat() == "2026-11-11":
+            days.append({"date": current.isoformat(), "dayStart": "09:00", "dayEnd": "18:00", "allowNonWorkingDay": current.isoformat() == "2026-11-11"})
+        current += dt.timedelta(days=1)
+    by_date = {day["date"]: day for day in days}
+    locked = {code: [] for code in ("UV1", "UV5", "UV6A", "UV9")}
+
+    def add(code, date, hours, start=9 * 60):
+        half = hours * 30
+        for begin, end in ((start, start + half), (start + half + 60, start + hours * 60 + 60)):
+            locked[code].append({"date": date, "start": hhmm_for_test(begin), "end": hhmm_for_test(end), "durationMinutes": end - begin})
+
+    add("UV6A", "2026-11-25", 8)
+    for date in ("2026-11-26", "2026-12-03", "2026-12-04", "2026-12-10"):
+        by_date[date].update(dayStart="11:00", dayEnd="20:00")
+        add("UV6A", date, 7, 12 * 60)
+    add("UV6A", "2027-01-06", 6)
+    add("UV6A", "2026-12-11", 3)
+    for date in ("2026-11-30", "2026-12-01"):
+        add("UV1", date, 7, 8 * 60 + 30)
+    add("UV5", "2026-12-15", 7, 8 * 60 + 30)
+    add("UV5", "2026-12-16", 6, 8 * 60 + 30)
+    for date in ("2026-12-18", "2026-12-21"):
+        add("UV9", date, 7, 8 * 60 + 30)
+    by_date["2026-12-22"].update(dayStart="00:00", dayEnd="19:00")
+    result = generateA3pSchedule({"days": days, "lockedModules": locked, "examDate": "2027-01-15"})
+    assert result["summary"]["totalHours"] == 328
+    assert len(result["planning"]) == 41
+    assert all(sum(slot["durationMinutes"] for slot in day["slots"]) == 480 for day in result["planning"])
+    expected = sorted((p["date"], code, p["start"], p["end"]) for code, entries in locked.items() for p in entries)
+    actual = sorted((day["date"], slot["code"], slot["start"], slot["end"]) for day in result["planning"] for slot in day["slots"] if slot["locked"])
+    assert actual == expected

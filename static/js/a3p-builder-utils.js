@@ -43,6 +43,47 @@
       && (day.allowNonWorkingDay === true || !isExcludedDate(day.date));
   }
 
+  function dayPlan(day, placements = []) {
+    const minute = value => {
+      if (!/^\d{2}:\d{2}$/.test(value || '')) return NaN;
+      const [h, m] = value.split(':').map(Number);
+      return h < 24 && m < 60 ? h * 60 + m : NaN;
+    };
+    const time = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+    const busy = placements.map(p => [minute(p.start), minute(p.end)])
+      .filter(([s, e]) => Number.isFinite(s) && Number.isFinite(e) && e > s).sort((a, b) => a[0] - b[0]);
+    const lockedMinutes = busy.reduce((total, [s, e]) => total + e - s, 0);
+    const result = {slots: [], freeSlots: [], pauseStart: '', pauseEnd: '', lockedMinutes, totalMinutes: 0};
+    const start = minute(day.dayStart), end = minute(day.dayEnd);
+    if (day.training === false || !Number.isFinite(start) || !Number.isFinite(end) || end - start < 120) return result;
+    const training = Math.min(480, end - start - 60), windowEnd = start + training + 60;
+    const preferredPause = start + Math.floor(training / 2);
+    const subtract = interval => busy.reduce((free, [bs, be]) => free.flatMap(([s, e]) => {
+      if (be <= s || bs >= e) return [[s, e]];
+      return [[s, Math.min(bs, e)], [Math.max(be, s), e]].filter(([a, b]) => b > a);
+    }), [interval]);
+    const candidates = subtract([start, windowEnd]).filter(([s, e]) => e - s >= 60)
+      .map(([s, e]) => Math.max(s, Math.min(preferredPause, e - 60)))
+      .sort((a, b) => Math.abs(a - preferredPause) - Math.abs(b - preferredPause) || a - b);
+    if (!candidates.length) {
+      result.totalMinutes = Math.min(480, lockedMinutes);
+      return result;
+    }
+    const pause = candidates[0];
+    result.pauseStart = time(pause); result.pauseEnd = time(pause + 60);
+    const slots = [[start, pause], [pause + 60, windowEnd]].filter(([s, e]) => e > s);
+    const asSlot = ([s, e]) => ({start: time(s), end: time(e), durationMinutes: e - s});
+    result.slots = slots.map(asSlot);
+    let capacity = Math.max(0, 480 - lockedMinutes);
+    for (const [s, e] of slots.flatMap(subtract)) {
+      const take = Math.min(capacity, e - s);
+      if (take > 0) result.freeSlots.push(asSlot([s, s + take]));
+      capacity -= take;
+    }
+    result.totalMinutes = Math.min(480, lockedMinutes + result.freeSlots.reduce((sum, slot) => sum + slot.durationMinutes, 0));
+    return result;
+  }
+
   // Date capacity and module allocation are two different measures. Count each
   // eligible date once, even when an old draft contains duplicate dates.
   function summarize({days, examDate, isExcludedDate, dayMinutes, allocatedMinutes, targetMinutes = 328 * 60}) {
@@ -129,5 +170,5 @@
     return input.a3pDateField;
   }
 
-  return {isoDate, isValidDate, parseDate, displayDate, duration, sortDays, isTrainingDay, summarize, bindDateInput};
+  return {isoDate, isValidDate, parseDate, displayDate, duration, sortDays, isTrainingDay, dayPlan, summarize, bindDateInput};
 });

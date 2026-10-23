@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {execFileSync} = require('node:child_process');
-const {parseDate, isValidDate, summarize, duration, sortDays} = require('../static/js/a3p-builder-utils.js');
+const {parseDate, isValidDate, summarize, duration, sortDays, dayPlan} = require('../static/js/a3p-builder-utils.js');
 
 test('date entry accepts a complete French year and rejects partial or impossible dates', () => {
   for (const value of ['10/11/2026', '10112026', '10.11.2026', '2026-11-10']) assert.equal(parseDate(value), '2026-11-10');
@@ -77,4 +77,41 @@ test('an appended November date sorts before January while retaining its hours a
   assert.deepEqual(sorted.map(d=>d.date),['2026-11-10','2026-11-11','2027-01-14']);
   assert.equal(sorted[1],days[2]);
   assert.equal(days[2].date,'2026-11-11');
+});
+
+test('manual courses determine the full break and leave only one hour to allocate', () => {
+  const plan=dayPlan({dayStart:'11:00',dayEnd:'20:00'},[
+    {start:'12:00',end:'15:30'}, {start:'16:30',end:'20:00'},
+  ]);
+  assert.equal(plan.totalMinutes,480);
+  assert.equal(plan.lockedMinutes,420);
+  assert.equal(plan.pauseStart,'15:30');
+  assert.equal(plan.pauseEnd,'16:30');
+  assert.deepEqual(plan.freeSlots,[{start:'11:00',end:'12:00',durationMinutes:60}]);
+});
+
+test('a morning course ending at 12:30 reserves lunch until 13:30', () => {
+  const plan=dayPlan({dayStart:'09:00',dayEnd:'18:00'},[
+    {start:'09:00',end:'12:30'}, {start:'13:30',end:'16:00'},
+  ]);
+  assert.equal(plan.totalMinutes,480);
+  assert.equal(plan.pauseStart,'12:30');
+  assert.equal(plan.pauseEnd,'13:30');
+  assert.deepEqual(plan.freeSlots,[{start:'16:00',end:'18:00',durationMinutes:120}]);
+});
+
+test('long ranges and manual courses outside the range never create extra capacity', () => {
+  const long=dayPlan({dayStart:'00:00',dayEnd:'19:00'});
+  assert.equal(long.totalMinutes,480);
+  assert.equal(long.freeSlots.reduce((s,p)=>s+p.durationMinutes,0),480);
+  const late=dayPlan({dayStart:'09:00',dayEnd:'18:00'},[
+    {start:'12:00',end:'15:30'}, {start:'16:30',end:'20:00'},
+  ]);
+  assert.equal(late.totalMinutes,480);
+  assert.equal(late.freeSlots.reduce((s,p)=>s+p.durationMinutes,0),60);
+  const overfull=dayPlan({dayStart:'06:00',dayEnd:'21:00'},[
+    {start:'06:00',end:'13:00'}, {start:'14:00',end:'21:00'},
+  ]);
+  assert.equal(overfull.lockedMinutes,840);
+  assert.deepEqual(overfull.freeSlots,[]);
 });

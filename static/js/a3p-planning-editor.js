@@ -181,7 +181,7 @@ function render(){
     const index=Number(event.target.dataset.day),value=event.target.value;
     if(!validDate(value)){event.target.value=planning[index].date;showNotice('error','Choisissez une date valide.');return;}
     if(planning.some((day,i)=>i!==index&&day.date===value)){event.target.value=planning[index].date;showNotice('error','Cette journée existe déjà. Utilisez « Déplacer » pour y transférer un créneau.');return;}
-    changePlanning(()=>{planning[index].date=value;},value);
+    changePlanning(()=>{planning[index].date=value;planning[index].allowNonWorkingDay=true;},value);
   }));
   document.querySelectorAll('[data-apply-day]').forEach(button=>button.addEventListener('click',()=>{
     const dayIndex=Number(button.dataset.applyDay),field=button.dataset.applyField;
@@ -288,7 +288,7 @@ $('dayForm').addEventListener('submit',event=>{
   if(!validDate(date)){dialogError('dayDialogError','Choisissez une date valide.');return;}
   if(planning.some(day=>day.date===date)){dialogError('dayDialogError','Cette date existe déjà dans le planning. Ajoutez un créneau à cette journée.');return;}
   const slots=duplicateDayIndex===null?[]:JSON.parse(JSON.stringify(planning[duplicateDayIndex].slots||[]));
-  changePlanning(()=>planning.push({date,slots}),date);
+  changePlanning(()=>planning.push({date,slots,allowNonWorkingDay:true}),date);
   $('dayDialog').close();
 });
 $('slotForm').addEventListener('submit',event=>{
@@ -306,7 +306,7 @@ $('slotForm').addEventListener('submit',event=>{
   changePlanning(()=>{
     if(editedSlot)sourceDay.slots.splice(editedSlot.slotIndex,1);
     let destination=planning.find(day=>day.date===date);
-    if(!destination){destination={date,slots:[]};planning.push(destination);}
+    if(!destination){destination={date,slots:[],allowNonWorkingDay:true};planning.push(destination);}
     destination.slots.push(slot);
     if(sourceDay&&sourceDay!==destination&&!sourceDay.slots.length)planning.splice(planning.indexOf(sourceDay),1);
   },date);

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {execFileSync} = require('node:child_process');
-const {parseDate, isValidDate, summarize, duration} = require('../static/js/a3p-builder-utils.js');
+const {parseDate, isValidDate, summarize, duration, sortDays} = require('../static/js/a3p-builder-utils.js');
 
 test('date entry accepts a complete French year and rejects partial or impossible dates', () => {
   for (const value of ['10/11/2026', '10112026', '10.11.2026', '2026-11-10']) assert.equal(parseDate(value), '2026-11-10');
@@ -57,4 +57,24 @@ test('a complete allocation is not added twice to the available date capacity', 
   assert.equal(summary.missingMinutes,0);
   assert.equal(summary.unallocatedMinutes,0);
   assert.equal(summary.freeMinutes,0);
+});
+
+test('manually chosen holidays count without overriding exam or non-training exclusions', () => {
+  const summary=stats([
+    {date:'2026-11-10',minutes:480},
+    {date:'2026-11-11',minutes:480,allowNonWorkingDay:true},
+    {date:'2026-11-14',minutes:480,allowNonWorkingDay:true},
+    {date:'2026-11-15',minutes:480,allowNonWorkingDay:true,training:false},
+    {date:'2027-01-15',minutes:480,allowNonWorkingDay:true},
+  ],0);
+  assert.equal(summary.dayCount,3);
+  assert.equal(summary.scheduledMinutes,24*60);
+});
+
+test('an appended November date sorts before January while retaining its hours and override', () => {
+  const days=[{date:'2026-11-10'}, {date:'2027-01-14'}, {date:'2026-11-11',dayStart:'11:00',allowNonWorkingDay:true}];
+  const sorted=sortDays(days);
+  assert.deepEqual(sorted.map(d=>d.date),['2026-11-10','2026-11-11','2027-01-14']);
+  assert.equal(sorted[1],days[2]);
+  assert.equal(days[2].date,'2026-11-11');
 });

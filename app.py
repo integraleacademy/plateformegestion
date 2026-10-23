@@ -5213,6 +5213,9 @@ def find_a3p_public_session(data, token):
 
 def validate_a3p_trainer_manual_data(session_data, modules_data):
     cfg = session_data.get("a3pPlanningDraftJson") or {}
+    builder = session_data.get("a3pPlanningBuilder") or {}
+    configured_days = builder.get("days") or (builder.get("scheduleConfig") or {}).get("days") or cfg.get("days") or []
+    explicitly_worked_dates = {day.get("date") for day in configured_days if day.get("allowNonWorkingDay") is True and day.get("training") is not False}
     start = cfg.get("startDate") or session_data.get("date_debut")
     end = cfg.get("endDate") or session_data.get("date_fin")
     exam = cfg.get("examDate") or session_data.get("date_exam")
@@ -5229,7 +5232,7 @@ def validate_a3p_trainer_manual_data(session_data, modules_data):
             if (start and d < start) or (end and d > end): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} hors période de formation.")
             try:
                 parsed_day = datetime.strptime(d, "%Y-%m-%d").date()
-                if is_a3p_non_working_day(parsed_day): errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} est un jour non travaillé (week-end ou jour férié français).")
+                if is_a3p_non_working_day(parsed_day) and d not in explicitly_worked_dates: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : {format_date(d)} est un jour non travaillé (week-end ou jour férié français).")
             except Exception:
                 errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : date invalide.")
             if exam and d == exam: errors.append(f"{A3P_TRAINER_MODULE_LABELS[code]['title']} : impossible le jour de l’examen.")
@@ -9351,7 +9354,7 @@ def normalize_a3p_editor_planning(planning_data):
             })
         slots.sort(key=lambda slot: _a3p_editor_time_minutes(slot["start"]))
         slots = merge_adjacent_a3p_slots(slots)
-        normalized.append({"date": date_value, "dayLabel": _a3p_full_day_label(date_value), "slots": slots})
+        normalized.append({"date": date_value, "dayLabel": _a3p_full_day_label(date_value), "slots": slots, "allowNonWorkingDay": raw_day.get("allowNonWorkingDay") is True})
     normalized.sort(key=lambda day: day.get("date") or "")
     return normalized
 

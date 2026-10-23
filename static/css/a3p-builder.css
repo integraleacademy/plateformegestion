@@ -1,0 +1,102 @@
+/* Full-screen workspace; scoped to the A3P builder. */
+#a3pModal { padding: 0; align-items: stretch; justify-content: stretch; }
+#a3pModal > .a3p-builder {
+  width: 100%; max-width: none !important; height: 100%;
+  max-height: none; margin: 0; padding: 0; border: 0 !important;
+  border-radius: 0 !important; background: #f5f6f8 !important;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#a3pModal .a3p-modal-head { padding: 18px 32px; margin: 0; background: #fff; flex-shrink: 0; align-items: center; }
+#a3pModal .a3p-heading { display: flex; align-items: center; gap: 14px; }
+#a3pModal .a3p-heading-icon { width: 46px; height: 46px; display: grid; place-items: center; background: #fcf0ce; color: #906618 !important; border-radius: 14px; }
+#a3pModal .a3p-modal-head h3 { font-size: 23px; letter-spacing: -.035em; }
+#a3pModal .a3p-modal-head p { margin: 4px 0 0; font-size: 13px; color: #64748b !important; }
+#a3pModal .modal-close { flex-shrink: 0; width: 42px; height: 42px; font-size: 24px; }
+#a3pForm { display: flex; flex: 1; flex-direction: column; min-height: 0; margin: 0; }
+#a3pModal .a3p-overview { padding: 16px 32px 0; flex-shrink: 0; }
+#a3pModal .a3p-wizard-steps { margin: 0 0 14px; gap: 10px; }
+#a3pModal .a3p-step-pill { border-radius: 12px; padding: 10px 14px; font-size: 13px; box-shadow: none; border-color: #e0e5eb; color: #64748b !important; }
+#a3pModal .a3p-step-pill span { width: 24px; height: 24px; font-size: 12px; color: #64748b !important; }
+#a3pModal .a3p-step-pill.active { background: #fff9e9; border-color: #dfbd6c; color: #78521a !important; }
+#a3pModal .a3p-step-pill.active span { background: #e8be5c; color: #3d2e10 !important; }
+#a3pModal .a3p-summary-card { display: block; padding: 0; margin: 0; border-radius: 0; background: none; color: #172036; }
+#a3pModal .a3p-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+#a3pModal .a3p-stat { background: #fff; border: 1px solid #e0e5eb; border-radius: 15px; padding: 16px 20px; }
+#a3pModal .a3p-stat:first-child { background: #fff8e7; border-color: #e6cb88; }
+#a3pModal .a3p-stat-label { font-size: 12px; font-weight: 700; color: #64748b !important; opacity: 1; }
+#a3pModal .a3p-stat strong { display: block; margin: 6px 0 5px; font-size: clamp(22px, 2.2vw, 32px); line-height: 1.1; font-weight: 800; letter-spacing: -.04em; color: #172036 !important; }
+#a3pModal .a3p-stat small { display: block; font-size: 11px; color: #64748b !important; }
+#a3pModal .a3p-summary-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 0 9px; }
+#a3pModal #a3pAllocationHelp { flex: 1; font-size: 12px; color: #526078 !important; opacity: 1; min-width: 200px; }
+#a3pModal .a3p-progress-track { height: 4px; background: #e2e6ed; margin-bottom: 0; }
+#a3pModal .a3p-progress-track div { background: #d4a641; transition: width .2s; }
+#a3pModal .a3p-workspace { flex: 1; min-height: 0; overflow: auto; padding: 0 32px 24px; scroll-padding-top: 16px; }
+#a3pModal .a3p-section { padding: 20px; border-color: #e0e5eb; border-radius: 16px; box-shadow: 0 4px 16px #17203604; }
+#a3pModal .a3p-section h4 { font-size: 17px; letter-spacing: -.02em; }
+#a3pModal .a3p-section-head p { margin: 5px 0 0; font-size: 13px; color: #64748b !important; }
+#a3pModal .a3p-days-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; padding: 16px; margin: 18px 0; background: #f7f8fa; border: 1px solid #e7eaf0; border-radius: 12px; }
+#a3pModal .a3p-days-toolbar label { font-size: 12px; font-weight: 700; min-width: 140px; color: #526078 !important; }
+#a3pModal .a3p-toolbar-note { font-size: 12px; color: #64748b !important; }
+#a3pModal .a3p-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+#a3pModal .a3p-table-wrap { max-height: none; border-color: #e6eaf0; border-radius: 12px; }
+#a3pModal .a3p-table { width: 100%; margin: 0; border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 1000px; }
+#a3pModal .a3p-table th { background: #f8f9fb; padding: 12px; font-size: 11px; font-weight: 750; color: #64748b !important; border-bottom: 1px solid #e3e8f0; }
+#a3pModal .a3p-table td { padding: 10px 12px; border-bottom: 1px solid #edf0f4; }
+#a3pModal .a3p-table tr:last-child td { border-bottom: 0; }
+#a3pModal .a3p-table tr:hover { background: #fafbfe; }
+#a3pModal .a3p-table tr.locked-day { background: #f9f7ff; }
+#a3pModal .a3p-table input, #a3pModal .a3p-fields input, #a3pModal .a3p-fields select, #a3pModal .a3p-days-toolbar input { font: inherit; color: #172036 !important; -webkit-text-fill-color: #172036 !important; border: 1px solid #dce2ec; border-radius: 9px; padding: 10px; background: #fff; margin-top: 4px; min-height: 40px; }
+#a3pModal .a3p-table input[type=time] { min-width: 105px; margin: 0; }
+#a3pModal input:focus-visible, #a3pModal button:focus-visible, #a3pModal select:focus-visible { outline: 3px solid #e4c36f99; outline-offset: 2px; }
+#a3pModal input:disabled { opacity: .65; background: #f4f3f8; }
+#a3pModal .a3p-status { font-size: 11px; padding: 6px 9px; opacity: 1; white-space: nowrap; }
+#a3pModal .badge-ok { color: #176446 !important; background: #e1f3e9; }
+#a3pModal .badge-warn { color: #976019 !important; background: #fdf0d3; }
+#a3pModal .badge-manual { color: #6c4d9c !important; background: #ede7f7; }
+#a3pModal .badge-error { color: #a33a32 !important; }
+#a3pModal .badge-auto { color: #075985 !important; }
+#a3pModal .a3p-footer { position: static; flex-shrink: 0; align-items: center; padding: 14px 32px; background: #fff; border-top: 1px solid #e0e5eb; box-shadow: 0 -6px 20px #17203605; }
+#a3pModal .a3p-save-status { margin-right: auto; color: #64748b !important; font-size: 12px; }
+#a3pModal .a3p-save-status::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #94a3b8; }
+#a3pModal .a3p-date-field { position: relative; min-width: 148px; }
+#a3pModal .a3p-date-text { width: 100%; padding-right: 40px !important; font-variant-numeric: tabular-nums; margin: 0; }
+#a3pModal .a3p-date-native { position: absolute; width: 1px; min-width: 0; height: 1px; min-height: 0; opacity: 0; pointer-events: none; padding: 0; bottom: 0; left: 0; }
+#a3pModal .a3p-date-button { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #64748b !important; cursor: pointer; }
+#a3pModal .a3p-date-button:hover { background: #f1f4f8; }
+#a3pModal .a3p-date-text[aria-invalid=true] { border-color: #d74a43; background: #fff8f7; }
+#a3pModal .a3p-fields .a3p-date-field { margin-top: 6px; }
+#a3pModal #a3pError { margin: 12px 32px !important; flex-shrink: 0; }
+@media (max-width: 900px) {
+  #a3pModal .a3p-modal-head { padding: 14px 18px; }
+  #a3pModal .a3p-overview { padding: 12px 18px 0; }
+  #a3pModal .a3p-workspace { padding: 0 18px 18px; }
+  #a3pModal .a3p-step-pill { font-size: 11px; padding: 9px 7px; }
+  #a3pModal .a3p-step-pill span { margin-right: 4px; }
+  #a3pModal .a3p-stat { padding: 12px; }
+  #a3pModal .a3p-footer { padding: 12px 18px; }
+  #a3pModal .a3p-toolbar-actions { margin-left: 0; }
+}
+@media (max-width: 600px) {
+  #a3pModal .a3p-heading-icon, #a3pModal .a3p-modal-head p { display: none; }
+  #a3pModal .a3p-modal-head h3 { font-size: 19px; }
+  #a3pModal .a3p-wizard-steps { gap: 5px; }
+  #a3pModal .a3p-step-pill { text-align: center; font-size: 10px; }
+  #a3pModal .a3p-step-pill span { display: flex; margin: 0 auto 4px; }
+  #a3pModal .a3p-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  #a3pModal .a3p-stat { padding: 10px 12px; }
+  #a3pModal .a3p-stat strong { font-size: 22px; }
+  #a3pModal .a3p-stat small { font-size: 10px; }
+  #a3pModal .a3p-stat-label { font-size: 10px; }
+  #a3pModal .a3p-summary-line { padding: 8px 0; }
+  #a3pModal #a3pAllocationHelp { font-size: 11px; }
+  #a3pModal .a3p-section { padding: 14px; }
+  #a3pModal .a3p-footer { gap: 6px; }
+  #a3pModal .a3p-footer .btn { font-size: 11px; padding: 9px 12px; }
+  #a3pModal .a3p-save-status { width: 100%; }
+}
+@media (max-height: 700px) and (min-width: 601px) {
+  #a3pModal .a3p-modal-head { padding-top: 10px; padding-bottom: 10px; }
+  #a3pModal .a3p-modal-head p { display: none; }
+  #a3pModal .a3p-stat { padding: 10px 16px; }
+  #a3pModal .a3p-stat strong { font-size: 24px; }
+}

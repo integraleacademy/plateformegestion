@@ -162,8 +162,8 @@ def validate_a3p_planning(planning, exam_date=None):
         try:
             parsed_day = datetime.strptime(day_iso, "%Y-%m-%d").date()
             # A weekend explicitly chosen in the editor is a valid training day.
-            # Keep the automatic planner's weekday defaults separate from validation.
-            if parsed_day in _french_public_holidays(parsed_day.year):
+            # Holidays require an explicit choice, retained through generation and edits.
+            if parsed_day in _french_public_holidays(parsed_day.year) and day.get("allowNonWorkingDay") is not True:
                 errors.append(f"La journée du {day_iso} est un jour non travaillé (jour férié français).")
         except Exception:
             errors.append(f"Date invalide: {day_iso}")
@@ -194,7 +194,7 @@ def _is_available_training_day(day, exam_date=None):
         return False
     try:
         parsed = datetime.strptime(day.get("date"), "%Y-%m-%d").date()
-        return is_a3p_training_day(parsed)
+        return day.get("allowNonWorkingDay") is True or is_a3p_training_day(parsed)
     except Exception:
         return False
 
@@ -271,7 +271,7 @@ def _normalize_locked_entries(locked, day_by_date):
     return normalized
 
 def generateA3pSchedule(config):
-    days = config.get("days") or []
+    days = sorted(config.get("days") or [], key=lambda day: day.get("date") or "")
     locked = config.get("lockedModules") or {}
     trainer = ((config.get("trainerFirstName") or "") + " " + (config.get("trainerLastName") or "")).strip() or config.get("trainerName") or ""
     room = config.get("room") or "Salle à définir"
@@ -320,7 +320,7 @@ def generateA3pSchedule(config):
             for f_start, f_end in _subtract_busy((_minutes(start), _minutes(end)), busy_by_date.get(date_value, [])):
                 if f_end > f_start:
                     free_slots.append((f_start, f_end))
-        planning.append({"date":date_value,"dayLabel":_day_label(date_value),"slots":slots,"freeSlots":free_slots})
+        planning.append({"date":date_value,"dayLabel":_day_label(date_value),"slots":slots,"freeSlots":free_slots,"allowNonWorkingDay":day.get("allowNonWorkingDay") is True})
 
     modules=[{"code":c,"remaining":A3P_MODULE_BY_CODE[c]["hours"]*60} for c in A3P_AUTO_ORDER if c not in A3P_LOCKED_CODES]
     idx=0

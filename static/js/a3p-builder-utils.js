@@ -34,13 +34,22 @@
     return `${hours} h${remainder ? ' ' + String(remainder).padStart(2, '0') : ''}`;
   }
 
+  function sortDays(days) {
+    return [...days].sort((a, b) => (isValidDate(a.date) ? a.date : '9999').localeCompare(isValidDate(b.date) ? b.date : '9999'));
+  }
+
+  function isTrainingDay(day, examDate, isExcludedDate) {
+    return isValidDate(day.date) && day.training !== false && day.date !== examDate
+      && (day.allowNonWorkingDay === true || !isExcludedDate(day.date));
+  }
+
   // Date capacity and module allocation are two different measures. Count each
   // eligible date once, even when an old draft contains duplicate dates.
   function summarize({days, examDate, isExcludedDate, dayMinutes, allocatedMinutes, targetMinutes = 328 * 60}) {
     const dates = new Set();
     let scheduledMinutes = 0;
     for (const day of days) {
-      if (!isValidDate(day.date) || dates.has(day.date) || day.training === false || day.date === examDate || isExcludedDate(day.date)) continue;
+      if (dates.has(day.date) || !isTrainingDay(day, examDate, isExcludedDate)) continue;
       const minutes = Math.max(0, Number(dayMinutes(day)) || 0);
       if (!minutes) continue;
       dates.add(day.date);
@@ -120,5 +129,5 @@
     return input.a3pDateField;
   }
 
-  return {isoDate, isValidDate, parseDate, displayDate, duration, summarize, bindDateInput};
+  return {isoDate, isValidDate, parseDate, displayDate, duration, sortDays, isTrainingDay, summarize, bindDateInput};
 });

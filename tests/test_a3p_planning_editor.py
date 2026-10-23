@@ -285,11 +285,12 @@ def test_a3p_editor_draft_rejects_unusable_dates_duplicates_and_times(monkeypatc
             assert 'a3pPlanningEditorDraft' not in session
 
 
-@pytest.mark.parametrize('weekend_date', ['2026-03-07', '2026-03-08'])
-def test_a3p_editor_can_save_weekend_and_generate_real_planning_pdf(monkeypatch, tmp_path, weekend_date):
+@pytest.mark.parametrize('worked_date', ['2026-03-07', '2026-03-08', '2026-11-11'])
+def test_a3p_editor_can_save_manually_chosen_date_and_generate_real_planning_pdf(monkeypatch, tmp_path, worked_date):
     session = _session()
     changed = deepcopy(session['a3pPlanningData'])
-    changed[0]['date'] = weekend_date
+    changed[0]['date'] = worked_date
+    changed[0]['allowNonWorkingDay'] = True
     data = {'sessions': [session], 'jurys': []}
     monkeypatch.setattr(app, 'load_sessions', lambda: data)
     monkeypatch.setattr(app, 'save_sessions', lambda value: None)
@@ -307,9 +308,26 @@ def test_a3p_editor_can_save_weekend_and_generate_real_planning_pdf(monkeypatch,
         assert response.json['summary']['totalHours'] == 328
         reloaded = client.get('/api/sessions/a3p-edit/a3p-planning').json
         assert reloaded['validationErrors'] == []
-        assert any(day['date'] == weekend_date for day in reloaded['planningData'])
+        assert any(day['date'] == worked_date for day in reloaded['planningData'])
+        assert next(day for day in reloaded['planningData'] if day['date'] == worked_date)['allowNonWorkingDay'] is True
     pdf = tmp_path / 'planning_a3p_session_a3p-edit.pdf'
     assert pdf.read_bytes().startswith(b'%PDF')
     from pypdf import PdfReader
     pdf_text = '\n'.join(page.extract_text() or '' for page in PdfReader(pdf).pages)
-    assert dt.date.fromisoformat(weekend_date).strftime('%d/%m/%Y') in pdf_text
+    assert dt.date.fromisoformat(worked_date).strftime('%d/%m/%Y') in pdf_text
+
+
+def test_a3p_trainer_validation_respects_explicitly_worked_holidays():
+    session = _session()
+    session['date_fin'] = '2026-11-11'
+    modules = {code: [] for code in app.A3P_TRAINER_MANUAL_CODES}
+    for day in session['a3pPlanningData']:
+        for slot in day['slots']:
+            if slot['locked']:
+                modules[slot['code']].append({**slot, 'date': day['date']})
+    modules['UV1'][0]['date'] = '2026-11-11'
+    assert any('jour non travaillé' in error for error in app.validate_a3p_trainer_manual_data(session, modules))
+    session['a3pPlanningBuilder']['days'] = [{'date': '2026-11-11', 'allowNonWorkingDay': True}]
+    assert app.validate_a3p_trainer_manual_data(session, modules) == []
+    session['date_exam'] = '2026-11-11'
+    assert any('jour de l’examen' in error for error in app.validate_a3p_trainer_manual_data(session, modules))

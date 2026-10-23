@@ -331,3 +331,54 @@ def test_a3p_validation_rejects_french_public_holiday():
     planning = [{"date":"2026-07-14","slots":[{"code":"UV2","start":"08:30","end":"16:30","durationMinutes":420}]}]
     errors, _ = validate_a3p_planning(planning)
     assert any("jour non travaillé" in error for error in errors)
+
+
+def test_a3p_manual_holiday_fills_missing_eight_hours_in_chronological_order():
+    import datetime as dt
+    from a3p_program import is_a3p_non_working_day, A3P_MODULE_BY_CODE
+
+    regular_days = []
+    current = dt.date(2026, 11, 10)
+    while len(regular_days) < 40:
+        if not is_a3p_non_working_day(current):
+            regular_days.append({"date": current.isoformat(), "dayStart": "09:00", "dayEnd": "18:00"})
+        current += dt.timedelta(days=1)
+    locked = {}
+    cursor = 0
+    for code in ("UV1", "UV5", "UV6A", "UV9"):
+        remaining = A3P_MODULE_BY_CODE[code]["hours"] * 60
+        locked[code] = []
+        while remaining:
+            start = (9 if cursor % 2 == 0 else 14) * 60
+            take = min(240, remaining)
+            locked[code].append({"date": regular_days[cursor // 2]["date"], "start": hhmm_for_test(start), "end": hhmm_for_test(start + take), "durationMinutes": take})
+            remaining -= take
+            cursor += 1
+    holiday = {"date": "2026-11-11", "dayStart": "09:00", "dayEnd": "18:00"}
+    cfg = {"days": regular_days + [holiday], "lockedModules": locked, "examDate": "2027-01-15"}
+    with pytest.raises(ValueError, match="il manque 8 heures"):
+        generateA3pSchedule(cfg)
+
+    holiday["allowNonWorkingDay"] = True
+    result = generateA3pSchedule(cfg)
+    planned = result["planning"]
+    assert [day["date"] for day in planned] == sorted(day["date"] for day in cfg["days"])
+    assert planned[1]["date"] == "2026-11-11"
+    assert planned[1]["allowNonWorkingDay"] is True
+    assert sum(slot["durationMinutes"] for slot in planned[1]["slots"]) == 480
+    assert result["summary"]["totalHours"] == 328
+    assert not validate_a3p_planning(planned, cfg["examDate"])[0]
+    assert generateA3pSchedule({**cfg, "days": list(reversed(cfg["days"]))}) == result
+
+    # An imposed module can also use the explicitly worked holiday.
+    locked["UV1"][0]["date"] = holiday["date"]
+    result = generateA3pSchedule(cfg)
+    assert any(slot["code"] == "UV1" and slot["locked"] for slot in result["planning"][1]["slots"])
+    assert not validate_a3p_planning(result["planning"], cfg["examDate"])[0]
+
+
+@pytest.mark.parametrize("changes", [{"training": False}, {"date": "2027-01-15"}])
+def test_a3p_manual_override_does_not_include_exam_or_disabled_day(changes):
+    from a3p_program import _is_available_training_day
+    day = {"date": "2026-11-11", "allowNonWorkingDay": True, **changes}
+    assert not _is_available_training_day(day, "2027-01-15")

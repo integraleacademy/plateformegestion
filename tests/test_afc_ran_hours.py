@@ -35,12 +35,12 @@ def test_ran_correction_removes_only_one_hour_and_preserves_all_other_activities
     summary = application.afc_aps_ssiap_summary_from_data(after, INTERRUPTIONS)
     assert summary["errors"] == []
     assert summary["uv_totals"]["RAN"] == 54
-    assert summary["uv_totals"]["PAF"] == 20
-    assert summary["total_hours"] == 392
+    assert summary["uv_totals"]["PAF"] == 21
+    assert summary["total_hours"] == 393
     assert summary["days_count"] == 57
     assert correct_afc_ran_hours(after) == after
     assert application.AFC_DSF_MODULES["RAN"]["theoreticalHours"] == 54
-    assert application.AFC_DSF_MODULES["PAF"]["theoreticalHours"] == 20
+    assert application.AFC_DSF_MODULES["PAF"]["theoreticalHours"] == 21
 
 
 def test_old_volume_is_rejected_and_hour_cannot_be_transferred_to_paf():
@@ -51,7 +51,7 @@ def test_old_volume_is_rejected_and_hour_cannot_be_transferred_to_paf():
     slot = next(slot for day in planning for slot in day["slots"] if slot["afcCategory"] == "PAF")
     slot["durationMinutes"] += 60
     errors = application.validate_actual_afc_hours(planning)
-    assert any("21 h planifiées au lieu de 20 h" in error for error in errors)
+    assert any("22 h planifiées au lieu de 21 h" in error for error in errors)
 
 
 def test_unexpected_ran_total_does_not_modify_input():
@@ -76,14 +76,14 @@ def stored_session(tmp_path, monkeypatch):
     return data
 
 
-def test_migration_pdf_and_exports_match_54_ran_20_paf_and_392_total(tmp_path, monkeypatch):
+def test_migration_pdf_and_exports_match_54_ran_21_paf_and_393_total(tmp_path, monkeypatch):
     from pypdf import PdfReader
     from openpyxl import load_workbook
     from services.afc_france_travail_attendance import generate_france_travail_workbook
 
     before = stored_session(tmp_path, monkeypatch)
     result = application.migrate_afc_ran_session()
-    assert result == {"status": "applied", "session": "9f823786", "changed_dates": ["2026-11-24"], "ran_hours": 54, "paf_hours": 20, "hours": 392, "days": 57, "changed": True}
+    assert result == {"status": "applied", "session": "9f823786", "changed_dates": ["2026-11-24"], "ran_hours": 54, "paf_hours": 21, "hours": 393, "days": 57, "changed": True}
     after = application.load_sessions()
     target = after["sessions"][0]
     assert after["sessions"][1:] == before["sessions"][1:] and after["jurys"] == before["jurys"]
@@ -91,10 +91,10 @@ def test_migration_pdf_and_exports_match_54_ran_20_paf_and_392_total(tmp_path, m
         assert target[key] == before["sessions"][0][key]
     pdf = tmp_path / "plannings" / target["planning_pdf"]
     text = "\n".join(page.extract_text() for page in PdfReader(pdf).pages)
-    assert "Parcours complet — 392 heures" in text
+    assert "Parcours complet — 393 heures" in text
     assert "Remise à niveau (RAN) RAN 54 h" in " ".join(text.split())
-    assert "Préparation à l’après-formation (PAF) PAF 20 h" in " ".join(text.split())
-    assert "393" not in text and "55 h" not in text
+    assert "Préparation à l’après-formation (PAF) PAF 21 h" in " ".join(text.split())
+    assert "392" not in text and "55 h" not in text
     backup = next((tmp_path / "planning_migrations").rglob("*.json"))
     assert json.loads(backup.read_text()) == before["sessions"][0]
     assert backup.with_suffix(".pdf").read_bytes() == b"original PDF"
@@ -105,7 +105,7 @@ def test_migration_pdf_and_exports_match_54_ran_20_paf_and_392_total(tmp_path, m
     for sheet in workbook:
         row = next(row[0].row for row in sheet if row[0].value == "Total des heures facturables")
         total += float(str(sheet.cell(row, 13).value or 0).replace(",", "."))
-    assert total == 392
+    assert total == 393
     stored, generated = Path(application.SESSIONS_FILE).read_bytes(), pdf.read_bytes()
     assert application.migrate_afc_ran_session() == {"status": "already_applied"}
     assert Path(application.SESSIONS_FILE).read_bytes() == stored and pdf.read_bytes() == generated

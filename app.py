@@ -45,6 +45,7 @@ from services.session_storage import (
     save_session_store, storage_diagnostics,
 )
 from services.aps_day_distribution import grouped_day_minutes
+from services.afc_sst_planning import group_afc_sst_days, validate_afc_sst_days, is_afc_sst_slot
 from services.aps_pdf_presentation import (
     APS_CONTRACT_PRESENTATION_VERSION, compact_planning_for_pdf, module_summary_rows,
     contract_interventions_for_pdf, contract_module_labels,
@@ -2544,6 +2545,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
 
     for it in planning_map.values(): it["slots"].sort(key=lambda x: x["start"])
     planning = [planning_map[d.isoformat()] for d in eligible_dates if planning_map.get(d.isoformat(), {}).get("slots")]
+    planning = group_afc_sst_days(planning)
     summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions, contractual_end_date=end_date)
     if summary["errors"]: raise ValueError(" ".join(summary["errors"]))
     return planning
@@ -2574,7 +2576,7 @@ def validate_actual_afc_hours(events):
         return ["Planning AFC invalide :\n" + "\n".join(errors)]
     return []
 
-def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractual_end_date=None):
+def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractual_end_date=None, *, validate_sst=True):
     actual_hours = calculate_actual_afc_hours(planning_data)
     totals = {k: int(round(actual_hours.get(k, 0) * 60)) for k in AFC_APS_SSIAP_EXPECTED_MINUTES}
     errors = []; week_buckets = {}; total = 0
@@ -2625,6 +2627,8 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         if b["SP"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de SP (actuel: {format_duration_from_minutes(b['SP'])}).")
         if b["PAF"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de PAF (actuel: {format_duration_from_minutes(b['PAF'])}).")
     errors.extend(validate_actual_afc_hours(planning_data))
+    if validate_sst:
+        errors.extend(validate_afc_sst_days(planning_data))
     eligible_dates = []
     if planning_data:
         first = parse_date(planning_data[0].get("date")); last = parse_date((contractual_end_date.isoformat() if hasattr(contractual_end_date, "isoformat") else contractual_end_date) or planning_data[-1].get("date"))
@@ -5372,6 +5376,8 @@ def migrate_afc_ssiap_transition_session():
         summary = afc_aps_ssiap_summary_from_data(
             corrected, parse_interruption_ranges(target.get("interruptions")),
             contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
+            # Cette ancienne migration précède le regroupement SST au démarrage.
+            validate_sst=False,
         )
         if summary["errors"]:
             raise ValueError("Correction AFC non appliquée : " + " ".join(summary["errors"]))
@@ -5408,6 +5414,72 @@ def migrate_afc_ssiap_transition_session():
         first_ssiap = min((day["date"], slot["start"]) for day in corrected for slot in day["slots"] if slot.get("afcCategory") == "SSIAP1")
         result = {"status": "applied", "session": sid, "first_ssiap": first_ssiap, "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
         app.logger.info("AFC_SSIAP_TRANSITION %s", json.dumps(result, ensure_ascii=False))
+        return result
+
+
+def migrate_afc_sst_session():
+    """Corriger une seule fois le SST de la session signalée, avec sauvegarde."""
+    if not os.path.exists(SESSIONS_FILE):
+        return {"status": "not_found"}
+    import fcntl
+
+    version = "2026-10-26-sst-two-full-days-v1"
+    sid = "9f823786"
+    backup_dir = os.path.join(DATA_DIR, "planning_migrations", version)
+    os.makedirs(backup_dir, exist_ok=True)
+    with open(os.path.join(backup_dir, "migration.lock"), "a") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        data = load_sessions()
+        target = find_session(data, sid)
+        if not target or not is_afc_aps_ssiap_session(target):
+            return {"status": "not_found"}
+        if target.get("afcSstDaysVersion") == version:
+            return {"status": "already_applied"}
+        original_planning = target.get("apsPlanningData") or []
+        if not original_planning:
+            return {"status": "no_saved_planning"}
+
+        corrected = group_afc_sst_days(original_planning)
+        summary = afc_aps_ssiap_summary_from_data(
+            corrected, parse_interruption_ranges(target.get("interruptions")),
+            contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
+        )
+        if summary["errors"]:
+            raise ValueError("Correction SST non appliquée : " + " ".join(summary["errors"]))
+        backup_id = datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        backup_base = os.path.join(backup_dir, f"session_{sid}_{backup_id}")
+        with open(backup_base + ".json", "x", encoding="utf-8") as handle:
+            json.dump(target, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        old_pdf = os.path.join(PLANNING_DIR, os.path.basename(str(target.get("planning_pdf") or "")))
+        if os.path.isfile(old_pdf):
+            shutil.copy2(old_pdf, backup_base + ".pdf")
+
+        candidate = deepcopy(target)
+        candidate["apsPlanningData"] = corrected
+        candidate["apsPlanningSummary"] = summary
+        candidate["apsPlanningNeedsRegeneration"] = False
+        candidate["afcSstDaysVersion"] = version
+        sst_dates = sorted({day["date"] for day in corrected if any(is_afc_sst_slot(slot) for slot in day["slots"])})
+        candidate["planning_modified_at"] = append_planning_history(
+            candidate, "SST regroupé sur deux journées de 7h : " + " et ".join(format_date(iso) for iso in sst_dates),
+        )
+        filename = f"planning_afc_aps_ssiap_session_{sid}_sst_2_jours.pdf"
+        with tempfile.NamedTemporaryFile(prefix="afc_sst_", suffix=".pdf", dir=PLANNING_DIR, delete=False) as handle:
+            temp_path = handle.name
+        try:
+            generate_aps_planning_pdf(candidate, "", temp_path, planning_data=corrected, document_profile={"validate": "afc_aps_ssiap", "summary": summary})
+            os.replace(temp_path, os.path.join(PLANNING_DIR, filename))
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        candidate["planning_pdf"] = filename
+        candidate["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data["sessions"] = [candidate if item.get("id") == sid else item for item in data["sessions"]]
+        save_sessions(data)
+        result = {"status": "applied", "session": sid, "sst_dates": sst_dates, "sst_hours": 14, "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
+        app.logger.info("AFC_SST_TWO_DAYS %s", json.dumps(result, ensure_ascii=False))
         return result
 
 
@@ -13531,3 +13603,7 @@ try:
     migrate_afc_ssiap_transition_session()
 except Exception:
     app.logger.exception("AFC_SSIAP_TRANSITION_FAILED session=9f823786 ; données enregistrées conservées")
+try:
+    migrate_afc_sst_session()
+except Exception:
+    app.logger.exception("AFC_SST_TWO_DAYS_FAILED session=9f823786 ; données enregistrées conservées")

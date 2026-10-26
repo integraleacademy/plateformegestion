@@ -48,15 +48,15 @@ def test_student_entry_date_reduces_only_that_student_hours():
     assert res["moduleTotals"]["RAN"] == 21
     summary = afc_dsf_summary(s)
     ran = next(card for card in summary["cards"] if card["code"] == "RAN")
-    assert ran["plannedTotal"] == 103
+    assert ran["plannedTotal"] == 101
     martin = next(row for row in summary["detail"] if row["student"]["lastName"] == "MARTIN")
-    assert martin["modules"]["RAN"]["planned"] == 48
+    assert martin["modules"]["RAN"]["planned"] == 47
 
 def test_afc_categories_grouped_and_modules_separated():
     s=sample_session(); all_start=s["date_debut"]; all_end=s["date_fin"]
     res=afc_dsf_compute(s,all_start,all_end,["FT","RAN"])
     assert res["hoursPerStudent"]["FT"] == 273
-    assert res["hoursPerStudent"]["RAN"] == 55
+    assert res["hoursPerStudent"]["RAN"] == 54
     assert afc_dsf_compute(s,all_start,all_end,["SP"])["hoursPerStudent"]["SP"] == 45
     assert afc_dsf_compute(s,all_start,all_end,["PAF"])["hoursPerStudent"]["PAF"] == 20
 

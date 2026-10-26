@@ -47,7 +47,7 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert "2027-02-11" in {day["date"] for day in planning}
     assert "2027-02-12" in {day["date"] for day in planning}
     assert all(day["date"] <= "2027-02-15" for day in planning)
-    assert summary["total_hours"] == 393
+    assert summary["total_hours"] == 392
     assert summary["uv_totals"] == {code: minutes / 60 for code, minutes in AFC_APS_SSIAP_EXPECTED_MINUTES.items()}
     def day_minutes(cat):
         return {day["date"]: sum(slot["durationMinutes"] for slot in day["slots"] if slot["afcCategory"] == cat) for day in planning if any(slot["afcCategory"] == cat for slot in day["slots"])}
@@ -74,10 +74,10 @@ def test_afc_aps_ssiap_reference_case_dates_hours_and_limits():
     assert len(eligible) == 57
     assert set(eligible) == {day["date"] for day in planning}
     daily_totals = [sum(slot["durationMinutes"] for slot in day["slots"]) for day in planning]
-    assert daily_totals.count(7 * 60) == 50
-    assert daily_totals.count(6 * 60) == 5
+    assert daily_totals.count(7 * 60) == 49
+    assert daily_totals.count(6 * 60) == 6
     assert daily_totals.count(390) == 2
-    assert sum(daily_totals) == 393 * 60
+    assert sum(daily_totals) == 392 * 60
     assert not any(day["date"].startswith("2027-03") for day in planning)
 
     first_week = [day for day in planning if "2026-11-16" <= day["date"] <= "2026-11-20"]
@@ -179,13 +179,13 @@ def test_afc_trainer_contract_excludes_both_exam_days_even_for_legacy_planning()
 
     assert aps_detect_trainers(planning) == ["Formateur"]
     calculation = aps_trainer_interventions(planning, "Formateur")
-    assert calculation["totalHours"] == 379
+    assert calculation["totalHours"] == 378
     assert calculation["calendarDays"] == 55
-    assert calculation["calculatedDays"] == 54.14
+    assert calculation["calculatedDays"] == 54.0
     assert all("EXAM_APS" not in row["module"] and "EXAM_SSIAP1" not in row["module"] for row in calculation["interventions"])
 
 
-def test_afc_rejects_old_ssiap_85_paf_5_distribution_even_when_total_is_393():
+def test_afc_rejects_old_ssiap_85_paf_5_distribution_even_when_total_is_392():
     interruption = [(date(2026, 12, 23), date(2027, 1, 4))]
     planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16), "Formateur", "Salle", interruption)
     converted = 0
@@ -201,7 +201,7 @@ def test_afc_rejects_old_ssiap_85_paf_5_distribution_even_when_total_is_393():
                 slot["afcKind"] = "FT"
                 converted += slot["durationMinutes"]
     actual = calculate_actual_afc_hours(planning)
-    assert sum(actual.values()) == 393
+    assert sum(actual.values()) == 392
     assert actual["SSIAP1"] == 85
     assert actual["PAF"] == 5
     summary = afc_aps_ssiap_summary_from_data(planning, interruption, contractual_end_date=date(2027, 2, 15))
@@ -219,7 +219,7 @@ def test_afc_corrected_distribution_is_accepted_and_recap_matches_actual_hours()
     assert actual["EXAM_SSIAP1"] == 7
     assert actual["PAF"] == 20
     assert actual["SP"] == 45
-    assert sum(actual.values()) == 393
+    assert sum(actual.values()) == 392
     assert {row["uv"]: row["hours"] for row in summary["uv_rows"]} == actual
 
 def test_afc_reuses_detailed_aps_and_ssiap_sequences():
@@ -231,7 +231,7 @@ def test_afc_reuses_detailed_aps_and_ssiap_sequences():
     assert "P1-S1" in uvs
 
 
-def test_afc_calendar_keeps_every_category_and_all_393_hours():
+def test_afc_calendar_keeps_every_category_and_all_392_hours():
     planning = build_afc_aps_ssiap_planning_data(date(2026, 11, 16))
     totals = {}
     for day in planning:
@@ -328,7 +328,7 @@ def test_afc_existing_pdf_refreshes_from_saved_slots_without_rescheduling(tmp_pa
     assert "Intervenant confirmé" in reader.pages[0].extract_text()
     assert session["apsPlanningData"] == before
     assert session["date_exam"] == "2027-02-15"
-    assert session["apsPlanningSummary"]["total_hours"] == 393
+    assert session["apsPlanningSummary"]["total_hours"] == 392
     assert not list(tmp_path.glob("planning_refresh_*"))
 
 
@@ -370,7 +370,7 @@ def test_afc_generation_route_repairs_stale_end_date_from_interruptions(tmp_path
     assert session["date_exam"] == "2027-02-15"
     assert session["date_fin"] == "2027-02-15"
     assert session["contractual_end_date"] == "2027-02-15"
-    assert session["apsPlanningSummary"]["total_hours"] == 393
+    assert session["apsPlanningSummary"]["total_hours"] == 392
 
 
 def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, monkeypatch):
@@ -410,7 +410,7 @@ def test_afc_generation_route_allows_last_planning_day_as_exam_date(tmp_path, mo
     assert session["date_exam"] == "2027-02-15"
     assert session["date_fin"] == "2027-02-15"
     assert session["contractual_end_date"] == "2027-02-15"
-    assert session["apsPlanningSummary"]["total_hours"] == 393
+    assert session["apsPlanningSummary"]["total_hours"] == 392
 
 
 def test_afc_attendance_pdf_hides_students_before_individual_start_date(tmp_path):

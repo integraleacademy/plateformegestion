@@ -46,6 +46,7 @@ from services.session_storage import (
 )
 from services.aps_day_distribution import grouped_day_minutes
 from services.afc_sst_planning import group_afc_sst_days, validate_afc_sst_days, is_afc_sst_slot
+from services.afc_ran_hours import correct_afc_ran_hours
 from services.aps_pdf_presentation import (
     APS_CONTRACT_PRESENTATION_VERSION, compact_planning_for_pdf, module_summary_rows,
     contract_interventions_for_pdf, contract_module_labels,
@@ -1870,10 +1871,9 @@ def build_aps_planning_data(start_date, formateur, salle, planning_mode="full_pr
 
 
 AFC_APS_SSIAP_LABEL = "AFC France Travail APS + SSIAP"
-AFC_APS_SSIAP_TOTAL_HOURS = 393
 AFC_APS_SSIAP_TECHNICAL_HOURS = 273
 AFC_APS_SSIAP_EXPECTED_MINUTES = {
-    "RAN": 55 * 60,
+    "RAN": 54 * 60,
     "ACCUEIL": 210,
     "APS": 175 * 60,
     "EXAM_APS": 7 * 60,
@@ -1884,6 +1884,7 @@ AFC_APS_SSIAP_EXPECTED_MINUTES = {
     "SP": 45 * 60,
     "PAF": 20 * 60,
 }
+AFC_APS_SSIAP_TOTAL_HOURS = sum(AFC_APS_SSIAP_EXPECTED_MINUTES.values()) // 60
 AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"]
 AFC_APS_SSIAP_LABELS = {
     "RAN": "Remise à niveau (RAN)",
@@ -1958,10 +1959,10 @@ os.makedirs(DSF_DIR, exist_ok=True)
 AFC_DSF_STATUS_FINALIZED = "Finalisée"
 AFC_DSF_STATUS_CANCELLED = "Annulée"
 AFC_DSF_MODULES = {
-    "RAN": {"label": "Remise à niveau (RAN)", "theoreticalHours": 55, "colors": ["#38bdf8", "#e0f2fe"]},
-    "FT": {"label": "Formation technique (FT)", "theoreticalHours": 273, "colors": ["#1e3a8a", "#dbeafe"]},
-    "SP": {"label": "Soutien personnalisé (SP)", "theoreticalHours": 45, "colors": ["#a855f7", "#f3e8ff"]},
-    "PAF": {"label": "Préparation à l’après-formation (PAF)", "theoreticalHours": 20, "colors": ["#22c55e", "#dcfce7"]},
+    "RAN": {"label": "Remise à niveau (RAN)", "theoreticalHours": AFC_APS_SSIAP_EXPECTED_MINUTES["RAN"] // 60, "colors": ["#38bdf8", "#e0f2fe"]},
+    "FT": {"label": "Formation technique (FT)", "theoreticalHours": AFC_APS_SSIAP_TECHNICAL_HOURS, "colors": ["#1e3a8a", "#dbeafe"]},
+    "SP": {"label": "Soutien personnalisé (SP)", "theoreticalHours": AFC_APS_SSIAP_EXPECTED_MINUTES["SP"] // 60, "colors": ["#a855f7", "#f3e8ff"]},
+    "PAF": {"label": "Préparation à l’après-formation (PAF)", "theoreticalHours": AFC_APS_SSIAP_EXPECTED_MINUTES["PAF"] // 60, "colors": ["#22c55e", "#dcfce7"]},
 }
 AFC_DSF_FT_CATEGORIES = {"ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "BILAN"}
 
@@ -2363,7 +2364,7 @@ def afc_minutes_to_hhmm(minute):
 
 def afc_build_main_sequence():
     seq = [
-        {"code":"RAN", "category":"RAN", "uv":"RAN", "title":"Remise à niveau (RAN)", "durationMinutes":55*60, "afcKind":"RAN"},
+        {"code":"RAN", "category":"RAN", "uv":"RAN", "title":"Remise à niveau (RAN)", "durationMinutes":AFC_APS_SSIAP_EXPECTED_MINUTES["RAN"], "afcKind":"RAN"},
         {"code":"ACCUEIL", "category":"ACCUEIL", "uv":"ACCUEIL", "title":"Accueil", "durationMinutes":210, "afcKind":"FT"},
     ]
     for name, hours in APS_MODULES:
@@ -2438,7 +2439,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
     if eligible_dates[-1] != end_date:
         raise ValueError("La date de fin AFC doit être un jour admissible et contenir l’examen SSIAP 1.")
 
-    six_hour_days = {date(2026, 11, 25), date(2026, 12, 1), date(2026, 12, 8), date(2027, 1, 6), date(2027, 2, 3), date(2027, 2, 11)}
+    six_hour_days = {date(2026, 11, 24), date(2026, 11, 25), date(2026, 12, 1), date(2026, 12, 8), date(2027, 1, 6), date(2027, 2, 3), date(2027, 2, 11)}
     daily_targets = {d: (6 * 60 if d in six_hour_days else 7 * 60) for d in eligible_dates}
     for d in eligible_dates:
         if d.isoformat() in AFC_HALF_HOUR_DAYS:
@@ -2465,7 +2466,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
         add(d, 10*60+30, 120, module_for(code, block_id)); add(d, 13*60+30, 180, module_for(code, block_id)); free_intervals[d] = [(8*60+30, 10*60+30)]
 
     raw = afc_build_main_sequence()
-    ran = dict(next(m for m in raw if m["category"] == "RAN"), remainingMinutes=55 * 60)
+    ran = dict(next(m for m in raw if m["category"] == "RAN"), remainingMinutes=AFC_APS_SSIAP_EXPECTED_MINUTES["RAN"])
     accueil = atomic(dict(next(m for m in raw if m["category"] == "ACCUEIL")), "ACCUEIL", "ACCUEIL", 210)
     exam_aps = atomic(dict(next(m for m in raw if m["category"] == "EXAM_APS")), "EXAM_APS", "EXAM_APS", 420)
     h0b0 = atomic(dict(next(m for m in raw if m["category"] == "H0B0")), "H0B0", "H0B0", 420)
@@ -2485,7 +2486,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
         if minutes > 240: add(d, 13*60+30, minutes - 240, ran)
         free_intervals[d] = []
         ran["remainingMinutes"] -= minutes
-    if ran["remainingMinutes"] != 0: raise ValueError("Les 55h de RAN n’ont pas pu être placées avant toute autre activité.")
+    if ran["remainingMinutes"] != 0: raise ValueError("Les 54h de RAN n’ont pas pu être placées avant toute autre activité.")
 
     accueil_day = eligible_dates[8]
     add(accueil_day, 8*60+30, 210, accueil)
@@ -2541,7 +2542,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
         for start, end in list(free_intervals.get(d, [])):
             if idx < len(sequence): add_technical(d, start, end - start)
     if idx < len(sequence) or any(m.get("remainingMinutes", 0) for m in sequence[idx:]):
-        raise ValueError(f"Impossible de planifier les 393 heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les règles AFC France Travail.")
+        raise ValueError(f"Impossible de planifier les {AFC_APS_SSIAP_TOTAL_HOURS} heures entre le {start_date.strftime('%d/%m/%Y')} et le {end_date.strftime('%d/%m/%Y')} avec les règles AFC France Travail.")
 
     for it in planning_map.values(): it["slots"].sort(key=lambda x: x["start"])
     planning = [planning_map[d.isoformat()] for d in eligible_dates if planning_map.get(d.isoformat(), {}).get("slots")]
@@ -2648,8 +2649,8 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         if dm < 6*60: errors.append(f"La journée {day.get('date')} contient moins de 6h.")
         if dm > 7*60: errors.append(f"La journée {day.get('date')} dépasse 7h.")
         if day.get("date", "") >= "2027-03-01": errors.append("Aucune activité AFC ne doit être planifiée en mars 2027.")
-    if day_values and day_values.count(7*60) != 50: errors.append(f"Le planning AFC doit contenir 50 journées de 7h (actuel: {day_values.count(7*60)}).")
-    if day_values and day_values.count(6*60) != 5: errors.append(f"Le planning AFC doit contenir 5 journées de 6h (actuel: {day_values.count(6*60)}).")
+    if day_values and day_values.count(7*60) != 49: errors.append(f"Le planning AFC doit contenir 49 journées de 7h (actuel: {day_values.count(7*60)}).")
+    if day_values and day_values.count(6*60) != 6: errors.append(f"Le planning AFC doit contenir 6 journées de 6h (actuel: {day_values.count(6*60)}).")
     if day_values and day_values.count(390) != 2: errors.append(f"Le planning AFC doit contenir 2 journées de 6h30 (actuel: {day_values.count(390)}).")
     for day in planning_data or []:
         if day.get("date") in AFC_HALF_HOUR_DAYS:
@@ -2689,7 +2690,7 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
     if ran_end:
         for d, st, _e, cat, _slot in ordered_slots:
             if cat != "RAN" and (d, st) < ran_end:
-                errors.append("Une activité non RAN est planifiée avant la fin complète des 55h de RAN.")
+                errors.append("Une activité non RAN est planifiée avant la fin complète des 54h de RAN.")
                 break
     if accueil_end:
         for d, st, _e, cat, _slot in ordered_slots:
@@ -3363,8 +3364,8 @@ def planning_pdf_profile(document_profile, planning_mode, summary):
         profile.setdefault("short_label", "SSIAP 1")
     elif is_afc:
         profile.setdefault("planning_title", "PLANNING AFC FRANCE TRAVAIL APS + SSIAP")
-        profile.setdefault("subtitle", "Parcours complet — 393 heures")
-        profile.setdefault("modality_line", "Modalité : présentiel • Parcours complet : 393h")
+        profile.setdefault("subtitle", f"Parcours complet — {AFC_APS_SSIAP_TOTAL_HOURS} heures")
+        profile.setdefault("modality_line", f"Modalité : présentiel • Parcours complet : {AFC_APS_SSIAP_TOTAL_HOURS}h")
         profile.setdefault("legend_elearning", "Accompagnements SP / PAF")
         profile.setdefault("legend_presentiel", "Formation AFC APS + SSIAP")
         profile.setdefault("short_label", "AFC APS + SSIAP")
@@ -3757,14 +3758,14 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
                 c.drawString(col_x[2]+4, y-9, billing[code]); c.drawRightString(width-margin-8, y-9, format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace("h", " h"))
                 y -= 20
             y -= 10
-            recap=[("Formation technique (FT)","273 h"),("Remise à niveau (RAN)","55 h"),("Soutien personnalisé (SP)","45 h"),("Préparation à l’après-formation (PAF)","20 h")]
+            recap=[(AFC_DSF_MODULES[code]["label"], f"{AFC_DSF_MODULES[code]['theoreticalHours']:g} h") for code in ("FT", "RAN", "SP", "PAF")]
             c.setFillColor(colors.HexColor("#ecfeff")); c.roundRect(margin, y-86, printable_width, 92, 8, fill=1, stroke=0)
             c.setFillColor(colors.HexColor("#0f172a")); c.setFont("Helvetica-Bold", 10); c.drawString(margin+14, y-12, "Récapitulatif de facturation")
             yy=y-30; c.setFont("Helvetica", 9)
             for label,val in recap:
                 c.drawString(margin+18, yy, label); c.drawRightString(width-margin-18, yy, val); yy-=14
             c.setFillColor(colors.HexColor("#0f766e")); c.roundRect(margin+12, yy-18, printable_width-24, 22, 5, fill=1, stroke=0)
-            c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin+22, yy-11, "TOTAL"); c.drawRightString(width-margin-22, yy-11, "393 h")
+            c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 10); c.drawString(margin+22, yy-11, "TOTAL"); c.drawRightString(width-margin-22, yy-11, f"{AFC_APS_SSIAP_TOTAL_HOURS} h")
             y = yy - 46
             box_w=(printable_width-18)/2
             for idx_label,(label,img) in enumerate((("Signature",signature_image),("Tampon",stamp_image))):
@@ -3796,7 +3797,7 @@ def generate_aps_planning_pdf(session_data, formateur, output_path, planning_dat
             for code in AFC_APS_SSIAP_SUMMARY_ORDER:
                 c.setFillColor(colors.HexColor(AFC_CATEGORY_COLORS[code])); c.rect(margin, y - 7, 8, 8, fill=1, stroke=0)
                 c.setFillColor(colors.HexColor("#111827")); c.drawString(margin + 12, y, f"{AFC_APS_SSIAP_LABELS[code]} : {format_duration_from_minutes(AFC_APS_SSIAP_EXPECTED_MINUTES[code]).replace('h', ' h')}"); y -= 13
-            c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, "TOTAL : 393 h"); y -= 20
+            c.setFont("Helvetica-Bold", 9); c.drawString(margin, y, f"TOTAL : {AFC_APS_SSIAP_TOTAL_HOURS} h"); y -= 20
         elif document_profile.get("validate") == "ssiap1":
             c.setFont("Helvetica-Bold", 10); c.drawString(margin, y, "A. SST")
             y -= 14
@@ -5372,7 +5373,7 @@ def migrate_afc_ssiap_transition_session():
         if not original_planning:
             return {"status": "no_saved_planning"}
 
-        corrected = correct_saved_ssiap_transition(original_planning)
+        corrected = correct_afc_ran_hours(correct_saved_ssiap_transition(original_planning))
         summary = afc_aps_ssiap_summary_from_data(
             corrected, parse_interruption_ranges(target.get("interruptions")),
             contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
@@ -5439,7 +5440,7 @@ def migrate_afc_sst_session():
         if not original_planning:
             return {"status": "no_saved_planning"}
 
-        corrected = group_afc_sst_days(original_planning)
+        corrected = correct_afc_ran_hours(group_afc_sst_days(original_planning))
         summary = afc_aps_ssiap_summary_from_data(
             corrected, parse_interruption_ranges(target.get("interruptions")),
             contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
@@ -5480,6 +5481,72 @@ def migrate_afc_sst_session():
         save_sessions(data)
         result = {"status": "applied", "session": sid, "sst_dates": sst_dates, "sst_hours": 14, "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
         app.logger.info("AFC_SST_TWO_DAYS %s", json.dumps(result, ensure_ascii=False))
+        return result
+
+
+def migrate_afc_ran_session():
+    """Ramener la RAN enregistrée à 54h et régénérer le planning, avec sauvegarde."""
+    if not os.path.exists(SESSIONS_FILE):
+        return {"status": "not_found"}
+    import fcntl
+
+    version = "2026-10-26-ran54-paf20-v1"
+    sid = "9f823786"
+    backup_dir = os.path.join(DATA_DIR, "planning_migrations", version)
+    os.makedirs(backup_dir, exist_ok=True)
+    with open(os.path.join(backup_dir, "migration.lock"), "a") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        data = load_sessions()
+        target = find_session(data, sid)
+        if not target or not is_afc_aps_ssiap_session(target):
+            return {"status": "not_found"}
+        if target.get("afcRanHoursVersion") == version:
+            return {"status": "already_applied"}
+        original_planning = target.get("apsPlanningData") or []
+        if not original_planning:
+            return {"status": "no_saved_planning"}
+
+        corrected = correct_afc_ran_hours(original_planning)
+        summary = afc_aps_ssiap_summary_from_data(
+            corrected, parse_interruption_ranges(target.get("interruptions")),
+            contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
+        )
+        if summary["errors"]:
+            raise ValueError("Correction RAN non appliquée : " + " ".join(summary["errors"]))
+        backup_id = datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        backup_base = os.path.join(backup_dir, f"session_{sid}_{backup_id}")
+        with open(backup_base + ".json", "x", encoding="utf-8") as handle:
+            json.dump(target, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        old_pdf = os.path.join(PLANNING_DIR, os.path.basename(str(target.get("planning_pdf") or "")))
+        if os.path.isfile(old_pdf):
+            shutil.copy2(old_pdf, backup_base + ".pdf")
+
+        candidate = deepcopy(target)
+        candidate["apsPlanningData"] = corrected
+        candidate["apsPlanningSummary"] = summary
+        candidate["apsPlanningNeedsRegeneration"] = False
+        candidate["afcRanHoursVersion"] = version
+        changed_dates = [after["date"] for before, after in zip(original_planning, corrected) if before != after]
+        candidate["planning_modified_at"] = append_planning_history(
+            candidate, "RAN corrigée à 54h ; PAF 20h ; total du parcours 392h",
+        )
+        filename = f"planning_afc_aps_ssiap_session_{sid}_ran_54h.pdf"
+        with tempfile.NamedTemporaryFile(prefix="afc_ran_", suffix=".pdf", dir=PLANNING_DIR, delete=False) as handle:
+            temp_path = handle.name
+        try:
+            generate_aps_planning_pdf(candidate, "", temp_path, planning_data=corrected, document_profile={"validate": "afc_aps_ssiap", "summary": summary})
+            os.replace(temp_path, os.path.join(PLANNING_DIR, filename))
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        candidate["planning_pdf"] = filename
+        candidate["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data["sessions"] = [candidate if item.get("id") == sid else item for item in data["sessions"]]
+        save_sessions(data)
+        result = {"status": "applied", "session": sid, "changed_dates": changed_dates, "ran_hours": summary["uv_totals"]["RAN"], "paf_hours": summary["uv_totals"]["PAF"], "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
+        app.logger.info("AFC_RAN_54H %s", json.dumps(result, ensure_ascii=False))
         return result
 
 
@@ -13607,3 +13674,8 @@ try:
     migrate_afc_sst_session()
 except Exception:
     app.logger.exception("AFC_SST_TWO_DAYS_FAILED session=9f823786 ; données enregistrées conservées")
+
+try:
+    migrate_afc_ran_session()
+except Exception:
+    app.logger.exception("AFC_RAN_54H_FAILED session=9f823786 ; données enregistrées conservées")

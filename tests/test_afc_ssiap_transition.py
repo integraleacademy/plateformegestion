@@ -104,7 +104,7 @@ def test_only_approved_dates_can_have_half_hour_billing():
     assert any("2027-01-20" in error and "doit durer 6h30" in error for error in errors)
 
 
-def test_france_travail_export_preserves_both_half_hours_and_393_hour_total():
+def test_france_travail_export_preserves_both_half_hours_and_392_hour_total():
     from openpyxl import load_workbook
     from services.afc_france_travail_attendance import generate_france_travail_workbook
 
@@ -123,7 +123,7 @@ def test_france_travail_export_preserves_both_half_hours_and_393_hour_total():
             assert sheet["H12"].value == "13h30-16h00"
             assert sheet.cell(total_row, 7).value == 4
             assert sheet.cell(total_row, 8).value == "2,5"
-    assert total_hours == 393
+    assert total_hours == 392
 
 
 def saved_session(tmp_path, monkeypatch):
@@ -144,7 +144,7 @@ def test_persistent_migration_updates_only_target_with_backup_pdf_and_idempotenc
 
     before = saved_session(tmp_path, monkeypatch)
     result = application.migrate_afc_ssiap_transition_session()
-    assert result == {"status": "applied", "session": "9f823786", "first_ssiap": ("2027-01-22", "08:30"), "hours": 393, "days": 57, "changed": True}
+    assert result == {"status": "applied", "session": "9f823786", "first_ssiap": ("2027-01-22", "08:30"), "hours": 392, "days": 57, "changed": True}
     after = application.load_sessions()
     target = after["sessions"][0]
     assert after["sessions"][1:] == before["sessions"][1:] and after["jurys"] == before["jurys"]

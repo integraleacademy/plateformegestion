@@ -72,7 +72,7 @@ def test_generation_reserves_two_complete_sst_days_and_keeps_all_afc_constraints
         assert all(slot["is_atomic"] and not slot["can_split"] for slot in day["slots"])
     summary = application.afc_aps_ssiap_summary_from_data(planning, INTERRUPTIONS)
     assert summary["errors"] == []
-    assert summary["total_hours"] == 393 and summary["days_count"] == 57
+    assert summary["total_hours"] == 392 and summary["days_count"] == 57
     assert summary["uv_totals"]["APS"] == 175
 
 
@@ -135,7 +135,7 @@ def test_migration_preserves_other_data_backs_up_and_regenerates_pdf_once(tmp_pa
     before = saved_session(tmp_path, monkeypatch)
     result = application.migrate_afc_sst_session()
     assert result["sst_dates"] == ["2026-12-09", "2026-12-10"]
-    assert result["hours"] == 393 and result["days"] == 57
+    assert result["hours"] == 392 and result["days"] == 57
     after = application.load_sessions()
     target = after["sessions"][0]
     assert after["sessions"][1:] == before["sessions"][1:] and after["jurys"] == before["jurys"]

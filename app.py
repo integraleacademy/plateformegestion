@@ -47,6 +47,7 @@ from services.session_storage import (
 from services.aps_day_distribution import grouped_day_minutes
 from services.afc_sst_planning import group_afc_sst_days, validate_afc_sst_days, is_afc_sst_slot
 from services.afc_ran_hours import correct_afc_ran_hours
+from services.afc_paf_hours import correct_afc_paf_hours
 from services.aps_pdf_presentation import (
     APS_CONTRACT_PRESENTATION_VERSION, compact_planning_for_pdf, module_summary_rows,
     contract_interventions_for_pdf, contract_module_labels,
@@ -1882,7 +1883,7 @@ AFC_APS_SSIAP_EXPECTED_MINUTES = {
     "EXAM_SSIAP1": 7 * 60,
     "BILAN": 210,
     "SP": 45 * 60,
-    "PAF": 20 * 60,
+    "PAF": 21 * 60,
 }
 AFC_APS_SSIAP_TOTAL_HOURS = sum(AFC_APS_SSIAP_EXPECTED_MINUTES.values()) // 60
 AFC_APS_SSIAP_SUMMARY_ORDER = ["RAN", "ACCUEIL", "APS", "EXAM_APS", "H0B0", "SSIAP1", "EXAM_SSIAP1", "SP", "PAF", "BILAN"]
@@ -2546,7 +2547,7 @@ def build_afc_aps_ssiap_planning_data(start_date, trainer="", room="", interrupt
 
     for it in planning_map.values(): it["slots"].sort(key=lambda x: x["start"])
     planning = [planning_map[d.isoformat()] for d in eligible_dates if planning_map.get(d.isoformat(), {}).get("slots")]
-    planning = group_afc_sst_days(planning)
+    planning = correct_afc_paf_hours(group_afc_sst_days(planning))
     summary = afc_aps_ssiap_summary_from_data(planning, interruptions=interruptions, contractual_end_date=end_date)
     if summary["errors"]: raise ValueError(" ".join(summary["errors"]))
     return planning
@@ -2624,9 +2625,9 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         support_minutes = b["SP"] + b["PAF"]
         if b["total"] > 35*60: errors.append(f"La semaine {week} dépasse 35h.")
         if b["technical"] > 30*60: errors.append(f"La semaine {week} dépasse 30h de formation technique.")
-        if support_minutes not in {0, 5*60, 10*60}: errors.append(f"La semaine {week} doit contenir exactement 0h, 5h ou 10h de SP/PAF (actuel: {format_duration_from_minutes(support_minutes)}).")
+        if support_minutes not in {0, 5*60, 6*60, 10*60, 11*60}: errors.append(f"La semaine {week} doit contenir exactement 0h, 5h, 6h, 10h ou 11h de SP/PAF (actuel: {format_duration_from_minutes(support_minutes)}).")
         if b["SP"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de SP (actuel: {format_duration_from_minutes(b['SP'])}).")
-        if b["PAF"] not in {0, 5*60}: errors.append(f"La semaine {week} doit contenir exactement 0h ou 5h de PAF (actuel: {format_duration_from_minutes(b['PAF'])}).")
+        if b["PAF"] not in {0, 5*60, 6*60}: errors.append(f"La semaine {week} doit contenir exactement 0h, 5h ou 6h de PAF (actuel: {format_duration_from_minutes(b['PAF'])}).")
     errors.extend(validate_actual_afc_hours(planning_data))
     if validate_sst:
         errors.extend(validate_afc_sst_days(planning_data))
@@ -2649,8 +2650,8 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         if dm < 6*60: errors.append(f"La journée {day.get('date')} contient moins de 6h.")
         if dm > 7*60: errors.append(f"La journée {day.get('date')} dépasse 7h.")
         if day.get("date", "") >= "2027-03-01": errors.append("Aucune activité AFC ne doit être planifiée en mars 2027.")
-    if day_values and day_values.count(7*60) != 49: errors.append(f"Le planning AFC doit contenir 49 journées de 7h (actuel: {day_values.count(7*60)}).")
-    if day_values and day_values.count(6*60) != 6: errors.append(f"Le planning AFC doit contenir 6 journées de 6h (actuel: {day_values.count(6*60)}).")
+    if day_values and day_values.count(7*60) != 50: errors.append(f"Le planning AFC doit contenir 50 journées de 7h (actuel: {day_values.count(7*60)}).")
+    if day_values and day_values.count(6*60) != 5: errors.append(f"Le planning AFC doit contenir 5 journées de 6h (actuel: {day_values.count(6*60)}).")
     if day_values and day_values.count(390) != 2: errors.append(f"Le planning AFC doit contenir 2 journées de 6h30 (actuel: {day_values.count(390)}).")
     for day in planning_data or []:
         if day.get("date") in AFC_HALF_HOUR_DAYS:
@@ -2780,11 +2781,17 @@ def afc_aps_ssiap_summary_from_data(planning_data, interruptions=None, contractu
         for d, st, e, slot, m in slots:
             bid = slot.get("blockId") or f"{cat}-{d}"
             blocks.setdefault(bid, []).append((d, st, e, m))
-        if sum(m for *_rest, m in slots) != count * 300: errors.append(f"Le total {label} doit être exactement {count*5}h.")
-        if len(blocks) != count: errors.append(f"Le planning doit contenir exactement {count} blocs {label} de 5h.")
+        expected = AFC_APS_SSIAP_EXPECTED_MINUTES[cat]
+        if sum(m for *_rest, m in slots) != expected: errors.append(f"Le total {label} doit être exactement {expected // 60}h.")
+        distribution = "9 blocs SP de 5h" if cat == "SP" else "4 blocs PAF : trois de 5h et un de 6h"
+        expected_blocks = [300] * 9 if cat == "SP" else [300, 300, 300, 360]
+        if len(blocks) != count or sorted(sum(m for *_rest, m in parts) for parts in blocks.values()) != expected_blocks:
+            errors.append(f"Le planning doit contenir exactement {distribution}.")
         for bid, parts in blocks.items():
-            if sum(m for *_rest, m in parts) != 300 or len({d for d, *_ in parts}) != 1:
-                errors.append(f"Le bloc {bid} doit faire exactement 5h sur une seule date.")
+            durations = {300} if cat == "SP" else {300, 360}
+            if sum(m for *_rest, m in parts) not in durations or len({d for d, *_ in parts}) != 1:
+                required = "5h" if cat == "SP" else "5h ou 6h"
+                errors.append(f"Le bloc {bid} doit faire exactement {required} sur une seule date.")
     for _d, _st, _e, _cat, slot in ordered_slots:
         visible = " ".join(str(slot.get(k) or "") for k in ("uv", "sequence", "part", "title", "content"))
         if any(bad in visible for bad in ("None", "null", "undefined")) or not (slot.get("title") or "").strip():
@@ -5373,7 +5380,7 @@ def migrate_afc_ssiap_transition_session():
         if not original_planning:
             return {"status": "no_saved_planning"}
 
-        corrected = correct_afc_ran_hours(correct_saved_ssiap_transition(original_planning))
+        corrected = correct_afc_paf_hours(correct_afc_ran_hours(correct_saved_ssiap_transition(original_planning)))
         summary = afc_aps_ssiap_summary_from_data(
             corrected, parse_interruption_ranges(target.get("interruptions")),
             contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
@@ -5440,7 +5447,7 @@ def migrate_afc_sst_session():
         if not original_planning:
             return {"status": "no_saved_planning"}
 
-        corrected = correct_afc_ran_hours(group_afc_sst_days(original_planning))
+        corrected = correct_afc_paf_hours(correct_afc_ran_hours(group_afc_sst_days(original_planning)))
         summary = afc_aps_ssiap_summary_from_data(
             corrected, parse_interruption_ranges(target.get("interruptions")),
             contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
@@ -5506,7 +5513,7 @@ def migrate_afc_ran_session():
         if not original_planning:
             return {"status": "no_saved_planning"}
 
-        corrected = correct_afc_ran_hours(original_planning)
+        corrected = correct_afc_paf_hours(correct_afc_ran_hours(original_planning))
         summary = afc_aps_ssiap_summary_from_data(
             corrected, parse_interruption_ranges(target.get("interruptions")),
             contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
@@ -5530,7 +5537,7 @@ def migrate_afc_ran_session():
         candidate["afcRanHoursVersion"] = version
         changed_dates = [after["date"] for before, after in zip(original_planning, corrected) if before != after]
         candidate["planning_modified_at"] = append_planning_history(
-            candidate, "RAN corrigée à 54h ; PAF 20h ; total du parcours 392h",
+            candidate, "RAN corrigée à 54h ; PAF 21h ; total du parcours 393h",
         )
         filename = f"planning_afc_aps_ssiap_session_{sid}_ran_54h.pdf"
         with tempfile.NamedTemporaryFile(prefix="afc_ran_", suffix=".pdf", dir=PLANNING_DIR, delete=False) as handle:
@@ -5547,6 +5554,72 @@ def migrate_afc_ran_session():
         save_sessions(data)
         result = {"status": "applied", "session": sid, "changed_dates": changed_dates, "ran_hours": summary["uv_totals"]["RAN"], "paf_hours": summary["uv_totals"]["PAF"], "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
         app.logger.info("AFC_RAN_54H %s", json.dumps(result, ensure_ascii=False))
+        return result
+
+
+def migrate_afc_paf_session():
+    """Porter la PAF enregistrée à 21h et régénérer le planning, avec sauvegarde."""
+    if not os.path.exists(SESSIONS_FILE):
+        return {"status": "not_found"}
+    import fcntl
+
+    version = "2026-10-26-ran54-paf21-v1"
+    sid = "9f823786"
+    backup_dir = os.path.join(DATA_DIR, "planning_migrations", version)
+    os.makedirs(backup_dir, exist_ok=True)
+    with open(os.path.join(backup_dir, "migration.lock"), "a") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        data = load_sessions()
+        target = find_session(data, sid)
+        if not target or not is_afc_aps_ssiap_session(target):
+            return {"status": "not_found"}
+        if target.get("afcPafHoursVersion") == version:
+            return {"status": "already_applied"}
+        original_planning = target.get("apsPlanningData") or []
+        if not original_planning:
+            return {"status": "no_saved_planning"}
+
+        corrected = correct_afc_paf_hours(original_planning)
+        summary = afc_aps_ssiap_summary_from_data(
+            corrected, parse_interruption_ranges(target.get("interruptions")),
+            contractual_end_date=target.get("contractual_end_date") or target.get("date_fin"),
+        )
+        if summary["errors"]:
+            raise ValueError("Correction PAF non appliquée : " + " ".join(summary["errors"]))
+        backup_id = datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        backup_base = os.path.join(backup_dir, f"session_{sid}_{backup_id}")
+        with open(backup_base + ".json", "x", encoding="utf-8") as handle:
+            json.dump(target, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        old_pdf = os.path.join(PLANNING_DIR, os.path.basename(str(target.get("planning_pdf") or "")))
+        if os.path.isfile(old_pdf):
+            shutil.copy2(old_pdf, backup_base + ".pdf")
+
+        candidate = deepcopy(target)
+        candidate["apsPlanningData"] = corrected
+        candidate["apsPlanningSummary"] = summary
+        candidate["apsPlanningNeedsRegeneration"] = False
+        candidate["afcPafHoursVersion"] = version
+        changed_dates = [after["date"] for before, after in zip(original_planning, corrected) if before != after]
+        candidate["planning_modified_at"] = append_planning_history(
+            candidate, "PAF corrigée à 21h ; RAN 54h ; total du parcours 393h",
+        )
+        filename = f"planning_afc_aps_ssiap_session_{sid}_paf_21h.pdf"
+        with tempfile.NamedTemporaryFile(prefix="afc_paf_", suffix=".pdf", dir=PLANNING_DIR, delete=False) as handle:
+            temp_path = handle.name
+        try:
+            generate_aps_planning_pdf(candidate, "", temp_path, planning_data=corrected, document_profile={"validate": "afc_aps_ssiap", "summary": summary})
+            os.replace(temp_path, os.path.join(PLANNING_DIR, filename))
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        candidate["planning_pdf"] = filename
+        candidate["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data["sessions"] = [candidate if item.get("id") == sid else item for item in data["sessions"]]
+        save_sessions(data)
+        result = {"status": "applied", "session": sid, "changed_dates": changed_dates, "ran_hours": summary["uv_totals"]["RAN"], "paf_hours": summary["uv_totals"]["PAF"], "hours": summary["total_hours"], "days": summary["days_count"], "changed": corrected != original_planning}
+        app.logger.info("AFC_PAF_21H %s", json.dumps(result, ensure_ascii=False))
         return result
 
 
@@ -13679,3 +13752,8 @@ try:
     migrate_afc_ran_session()
 except Exception:
     app.logger.exception("AFC_RAN_54H_FAILED session=9f823786 ; données enregistrées conservées")
+
+try:
+    migrate_afc_paf_session()
+except Exception:
+    app.logger.exception("AFC_PAF_21H_FAILED session=9f823786 ; données enregistrées conservées")

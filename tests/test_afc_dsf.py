@@ -58,7 +58,7 @@ def test_afc_categories_grouped_and_modules_separated():
     assert res["hoursPerStudent"]["FT"] == 273
     assert res["hoursPerStudent"]["RAN"] == 54
     assert afc_dsf_compute(s,all_start,all_end,["SP"])["hoursPerStudent"]["SP"] == 45
-    assert afc_dsf_compute(s,all_start,all_end,["PAF"])["hoursPerStudent"]["PAF"] == 20
+    assert afc_dsf_compute(s,all_start,all_end,["PAF"])["hoursPerStudent"]["PAF"] == 21
 
 def test_totals_numbering_double_billing_cancel_and_remaining_snapshot():
     s=sample_session(); d=s["apsPlanningData"][0]["date"]

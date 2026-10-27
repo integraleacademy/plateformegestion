@@ -151,7 +151,9 @@ def test_api_lists_and_reconciles_only_actual_sessions(api):
     assert result.json['source']=='sessions'
     assert [s['owner'] for s in result.json['sessions']]==['session:aps']
     assert result.json['sessions'][0]['name']=='APS JANVIER 2027'
-    assert result.json['sessions'][0]['revision']==revision
+    assert result.json['sessions'][0]['revision']!=revision
+    assert result.json['sessions'][0]['title']=='APS JANVIER 2027'
+    assert calls[0][1]['owners'][0]['legacy_revision']==rooms.projection_v1(source())['revision']
     assert 'legacy' not in result.json['sessions'][0]
     assert len(calls)==1 and calls[0][0]=='reconcile'
     assert [s['owner'] for s in calls[0][1]['owners']]==['session:aps']
@@ -187,3 +189,55 @@ def test_machine_routes_remain_private(api):
     assert client.get('/api/shared-rooms/sessions').status_code==403
     assert client.post('/api/shared-rooms/bootstrap').status_code==403
     assert not calls
+
+
+def test_actual_presence_excludes_initial_remote_days_and_declared_exam_is_reserved():
+    s=source();s['display_name']='APS JANVIER 2027';s['date_debut']='2026-12-01';s['date_exam']='2027-01-09'
+    s['apsPlanningData'].insert(0,dict(date='2026-12-01',modality='elearning',slots=[dict(start='08:00',end='12:00')]))
+    p=rooms.projection(s)
+    assert p['metadata']['start']=='2027-01-04' and p['metadata']['formation_start']=='2026-12-01'
+    assert p['metadata']['exam_full_day']==['2027-01-09']
+    assert p['title']=='APS JANVIER 2027'
+    assert {r['date'] for r in p['slots']}=={'2027-01-04','2027-01-09'}
+    assert next(r for r in p['slots'] if r['date']=='2027-01-09')==dict(room_id='r1',date='2027-01-09',start='00:00',end='24:00')
+    assert p['schema']==2 and p['legacy_revision']==rooms.projection_v1(s)['revision']
+
+
+def test_exam_known_times_and_embedded_exam_are_not_full_day_or_duplicated():
+    s=source();s.update(date_exam='2027-01-09',exam_date='2027-01-10',exam_start_time='08:30',exam_end_time='16:00')
+    p=rooms.projection(s)
+    assert p['metadata']['exam_dates']==['2027-01-09'] and p['metadata']['exam_full_day']==[]
+    exam=next(r for r in p['slots'] if r['date']=='2027-01-09');assert exam['start']=='08:30' and exam['end']=='16:00'
+    s['apsPlanningData'].append(dict(date='2027-01-09',slots=[dict(start='09:00',end='12:00',modality='presentiel',uv='UV1',category='EXAM_APS')]))
+    p=rooms.projection(s)
+    exams=[r for r in p['slots'] if r['date']=='2027-01-09']
+    assert len(exams)==1 and exams[0]['start']=='09:00'
+    assert p['metadata']['end']=='2027-01-04'
+
+
+def test_declared_exam_not_suppressed_by_training_on_same_day():
+    s=source();s['date_exam']='2027-01-04';p=rooms.projection(s)
+    assert any(r['start']=='00:00' and r['end']=='24:00' for r in p['slots'])
+
+
+def test_desp_presence_fallback_and_weekend_exam_outside_range():
+    s=source();s.pop('apsPlanningData');s.update(formation='DIRIGEANT',date_debut='2026-12-01',date_fin='2027-01-08',despPresentielStart='2027-01-04',date_exam='2027-01-09')
+    p=rooms.projection(s)
+    assert p['metadata']['formation']=='DESP' and p['metadata']['start']=='2027-01-04'
+    assert min(r['date'] for r in p['slots'])=='2027-01-04'
+    assert max(r['date'] for r in p['slots'])=='2027-01-09'
+
+
+def test_unknown_mixed_presence_is_not_reported_as_formation_start():
+    s=source();s.pop('apsPlanningData');s['apsPlanningMode']='elearning_presentiel'
+    assert rooms.projection(s)['metadata']['start'] is None
+    s['apsPlanningMode']='full_presentiel';assert rooms.projection(s)['metadata']['start']==s['date_debut']
+
+
+def test_global_assignment_has_reset_marker_and_previous_projection(api):
+    client,path,legacy,calls=api;before=rooms.projection(source())
+    response=client.post('/api/shared-rooms/sessions',json=dict(owner=before['owner'],revision=before['revision'],room_id='r2'),headers={'Authorization':'Bearer test'})
+    assert response.status_code==200,response.json
+    prepared=calls[0][1]
+    assert prepared['previous_projection']==before and prepared['metadata']['assignment']
+    assert prepared['metadata']['assignment']==load_session_store(path)['sessions'][0]['sharedRoom']['assignment']

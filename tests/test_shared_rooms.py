@@ -142,10 +142,16 @@ def api(linked,monkeypatch,tmp_path):
 
 def test_api_lists_and_reconciles_only_actual_sessions(api):
     client,path,legacy,calls=api;before=legacy.read_bytes()
+    data=load_session_store(path)
+    revision=rooms.projection(data['sessions'][0])['revision']
+    data['sessions'][0]['display_name']='APS JANVIER 2027'
+    save_session_store(path,data)
     result=client.get('/api/shared-rooms/sessions',headers={'Authorization':'Bearer test'})
     assert result.status_code==200,result.json
     assert result.json['source']=='sessions'
     assert [s['owner'] for s in result.json['sessions']]==['session:aps']
+    assert result.json['sessions'][0]['name']=='APS JANVIER 2027'
+    assert result.json['sessions'][0]['revision']==revision
     assert 'legacy' not in result.json['sessions'][0]
     assert len(calls)==1 and calls[0][0]=='reconcile'
     assert [s['owner'] for s in calls[0][1]['owners']]==['session:aps']

@@ -191,6 +191,7 @@ def register(app, load_sessions, save_sessions, sessions_file):
             for source in sources:
                 p = projection(source)
                 rows.append(dict(owner=p['owner'], title=p['title'], revision=p['revision'],
+                                 name=source.get('display_name') or source.get('name') or source.get('nom') or source.get('formation') or 'Session',
                                  start=source.get('date_debut'), end=source.get('date_fin'),
                                  count=len(p['slots']), assigned=bool(p['slots']),
                                  generated=bool(source.get('a3pPlanningData') or source.get('apsPlanningData')),

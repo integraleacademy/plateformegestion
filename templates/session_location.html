@@ -1,0 +1,23 @@
+<section class="session-location" id="location-section" aria-label="Lieu de formation">
+  <details>
+    <summary>
+      <span class="session-location-heading"><span class="session-location-label">Lieu de formation</span><strong>{{ training_location(s) }}</strong></span>
+      <span class="session-location-edit">Modifier le lieu <span aria-hidden="true">✎</span></span>
+    </summary>
+    <form method="post" action="{{ url_for('update_session_location', sid=s.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ session_location_csrf() }}">
+      <input type="hidden" name="previous_location" value="{{ training_location(s) }}">
+      <label for="trainingLocation">Nom du lieu et adresse</label>
+      <div class="session-location-fields">
+        <input id="trainingLocation" name="location" type="text" value="{{ training_location(s) }}" maxlength="300" required aria-describedby="trainingLocationHelp">
+        <button type="submit" class="btn gold">Enregistrer le lieu</button>
+      </div>
+      <p id="trainingLocationHelp">Le lieu est mis à jour sans recalculer les cours, les dates ou les horaires. Les salles spécifiques, le distanciel et les lieux d’examen sont conservés.</p>
+      {% if s.apsPlanningData or s.a3pPlanningData %}
+      <p>Le PDF du planning reprendra cette adresse à sa prochaine ouverture.</p>
+      {% elif s.planning_pdf %}
+      <p>Le PDF importé reste inchangé. Pour y corriger l’adresse, remplacez le fichier dans « Planning PDF ».</p>
+      {% endif %}
+    </form>
+  </details>
+</section>

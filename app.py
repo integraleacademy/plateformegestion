@@ -44,6 +44,7 @@ from services.session_storage import (
     SessionStorageError, SessionStorageConflict, load_session_store,
     save_session_store, storage_diagnostics,
 )
+from services.session_location import training_location, update_training_location
 from services.aps_day_distribution import grouped_day_minutes
 from services.afc_sst_planning import group_afc_sst_days, validate_afc_sst_days, is_afc_sst_slot
 from services.afc_ran_hours import correct_afc_ran_hours
@@ -5110,21 +5111,25 @@ def set_planning_for_session(sid, filename):
 
 def refresh_aps_planning_pdf_file(session_data, sid):
     is_afc = is_afc_aps_ssiap_session(session_data)
-    if (session_data.get("formation") or "").upper() != "APS" and not is_ssiap1_session(session_data) and not is_afc:
+    is_desp = (session_data.get("formation") or "").upper() in {"DESP", "DIRIGEANT"}
+    if (session_data.get("formation") or "").upper() != "APS" and not is_ssiap1_session(session_data) and not is_afc and not (is_desp and session_data.get("trainingLocationPdfPending")):
         return session_data.get("planning_pdf")
     planning_data = session_data.get("apsPlanningData") or []
     if not planning_data:
         return session_data.get("planning_pdf")
 
-    filename = f"planning_{'afc_aps_ssiap' if is_afc else ('ssiap1' if is_ssiap1_session(session_data) else 'aps')}_session_{sid}.pdf"
+    filename = f"planning_{'afc_aps_ssiap' if is_afc else ('desp' if is_desp else ('ssiap1' if is_ssiap1_session(session_data) else 'aps'))}_session_{sid}.pdf"
     output_path = os.path.join(PLANNING_DIR, filename)
     planning_mode = "full_presentiel" if is_afc else (session_data.get("apsPlanningMode") or (
-        "ssiap1" if is_ssiap1_session(session_data) else
+        "desp" if is_desp else "ssiap1" if is_ssiap1_session(session_data) else
         "elearning_presentiel"
         if any(slot.get("modality") == "elearning" for day in planning_data for slot in day.get("slots", []))
         else "full_presentiel"
     ))
     document_profile = {"validate": "ssiap1"} if is_ssiap1_session(session_data) else {}
+    if is_desp:
+        document_profile = {"validate": "desp", "summary": desp_summary_from_planning(planning_data),
+                            "planning_title": "PLANNING DE FORMATION DESP", "short_label": "DESP"}
     if is_afc:
         document_profile = {
             "validate": "afc_aps_ssiap",
@@ -5152,6 +5157,7 @@ def refresh_aps_planning_pdf_file(session_data, sid):
         session_data["apsPlanningSummary"] = result["summary"]
         session_data["apsPlanningMode"] = planning_mode
         session_data["planning_pdf_refreshed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        session_data.pop("trainingLocationPdfPending", None)
         return filename
     finally:
         if os.path.exists(temp_path):
@@ -8164,6 +8170,41 @@ def edit_formateur(fid):
 
 
 
+def session_location_csrf():
+    if not session.get("session_location_csrf"):
+        session["session_location_csrf"] = secrets.token_urlsafe(32)
+    return session["session_location_csrf"]
+
+
+@app.context_processor
+def inject_session_location_helpers():
+    return {"training_location": training_location, "session_location_csrf": session_location_csrf}
+
+
+@app.post("/sessions/<sid>/location")
+def update_session_location(sid):
+    token = request.form.get("csrf_token", "")
+    expected_token = session.get("session_location_csrf", "")
+    if not expected_token or not hmac.compare_digest(token.encode("utf-8"), expected_token.encode("utf-8")):
+        abort(403, description="Rechargez la fiche session avant de réessayer.")
+    data = load_sessions()
+    session_data = find_session(data, sid)
+    if not session_data:
+        abort(404)
+    if request.form.get("previous_location") != training_location(session_data):
+        raise SessionStorageConflict("Le lieu a été modifié ailleurs. Rechargez la fiche session.")
+    try:
+        changed = update_training_location(session_data, request.form.get("location"))
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("session_detail", sid=sid) + "#location-section")
+    if changed:
+        session_data["trainingLocationUpdatedAt"] = append_planning_history(session_data, "lieu de formation modifié — cours et horaires conservés")
+        save_sessions(data)
+    flash("Lieu de formation enregistré. Les cours, les dates et les horaires sont conservés.", "ok")
+    return redirect(url_for("session_detail", sid=sid) + "#location-section")
+
+
 @app.route("/sessions/<sid>/edit", methods=["GET","POST"])
 def edit_session(sid):
     data = load_sessions()
@@ -9493,6 +9534,31 @@ def view_a3p_document(sid, kind):
     if kind not in {"planning", "attendance", "contract"}:
         return jsonify({"ok": False, "error": "Type de document A3P invalide."}), 404
 
+    if kind == "planning" and session_data.get("trainingLocationPdfPending") and session_data.get("a3pPlanningData"):
+        # Reprint the saved timetable; never call the scheduling engine here.
+        filename = f"planning_a3p_session_{sid}.pdf"
+        output_path = os.path.join(A3P_DOC_DIR, filename)
+        with tempfile.NamedTemporaryFile(prefix="location_", suffix=".pdf", dir=A3P_DOC_DIR, delete=False) as handle:
+            temporary_path = handle.name
+        try:
+            generate_a3p_planning_pdf(session_data, temporary_path)
+            os.replace(temporary_path, output_path)
+            session_data["a3pPlanningFilename"] = filename
+            session_data["a3pPlanningPdfFilename"] = filename
+            session_data.setdefault("a3p_documents", {})["planning"] = {
+                "path": output_path, "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            session_data.pop("trainingLocationPdfPending", None)
+            save_sessions(data)
+        except (OSError, RuntimeError, ValueError) as exc:
+            if isinstance(exc, SessionStorageError):
+                raise
+            app.logger.exception("Actualisation du lieu dans le PDF A3P impossible session=%s", sid)
+            return jsonify({"ok": False, "error": f"Le lieu est enregistré, mais le PDF n'a pas pu être actualisé : {exc}"}), 409
+        finally:
+            if os.path.exists(temporary_path):
+                os.remove(temporary_path)
+
     path = a3p_document_path(session_data, kind)
     exists = bool(path and os.path.exists(path))
     app.logger.info("Téléchargement document A3P session_id=%s kind=%s path=%s exists=%s", sid, kind, path, exists)
@@ -9504,6 +9570,8 @@ def view_a3p_document(sid, kind):
         "attendance": f"feuilles_presence_a3p_{sid}.pdf",
         "contract": f"contrat_formateur_a3p_{sid}.pdf",
     }
+    if kind == "planning":
+        return send_planning_pdf_file(path, as_attachment=False, download_name=download_names[kind])
     return send_file(path, mimetype="application/pdf", as_attachment=False, download_name=download_names[kind])
 
 

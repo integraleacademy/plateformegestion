@@ -406,6 +406,10 @@ def logout():
 def protect_all_routes():
     path = request.path
 
+    # Server-to-server room endpoints validate their own shared bearer token.
+    if path.startswith("/api/shared-rooms/"):
+        return None
+
     # ✅ autoriser page login / logout
     if path.startswith("/login") or path.startswith("/logout"):
         return None
@@ -5349,7 +5353,8 @@ def load_sessions():
     return load_session_store(SESSIONS_FILE, allow_missing=not IS_RENDER)
 
 def save_sessions(data):
-    save_session_store(SESSIONS_FILE, data, allow_missing=not IS_RENDER)
+    from services.shared_rooms import session_guard
+    save_session_store(SESSIONS_FILE, data, allow_missing=not IS_RENDER, reservation_guard=session_guard)
 
 
 @app.errorhandler(SessionStorageError)
@@ -13267,6 +13272,8 @@ def init_planning_db():
                 created_at TEXT NOT NULL
             )
         """)
+        if "shared_room_id" not in {r[1] for r in conn.execute("PRAGMA table_info(formations)")}:
+            conn.execute("ALTER TABLE formations ADD COLUMN shared_room_id TEXT")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS salles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13404,17 +13411,15 @@ def formation_ajouter():
             return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form)
         salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee)
         if error:
-            salle = salle_souhaitee or (PLANNING_SALLES[0] if PLANNING_SALLES else "Sans salle")
+            flash(error, "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form), 409
+        from services.shared_rooms import save_formation
         with get_db() as conn:
-            conn.execute("""INSERT INTO formations(nom, type, date_debut, date_fin, salle, nombre_stagiaires, commentaire, created_at)
-                         VALUES(?,?,?,?,?,?,?,?)""",
-                         (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, datetime.now().isoformat()))
-            formation_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            formation_id = save_formation(conn, dict(nom=nom, type=type_formation, date_debut=date_debut,
+                date_fin=date_fin, salle=salle, nombre_stagiaires=nombre_stagiaires, commentaire=commentaire,
+                created_at=datetime.now().isoformat()))
         add_planning_history(formation_id, "creation", f"{nom} / {salle} / {date_debut}-{date_fin}")
-        if error:
-            flash(f"{error} Formation ajoutée avec conflit sur {salle}.", "error")
-        else:
-            flash("Formation ajoutée avec succès.", "success")
+        flash("Formation ajoutée avec succès.", "success")
         return redirect(url_for("planning_home"))
     return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation={})
 
@@ -13435,15 +13440,16 @@ def formation_modifier(id):
         commentaire = request.form.get("commentaire", "").strip()
         salle, error = choisir_salle(date_debut, date_fin, salle_souhaitee=salle_souhaitee, exclude_id=id)
         if error:
-            salle = salle_souhaitee or (current["salle"] if current["salle"] else (PLANNING_SALLES[0] if PLANNING_SALLES else "Sans salle"))
+            flash(error, "error")
+            return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=request.form, formation_id=id), 409
+        from services.shared_rooms import save_formation
         with get_db() as conn:
-            conn.execute("""UPDATE formations SET nom=?, type=?, date_debut=?, date_fin=?, salle=?, nombre_stagiaires=?, commentaire=? WHERE id=?""",
-                         (nom, type_formation, date_debut, date_fin, salle, nombre_stagiaires, commentaire, id))
+            save_formation(conn, dict(nom=nom, type=type_formation, date_debut=date_debut,
+                date_fin=date_fin, salle=salle, nombre_stagiaires=nombre_stagiaires, commentaire=commentaire,
+                shared_room_id=current["shared_room_id"] if salle == current["salle"] else None), id,
+                expected=dict(current))
         add_planning_history(id, "modification", f"{nom} / {salle} / {date_debut}-{date_fin}")
-        if error:
-            flash(f"{error} Formation modifiée avec conflit sur {salle}.", "error")
-        else:
-            flash("Formation modifiée.", "success")
+        flash("Formation modifiée.", "success")
         return redirect(url_for("planning_home"))
     return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=dict(current), formation_id=id)
 
@@ -13453,8 +13459,10 @@ def formation_edit_alias(id):
 
 @app.post("/formation/<int:id>/supprimer")
 def formation_supprimer(id):
+    init_planning_db()
+    from services.shared_rooms import save_formation
     with get_db() as conn:
-        conn.execute("DELETE FROM formations WHERE id = ?", (id,))
+        save_formation(conn, {}, id, delete=True)
     add_planning_history(id, "suppression", "formation supprimée")
     flash("Formation supprimée.", "success")
     return redirect(url_for("planning_home"))
@@ -13825,3 +13833,7 @@ try:
     migrate_afc_paf_session()
 except Exception:
     app.logger.exception("AFC_PAF_21H_FAILED session=9f823786 ; données enregistrées conservées")
+
+
+from services.shared_rooms import register as register_shared_rooms
+register_shared_rooms(app, load_sessions, save_sessions, SESSIONS_FILE, init_planning_db, get_db)

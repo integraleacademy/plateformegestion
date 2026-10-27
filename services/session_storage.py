@@ -1,6 +1,6 @@
 """Atomic, version-checked storage shared by all Gunicorn workers."""
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from copy import deepcopy
 from datetime import datetime, timezone
 import fcntl
@@ -95,7 +95,7 @@ def _encode(value):
     return json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False).encode("utf-8")
 
 
-def save_session_store(path, data, *, allow_missing=True):
+def save_session_store(path, data, *, allow_missing=True, reservation_guard=None):
     path = os.fspath(path)
     candidate = _validate(deepcopy(dict(data)))
     payload = _encode(candidate)  # Serialization failure must leave every file intact.
@@ -112,19 +112,21 @@ def save_session_store(path, data, *, allow_missing=True):
                 raise SessionStorageConflict("Les sessions ont été modifiées ailleurs. Rechargez la page avant de réessayer.")
         elif os.path.exists(path):
             raise SessionStorageConflict("Rechargez les sessions avant de les enregistrer.")
-        if os.path.exists(path):
-            previous = Path(path).read_bytes()
-            _atomic_write(path + ".bak", previous)
-            # Retain the first valid version each day as well as the last version.
-            # Nothing prunes these recovery points during an incident.
-            directory = Path(path).parent / "sessions_backups"
-            directory.mkdir(exist_ok=True)
-            daily = directory / (datetime.now(timezone.utc).strftime("%Y-%m-%d") + ".json")
-            if not daily.exists():
-                _atomic_write(str(daily), previous)
-        _atomic_write(path, payload)
-        if isinstance(data, SessionSnapshot):
-            data.original = deepcopy(candidate)
+        with (reservation_guard(current, candidate) if reservation_guard else nullcontext()):
+            if os.path.exists(path):
+                previous = Path(path).read_bytes()
+                _atomic_write(path + ".bak", previous)
+                # Retain the first valid version each day as well as the last version.
+                # Nothing prunes these recovery points during an incident.
+                directory = Path(path).parent / "sessions_backups"
+                directory.mkdir(exist_ok=True)
+                daily = directory / (datetime.now(timezone.utc).strftime("%Y-%m-%d") + ".json")
+                if not daily.exists():
+                    _atomic_write(str(daily), previous)
+            _atomic_write(path, payload)
+            if isinstance(data, SessionSnapshot):
+                data.original = deepcopy(candidate)
+
 
 
 def storage_diagnostics(path):

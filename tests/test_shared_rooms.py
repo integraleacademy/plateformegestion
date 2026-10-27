@@ -105,16 +105,79 @@ def test_stale_writer_cannot_even_prepare(linked,monkeypatch,tmp_path):
     with pytest.raises(SessionStorageConflict):save_session_store(path,stale,reservation_guard=rooms.session_guard)
 
 
-def test_legacy_updates_use_same_guard_and_hold_lock_until_commit(linked,monkeypatch,tmp_path):
+def test_old_planner_is_isolated_from_the_shared_registry(linked,monkeypatch,tmp_path):
     conn=sqlite3.connect(tmp_path/'formations.db');conn.row_factory=sqlite3.Row
     conn.execute('CREATE TABLE formations(id INTEGER PRIMARY KEY,nom TEXT,type TEXT,date_debut TEXT,date_fin TEXT,salle TEXT,nombre_stagiaires INT,commentaire TEXT,created_at TEXT,shared_room_id TEXT)')
     calls=[]
     def call(action,data):
         calls.append((action,conn.in_transaction));return dict(token='hold')
     monkeypatch.setattr(rooms,'call',call)
-    fid=rooms.save_formation(conn,dict(nom='APS',type='APS',date_debut='2027-01-04',date_fin='2027-01-05',salle='Salle 1',nombre_stagiaires=4,commentaire='',created_at='now'))
-    assert calls==[('prepare',True),('finish',False)]
+    from services.legacy_planning_storage import save_formation
+    fid=save_formation(conn,dict(nom='APS',type='APS',date_debut='2027-01-04',date_fin='2027-01-05',salle='Salle 1',nombre_stagiaires=4,commentaire='',created_at='now'))
+    assert calls==[]
     current=dict(conn.execute('SELECT * FROM formations WHERE id=?',(fid,)).fetchone())
-    with pytest.raises(rooms.RoomError):rooms.save_formation(conn,dict(current,salle='Salle 2'),fid,expected=dict(current,nom='stale'))
+    with pytest.raises(SessionStorageConflict):save_formation(conn,dict(current,salle='Salle 2'),fid,expected=dict(current,nom='stale'))
     conn.rollback()
     assert conn.execute('SELECT salle FROM formations').fetchone()[0]=='Salle 1'
+
+
+@pytest.fixture
+def api(linked,monkeypatch,tmp_path):
+    from flask import Flask
+    path=store(tmp_path)
+    legacy=tmp_path/'formations.db'
+    with sqlite3.connect(legacy) as conn:
+        conn.execute('CREATE TABLE formations(id INTEGER,nom TEXT,salle TEXT)')
+        conn.execute("INSERT INTO formations VALUES(3,'BTS MOS - ancien planning','Salle 1B')")
+    calls=[]
+    def ledger(action,data):
+        calls.append((action,deepcopy(data)))
+        return dict(ok=True,token='hold',count=len(data.get('owners',[])),scope='sessions',excluded_owners=0)
+    monkeypatch.setattr(rooms,'call',ledger)
+    app=Flask('shared-room-tests');app.config['TESTING']=True
+    rooms.register(app,lambda:load_session_store(path),
+                   lambda data:save_session_store(path,data,reservation_guard=rooms.session_guard),str(path))
+    return app.test_client(),path,legacy,calls
+
+
+def test_api_lists_and_reconciles_only_actual_sessions(api):
+    client,path,legacy,calls=api;before=legacy.read_bytes()
+    result=client.get('/api/shared-rooms/sessions',headers={'Authorization':'Bearer test'})
+    assert result.status_code==200,result.json
+    assert result.json['source']=='sessions'
+    assert [s['owner'] for s in result.json['sessions']]==['session:aps']
+    assert 'legacy' not in result.json['sessions'][0]
+    assert len(calls)==1 and calls[0][0]=='reconcile'
+    assert [s['owner'] for s in calls[0][1]['owners']]==['session:aps']
+    assert legacy.read_bytes()==before
+
+
+def test_bootstrap_ignores_old_planner_and_its_room_catalogue(api):
+    client,path,legacy,calls=api
+    result=client.post('/api/shared-rooms/bootstrap',headers={'Authorization':'Bearer test'})
+    assert result.status_code==200 and result.json['count']==1
+    assert [s['owner'] for s in calls[0][1]['owners']]==['session:aps']
+    assert 'room_names' not in calls[0][1]
+
+
+def test_api_rejects_old_formation_reassignment_without_any_write(api):
+    client,path,legacy,calls=api;before=path.read_bytes();old=legacy.read_bytes()
+    result=client.post('/api/shared-rooms/sessions',json=dict(owner='formation:3',room_id='r2',revision='0'*64),headers={'Authorization':'Bearer test'})
+    assert result.status_code==400
+    assert path.read_bytes()==before and legacy.read_bytes()==old and not calls
+
+
+def test_actual_session_assignment_still_uses_atomic_guard(api):
+    client,path,legacy,calls=api;revision=rooms.projection(source())['revision']
+    result=client.post('/api/shared-rooms/sessions',json=dict(owner='session:aps',room_id='r2',revision=revision),headers={'Authorization':'Bearer test'})
+    assert result.status_code==200,result.json
+    assert [c[0] for c in calls]==['prepare','finish']
+    assert calls[0][1]['owner']=='session:aps'
+    assert load_session_store(path)['sessions'][0]['sharedRoom']['room_id']=='r2'
+
+
+def test_machine_routes_remain_private(api):
+    client,_,_,calls=api
+    assert client.get('/api/shared-rooms/sessions').status_code==403
+    assert client.post('/api/shared-rooms/bootstrap').status_code==403
+    assert not calls

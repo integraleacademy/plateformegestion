@@ -13272,8 +13272,6 @@ def init_planning_db():
                 created_at TEXT NOT NULL
             )
         """)
-        if "shared_room_id" not in {r[1] for r in conn.execute("PRAGMA table_info(formations)")}:
-            conn.execute("ALTER TABLE formations ADD COLUMN shared_room_id TEXT")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS salles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13413,7 +13411,7 @@ def formation_ajouter():
         if error:
             flash(error, "error")
             return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="ajouter", formation=request.form), 409
-        from services.shared_rooms import save_formation
+        from services.legacy_planning_storage import save_formation
         with get_db() as conn:
             formation_id = save_formation(conn, dict(nom=nom, type=type_formation, date_debut=date_debut,
                 date_fin=date_fin, salle=salle, nombre_stagiaires=nombre_stagiaires, commentaire=commentaire,
@@ -13442,11 +13440,10 @@ def formation_modifier(id):
         if error:
             flash(error, "error")
             return render_template("formation_form.html", salles=PLANNING_SALLES, types=PLANNING_TYPES, mode="modifier", formation=request.form, formation_id=id), 409
-        from services.shared_rooms import save_formation
+        from services.legacy_planning_storage import save_formation
         with get_db() as conn:
             save_formation(conn, dict(nom=nom, type=type_formation, date_debut=date_debut,
-                date_fin=date_fin, salle=salle, nombre_stagiaires=nombre_stagiaires, commentaire=commentaire,
-                shared_room_id=current["shared_room_id"] if salle == current["salle"] else None), id,
+                date_fin=date_fin, salle=salle, nombre_stagiaires=nombre_stagiaires, commentaire=commentaire), id,
                 expected=dict(current))
         add_planning_history(id, "modification", f"{nom} / {salle} / {date_debut}-{date_fin}")
         flash("Formation modifiée.", "success")
@@ -13460,7 +13457,7 @@ def formation_edit_alias(id):
 @app.post("/formation/<int:id>/supprimer")
 def formation_supprimer(id):
     init_planning_db()
-    from services.shared_rooms import save_formation
+    from services.legacy_planning_storage import save_formation
     with get_db() as conn:
         save_formation(conn, {}, id, delete=True)
     add_planning_history(id, "suppression", "formation supprimée")
@@ -13836,4 +13833,4 @@ except Exception:
 
 
 from services.shared_rooms import register as register_shared_rooms
-register_shared_rooms(app, load_sessions, save_sessions, SESSIONS_FILE, init_planning_db, get_db)
+register_shared_rooms(app, load_sessions, save_sessions, SESSIONS_FILE)

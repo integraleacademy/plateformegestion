@@ -744,6 +744,7 @@ a.back:hover{ background:#d9a848 !important; }
 
 
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-location.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
@@ -758,6 +759,7 @@ a.back:hover{ background:#d9a848 !important; }
     <p class="detail-nav-label">Dans cette session</p>
     <nav class="detail-sidebar-nav">
       <a class="detail-nav-link active" href="#session-overview" aria-current="page"><span class="detail-nav-icon">▦</span>Vue d’ensemble</a>
+      <a class="detail-nav-link" href="#location-section"><span class="detail-nav-icon" aria-hidden="true">⌖</span>Lieu de formation</a>
       <a class="detail-nav-link" href="#jury-section"><span class="detail-nav-icon">♙</span>Jury d’examen</a>
       <a class="detail-nav-link" href="#planning-section"><span class="detail-nav-icon">▤</span>Planning PDF</a>
       {% if s.formation == "AFC_APS_SSIAP" %}<a class="detail-nav-link" href="#afc-dsf-section"><span class="detail-nav-icon">€</span>Aide à la facturation</a>{% endif %}
@@ -824,6 +826,8 @@ a.back:hover{ background:#d9a848 !important; }
     </form>
   </div>
 </section>
+
+{% include 'session_location.html' %}
 
 <section class="jury-panel" id="jury-section">
   <div class="jury-header">
@@ -1341,7 +1345,7 @@ a.back:hover{ background:#d9a848 !important; }
       <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>{% if s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}Formateur SSIAP 1{% else %}Nom et prénom du formateur{% endif %}</strong></label>
       <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
       <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
-      <input id="apsRoom" name="room" type="text" value="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" placeholder="Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
+      <input id="apsRoom" name="room" type="text" value="{{ training_location(s) }}" placeholder="Nom du lieu et adresse" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
       {% if s.formation in ["DESP", "DIRIGEANT"] %}
       <div class="desp-planning-dates" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;">
         <label><strong>Début distanciel</strong><input id="despElearningStart" name="despElearningStart" type="date" value="{{ s.despElearningStart or s.date_debut or '' }}" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required></label>
@@ -1414,7 +1418,7 @@ a.back:hover{ background:#d9a848 !important; }
       <div class="a3p-progress-track" role="progressbar" aria-label="Couverture des 328 heures par les journées prévues" aria-valuemin="0" aria-valuemax="328" aria-valuenow="0"><div id="a3pProgressBar"></div></div>
     </div></div>
     <div class="a3p-workspace">
-    <section class="a3p-section a3p-step" data-step="0"><h4>Étape 1 — Informations générales</h4><div class="a3p-fields"><label>Nom du formateur<input name="trainerLastName" value="{{ (s.a3pPlanningDraftJson or {}).trainerLastName or '' }}"></label><label>Prénom du formateur<input name="trainerFirstName" value="{{ (s.a3pPlanningDraftJson or {}).trainerFirstName or '' }}"></label><label>Email<input name="trainerEmail" type="email" value="{{ (s.a3pPlanningDraftJson or {}).trainerEmail or s.a3pTrainerEmail or '' }}"></label><label>Adresse<input name="trainerAddress"></label><label>SIRET / société<input name="trainerCompany"></label><label>Tarif journalier HT<input name="dailyRate" type="number" step="0.01"></label><label>TVA applicable<select name="vatEnabled"><option value="false">Non</option><option value="true">Oui</option></select></label><label>Date début formation<input id="a3pStartDate" name="startDate" type="date" value="{{ s.date_debut }}" required></label><label>Date fin formation<input id="a3pEndDate" name="endDate" type="date" value="{{ s.date_fin }}" required></label><label>Date examen<input id="a3pExamDate" name="examDate" type="date" value="{{ s.date_exam }}" required></label><label>Salle / lieu<input name="room" value="{{ s.salle or 'Intégrale Academy – 54 chemin du Carreou – 83480 PUGET-SUR-ARGENS' }}"></label></div></section>
+    <section class="a3p-section a3p-step" data-step="0"><h4>Étape 1 — Informations générales</h4><div class="a3p-fields"><label>Nom du formateur<input name="trainerLastName" value="{{ (s.a3pPlanningDraftJson or {}).trainerLastName or '' }}"></label><label>Prénom du formateur<input name="trainerFirstName" value="{{ (s.a3pPlanningDraftJson or {}).trainerFirstName or '' }}"></label><label>Email<input name="trainerEmail" type="email" value="{{ (s.a3pPlanningDraftJson or {}).trainerEmail or s.a3pTrainerEmail or '' }}"></label><label>Adresse<input name="trainerAddress"></label><label>SIRET / société<input name="trainerCompany"></label><label>Tarif journalier HT<input name="dailyRate" type="number" step="0.01"></label><label>TVA applicable<select name="vatEnabled"><option value="false">Non</option><option value="true">Oui</option></select></label><label>Date début formation<input id="a3pStartDate" name="startDate" type="date" value="{{ s.date_debut }}" required></label><label>Date fin formation<input id="a3pEndDate" name="endDate" type="date" value="{{ s.date_fin }}" required></label><label>Date examen<input id="a3pExamDate" name="examDate" type="date" value="{{ s.date_exam }}" required></label><label>Salle / lieu<input name="room" value="{{ training_location(s) }}"></label></div></section>
     <section class="a3p-section a3p-step" data-step="1">
       <div class="a3p-section-head"><div><h4>Dates et horaires des journées</h4><p id="a3pTableTotals">Renseignez vos journées de formation.</p></div><button class="btn small gold" type="button" id="a3pAddDay">+ Ajouter une date</button></div>
       <div class="a3p-days-toolbar">

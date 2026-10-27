@@ -6,6 +6,7 @@
   <title>Modifier session</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-location.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
@@ -19,6 +20,7 @@
 </header>
 
 <main class="container">
+  {% include 'session_location.html' %}
   <form method="post" class="form-grid">
     <label>
       Date de début

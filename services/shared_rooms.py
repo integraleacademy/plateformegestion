@@ -57,12 +57,12 @@ def physical_name(value):
     return value if re.match(r'^salle\s+\S', value, re.I) and len(value) <= 100 else ''
 
 
-def projection(row, legacy=False):
+def projection(row):
     row = dict(row)
-    owner = ('formation:' if legacy else 'session:') + str(row['id'])
+    owner = 'session:' + str(row['id'])
     title = str(row.get('nom') or row.get('formation') or 'Session') + ' · ' + str(row.get('date_debut') or '')
     config = row.get('sharedRoom') or {}
-    room_id = row.get('shared_room_id') if legacy else config.get('room_id')
+    room_id = config.get('room_id')
     slots = []
     planning = row.get('a3pPlanningData') if row.get('formation') == 'A3P' else row.get('apsPlanningData')
     if isinstance(planning, list) and planning:
@@ -85,8 +85,8 @@ def projection(row, legacy=False):
                 raise RoomError('Complétez les dates de la session avant de lui affecter une salle.')
             if not 0 <= (last-first).days <= 1100:
                 raise RoomError('La période de réservation est invalide.')
-            start, end = ('00:00', '24:00') if legacy or not config else (clock(config.get('start', '08:00')), clock(config.get('end', '18:00'), True))
-            weekdays = list(range(7)) if legacy or not config else config.get('weekdays', [0, 1, 2, 3, 4])
+            start, end = ('00:00', '24:00') if not config else (clock(config.get('start', '08:00')), clock(config.get('end', '18:00'), True))
+            weekdays = list(range(7)) if not config else config.get('weekdays', [0, 1, 2, 3, 4])
             for offset in range((last-first).days+1):
                 day = first + timedelta(days=offset)
                 if day.weekday() in weekdays:
@@ -155,33 +155,7 @@ def session_guard(current, candidate):
         yield
 
 
-def save_formation(conn, data, formation_id=None, delete=False, expected=None):
-    """Caller owns the SQLite connection; commit before releasing room holds."""
-    conn.execute('BEGIN IMMEDIATE')
-    current = conn.execute('SELECT * FROM formations WHERE id=?', (formation_id,)).fetchone() if formation_id else None
-    if formation_id and not current:
-        raise RoomError('Formation introuvable.')
-    if expected is not None and dict(current or {}) != expected:
-        raise RoomError('La formation a changé. Rechargez la page.')
-    if formation_id is None:
-        formation_id = conn.execute('SELECT COALESCE(MAX(id),0)+1 FROM formations').fetchone()[0]
-    new = dict(current or {}); new.update(data); new['id'] = formation_id
-    old_project = projection(current, True) if current else empty_projection(projection(new, True))
-    new_project = empty_projection(old_project) if delete else projection(new, True)
-    with reserve_changes([(old_project, new_project)]):
-        if delete:
-            conn.execute('DELETE FROM formations WHERE id=?', (formation_id,))
-        elif current:
-            fields = [k for k in data if k in ('nom','type','date_debut','date_fin','salle','nombre_stagiaires','commentaire','shared_room_id')]
-            conn.execute('UPDATE formations SET ' + ','.join(k+'=?' for k in fields) + ' WHERE id=?', [data[k] for k in fields]+[formation_id])
-        else:
-            fields = ['id','nom','type','date_debut','date_fin','salle','nombre_stagiaires','commentaire','created_at']
-            conn.execute('INSERT INTO formations('+','.join(fields)+') VALUES('+','.join('?' for _ in fields)+')', [new.get(k) for k in fields])
-        conn.commit()
-    return formation_id
-
-
-def register(app, load_sessions, save_sessions, sessions_file, init_legacy, legacy_db):
+def register(app, load_sessions, save_sessions, sessions_file):
     def authorized():
         token = os.environ.get('SHARED_ROOMS_TOKEN', '')
         if not token or not hmac.compare_digest(request.headers.get('Authorization', ''), 'Bearer '+token):
@@ -197,43 +171,38 @@ def register(app, load_sessions, save_sessions, sessions_file, init_legacy, lega
 
     @app.post('/api/shared-rooms/bootstrap')
     def bootstrap_rooms():
-        authorized(); init_legacy()
+        authorized()
         # Prevent any source writer from slipping between snapshot and ledger seed.
-        with _locked(sessions_file, exclusive=True), legacy_db() as conn:
-            conn.execute('BEGIN IMMEDIATE')
+        with _locked(sessions_file, exclusive=True):
             data = _read(sessions_file, False)
             owners = [projection(s) for s in data['sessions']]
-            owners += [projection(dict(row), True) for row in conn.execute('SELECT * FROM formations')]
-            room_names=[row['nom'] for row in conn.execute('SELECT nom FROM salles WHERE active=1')]
-            result = call('bootstrap', dict(owners=owners,room_names=room_names))
+            result = call('bootstrap', dict(owners=owners))
         return jsonify(ok=True, count=result['count'])
 
     @app.route('/api/shared-rooms/sessions', methods=['GET', 'POST'])
     def shared_room_sessions():
-        authorized(); init_legacy()
+        authorized()
         if request.method == 'GET':
             rows = []
-            with _locked(sessions_file, exclusive=True), legacy_db() as conn:
-                conn.execute('BEGIN IMMEDIATE')
+            with _locked(sessions_file, exclusive=True):
                 data = _read(sessions_file, False)
-                sources = [(s, False) for s in data['sessions']]
-                sources += [(dict(s), True) for s in conn.execute('SELECT * FROM formations')]
-                call('reconcile', dict(owners=[projection(s, legacy) for s, legacy in sources],complete=True))
-            for source, legacy in sources:
-                p = projection(source, legacy)
+                sources = data['sessions']
+                registry = call('reconcile', dict(owners=[projection(s) for s in sources],complete=True))
+            for source in sources:
+                p = projection(source)
                 rows.append(dict(owner=p['owner'], title=p['title'], revision=p['revision'],
                                  start=source.get('date_debut'), end=source.get('date_fin'),
                                  count=len(p['slots']), assigned=bool(p['slots']),
                                  generated=bool(source.get('a3pPlanningData') or source.get('apsPlanningData')),
-                                 config=source.get('sharedRoom') or {}, legacy=legacy))
-            return jsonify(ok=True, sessions=rows)
+                                 config=source.get('sharedRoom') or {}))
+            return jsonify(ok=True, sessions=rows, source='sessions', registry=registry)
         data = load_sessions()
         payload = request.get_json(silent=True) or {}
         owner = payload.get('owner', '')
         rid = payload.get('room_id')
         if not isinstance(rid, str) or not rid or len(rid) > 100:
             raise RoomError('Choisissez une salle dans le planning commun.')
-        if owner.startswith('session:'):
+        if isinstance(owner,str) and owner.startswith('session:'):
             row = next((s for s in data['sessions'] if str(s['id']) == owner[8:]), None)
             if not row or projection(row)['revision'] != payload.get('revision'):
                 raise RoomError('La session a changé. Rechargez la liste.')
@@ -243,14 +212,6 @@ def register(app, load_sessions, save_sessions, sessions_file, init_legacy, lega
                 raise RoomError('Choisissez les jours et les horaires de présence.')
             row['sharedRoom'] = dict(room_id=rid, start=start, end=end, weekdays=weekdays)
             save_sessions(data)
-        elif owner.startswith('formation:'):
-            with legacy_db() as conn:
-                row = conn.execute('SELECT * FROM formations WHERE id=?', (owner[10:],)).fetchone()
-                if not row or projection(row, True)['revision'] != payload.get('revision'):
-                    raise RoomError('La formation a changé. Rechargez la liste.')
-                # Recheck under the write lock in save_formation via expected version.
-                updated = dict(row); updated['shared_room_id'] = rid
-                save_formation(conn, updated, row['id'], expected=dict(row))
         else:
-            raise RoomError('Session introuvable.')
+            raise RoomError('Choisissez une session de la page Sessions.',status=400)
         return jsonify(ok=True, message='La salle est réservée pour cette session.')

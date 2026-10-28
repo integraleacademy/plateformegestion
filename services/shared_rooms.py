@@ -128,22 +128,38 @@ def session_metadata(row):
                 exam_dates=sorted(exams),embedded_exam_dates=embedded,assignment=config.get('assignment',''))
 
 
-def projection(row):
-    """v2: actual presence plus exams; legacy hash permits a guarded upgrade."""
+def _projection(row, include_unassigned=False):
+    """Preserve v2 exactly; v3 also publishes real slots awaiting a room."""
     old = projection_v1(row)
     metadata = session_metadata(row)
     config = row.get('sharedRoom') or {}
     planning = row.get('a3pPlanningData') if row.get('formation')=='A3P' else row.get('apsPlanningData')
     slots = [dict(s) for s in old['slots']]
+    needs_schedule=False
     if planning:
         slots=[]
+        if include_unassigned and not any(day.get('slots') for day in planning):needs_schedule=True
         for day in planning:
             for slot in day.get('slots') or []:
                 modality=str(slot.get('modality') or day.get('modality') or '').lower().replace('-','').replace('_','')
                 if modality in ('elearning','distanciel','remote','distance'):continue
                 name=physical_name(slot.get('room') or day.get('room') or row.get('salle') or row.get('room'))
                 room={'room_id':config['room_id']} if config.get('room_id') else {'room_name':name} if name else {}
-                if room:slots.append(dict(date=day['date'],start=clock(slot.get('start')),end=clock(slot.get('end'),True),**room))
+                if not room and include_unassigned:room={'room_id':None}
+                if room:
+                    try:
+                        start,end=clock(slot.get('start')),clock(slot.get('end'),True)
+                        if include_unassigned and start>=end:raise RoomError('Complétez les horaires du présentiel.')
+                        slots.append(dict(date=day['date'],start=start,end=end,**room))
+                    except RoomError:
+                        if not include_unassigned or room.get('room_id') or room.get('room_name'):raise
+                        needs_schedule=True
+    if include_unassigned and not planning and not slots:
+        # Only explicit presence dates, weekdays and hours may become teaching
+        # slots. A formation start alone must never invent a presence schedule.
+        if metadata['start'] and metadata['end'] and config.get('start') and config.get('end') and config.get('weekdays'):
+            slots=[dict(date=metadata['start'],start=clock(config['start']),end=clock(config['end'],True),room_id=None)]
+        else:needs_schedule=True
     # Without a detailed timetable, an explicit presence range replaces the
     # old whole-formation range. Unknown existing ranges remain conservative.
     if not planning and metadata['start'] and metadata['end'] and slots:
@@ -169,7 +185,8 @@ def projection(row):
             previous=sorted(slots,key=lambda s:s['date'])[-1]
             room={key:previous[key] for key in ('room_id','room_name') if key in previous}
         if not room:
-            continue
+            if not include_unassigned:continue
+            room={'room_id':None}
         start=row.get('exam_start_time') or row.get('ssiapExamStartTime')
         end=row.get('exam_end_time') or row.get('ssiapExamEndTime')
         if not start or not end:
@@ -178,13 +195,24 @@ def projection(row):
         # irrespective of the selected teaching weekdays.
         slots.append(dict(date=exam,start=clock(start),end=clock(end,True),**room))
     metadata['exam_full_day']=assumed
+    if include_unassigned:metadata['needs_schedule']=needs_schedule
     canonical=dict(owner=old['owner'],title=metadata['name'],slots=sorted(slots,key=lambda s:json.dumps(s,sort_keys=True)),metadata=metadata)
     revision=hashlib.sha256(json.dumps(canonical,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
     return dict(canonical,revision=revision,legacy_revision=old['revision'],schema=2)
 
 
+def projection_v2(row):
+    return _projection(row)
+
+
+def projection(row):
+    """Include real unassigned presence/exams, with exact prior-version hashes."""
+    old=projection_v2(row)
+    return dict(_projection(row,True),schema=3,compat_revision=old['revision'])
+
+
 def empty_projection(item):
-    empty = dict(owner=item['owner'], title=item['title'], slots=[],metadata=item.get('metadata',{}))
+    empty = dict(owner=item['owner'], title=item['title'], slots=[],metadata=dict(item.get('metadata',{}),deleted=True))
     return dict(empty, revision=hashlib.sha256(json.dumps(empty, sort_keys=True, ensure_ascii=False).encode()).hexdigest())
 
 
@@ -276,10 +304,15 @@ def register(app, load_sessions, save_sessions, sessions_file):
                 registry = call('reconcile', dict(owners=[projection(s) for s in sources],complete=True))
             for source in sources:
                 p = projection(source)
+                assignment=registry.get('assignments',{}).get(p['owner'],{})
+                total=assignment.get('total',len(p['slots']))
+                unassigned=assignment.get('unassigned',sum(not (s.get('room_id') or s.get('room_name')) for s in p['slots']))
+                assigned=total-unassigned
                 rows.append(dict(owner=p['owner'], title=p['title'], revision=p['revision'],
                                  name=source.get('display_name') or source.get('name') or source.get('nom') or source.get('formation') or 'Session',
-                                 **{key:p['metadata'][key] for key in ('start','end','formation_start','formation','exam_dates','exam_full_day')},
-                                 count=len(p['slots']), assigned=bool(p['slots']),
+                                 **{key:p['metadata'][key] for key in ('start','end','formation_start','formation','exam_dates','exam_full_day','needs_schedule')},
+                                 count=total, assigned=bool(total and not unassigned and not p['metadata']['needs_schedule']),
+                                 assigned_count=assigned, unassigned_count=unassigned,
                                  generated=bool(source.get('a3pPlanningData') or source.get('apsPlanningData')),
                                  config=source.get('sharedRoom') or {}))
             return jsonify(ok=True, sessions=rows, source='sessions', registry=registry)

@@ -200,7 +200,8 @@ def test_actual_presence_excludes_initial_remote_days_and_declared_exam_is_reser
     assert p['title']=='APS JANVIER 2027'
     assert {r['date'] for r in p['slots']}=={'2027-01-04','2027-01-09'}
     assert next(r for r in p['slots'] if r['date']=='2027-01-09')==dict(room_id='r1',date='2027-01-09',start='00:00',end='24:00')
-    assert p['schema']==2 and p['legacy_revision']==rooms.projection_v1(s)['revision']
+    assert p['schema']==3 and p['legacy_revision']==rooms.projection_v1(s)['revision']
+    assert p['compat_revision']==rooms.projection_v2(s)['revision']
 
 
 def test_exam_known_times_and_embedded_exam_are_not_full_day_or_duplicated():

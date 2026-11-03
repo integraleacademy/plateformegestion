@@ -1,0 +1,15 @@
+{% macro icon(name) -%}
+  <svg class="session-glyph" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro milestones(s) -%}
+  {% set remote = session_modality_date_range(s, 'elearning') %}
+  {% set onsite = session_modality_date_range(s, 'presentiel') %}
+  <div class="milestones" aria-label="Calendrier de la session">
+    {% if remote or onsite %}
+      {% if remote %}<div class="milestone remote">{{ icon('screen') }}<span><small>E-learning</small><b>{{ session_calendar_span(remote.start, remote.end) }}</b></span></div>{% endif %}
+      {% if onsite %}<div class="milestone onsite">{{ icon('pin') }}<span><small>Présentiel</small><b>{{ session_calendar_span(onsite.start, onsite.end) }}</b></span></div>{% endif %}
+    {% endif %}
+    <div class="milestone exam">{{ icon('award') }}<span><small>Examen</small><b>{{ session_calendar_span(s.date_exam) if s.date_exam else 'À définir' }}</b></span></div>
+  </div>
+{%- endmacro %}

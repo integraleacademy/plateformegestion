@@ -438,9 +438,7 @@
     }
 
     /* FIX iPad/Safari : texte invisible (blanc sur fond blanc) */
-body, main, header, footer, div, p, h1, h2, h3, label, span, a, li, strong, em, button {
-  color: #111 !important;
-}
+body { color-scheme:light; color:#192a38; }
 
 
 /* Les cartes et sections déjà en fond blanc : on force le texte */
@@ -630,57 +628,6 @@ a.back:hover{ background:#d9a848 !important; }
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; background:var(--session-bg) !important; color:var(--session-ink) !important; }
     .detail-shell { min-height:100vh; }
-    .detail-sidebar {
-      position:fixed; inset:0 auto 0 0; z-index:1000; width:248px;
-      display:flex; flex-direction:column; padding:24px 16px;
-      background:var(--session-sidebar); color:#fff !important;
-    }
-    .detail-sidebar * { color:inherit !important; }
-    .detail-sidebar-brand {
-      display:flex; align-items:center; gap:12px; padding:0 8px 24px;
-      border-bottom:1px solid rgba(255,255,255,.1);
-    }
-    .detail-sidebar-brand img { width:48px; height:48px; object-fit:contain; border-radius:12px; background:#fff; padding:5px; }
-    .detail-sidebar-brand strong { display:block; font-size:14px; line-height:1.2; }
-    .detail-sidebar-brand span { display:block; margin-top:4px; color:#aeb3bf !important; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
-    .detail-nav-label { margin:26px 12px 10px; color:#777e8d !important; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-    .detail-sidebar-nav { display:grid; gap:6px; }
-    .detail-nav-link {
-      width:100%; display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px;
-      border:0; border-radius:11px; background:transparent; color:#c7cbd4 !important; font-size:14px; font-weight:600; text-align:left; cursor:pointer;
-      transition:.2s ease;
-    }
-    .detail-nav-link:hover { background:rgba(255,255,255,.07); color:#fff !important; transform:translateX(2px); }
-    .detail-nav-link.active { background:var(--session-gold); color:#191a1e !important; box-shadow:0 8px 20px rgba(244,196,90,.18); }
-    .detail-nav-icon { width:22px; text-align:center; font-size:17px; }
-    .detail-sidebar-shortcuts { margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,.1); }
-    .detail-nav-link.primary { background:var(--session-gold); color:#191a1e !important; box-shadow:0 8px 20px rgba(244,196,90,.16); }
-    .detail-nav-link.primary:hover { background:#edb942; color:#191a1e !important; }
-    .detail-sidebar-foot { margin-top:auto; padding:16px 12px 0; border-top:1px solid rgba(255,255,255,.1); color:#858b98 !important; font-size:11px; line-height:1.5; }
-    .detail-page { min-height:100vh; margin-left:248px; }
-    .detail-topbar {
-      position:sticky; top:0; z-index:900; display:flex; align-items:center; justify-content:space-between;
-      min-height:76px; padding:14px 32px; border-bottom:1px solid var(--session-line);
-      background:rgba(255,255,255,.94); backdrop-filter:blur(12px);
-    }
-    .detail-breadcrumb { margin:0 0 4px; color:#8a91a0 !important; font-size:12px; font-weight:700; }
-    .detail-topbar h1 { margin:0; color:var(--session-ink) !important; font-size:21px; letter-spacing:-.02em; }
-    .detail-topbar .clock { margin:4px 0 0; color:var(--session-muted) !important; font-size:12px; }
-    .detail-back {
-      display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid var(--session-line);
-      border-radius:10px; background:#f7f8fa; color:#505867 !important; font-size:12px; font-weight:800;
-    }
-    .detail-main.container { width:100%; max-width:1680px; margin:0 auto; padding:32px 24px; }
-    .detail-main section[id],.detail-main div[id="steps-section"] { scroll-margin-top:96px; }
-    .detail-hero {
-      display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px;
-      padding:24px; border:1px solid var(--session-line); border-radius:18px; background:#fff; box-shadow:var(--session-shadow);
-    }
-    .detail-eyebrow { margin:0 0 8px; color:var(--session-gold-dark) !important; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-    .detail-hero h2 { margin:0; color:var(--session-ink) !important; font-size:clamp(25px,3vw,34px); letter-spacing:-.04em; }
-    .detail-hero p { margin:8px 0 0; color:var(--session-muted) !important; font-size:13px; }
-    .actions-bar { margin:0; justify-content:flex-end; }
-    .actions-bar form { margin:0; }
     .btn {
       min-width:0; border-radius:10px !important; padding:10px 14px !important;
       font-size:12px; font-weight:800 !important; box-shadow:none;
@@ -707,8 +654,6 @@ a.back:hover{ background:#d9a848 !important; }
       padding:14px; border:1px solid var(--session-line); border-radius:14px;
       background:#fff; box-shadow:0 5px 18px rgba(29,36,51,.05);
     }
-    .step-btn { min-height:54px; border-color:#e5e7ec; background:#fafbfc; text-align:left; }
-    .step-btn.done { background:#effaf4; border-color:#cce8da; }
     .section-title { color:var(--session-ink) !important; }
     .section-line { background:var(--session-gold); }
     .sommaire-ssi { top:92px; }
@@ -717,24 +662,7 @@ a.back:hover{ background:#d9a848 !important; }
     .modal-content { border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.3); }
     .detail-footer { padding:24px 32px 32px; color:#969caa !important; font-size:11px; text-align:center; }
 
-    @media (max-width:900px) {
-      .detail-sidebar { position:static; width:100%; height:auto; padding:10px 14px; }
-      .detail-sidebar-brand,.detail-nav-label,.detail-sidebar-foot { display:none; }
-      .detail-sidebar-nav { display:flex; overflow-x:auto; gap:7px; scrollbar-width:none; }
-      .detail-nav-link { flex:0 0 auto; min-height:40px; padding:8px 11px; font-size:12px; }
-      .detail-page { margin-left:0; }
-      .detail-topbar { min-height:68px; padding:10px 16px; }
-      .detail-topbar h1 { font-size:17px; }
-      .detail-main.container { padding:20px 16px 32px; }
-      .detail-hero { align-items:stretch; flex-direction:column; padding:18px; }
-      .actions-bar { justify-content:flex-start; }
-      .filter-bar,.sommaire-ssi { top:76px; }
-    }
     @media (max-width:600px) {
-      .detail-topbar .clock { display:none; }
-      .detail-back { padding:8px 10px; }
-      .actions-bar { display:grid; grid-template-columns:1fr; width:100%; }
-      .actions-bar form,.actions-bar .btn { width:100%; }
       .jury-item,.jury-actions { align-items:stretch; flex-direction:column; }
       .jury-actions form,.jury-actions .btn { width:100%; }
       .planning-actions { width:100%; }
@@ -746,53 +674,25 @@ a.back:hover{ background:#d9a848 !important; }
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-location.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-sheet.css') }}">
+  <script defer src="{{ url_for('static', filename='js/session-sheet.js') }}"></script>
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
 
-<body>
+<body data-code="{{ s.formation }}">
+{% from 'session_visuals.html' import icon %}
+{% set with_steps = s.formation != 'AFC_APS_SSIAP' %}
+{% set with_attendance = s.formation in ['APS','A3P','DESP','DIRIGEANT','AFC_APS_SSIAP'] or is_ssiap1_session(s) %}
+{% set with_contracts = s.formation in ['APS','A3P','DESP','DIRIGEANT','SSIAP','SSIAP1','AFC_APS_SSIAP'] %}
+{% set contract_section = 'a3p-contracts-section' if s.formation == 'A3P' else 'aps-contracts-section' %}
+{% set aps_pdf_blocked = s.formation == "APS" and planning_pdf and aps_planning_compliance and not aps_planning_compliance.ok %}
 <div class="detail-shell">
-  <aside class="detail-sidebar" aria-label="Navigation principale">
-    <a class="detail-sidebar-brand" href="{{ url_for('sessions_home') }}">
-      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy">
-      <div><strong>Fiche session</strong><span>{{ s.formation|formation_label }}</span></div>
-    </a>
-    <p class="detail-nav-label">Dans cette session</p>
-    <nav class="detail-sidebar-nav">
-      <a class="detail-nav-link active" href="#session-overview" aria-current="page"><span class="detail-nav-icon">▦</span>Vue d’ensemble</a>
-      <a class="detail-nav-link" href="#location-section"><span class="detail-nav-icon" aria-hidden="true">⌖</span>Lieu de formation</a>
-      <a class="detail-nav-link" href="#jury-section"><span class="detail-nav-icon">♙</span>Jury d’examen</a>
-      <a class="detail-nav-link" href="#planning-section"><span class="detail-nav-icon">▤</span>Planning PDF</a>
-      {% if s.formation == "AFC_APS_SSIAP" %}<a class="detail-nav-link" href="#afc-dsf-section"><span class="detail-nav-icon">€</span>Aide à la facturation</a>{% endif %}
-      {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"] or is_ssiap1_session(s) %}
-        <a class="detail-nav-link" href="{{ '#a3p-contracts-section' if s.formation == 'A3P' else '#aps-contracts-section' }}"><span class="detail-nav-icon">📝</span>Contrat formateur</a>
-        <a class="detail-nav-link" href="#aps-attendance-section"><span class="detail-nav-icon">📄</span>Feuilles de présence</a>
-      {% endif %}
-      <a class="detail-nav-link" href="#steps-section"><span class="detail-nav-icon">✓</span>Suivi des étapes</a>
-      <a class="detail-nav-link" href="#steps-section" data-step-filter="done"><span class="detail-nav-icon">✅</span>Etapes validées</a>
-      <a class="detail-nav-link" href="#steps-section" data-step-filter="notdone"><span class="detail-nav-icon">⏳</span>Etapes non validées</a>
-    </nav>
-    <div class="detail-sidebar-shortcuts">
-      <p class="detail-nav-label" style="margin-top:0;">Actions rapides</p>
-      <a class="detail-nav-link primary" href="{{ url_for('edit_session', sid=s.id) }}"><span class="detail-nav-icon">✎</span>Modifier la session</a>
-      <a class="detail-nav-link" href="{{ url_for('create_social_post_from_session', sid=s.id) }}" target="_blank" rel="noopener"><span class="detail-nav-icon">🎨</span>Créer un post</a>
-      <button class="detail-nav-link" type="button" id="sidebarOpenJury"><span class="detail-nav-icon">＋</span>Notifier un jury</button>
-    </div>
-    <div class="detail-sidebar-foot"><a href="{{ url_for('sessions_home') }}">← Retour à toutes les sessions</a></div>
-  </aside>
-
   <div class="detail-page">
-    <header class="detail-topbar">
-      <div>
-        <p class="detail-breadcrumb">Gestion / Sessions / Fiche session</p>
-        <h1>{{ s.formation|formation_label }} — Fiche session</h1>
-        <div class="clock small">
-          Du {{ s.date_debut|datefr if s.date_debut else '—' }}
-          au {{ s.date_fin|datefr if s.date_fin else '—' }} •
-          Examen : {{ s.date_exam|datefr if s.date_exam else '—' }}
-        </div>
-      </div>
-      <a href="{{ url_for('sessions_home') }}" class="detail-back">← Retour aux sessions</a>
-    </header>
+    <header class="sheet-masthead"><div class="sheet-masthead-inner">
+      <a class="sheet-brand" href="{{ url_for('index') }}"><img src="{{ url_for('static',filename='img/logo-integrale.png') }}" alt=""> Intégrale Academy</a>
+      <a class="sheet-back" href="{{ url_for('sessions_home') }}">← Toutes les sessions</a>
+    </div></header>
 
 <main class="container detail-main">
 
@@ -800,6 +700,7 @@ a.back:hover{ background:#d9a848 !important; }
 <!--                            ACTIONS (boutons)                            -->
 <!-- ======================================================================= -->
 
+{% include 'session_sheet_header.html' %}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="flash-messages">
@@ -810,33 +711,17 @@ a.back:hover{ background:#d9a848 !important; }
   {% endif %}
 {% endwith %}
 
-<section class="detail-hero" id="session-overview">
-  <div>
-    <p class="detail-eyebrow">Pilotage de la formation</p>
-    <h2>{{ s.display_name or (s.formation|formation_label) }}</h2>
-    <p>Gérez les jurys, le planning et l’avancement administratif de cette session.</p>
-  </div>
-  <div class="actions-bar">
-    <form method="get" action="{{ url_for('edit_session', sid=s.id) }}">
-      <button type="submit" class="btn edit">✏️ Modifier la session</button>
-    </form>
-    <button type="button" class="btn gold" id="openJuryModal">📣 Notifier jury examen</button>
-    <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer ?');">
-      <button type="submit" class="btn danger">🗑️ Supprimer la session</button>
-    </form>
-  </div>
-</section>
+{% include 'session_overview.html' %}
 
-{% include 'session_location.html' %}
-
-<section class="jury-panel" id="jury-section">
+<section class="jury-panel" id="jury-section" data-sheet-panel="jury-section">
   <div class="jury-header">
-    <h2 style="margin:0;">Jury session</h2>
+    <h2 style="margin:0;">Jury d’examen</h2>
     {% if s.jury_notification_status == "notified" %}
       <span class="jury-label notified">Jury notifié</span>
     {% else %}
       <span class="jury-label pending">Jury à notifier</span>
     {% endif %}
+    <button class="btn gold" id="openJuryModal" type="button">Notifier le jury</button>
   </div>
 
   {% if s.jurys %}
@@ -857,7 +742,7 @@ a.back:hover{ background:#d9a848 !important; }
             {% else %}
               <span class="jury-status pending">en attente de réponse</span>
             {% endif %}
-            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}" onsubmit="return confirm('Supprimer ce jury ?');">
+            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}#jury-section" onsubmit="return confirm('Supprimer ce jury ?');">
               <button type="submit" class="btn small danger">Supprimer</button>
             </form>
           </div>
@@ -876,7 +761,7 @@ a.back:hover{ background:#d9a848 !important; }
       <button class="modal-close" type="button" id="closeJuryModal">✕</button>
     </div>
 
-    <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}">
+    <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}#jury-section">
       <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
       {% if global_jurys %}
         <div class="jury-checklist">
@@ -908,7 +793,7 @@ a.back:hover{ background:#d9a848 !important; }
     <hr style="margin:20px 0;">
 
     <button type="button" class="btn" id="toggleAddJury">➕ Ajouter un nouveau jury</button>
-    <form method="post" action="{{ url_for('add_jury', sid=s.id) }}" id="addJuryForm" style="display:none;">
+    <form method="post" action="{{ url_for('add_jury', sid=s.id) }}#jury-section" id="addJuryForm" style="display:none;">
       <div class="jury-form-grid">
         <input type="text" name="nom" placeholder="Nom" required>
         <input type="text" name="prenom" placeholder="Prénom" required>
@@ -923,10 +808,9 @@ a.back:hover{ background:#d9a848 !important; }
 </div>
 
 <!-- ===================== PLANNING PDF ===================== -->
-{% set aps_pdf_blocked = s.formation == "APS" and planning_pdf and aps_planning_compliance and not aps_planning_compliance.ok %}
-<section class="planning-box" id="planning-section">
+<section class="planning-box" id="planning-section" data-sheet-panel="planning-section">
   <div class="planning-header">
-    <h2 style="margin:0;">📅 Planning de formation (PDF)</h2>
+    <h2 style="margin:0;">Planning de formation</h2>
 
     <div class="planning-actions"><a class="btn small" href="https://inscriptionsbts.onrender.com/admin/salles?session_id={{ s.id|urlencode }}" target="_blank" rel="noopener">Salles · planning commun</a><a class="btn small gold" href="{{ url_for('create_social_post_from_session', sid=s.id) }}">Créer un visuel</a>
 
@@ -997,7 +881,7 @@ a.back:hover{ background:#d9a848 !important; }
 
   {% if s.formation != "A3P" %}
     <form method="post"
-          action="{{ url_for('upload_planning_pdf', sid=s.id) }}"
+          action="{{ url_for('upload_planning_pdf', sid=s.id) }}#planning-section"
           enctype="multipart/form-data"
           class="planning-form">
 
@@ -1008,7 +892,7 @@ a.back:hover{ background:#d9a848 !important; }
 </section>
 
 {% if s.formation == "AFC_APS_SSIAP" %}
-<section class="afc-dsf-dashboard" id="afc-dsf-section">
+<section class="afc-dsf-dashboard" id="afc-dsf-section" data-sheet-panel="afc-dsf-section">
   {% set module_theme = {'FT':'ft','RAN':'ran','SP':'sp','PAF':'paf'} %}
   {% set module_icon = {'FT':'graduation-cap','RAN':'trending-up','SP':'users','PAF':'clock'} %}
 
@@ -1189,10 +1073,10 @@ a.back:hover{ background:#d9a848 !important; }
 </script>
 {% endif %}
 {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT", "AFC_APS_SSIAP"] or is_ssiap1_session(s) %}
-<section class="planning-box" id="aps-attendance-section">
+<section class="planning-box" id="aps-attendance-section" data-sheet-panel="aps-attendance-section">
   <div class="planning-header">
     <div>
-      <h2 style="margin:0;">📄 Feuilles de présence</h2>
+      <h2 style="margin:0;">Feuilles de présence</h2>
       <p class="muted" style="margin:6px 0 0;">Importez les stagiaires puis générez les feuilles d’émargement à partir du planning {{ s.formation }}.</p>
     </div>
     <div class="planning-actions">
@@ -1241,7 +1125,7 @@ a.back:hover{ background:#d9a848 !important; }
 
   {% if s.formation == "AFC_APS_SSIAP" %}
   {% set ft_settings = s.france_travail or {} %}
-  <section class="planning-box" id="afc-france-travail-section" data-testid="afc-france-travail-card" style="margin-top:18px;">
+  <section class="planning-box" id="afc-france-travail-section" data-sheet-panel="aps-attendance-section" data-testid="afc-france-travail-card" style="margin-top:18px;">
     <div class="planning-header">
       <div>
         <h2 style="margin:0;">Feuilles de présence France Travail</h2>
@@ -1443,10 +1327,10 @@ a.back:hover{ background:#d9a848 !important; }
 {% if s.formation in ["APS", "A3P", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
 {% set current_contract_planning = trainer_contract_planning_data(s) %}
 {% set current_trainer_contracts = session_trainer_contracts(s) %}
-<section class="planning-box" id="{{ 'a3p-contracts-section' if s.formation == 'A3P' else 'aps-contracts-section' }}">
+<section class="planning-box" id="{{ contract_section }}" data-sheet-panel="{{ contract_section }}">
   <div class="planning-header">
     <div>
-      <h2 style="margin:0;">📝 Contrats formateurs</h2>
+      <h2 style="margin:0;">Contrats formateurs</h2>
       <p class="muted" style="margin:6px 0 0;">Générez, consultez et envoyez les contrats d’intervention.{% if s.formation != 'A3P' %} Les heures e-learning sont exclues sauf affectation explicite.{% endif %}</p>
     </div>
     {% if trainer_contract_planning_ready(s) %}
@@ -1594,11 +1478,12 @@ a.back:hover{ background:#d9a848 !important; }
 <!-- ========================================================= -->
 
 
-<div id="steps-section">
+{% if with_steps %}
+<div id="steps-section" data-sheet-panel="steps-section">
+<h2 class="sheet-section-heading">Suivi des étapes</h2>
 {% if not s.steps %}
 <p class="muted">Aucune étape définie pour {{ s.formation }}.</p>
 {% else %}
-{% if s.formation != "AFC_APS_SSIAP" %}
 
 <!-- ======================================================================= -->
 <!--                   TRI PAR DEADLINE POUR TOUS LES MODES                  -->
@@ -1865,8 +1750,8 @@ a.back:hover{ background:#d9a848 !important; }
 
 {% endif %}
 {% endif %}
-{% endif %}
 </div>
+{% endif %}
 
 </main>
 
@@ -1878,7 +1763,6 @@ a.back:hover{ background:#d9a848 !important; }
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
-window.scrollTo(0,0);
 
 // Fermeture globale des modales — initialisée avant les scripts métier.
 (function initGlobalModalClose(){
@@ -1969,7 +1853,6 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
 // Jury modal
 const juryModal = document.getElementById("juryModal");
 const openJuryModal = document.getElementById("openJuryModal");
-const sidebarOpenJury = document.getElementById("sidebarOpenJury");
 const closeJuryModal = document.getElementById("closeJuryModal");
 const toggleAddJury = document.getElementById("toggleAddJury");
 const addJuryForm = document.getElementById("addJuryForm");
@@ -1978,11 +1861,6 @@ openJuryModal?.addEventListener("click", () => {
   juryModal?.classList.add("open");
   juryModal?.setAttribute("aria-hidden", "false");
 });
-sidebarOpenJury?.addEventListener("click", () => {
-  juryModal?.classList.add("open");
-  juryModal?.setAttribute("aria-hidden", "false");
-});
-
 closeJuryModal?.addEventListener("click", () => {
   juryModal?.classList.remove("open");
   juryModal?.setAttribute("aria-hidden", "true");

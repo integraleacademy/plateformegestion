@@ -6,16 +6,17 @@
   <title>{{ title }} · Intégrale Academy</title>
   <link rel="icon" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css') }}">
   <script defer src="{{ url_for('static', filename='js/sessions.js') }}"></script>
 </head>
 <body>
+{% from 'session_visuals.html' import milestones %}
 {% macro icon(name) -%}
   <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
 {% macro dashboard_url(code, state) -%}
   {{ url_for('sessions_home', formation=code or none, statut=state if state != 'toutes' else none, _anchor='selection-sessions') }}
 {%- endmacro %}
-{% set months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'] %}
 {% set states = {'a-venir':'À venir', 'en-cours':'En cours', 'terminees':'Terminée', 'incomplet':'Dates à compléter'} %}
 {% set metrics = {'toutes':('grid','Toutes les périodes'), 'a-venir':('calendar','Avant le début'), 'en-cours':('activity','En formation'), 'terminees':('check','Clôturées ou archivées')} %}
 <a class="skip-link" href="#catalogue">Aller à la liste des sessions</a>
@@ -102,32 +103,28 @@
       {% for item in sessions %}
         {% set s = item.session %}{% set code = s.formation %}{% set label = formations.get(code,code) %}
         <article class="session-card" data-code="{{ code }}" data-state="{{ item.state }}" data-session-id="{{ s.id }}">
-          <div class="card-kicker"><span class="program"><i></i>{{ label }}</span><span class="state">{{ states[item.state] if not s.archived else 'Archivée' }}</span></div>
-          <div class="card-heading">
-            <span class="date-stamp" aria-hidden="true"><b>{{ '%02d'|format(item.start.day) if item.start else '—' }}</b><small>{{ months[item.start.month-1] if item.start else 'Date' }}</small></span>
-            <div class="card-name">
-              <h3><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ s.display_name or label }}</a></h3>
-              {% if item.state == 'a-venir' %}<small>{{ 'Prochaine session · ' if s.id == next_id }}Dans {{ item.days_to_start }} jour{{ 's' if item.days_to_start > 1 }}</small>
-              {% elif item.days_to_start == 0 %}<small>Commence aujourd’hui</small>
-              {% elif s.dirigeant_location_label %}<small>{{ s.dirigeant_location_label }}</small>{% endif %}
+          <header class="card-cover">
+            <div class="card-kicker">
+              <span class="program">{{ icon('shield') }} {{ label }}</span>
+              <span class="state">{{ states[item.state] if not s.archived else 'Archivée' }}</span>
             </div>
-            {% if item.state != 'terminees' %}<button class="edit" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ s.display_name or label }}" title="Renommer la session">{{ icon('pencil') }}</button>{% endif %}
-          </div>
-          <dl class="dates">
-            <div><dt>Formation</dt><dd>{{ format_date_range(s.date_debut, s.date_fin) }}</dd></div>
-            {% for key,title in [('elearning','E-learning'),('presentiel','Présentiel')] %}
-              {% set span = session_modality_date_range(s,key) %}
-              {% if span %}<div><dt>{{ title }}</dt><dd>{{ format_date_range(span.start, span.end) }}</dd></div>{% endif %}
-            {% endfor %}
-            <div class="exam"><dt>Examen</dt><dd>{{ (s.date_exam|datefr) or 'À définir' }}</dd></div>
-          </dl>
+            <div class="card-heading">
+              <div class="card-name"><h3><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ s.display_name or label }}</a></h3></div>
+              {% if item.state != 'terminees' %}<button class="edit" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ s.display_name or label }}" title="Renommer la session">{{ icon('pencil') }}</button>{% endif %}
+            </div>
+            <div class="course-period" aria-label="Période de formation">{{ icon('calendar') }} <span>{{ session_calendar_span(s.date_debut, s.date_fin) }}</span>
+              {% if s.dirigeant_location_label %}<span class="course-site">{{ s.dirigeant_location_label }}</span>{% endif %}
+              {% if item.state == 'a-venir' %}<small title="Dans {{ item.days_to_start }} jours">{{ 'Prochaine · ' if s.id == next_id }}J−{{ item.days_to_start }}</small>{% elif item.days_to_start == 0 %}<small>Aujourd’hui</small>{% endif %}
+            </div>
+          </header>
+          {{ milestones(s) }}
           <div class="follow-up">
             {% set contracts = session_trainer_contract_summary(s) %}
-            {% if contracts %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ contracts.label }}</span>{% endif %}
+            {% if contracts %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
             {% if item.state != 'terminees' %}
-              {% if s.jury_notification_status != 'notified' %}<span class="tag">Jury à notifier</span>{% else %}
+              {% if s.jury_notification_status != 'notified' %}<span class="tag jury-tag">{{ icon('users') }}Jury à notifier</span>{% else %}
                 {% set jurys = s.jurys or [] %}{% set presents = jurys|selectattr('status','equalto','present')|list|length %}
-                {% if not presents %}<span class="tag">{{ jurys|selectattr('status','equalto','pending')|list|length }} en attente de réponse</span>{% endif %}
+                {% if not presents %}<span class="tag jury-tag">{{ icon('users') }}{{ jurys|selectattr('status','equalto','pending')|list|length }} en attente de réponse</span>{% endif %}
                 <span class="tag tag-signed">{{ presents }} présent{{ 's' if presents > 1 }}</span>
                 {% if presents < 2 %}{% set absents = jurys|selectattr('status','equalto','absent')|list|length %}<span class="tag">{{ absents }} absent{{ 's' if absents > 1 }}</span>{% endif %}
               {% endif %}

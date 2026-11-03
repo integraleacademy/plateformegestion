@@ -1,0 +1,18 @@
+{% from 'session_visuals.html' import icon %}
+<div class="sheet-banner">
+  <div class="sheet-caption"><span>{{ icon('shield') }} {{ 'DESP' if s.formation == 'DIRIGEANT' else 'AFC APS + SSIAP' if s.formation == 'AFC_APS_SSIAP' else s.formation }}</span><span>Fiche session</span></div>
+  <div class="sheet-title"><h1>{{ s.display_name or (s.formation|formation_label) }}</h1>
+    <a class="sheet-edit" href="{{ url_for('edit_session', sid=s.id) }}">{{ icon('pencil') }} Modifier la session</a></div>
+  <div class="sheet-period">{{ icon('calendar') }} {{ session_calendar_span(s.date_debut,s.date_fin) }}{% if s.archived %}<b>Archivée</b>{% endif %}</div>
+</div>
+<nav class="sheet-tabs" aria-label="Rubriques de la session">
+  {% set rubriques = [
+      ('session-overview','Synthèse','grid'), ('planning-section','Planning','calendar'),
+      ('steps-section','Étapes','tasks') if with_steps else none, ('jury-section','Jury','users'),
+      ('aps-attendance-section','Présences','check') if with_attendance else none,
+      (contract_section,'Contrats','contract') if with_contracts else none,
+      ('afc-dsf-section','Facturation','receipt') if s.formation == 'AFC_APS_SSIAP' else none] %}
+  {% for target,title,glyph in rubriques|select %}
+    <a href="#{{ target }}" data-sheet-link="{{ target }}">{{ icon(glyph) }}{{ title }}</a>
+  {% endfor %}
+</nav>

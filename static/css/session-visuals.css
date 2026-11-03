@@ -1,0 +1,43 @@
+/* Shared palette for the catalogue and each session record. */
+[data-code] { --course:#46586a; --course-end:#5b6c79; --course-tint:#eaf0f3 }
+[data-code="APS"] { --course:#184c80; --course-end:#286c9e; --course-tint:#eaf3fb }
+[data-code="A3P"] { --course:#14543e; --course-end:#287856; --course-tint:#e6f4ed }
+[data-code="SSIAP"], [data-code="SSIAP1"] { --course:#823c40; --course-end:#a44e48; --course-tint:#f9eded }
+[data-code="DIRIGEANT"], [data-code="DESP"] { --course:#834523; --course-end:#a75e2e; --course-tint:#fbefe4 }
+[data-code="AFC_APS_SSIAP"] { --course:#105d64; --course-end:#247b79; --course-tint:#e4f4f2 }
+[data-code="GENERAL"] { --course:#584273; --course-end:#795d96; --course-tint:#f1ebf7 }
+.session-glyph { width:19px; height:19px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round }
+.milestones { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin:14px 15px 0 }
+.milestone { display:flex; align-items:flex-start; gap:7px; padding:9px 10px; border-radius:9px; background:var(--phase-bg); color:var(--phase-ink); min-width:0 }
+.milestone .session-glyph { width:16px; height:16px; margin-top:1px }
+.milestone small,.milestone b { display:block }
+.milestone small { margin-bottom:3px; font-size:10px; line-height:1.2; font-weight:650; color:var(--phase-ink) }
+.milestone b { font-size:12px; line-height:1.35; font-weight:680; color:var(--phase-ink) }
+.remote { --phase-bg:#efeafa; --phase-ink:#694b94 }
+.onsite { --phase-bg:#e3f4ee; --phase-ink:#22664d }
+.exam { --phase-bg:#fff0ce; --phase-ink:#805319 }
+.milestone.exam { grid-column:1/-1; align-items:center }
+.milestone.exam span { display:flex; align-items:center; justify-content:space-between; flex:1; gap:6px }
+.milestone.exam small { margin:0; font-size:11px }
+.milestone:first-child:nth-last-child(2) { grid-column:1/-1 }
+.milestone:first-child:nth-last-child(2) span { display:flex; align-items:center; justify-content:space-between; flex:1; gap:6px }
+.milestone:first-child:nth-last-child(2) small { margin-bottom:0 }
+.card-cover { padding:15px 17px 13px; color:white; background-color:var(--course); background-image:repeating-linear-gradient(125deg,transparent 0 12px,#ffffff09 12px 14px,transparent 14px 24px),linear-gradient(112deg,var(--course) 15%,var(--course-end)); background-size:78px 100%,100% 100%; background-position:right,center; background-repeat:no-repeat }
+.card-cover .card-kicker,.card-cover .card-heading { padding:0 }
+.card-cover .card-heading { margin:11px 0 4px }
+.card-cover .program { color:white; gap:6px }
+.card-cover .program .icon { width:17px; height:17px }
+.card-cover .state { background:white; color:#33536c }
+.card-cover .card-name h3 { font-size:19px; line-height:1.22 }
+.card-cover .edit { background:#ffffff16; color:white }
+.card-cover .edit:hover { background:#ffffff38; color:white }
+.course-period { display:flex; align-items:center; flex-wrap:wrap; min-height:23px; gap:6px; color:#fff; font-size:12px; font-weight:520 }
+.course-period .icon { width:15px; height:15px }
+.course-period small { margin-left:auto; border:1px solid #ffffff6b; border-radius:20px; padding:1px 7px; color:white; font-size:10px; font-weight:680 }
+.session-card .follow-up { gap:5px; margin:11px 15px 13px }
+.follow-up .tag { display:inline-flex; align-items:center; gap:4px; line-height:1.35; padding:3px 6px; font-size:10px }
+.follow-up .tag .icon { width:12px; height:12px }
+.follow-up .tag-missing,.follow-up .tag-pending { background:#fff1dd; color:#854816 }
+.follow-up .jury-tag { background:#edf1fa; color:#435e8f }
+.session-card .card-footer { color:var(--course); background:color-mix(in srgb,var(--course-tint) 40%,white) }
+.session-card .card-footer:hover { background:var(--course-tint) }

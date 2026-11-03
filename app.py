@@ -533,6 +533,23 @@ def format_date_range(start, end=None):
 app.jinja_env.globals['session_modality_date_range'] = session_modality_date_range
 app.jinja_env.globals['format_date_range'] = format_date_range
 
+@app.template_global()
+def session_calendar_span(start, end=None):
+    """Compact French dates, keeping both years when a period crosses New Year."""
+    first, last = parse_date(start), parse_date(end)
+    if not first or (end and not last):
+        return format_date_range(start, end)
+    months = ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc.")
+    def label(day):
+        return f"{day.day} {months[day.month - 1]}"
+    if not last or last == first:
+        return f"{label(first)} {first.year}"
+    if first.year != last.year:
+        return f"{label(first)} {first.year} – {label(last)} {last.year}"
+    left = str(first.day) if first.month == last.month else label(first)
+    return f"{left} – {label(last)} {last.year}"
+
+
 # --- Helper utilisable dans Jinja ---
 def get_status_label(step_index, session):
     """Renvoie un dict {status, deadline} lisible dans Jinja"""

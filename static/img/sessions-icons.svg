@@ -11,4 +11,12 @@
   <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></symbol>
   <symbol id="pencil" viewBox="0 0 24 24"><path d="m14 6 4 4M5 15l11-11a2 2 0 0 1 3 0l1 1a2 2 0 0 1 0 3L9 19l-5 1z"/></symbol>
   <symbol id="filter" viewBox="0 0 24 24"><path d="M3 7h8m4 0h6M3 17h3m4 0h11"/><circle cx="13" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3 8 8 10 5-2 8-5 8-10V6z"/><path d="m8.5 12 2.2 2.2 4.7-4.7"/></symbol>
+  <symbol id="screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+  <symbol id="pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="award" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="m8 12-2 9 6-3 6 3-2-9"/></symbol>
+  <symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m0-15a3 3 0 0 1 0 6m2 3a5 5 0 0 1 4 5v1"/></symbol>
+  <symbol id="contract" viewBox="0 0 24 24"><path d="M6 3h9l4 4v13H6zM14 3v5h5M9 12h7m-7 4h4"/></symbol>
+  <symbol id="tasks" viewBox="0 0 24 24"><path d="m3 6 1.5 1.5L7 4m3 3h11M3 13l1.5 1.5L7 11m3 3h11m-11 6h11"/></symbol>
+  <symbol id="receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6m-6 4h6"/></symbol>
 </svg>

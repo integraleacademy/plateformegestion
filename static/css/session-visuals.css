@@ -52,3 +52,7 @@
   flex:none; font-size:1em; padding:0; border:0; background:none;
 }
 .follow-up .session-alert { font-size:12px }
+
+.jury-presence { display:inline-flex; align-items:center; gap:.4em; max-width:100%; width:fit-content; padding:.32em .68em; border:1px solid #efa9b1; border-radius:7px; font-size:clamp(12px,.85vw,15px); font-weight:740; line-height:1.35 }
+.jury-complete { background:#e1f6e9; border-color:#98d2ad; color:#196337 }
+.follow-up .jury-presence { font-size:12px }

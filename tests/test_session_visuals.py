@@ -53,3 +53,29 @@ def test_edit_inputs_use_saved_dates_in_both_formats():
     assert app.session_input_date('03/11/2026') == '2026-11-03'
     assert app.session_input_date('2026-12-09') == '2026-12-09'
     assert app.session_input_date('') == ''
+
+
+@pytest.mark.parametrize(('states', 'label', 'tone'), [
+    ([], 'Jurys 0/2 présents', 'session-alert'),
+    (['present', 'absent', 'pending'], 'Jurys 1/2 présents', 'session-alert'),
+    (['present', 'present', 'absent'], 'Jurys 2/2 présents', 'jury-complete'),
+    (['present'] * 3, 'Jurys 3 présents (2 attendus)', 'jury-complete'),
+])
+def test_jury_badge_on_cards_overview_and_jury_tab(monkeypatch, states, label, tone):
+    row = dict(id='jury-check', formation='APS', date_debut='2099-01-04',
+               date_fin='2099-02-08', date_exam='2099-02-09', steps=[],
+               jury_notification_status='notified' if states else 'to_notify',
+               jurys=[dict(id=str(i), status=st) for i, st in enumerate(states)])
+    monkeypatch.setattr(app, 'load_sessions', lambda: dict(sessions=[row], jurys=[]))
+    monkeypatch.setattr(app, 'save_sessions', lambda data: None)
+    with app.app.test_client() as client:
+        with client.session_transaction() as auth:
+            auth.update(admin_logged=True, admin_session_version=app.ADMIN_SESSION_VERSION)
+        for path, occurrences in [('/sessions', 1), ('/sessions/jury-check', 2)]:
+            response = client.get(path)
+            assert response.status_code == 200
+            html = response.get_data(as_text=True)
+            assert html.count(f'class="jury-presence {tone}"') == occurrences
+            assert html.count(f'<span>{label}</span>') == occurrences
+            assert f'Absents : {states.count("absent")}' in html
+            assert f'En attente de réponse : {states.count("pending")}' in html

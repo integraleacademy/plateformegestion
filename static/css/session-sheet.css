@@ -41,7 +41,9 @@ body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif }
 .summary-tile { display:flex; flex-direction:column; padding:17px 16px; gap:13px; align-items:flex-start; min-width:0 }
 .summary-tile:hover,.sheet-links a:hover { border-color:var(--course) }
 .tasks-tile { background:#e8f4ee; border-color:#c7e5d6; --tile:#286a4c }
-.jury-tile { background:#eeedf8; border-color:#dcd8ef; --tile:#62508d }
+.jury-tile { background:#fff2f3; border-color:#efc1c8; --tile:#992a3b }
+.jury-tile:has(.jury-complete) { background:#e8f5ed; border-color:#c0dfcd; --tile:#27694b }
+.jury-tile .jury-presence { font-size:clamp(15px,1.15vw,22px) }
 .summary-tile .overview-label,.summary-tile strong { color:var(--tile) }
 .summary-tile strong { display:block; font-size:clamp(28px,3vw,37px); letter-spacing:-.05em; line-height:1.1 }
 .summary-tile strong small { font-size:13px; letter-spacing:0 }

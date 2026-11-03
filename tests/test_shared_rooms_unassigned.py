@@ -91,3 +91,43 @@ def test_deleted_incomplete_session_cannot_reappear_in_needs_schedule():
     s=unassigned();s.pop('apsPlanningData')
     removed=rooms.empty_projection(rooms.projection(s))
     assert not removed['slots'] and removed['metadata']['deleted']
+
+
+def test_calendar_refresh_publishes_new_unassigned_session(api):
+    client, path, _, calls = api
+    data = load_session_store(path)
+    row = dict(unassigned(), id='new-session')
+    data['sessions'].append(row)
+    save_session_store(path, data, reservation_guard=rooms.session_guard)
+    assert not calls
+
+    response = client.get('/api/shared-rooms/sessions', headers={'Authorization':'Bearer test'})
+    assert response.status_code == 200
+    action, payload = calls[0]
+    assert action == 'reconcile' and payload['complete']
+    assert rooms.projection(row) in payload['owners']
+
+
+@pytest.mark.parametrize('existing,room', [(False, 'Salle 1'), (False, 'r2'), (True, None)])
+def test_creation_with_room_and_edits_still_require_ledger(api, monkeypatch, existing, room):
+    _, path, _, _ = api
+    row = dict(unassigned(), id='check')
+    if room == 'r2':
+        row['sharedRoom'] = {'room_id': room}
+    elif room:
+        row['salle'] = room
+    data = load_session_store(path)
+    data['sessions'].append(row)
+    if existing:
+        save_session_store(path, data)
+        row['display_name'] = 'New title'  # A central override may already exist.
+    original = path.read_bytes()
+
+    def offline(action, payload):
+        assert action == 'prepare'
+        raise rooms.RoomError('Planning indisponible', status=503)
+
+    monkeypatch.setattr(rooms, 'call', offline)
+    with pytest.raises(rooms.RoomError):
+        save_session_store(path, data, reservation_guard=rooms.session_guard)
+    assert path.read_bytes() == original

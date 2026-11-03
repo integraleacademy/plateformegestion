@@ -263,6 +263,10 @@ def session_guard(current, candidate):
             continue
         old = projection(before[sid]) if sid in before else None
         new = projection(after[sid]) if sid in after else None
+        # A new session has no central overrides. The next calendar refresh
+        # imports its unassigned slots from the durable source via reconcile.
+        if old is None and not any(slot.get('room_id') or slot.get('room_name') for slot in new['slots']):
+            continue
         old, new = old or empty_projection(new), new or empty_projection(old)
         changes.append((old, new))
     with reserve_changes(changes):

@@ -1,8 +1,8 @@
-:root { color-scheme:light; --sheet-ink:#1b3041; --sheet-muted:#586976; --sheet-line:#dbe3e9; --sheet-surface:#fff }
+:root { color-scheme:light; background:#f4f6f8; --sheet-ink:#1b3041; --sheet-muted:#586976; --sheet-line:#dbe3e9; --sheet-surface:#fff }
 body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif }
 .detail-page { margin-left:0 }
 .sheet-masthead { background:#fff; border-bottom:1px solid var(--sheet-line) }
-.sheet-masthead-inner,.detail-main.container { max-width:1240px; margin-inline:auto; padding-inline:clamp(14px,4vw,55px) }
+.sheet-masthead-inner,.detail-main.container { box-sizing:border-box; width:100%; max-width:none; margin-inline:auto; padding-inline:clamp(14px,2.5vw,52px) }
 .sheet-masthead-inner { min-height:60px; display:flex; justify-content:space-between; align-items:center; gap:10px }
 .sheet-brand,.sheet-back,.sheet-edit,.sheet-caption,.sheet-period,.overview-label,.sheet-tabs a,.summary-tile .tile-foot { display:flex; align-items:center; gap:8px }
 .sheet-brand { font-size:16px; font-weight:750; letter-spacing:-.045em; color:var(--sheet-ink) }
@@ -49,7 +49,7 @@ body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif }
 .summary-tile progress::-webkit-progress-bar { background:#cbdfd4 }
 .summary-tile progress::-webkit-progress-value { background:var(--tile); border-radius:10px }
 .tile-foot { margin-top:auto; color:var(--tile); font-size:12px; font-weight:630 }
-.tile-foot.overdue { background:#fff0dc; color:#8b4920; padding:3px 8px; border-radius:6px }
+
 .sheet-links { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:14px 0 }
 .sheet-links a { display:flex; align-items:center; gap:12px; padding:14px 16px }
 .sheet-links .session-glyph:first-child { width:34px; height:34px; padding:7px; box-sizing:border-box; color:var(--course); background:var(--course-tint); border-radius:8px }
@@ -69,7 +69,8 @@ body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif }
 .detail-main .filter-bar,.detail-main .sommaire-ssi { position:static }
 .sheet-section-heading { margin:6px 0 12px }
 .sheet-step { display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 10px; margin:0; box-shadow:none; background:white; border:1px solid var(--sheet-line); border-left:4px solid var(--step-accent,#8b9dad); border-radius:10px; padding:9px 12px }
-.sheet-step[data-tone="late"] { --step-accent:#c45d43; --step-tint:#fff0e7; --step-ink:#99432e }
+.sheet-step[data-tone="late"] { --step-accent:#be344a }
+.sheet-step > .session-alert { justify-self:end }
 .sheet-step[data-tone="done"], .sheet-step[data-tone="on_time"] { --step-accent:#328567; --step-tint:#e6f4ed; --step-ink:#28694e }
 .sheet-step[data-tone="upcoming"] { --step-accent:#af752b; --step-tint:#fff2d9; --step-ink:#7e5217 }
 .sheet-step:hover { transform:none; box-shadow:none }
@@ -106,3 +107,31 @@ body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif }
   .sheet-step { gap:3px; padding-inline:7px }
   .sheet-step button { font-size:13px }
 }
+
+.jury-label.notified { background:#e2f5e9; color:#206440!important }
+@media(min-width:1000px) {
+  .detail-main.container { padding-block:clamp(20px,1.6vw,34px) 32px }
+  .sheet-banner { padding:clamp(26px,2vw,42px) clamp(24px,2vw,42px) }
+  .sheet-title h1 { font-size:clamp(38px,2.8vw,60px) }
+  .sheet-caption { font-size:13px }
+  .sheet-period,.sheet-edit { font-size:clamp(14px,1vw,18px) }
+  .sheet-edit { min-height:44px }
+  .sheet-tabs { margin:18px 0; gap:6px }
+  .sheet-tabs a { flex:1 1 0; min-height:46px; font-size:clamp(14px,1vw,18px) }
+  .sheet-tabs .session-glyph { width:20px; height:20px }
+  .sheet-summary,.sheet-follow,.sheet-links { gap:clamp(14px,1.2vw,24px) }
+  .sheet-calendar,.summary-tile { padding:clamp(20px,1.6vw,32px) }
+  .sheet-calendar h2,.sheet-section-heading { font-size:clamp(24px,1.7vw,34px) }
+  .overview-label,.sheet-links small { font-size:clamp(13px,.95vw,17px) }
+  .sheet-calendar .milestone { padding:clamp(12px,1.05vw,22px) }
+  .sheet-calendar .milestone small,.tile-foot { font-size:clamp(13px,.9vw,16px) }
+  .sheet-calendar .milestone b { font-size:clamp(16px,1.1vw,22px) }
+  .summary-tile strong { font-size:clamp(38px,3vw,60px) }
+  .summary-tile strong small,.sheet-links b { font-size:clamp(15px,1vw,19px) }
+  .sheet-summary .session-alert { font-size:clamp(13px,.9vw,17px) }
+  .sheet-links a,.detail-main .session-location { padding:clamp(17px,1.35vw,28px) }
+  .sheet-links .session-glyph:first-child { width:42px; height:42px; padding:9px }
+}
+
+.detail-main [data-action-message] { background:#fff0f1; border:1px solid #efa9b1; color:#a31e32 }
+.detail-main [data-action-message]::before { content:"⚠️ "; }

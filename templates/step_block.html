@@ -1,3 +1,4 @@
+{% from 'session_visuals.html' import attention %}
 {% set tone = 'done' if entry.step.done else entry.st.status %}
 <div class="step sheet-step" id="step{{ i }}" data-tone="{{ tone }}"
      data-done="{{ 'true' if entry.step.done else 'false' }}" data-name="{{ entry.step.name|lower }}">
@@ -7,7 +8,9 @@
       <span class="step-mark" aria-hidden="true">{{ '✓' if entry.step.done }}</span>{{ entry.step.name }}
     </button>
   </form>
-  <span class="step-tone">{{ {'done':'Validée','late':'En retard','on_time':'À temps','upcoming':'À venir'}.get(tone, 'Sans échéance') }}</span>
+  {% if tone == 'late' %}{{ attention('En retard') }}{% else %}
+    <span class="step-tone">{{ {'done':'Validée','on_time':'À temps','upcoming':'À venir'}.get(tone, 'Sans échéance') }}</span>
+  {% endif %}
   {% if entry.step.done and entry.step.done_at %}
     <span class="step-date">Validée le {{ entry.step.done_at }}</span>
   {% elif entry.deadline %}

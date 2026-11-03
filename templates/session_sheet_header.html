@@ -2,7 +2,7 @@
 <div class="sheet-banner">
   <div class="sheet-caption"><span>{{ icon('shield') }} {{ 'DESP' if s.formation == 'DIRIGEANT' else 'AFC APS + SSIAP' if s.formation == 'AFC_APS_SSIAP' else s.formation }}</span><span>Fiche session</span></div>
   <div class="sheet-title"><h1>{{ s.display_name or (s.formation|formation_label) }}</h1>
-    <a class="sheet-edit" href="{{ url_for('edit_session', sid=s.id) }}">{{ icon('pencil') }} Modifier la session</a></div>
+    <a class="sheet-edit" data-open-edit href="{{ url_for('edit_session', sid=s.id) }}">{{ icon('pencil') }} Modifier la session</a></div>
   <div class="sheet-period">{{ icon('calendar') }} {{ session_calendar_span(s.date_debut,s.date_fin) }}{% if s.archived %}<b>Archivée</b>{% endif %}</div>
 </div>
 <nav class="sheet-tabs" aria-label="Rubriques de la session">

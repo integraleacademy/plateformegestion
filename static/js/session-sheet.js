@@ -27,6 +27,29 @@
     }
   }
 
+  const dialog = document.getElementById('editSessionDialog');
+  const editLink = document.querySelector('[data-open-edit]');
+  if (dialog && typeof dialog.showModal === 'function' && editLink) {
+    editLink.addEventListener('click', event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      dialog.querySelector('form').reset();
+      dialog.showModal();
+    });
+    dialog.querySelectorAll('[data-edit-close]').forEach(button => {
+      button.addEventListener('click', () => dialog.close());
+    });
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close();
+    });
+    dialog.querySelector('[data-edit-location]').addEventListener('click', () => {
+      dialog.close();
+      const details = document.querySelector('#location-section details');
+      details.open = true;
+      requestAnimationFrame(() => details.querySelector('[name="location"]').focus());
+    });
+  }
+
   showSection();
   window.addEventListener('hashchange', showSection);
   window.addEventListener('pageshow', event => { if (event.persisted) showSection(); });

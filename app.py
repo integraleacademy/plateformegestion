@@ -533,6 +533,12 @@ def format_date_range(start, end=None):
 app.jinja_env.globals['session_modality_date_range'] = session_modality_date_range
 app.jinja_env.globals['format_date_range'] = format_date_range
 
+@app.template_filter("session_input_date")
+def session_input_date(value):
+    day = parse_date(value)
+    return day.date().isoformat() if day else ""
+
+
 @app.template_global()
 def session_calendar_span(start, end=None):
     """Compact French dates, keeping both years when a period crosses New Year."""
@@ -8569,7 +8575,10 @@ def session_trainer_contract_summary(session_data):
         f"{trainer['name']} : {'Contrat à générer' if trainer['status'] == 'missing' else yousign_status_label(trainer['status'])}"
         for trainer in trainers.values()
     ) or "Aucun contrat formateur généré pour cette session."
-    return {"total": total, "signed": signed, "tone": tone, "icon": icon, "label": label, "details": details}
+    awaiting_or_complete = {"ongoing", "partially_signed", "approval", "done", "signed"}
+    action_required = not total or bool(states - awaiting_or_complete)
+    return {"total": total, "signed": signed, "tone": tone, "icon": icon, "label": label,
+            "details": details, "action_required": action_required}
 
 
 def find_session_trainer_contract(session_data, contract_id):

@@ -1,4 +1,4 @@
-{% from 'session_visuals.html' import icon, milestones %}
+{% from 'session_visuals.html' import icon, milestones, attention %}
 {% set task_total = statuses|length %}
 {% set done = s.steps|selectattr('done')|list|length %}
 {% set late = statuses|selectattr('status','equalto','late')|list|length %}
@@ -19,19 +19,19 @@
         <span class="overview-label">{{ icon('tasks') }} Étapes validées</span>
         <strong>{{ done }}<small> / {{ task_total }}</small></strong>
         <progress max="{{ task_total or 1 }}" value="{{ done }}">{{ done }} / {{ task_total }}</progress>
-        <span class="tile-foot{{ ' overdue' if late }}">{{ (late ~ ' en retard') if late else 'Aucun retard' }}</span>
+        <span class="tile-foot">{{ attention(late ~ ' en retard') if late else 'Aucun retard' }}</span>
       </a>
       {% endif %}
       <a class="summary-tile jury-tile" href="#jury-section">
         <span class="overview-label">{{ icon('users') }} Jury d’examen</span>
         <strong>{{ confirmed }}<small> confirmé{{ 's' if confirmed > 1 }}</small></strong>
-        <span class="tile-foot">{{ 'Jury notifié' if s.jury_notification_status == 'notified' else 'Jury à notifier' }}</span>
+        <span class="tile-foot">{{ 'Jury notifié' if s.jury_notification_status == 'notified' else attention('Jury à notifier') }}</span>
       </a>
     </div>
   </div>
   <div class="sheet-links">
-    <a href="#planning-section">{{ icon('calendar') }}<span><small>Planning</small><b>{{ 'Conformité à vérifier' if aps_pdf_blocked else 'Planning disponible' if has_plan else 'Planning à préparer' }}</b></span>{{ icon('chevron') }}</a>
-    {% if signed %}<a href="#{{ contract_section }}">{{ icon('contract') }}<span><small>Formateurs</small><b>{{ signed.label }}</b></span>{{ icon('chevron') }}</a>{% endif %}
+    <a href="#planning-section">{{ icon('calendar') }}<span><small>Planning</small><b>{{ attention('Conformité à vérifier') if aps_pdf_blocked else 'Planning disponible' if has_plan else attention('Planning à préparer') }}</b></span>{{ icon('chevron') }}</a>
+    {% if signed %}<a href="#{{ contract_section }}">{{ icon('contract') }}<span><small>Formateurs</small><b>{{ attention(signed.label) if signed.action_required else signed.label }}</b></span>{{ icon('chevron') }}</a>{% endif %}
   </div>
   {% include 'session_location.html' %}
   <details class="sheet-other"><summary>Autres actions</summary>

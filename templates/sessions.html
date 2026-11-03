@@ -7,10 +7,11 @@
   <link rel="icon" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-dialogs.css') }}">
   <script defer src="{{ url_for('static', filename='js/sessions.js') }}"></script>
 </head>
 <body>
-{% from 'session_visuals.html' import milestones %}
+{% from 'session_visuals.html' import milestones, attention %}
 {% macro icon(name) -%}
   <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
@@ -76,7 +77,7 @@
 
   <details class="recap" id="deadlines">
     <summary><span class="recap-title">{{ icon('clock') }} Échéances à suivre</span>
-      <span class="recap-totals"><span class="{{ 'attention' if total_late else '' }}">{{ total_late }} en retard</span><span>{{ total_today }} aujourd’hui</span></span>
+      <span class="recap-totals">{{ attention(total_late ~ ' en retard') if total_late else '0 en retard' }}<span>{{ total_today }} aujourd’hui</span></span>
       <span class="disclosure">{{ icon('chevron') }}</span>
     </summary>
     <div class="recap-body">
@@ -120,9 +121,12 @@
           {{ milestones(s) }}
           <div class="follow-up">
             {% set contracts = session_trainer_contract_summary(s) %}
-            {% if contracts %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
+            {% if contracts %}
+              {% if contracts.action_required and item.state != 'terminees' %}<span title="{{ contracts.details }}">{{ attention(contracts.label) }}</span>
+              {% else %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
+            {% endif %}
             {% if item.state != 'terminees' %}
-              {% if s.jury_notification_status != 'notified' %}<span class="tag jury-tag">{{ icon('users') }}Jury à notifier</span>{% else %}
+              {% if s.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% else %}
                 {% set jurys = s.jurys or [] %}{% set presents = jurys|selectattr('status','equalto','present')|list|length %}
                 {% if not presents %}<span class="tag jury-tag">{{ icon('users') }}{{ jurys|selectattr('status','equalto','pending')|list|length }} en attente de réponse</span>{% endif %}
                 <span class="tag tag-signed">{{ presents }} présent{{ 's' if presents > 1 }}</span>
@@ -142,7 +146,7 @@
 </main>
 <footer class="frame site-footer">Intégrale Academy <span>Gestion des sessions</span></footer>
 
-<dialog id="sessionModal" aria-labelledby="creation-title">
+<dialog class="session-dialog" id="sessionModal" aria-labelledby="creation-title">
   <form method="post" action="{{ url_for('create_session') }}" class="dialog-form">
     <header><span class="eyebrow">Sessions de formation</span><h2 id="creation-title">Nouvelle session</h2><button type="button" class="dismiss" aria-label="Fermer">{{ icon('close') }}</button></header>
     <label><span id="new-formation-label">Formation</span><select name="formation" id="sessionFormation" aria-labelledby="new-formation-label" required>
@@ -157,7 +161,7 @@
     <footer><button class="secondary cancel" type="button">Annuler</button><button class="primary" type="submit">Créer la session {{ icon('arrow') }}</button></footer>
   </form>
 </dialog>
-<dialog id="renameModal" aria-labelledby="rename-title">
+<dialog class="session-dialog" id="renameModal" aria-labelledby="rename-title">
   <form class="dialog-form" id="renameForm">
     <header><span class="eyebrow">Session de formation</span><h2 id="rename-title">Renommer la session</h2><button type="button" class="dismiss" aria-label="Fermer">{{ icon('close') }}</button></header>
     <label>Nom de la session<input name="name" type="text" maxlength="80" required></label>

@@ -676,12 +676,13 @@ a.back:hover{ background:#d9a848 !important; }
   <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-sheet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-dialogs.css') }}">
   <script defer src="{{ url_for('static', filename='js/session-sheet.js') }}"></script>
   <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
 </head>
 
 <body data-code="{{ s.formation }}">
-{% from 'session_visuals.html' import icon %}
+{% from 'session_visuals.html' import icon, attention %}
 {% set with_steps = s.formation != 'AFC_APS_SSIAP' %}
 {% set with_attendance = s.formation in ['APS','A3P','DESP','DIRIGEANT','AFC_APS_SSIAP'] or is_ssiap1_session(s) %}
 {% set with_contracts = s.formation in ['APS','A3P','DESP','DIRIGEANT','SSIAP','SSIAP1','AFC_APS_SSIAP'] %}
@@ -689,10 +690,7 @@ a.back:hover{ background:#d9a848 !important; }
 {% set aps_pdf_blocked = s.formation == "APS" and planning_pdf and aps_planning_compliance and not aps_planning_compliance.ok %}
 <div class="detail-shell">
   <div class="detail-page">
-    <header class="sheet-masthead"><div class="sheet-masthead-inner">
-      <a class="sheet-brand" href="{{ url_for('index') }}"><img src="{{ url_for('static',filename='img/logo-integrale.png') }}" alt=""> Intégrale Academy</a>
-      <a class="sheet-back" href="{{ url_for('sessions_home') }}">← Toutes les sessions</a>
-    </div></header>
+    {% include 'session_masthead.html' %}
 
 <main class="container detail-main">
 
@@ -701,6 +699,15 @@ a.back:hover{ background:#d9a848 !important; }
 <!-- ======================================================================= -->
 
 {% include 'session_sheet_header.html' %}
+<dialog id="editSessionDialog" class="session-dialog" aria-labelledby="edit-session-title">
+  <header class="window-heading">
+    <div><span class="window-context">{{ s.display_name or s.formation }}</span>
+      <h2 id="edit-session-title">Modifier la session</h2></div>
+    <button type="button" data-edit-close class="window-close" aria-label="Fermer">{{ icon('close') }}</button>
+  </header>
+  <div class="edit-location-strip">{{ icon('pin') }}<span>{{ training_location(s) }}</span><a href="#location-section" data-edit-location>Modifier le lieu</a></div>
+  {% with in_dialog=true %}{% include 'session_dates_form.html' %}{% endwith %}
+</dialog>
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="flash-messages">
@@ -719,7 +726,7 @@ a.back:hover{ background:#d9a848 !important; }
     {% if s.jury_notification_status == "notified" %}
       <span class="jury-label notified">Jury notifié</span>
     {% else %}
-      <span class="jury-label pending">Jury à notifier</span>
+      {{ attention('Jury à notifier') }}
     {% endif %}
     <button class="btn gold" id="openJuryModal" type="button">Notifier le jury</button>
   </div>
@@ -754,11 +761,11 @@ a.back:hover{ background:#d9a848 !important; }
   {% endif %}
 </section>
 
-<div class="modal" id="juryModal" aria-hidden="true">
+<div class="modal" id="juryModal" data-session-window="Jury d’examen" role="dialog" aria-modal="true" aria-labelledby="juryModalTitle" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
-      <h3 style="margin:0;">📣 Notifier jury examen</h3>
-      <button class="modal-close" type="button" id="closeJuryModal">✕</button>
+      <h3 id="juryModalTitle" style="margin:0;"><span class="window-context">Jury d’examen · {{ s.display_name or s.formation }}</span>Notifier le jury</h3>
+      <button class="modal-close" type="button" id="closeJuryModal" aria-label="Fermer">×</button>
     </div>
 
     <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}#jury-section">
@@ -769,7 +776,7 @@ a.back:hover{ background:#d9a848 !important; }
             {% set session_jury = session_jurys_by_id.get(jury.id) %}
             <label>
               <input type="checkbox" name="jury_ids" value="{{ jury.id }}">
-              {{ jury.prenom }} {{ jury.nom }} — {{ jury.email or "email manquant" }}
+              <span class="jury-identity"><b>{{ jury.prenom }} {{ jury.nom }}</b><small>{{ jury.email or "Email manquant" }}</small></span>
               {% if session_jury %}
                 {% if session_jury.status == "present" %}
                   <span class="jury-status present" style="margin-left:6px;">déjà répondu (présent)</span>
@@ -787,7 +794,7 @@ a.back:hover{ background:#d9a848 !important; }
       {% else %}
         <p class="muted">Aucun jury disponible. Ajoutez-en un ci-dessous.</p>
       {% endif %}
-      <button type="submit" class="btn gold">NOTIFIER</button>
+      <button type="submit" class="btn gold">Envoyer la notification</button>
     </form>
 
     <hr style="margin:20px 0;">
@@ -852,13 +859,13 @@ a.back:hover{ background:#d9a848 !important; }
       <div class="planning-status">✅ Planning généré le {{ ((s.a3p_documents or {}).get('planning') or {}).get('generated_at', s.a3pDocumentsGeneratedAt)|datetimefr }}</div>
       <p class="muted" style="margin-top:8px;">Fichier actuel : <strong>{{ s.a3pPlanningFilename }}</strong></p>
     {% elif s.a3pDocumentsGeneratedAt %}
-      <div class="flash error" style="display:inline-block;margin-top:8px;">Document introuvable, veuillez régénérer les documents A3P.</div>
+      <div data-action-message class="flash error" style="display:inline-block;margin-top:8px;">Document introuvable, veuillez régénérer les documents A3P.</div>
     {% else %}
-      <p class="muted" style="margin-top:8px;">Aucun planning PDF généré pour cette session A3P.</p>
+      <p class="muted" style="margin-top:8px;">{{ attention('Aucun planning PDF généré pour cette session A3P.') }}</p>
     {% endif %}
   {% elif planning_pdf %}
     {% if aps_pdf_blocked %}
-      <div class="flash error" style="display:block;margin-top:8px;">Planning non conforme au programme CPNEFP {{ aps_planning_compliance.programVersion }} du {{ aps_planning_compliance.programDate }}. La consultation et le téléchargement du PDF sont bloqués jusqu’à sa régénération.</div>
+      <div data-action-message class="flash error" style="display:block;margin-top:8px;">Planning non conforme au programme CPNEFP {{ aps_planning_compliance.programVersion }} du {{ aps_planning_compliance.programDate }}. La consultation et le téléchargement du PDF sont bloqués jusqu’à sa régénération.</div>
     {% endif %}
     {% if s.planning_generated_at %}
       <div class="planning-status">✅ Planning généré le {{ s.planning_generated_at|datetimefr }}</div>
@@ -867,7 +874,7 @@ a.back:hover{ background:#d9a848 !important; }
       <div class="planning-status">✏️ Planning modifié le {{ s.planning_modified_at|datetimefr }}</div>
     {% endif %}
     {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] and planning_pdf and not s.apsPlanningData %}
-      <div class="flash warning" style="margin-top:10px;">Ce PDF n'a pas encore de données modifiables. Régénérez le planning APS pour créer la structure de modification.</div>
+      <div data-action-message class="flash warning" style="margin-top:10px;">Ce PDF n'a pas encore de données modifiables. Régénérez le planning APS pour créer la structure de modification.</div>
     {% endif %}
     {% if s.planning_history %}
       <div class="muted" style="margin-top:8px;"><strong>Historique planning :</strong>
@@ -876,7 +883,7 @@ a.back:hover{ background:#d9a848 !important; }
     {% endif %}
     <p class="muted" style="margin-top:8px;">Fichier actuel : <strong>{{ planning_pdf }}</strong></p>
   {% else %}
-    <p class="muted" style="margin-top:8px;">Aucun planning PDF ajouté pour cette session.</p>
+    <p class="muted" style="margin-top:8px;">{{ attention('Aucun planning PDF ajouté pour cette session.') }}</p>
   {% endif %}
 
   {% if s.formation != "A3P" %}
@@ -1019,8 +1026,8 @@ a.back:hover{ background:#d9a848 !important; }
 </section>
 <svg class="afc-dsf-sprite" aria-hidden="true" focusable="false"><symbol id="icon-file-check" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></symbol><symbol id="icon-plus-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol><symbol id="icon-graduation-cap" viewBox="0 0 24 24"><path d="m22 10-10-5-10 5 10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></symbol><symbol id="icon-trending-up" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 7-7"/><path d="M14 8h6v6"/></symbol><symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M2 21v-2a4 4 0 0 1 3-3.87"/></symbol><symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="icon-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M5 5H3v2a4 4 0 0 0 4 4M19 5h2v2a4 4 0 0 1-4 4"/></symbol><symbol id="icon-alert-triangle" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v4M12 17h.01"/></symbol><symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol><symbol id="icon-calendar-days" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></symbol><symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol><symbol id="icon-printer" viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></symbol><symbol id="icon-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></symbol></svg>
 
-<div class="modal" id="afcInvoiceModal" aria-hidden="true"><div class="modal-content" style="max-width:760px;"><div class="modal-header"><h3>Générer la facture France Travail</h3><button class="modal-close" type="button" data-modal-close id="closeAfcInvoiceModal">×</button></div><div id="afcInvoiceError" class="flash error" style="display:none;"></div><div id="afcInvoicePreview"></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;"><label>N° de facture interne à l'opérateur<input id="afcInvoiceNumber" type="text"></label><label>Date de facture<input id="afcInvoiceDate" type="date"></label><label>Lieu d'établissement<input id="afcInvoicePlace" type="text"></label><label>Référence engagement KAIROS<input id="afcInvoiceKairos" type="text" readonly></label><fieldset style="grid-column:1/-1;border:2px solid #1d4ed8;border-radius:12px;padding:12px;"><legend style="font-weight:900;">Quel type de facture souhaitez-vous générer ?</legend><label style="display:block;margin:8px 0;"><input type="radio" name="afcInvoiceType" value="intermediate"> Facture intermédiaire</label><label style="display:block;margin:8px 0;"><input type="radio" name="afcInvoiceType" value="final"> Facture de solde</label></fieldset></div><div style="display:flex;gap:10px;margin-top:14px;"><button class="btn" type="button" id="cancelAfcInvoice">Annuler</button><button class="btn gold" type="button" id="confirmAfcInvoice">Valider et générer la facture</button></div></div></div>
-<div class="modal afc-dsf-modal" id="afcDsfModal" aria-hidden="true"><div class="modal-content" style="max-width:860px;"><div class="modal-header"><h3>Générer une DSF</h3><button class="modal-close" type="button" data-modal-close id="closeAfcDsfModal">×</button></div><div id="afcDsfError" class="flash error" style="display:none;"></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;"><label>Début période<input id="afcDsfStart" type="date" value="{{ s.date_debut }}"></label><label>Fin période<input id="afcDsfEnd" type="date" value="{{ afc_dsf_summary.billingUntil }}"></label></div><fieldset style="margin-top:12px;"><legend>Modules à inclure</legend>{% for code, meta in afc_dsf_modules.items() %}<label style="display:block;margin:8px 0;"><input type="checkbox" class="afcDsfModule" value="{{ code }}"> {{ meta.label }}</label>{% endfor %}<p id="afcDsfLimit" class="muted">La DSF ne reprend que les heures à facturer maintenant.</p></fieldset><section style="margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;"><h4 style="margin:0 0 8px;">Tableau DSF France Travail</h4><label>Numéro de DSF<input id="afcDsfNumber" type="text" value="{{ afc_dsf_next_number }}"></label><label style="display:block;margin-top:8px;"><input id="afcDsfGenerateExcel" type="checkbox" checked> Générer également le tableau Excel France Travail</label><p class="muted">Cette DSF est calculée depuis le planning central AFC. Les absences ne sont pas automatiquement déduites.</p></section><button class="btn gold" id="previewAfcDsf">Générer la DSF</button><div id="afcDsfPreview" style="margin-top:14px;display:none;"></div></div></div>
+<div class="modal" id="afcInvoiceModal" data-session-window="Facturation" role="dialog" aria-modal="true" aria-labelledby="afcInvoiceModalTitle" aria-hidden="true"><div class="modal-content" style="max-width:760px;"><div class="modal-header"><h3 id="afcInvoiceModalTitle"><span class="window-context">Facturation · {{ s.display_name or s.formation }}</span>Générer la facture France Travail</h3><button class="modal-close" type="button" data-modal-close id="closeAfcInvoiceModal">×</button></div><div id="afcInvoiceError" class="flash error" style="display:none;"></div><div id="afcInvoicePreview"></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;"><label>N° de facture interne à l'opérateur<input id="afcInvoiceNumber" type="text"></label><label>Date de facture<input id="afcInvoiceDate" type="date"></label><label>Lieu d'établissement<input id="afcInvoicePlace" type="text"></label><label>Référence engagement KAIROS<input id="afcInvoiceKairos" type="text" readonly></label><fieldset style="grid-column:1/-1;border:2px solid #1d4ed8;border-radius:12px;padding:12px;"><legend style="font-weight:900;">Quel type de facture souhaitez-vous générer ?</legend><label style="display:block;margin:8px 0;"><input type="radio" name="afcInvoiceType" value="intermediate"> Facture intermédiaire</label><label style="display:block;margin:8px 0;"><input type="radio" name="afcInvoiceType" value="final"> Facture de solde</label></fieldset></div><div style="display:flex;gap:10px;margin-top:14px;"><button class="btn" type="button" id="cancelAfcInvoice">Annuler</button><button class="btn gold" type="button" id="confirmAfcInvoice">Valider et générer la facture</button></div></div></div>
+<div class="modal afc-dsf-modal" id="afcDsfModal" data-session-window="Facturation" role="dialog" aria-modal="true" aria-labelledby="afcDsfModalTitle" aria-hidden="true"><div class="modal-content" style="max-width:860px;"><div class="modal-header"><h3 id="afcDsfModalTitle"><span class="window-context">Facturation · {{ s.display_name or s.formation }}</span>Générer une DSF</h3><button class="modal-close" type="button" data-modal-close id="closeAfcDsfModal">×</button></div><div id="afcDsfError" class="flash error" style="display:none;"></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;"><label>Début période<input id="afcDsfStart" type="date" value="{{ s.date_debut }}"></label><label>Fin période<input id="afcDsfEnd" type="date" value="{{ afc_dsf_summary.billingUntil }}"></label></div><fieldset style="margin-top:12px;"><legend>Modules à inclure</legend>{% for code, meta in afc_dsf_modules.items() %}<label style="display:block;margin:8px 0;"><input type="checkbox" class="afcDsfModule" value="{{ code }}"> {{ meta.label }}</label>{% endfor %}<p id="afcDsfLimit" class="muted">La DSF ne reprend que les heures à facturer maintenant.</p></fieldset><section style="margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;"><h4 style="margin:0 0 8px;">Tableau DSF France Travail</h4><label>Numéro de DSF<input id="afcDsfNumber" type="text" value="{{ afc_dsf_next_number }}"></label><label style="display:block;margin-top:8px;"><input id="afcDsfGenerateExcel" type="checkbox" checked> Générer également le tableau Excel France Travail</label><p class="muted">Cette DSF est calculée depuis le planning central AFC. Les absences ne sont pas automatiquement déduites.</p></section><button class="btn gold" id="previewAfcDsf">Générer la DSF</button><div id="afcDsfPreview" style="margin-top:14px;display:none;"></div></div></div>
 <script>
 (()=>{
   const modal=document.getElementById('afcDsfModal'),err=document.getElementById('afcDsfError'),mods=[...document.querySelectorAll('.afcDsfModule')],prev=document.getElementById('afcDsfPreview'),accordion=document.getElementById('afcDsfMainAccordion');
@@ -1119,7 +1126,7 @@ a.back:hover{ background:#d9a848 !important; }
     <div class="attendance-empty-state">Aucun stagiaire enregistré pour le moment. Importez une liste ou ajoutez-les manuellement.</div>
   {% endif %}
   {% if not attendance_planning_data %}
-    <div class="flash warning" style="margin-top:12px;">{% if is_ssiap1_session(s) %}Le planning SSIAP 1 doit être généré avant les feuilles de présence.{% else %}Veuillez générer le planning {{ s.formation }} avant de générer les feuilles de présence.{% endif %}</div>
+    <div data-action-message class="flash warning" style="margin-top:12px;">{% if is_ssiap1_session(s) %}Le planning SSIAP 1 doit être généré avant les feuilles de présence.{% else %}Veuillez générer le planning {{ s.formation }} avant de générer les feuilles de présence.{% endif %}</div>
   {% endif %}
 </section>
 
@@ -1161,8 +1168,8 @@ a.back:hover{ background:#d9a848 !important; }
   {% endif %}
 
 
-<div class="modal" id="apsAttendanceModal" aria-hidden="true"><div class="modal-content" style="max-width:900px;max-height:90vh;overflow:auto;">
-  <div class="modal-header"><div><h3 style="margin:0;">Gérer la liste des stagiaires</h3><p class="muted">Importez un PDF, ajoutez un stagiaire manuellement ou supprimez une ligne avant d’enregistrer.</p></div><button class="modal-close" type="button" id="closeApsAttendanceModal" data-modal-close aria-label="Fermer">×</button></div>
+<div class="modal" id="apsAttendanceModal" data-session-window="Présences" role="dialog" aria-modal="true" aria-labelledby="apsAttendanceModalTitle" aria-hidden="true"><div class="modal-content" style="max-width:900px;max-height:90vh;overflow:auto;">
+  <div class="modal-header"><div><h3 id="apsAttendanceModalTitle" style="margin:0;"><span class="window-context">Présences · {{ s.display_name or s.formation }}</span>Gérer la liste des stagiaires</h3><p class="muted">Importez un PDF, ajoutez un stagiaire manuellement ou supprimez une ligne avant d’enregistrer.</p></div><button class="modal-close" type="button" id="closeApsAttendanceModal" data-modal-close aria-label="Fermer">×</button></div>
   <form id="apsAttendanceImportForm" style="margin-top:14px;">
     <input type="file" id="apsAttendancePdf" accept="application/pdf" required>
     <button class="btn" type="submit">Extraire les noms</button>
@@ -1175,8 +1182,8 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 </div></div>
 
-<div class="modal" id="resetApsAttendanceModal" aria-hidden="true"><div class="modal-content">
-  <div class="modal-header"><h3 style="margin:0;">Réinitialiser les feuilles de présence</h3><button class="modal-close" type="button" id="closeResetApsAttendance" data-modal-close aria-label="Fermer">×</button></div>
+<div class="modal" id="resetApsAttendanceModal" data-session-window="Réinitialisation" role="dialog" aria-modal="true" aria-labelledby="resetApsAttendanceModalTitle" aria-hidden="true"><div class="modal-content">
+  <div class="modal-header"><h3 id="resetApsAttendanceModalTitle" style="margin:0;"><span class="window-context">Réinitialisation · {{ s.display_name or s.formation }}</span>Réinitialiser les feuilles de présence</h3><button class="modal-close" type="button" id="closeResetApsAttendance" data-modal-close aria-label="Fermer">×</button></div>
   <p>Voulez-vous réinitialiser les feuilles de présence ? Le PDF généré sera supprimé. La liste des stagiaires peut être conservée ou supprimée.</p>
   <div class="planning-actions" style="justify-content:flex-end;margin-top:18px;">
     <button type="button" class="btn" id="cancelResetApsAttendance">Annuler</button>
@@ -1186,11 +1193,11 @@ a.back:hover{ background:#d9a848 !important; }
 </div></div>
 {% endif %}
 {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
-<div class="modal" id="apsPlanningModal" aria-hidden="true">
+<div class="modal" id="apsPlanningModal" data-session-window="Planification" role="dialog" aria-modal="true" aria-labelledby="apsPlanningModalTitle" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
       <div>
-        <h3 style="margin:0;">✨ Générer planning</h3>
+        <h3 id="apsPlanningModalTitle" style="margin:0;"><span class="window-context">Planification · {{ s.display_name or s.formation }}</span>Générer le planning</h3>
         {% if s.formation in ["DESP", "DIRIGEANT"] %}
         <p class="muted" style="margin:6px 0 0;">Planning DESP 244h : 174h e-learning puis 70h présentiel, hors examen, week-ends et jours fériés français.</p>
         {% elif s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}
@@ -1264,11 +1271,11 @@ a.back:hover{ background:#d9a848 !important; }
   </div>
 </div>
 {% if planning_pdf %}
-<div class="modal" id="resetApsPlanningModal" aria-hidden="true">
+<div class="modal" id="resetApsPlanningModal" data-session-window="Réinitialisation" role="dialog" aria-modal="true" aria-labelledby="resetApsPlanningModalTitle" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
       <div>
-        <h3 style="margin:0;">🗑️ Réinitialiser le planning APS</h3>
+        <h3 id="resetApsPlanningModalTitle" style="margin:0;"><span class="window-context">Réinitialisation · {{ s.display_name or s.formation }}</span>🗑️ Réinitialiser le planning APS</h3>
         <p class="muted" style="margin:6px 0 0;">Cette action est définitive.</p>
       </div>
       <button class="modal-close" type="button" id="closeResetApsPlanningModal" data-modal-close aria-label="Fermer">×</button>
@@ -1286,7 +1293,7 @@ a.back:hover{ background:#d9a848 !important; }
 
 
 {% if s.formation == "A3P" %}
-<div class="modal a3p-builder-modal" id="a3pModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="a3pBuilderTitle"><div class="modal-content a3p-builder">
+<div class="modal a3p-builder-modal" id="a3pModal" data-session-editor="planning" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="a3pBuilderTitle"><div class="modal-content a3p-builder">
   <div class="modal-header a3p-modal-head"><div class="a3p-heading"><span class="a3p-heading-icon" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h4m3 0h2"/></svg></span><div><h3 id="a3pBuilderTitle" style="margin:0;">Planifier la formation A3P</h3><p>Organisez les journées et répartissez les 328 heures de formation.</p></div></div><button class="modal-close" type="button" id="closeA3pModal" data-modal-close aria-label="Fermer">×</button></div>
   <form id="a3pForm">
     <div class="a3p-overview">
@@ -1461,15 +1468,15 @@ a.back:hover{ background:#d9a848 !important; }
   .contract-email-editor input:focus{outline:none;border-color:#d6ac48;box-shadow:0 0 0 3px rgba(214,172,72,.18);}
   @media (max-width:720px){.aps-contract-modal__header,.aps-contract-modal__body,.aps-contract-modal__footer{padding-left:18px;padding-right:18px}.aps-contract-grid,.aps-contract-summary{grid-template-columns:1fr}.aps-contract-modal__footer{flex-direction:column-reverse}.aps-contract-modal__footer .btn{width:100%;}}
 </style>
-<div class="modal aps-contract-modal" id="apsContractModal" aria-hidden="true"><div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="apsContractModalTitle">
+<div class="modal aps-contract-modal" id="apsContractModal" data-session-editor="contrats" aria-hidden="true"><div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="apsContractModalTitle">
   <div class="aps-contract-modal__header"><div><h3 id="apsContractModalTitle">Générer un contrat formateur</h3><p>Sélectionnez un formateur puis complétez les informations nécessaires au contrat.</p></div><button class="aps-contract-modal__close" type="button" id="closeApsContractModal" aria-label="Fermer">✕</button></div>
   <form id="apsContractForm" class="aps-contract-modal__form">
     <div class="aps-contract-modal__body"><div id="apsContractTrainerList"></div><div id="apsContractError" class="flash error" style="display:none;margin-top:12px;"></div></div>
     <div class="aps-contract-modal__footer"><button type="button" class="btn" id="cancelApsContract">Annuler</button><button type="button" class="btn" id="previewApsContract">Aperçu du contrat</button><button type="submit" class="btn gold" id="submitApsContract">Générer le contrat</button></div>
   </form>
 </div></div>
-<div class="modal" id="sendContractModal" aria-hidden="true"><div class="modal-content">
-  <div class="modal-header"><h3 style="margin:0;">Envoyer le contrat par mail</h3><button class="modal-close" type="button" id="closeSendContractModal">✕</button></div>
+<div class="modal" id="sendContractModal" data-session-window="Contrats formateurs" role="dialog" aria-modal="true" aria-labelledby="sendContractModalTitle" aria-hidden="true"><div class="modal-content">
+  <div class="modal-header"><h3 id="sendContractModalTitle" style="margin:0;"><span class="window-context">Contrats formateurs · {{ s.display_name or s.formation }}</span>Envoyer le contrat par mail</h3><button class="modal-close" type="button" id="closeSendContractModal">✕</button></div>
   <form id="sendContractForm"><p><strong>Destinataire :</strong> <span id="sendContractRecipient"></span></p><label>Sujet<input id="sendContractSubject" required></label><label>Message<textarea id="sendContractBody" rows="8" required></textarea></label><p><strong>Pièces jointes :</strong> contrat PDF du formateur + planning APS PDF complet.</p><div id="sendContractError" class="flash error" style="display:none;"></div><div class="planning-actions" style="justify-content:flex-end;"><button type="button" class="btn" id="cancelSendContract">Annuler</button><button type="submit" class="btn gold">Envoyer</button></div></form>
 </div></div>
 {% endif %}

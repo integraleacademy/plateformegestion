@@ -682,7 +682,7 @@ a.back:hover{ background:#d9a848 !important; }
 </head>
 
 <body data-code="{{ s.formation }}">
-{% from 'session_visuals.html' import icon, attention %}
+{% from 'session_visuals.html' import icon, attention, jury_presence %}
 {% set with_steps = s.formation != 'AFC_APS_SSIAP' %}
 {% set with_attendance = s.formation in ['APS','A3P','DESP','DIRIGEANT','AFC_APS_SSIAP'] or is_ssiap1_session(s) %}
 {% set with_contracts = s.formation in ['APS','A3P','DESP','DIRIGEANT','SSIAP','SSIAP1','AFC_APS_SSIAP'] %}
@@ -723,6 +723,7 @@ a.back:hover{ background:#d9a848 !important; }
 <section class="jury-panel" id="jury-section" data-sheet-panel="jury-section">
   <div class="jury-header">
     <h2 style="margin:0;">Jury d’examen</h2>
+    {{ jury_presence(s) }}
     {% if s.jury_notification_status == "notified" %}
       <span class="jury-label notified">Jury notifié</span>
     {% else %}

@@ -1,11 +1,9 @@
-{% from 'session_visuals.html' import icon, milestones, attention %}
+{% from 'session_visuals.html' import icon, milestones, attention, jury_presence %}
 {% set task_total = statuses|length %}
 {% set done = s.steps|selectattr('done')|list|length %}
 {% set late = statuses|selectattr('status','equalto','late')|list|length %}
 {% set signed = session_trainer_contract_summary(s) if with_contracts else none %}
 {% set has_plan = a3p_document_exists(s, 'planning') if s.formation == 'A3P' else planning_pdf %}
-{% set members = s.jurys or [] %}
-{% set confirmed = members|selectattr('status','equalto','present')|list|length %}
 <section id="session-overview" data-sheet-panel="session-overview" aria-label="Synthèse de la session">
   <div class="sheet-summary">
     <section class="sheet-calendar">
@@ -24,7 +22,7 @@
       {% endif %}
       <a class="summary-tile jury-tile" href="#jury-section">
         <span class="overview-label">{{ icon('users') }} Jury d’examen</span>
-        <strong>{{ confirmed }}<small> confirmé{{ 's' if confirmed > 1 }}</small></strong>
+        {{ jury_presence(s) }}
         <span class="tile-foot">{{ 'Jury notifié' if s.jury_notification_status == 'notified' else attention('Jury à notifier') }}</span>
       </a>
     </div>

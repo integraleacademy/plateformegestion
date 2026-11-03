@@ -11,7 +11,7 @@
   <script defer src="{{ url_for('static', filename='js/sessions.js') }}"></script>
 </head>
 <body>
-{% from 'session_visuals.html' import milestones, attention %}
+{% from 'session_visuals.html' import milestones, attention, jury_presence %}
 {% macro icon(name) -%}
   <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
@@ -126,12 +126,8 @@
               {% else %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
             {% endif %}
             {% if item.state != 'terminees' %}
-              {% if s.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% else %}
-                {% set jurys = s.jurys or [] %}{% set presents = jurys|selectattr('status','equalto','present')|list|length %}
-                {% if not presents %}<span class="tag jury-tag">{{ icon('users') }}{{ jurys|selectattr('status','equalto','pending')|list|length }} en attente de réponse</span>{% endif %}
-                <span class="tag tag-signed">{{ presents }} présent{{ 's' if presents > 1 }}</span>
-                {% if presents < 2 %}{% set absents = jurys|selectattr('status','equalto','absent')|list|length %}<span class="tag">{{ absents }} absent{{ 's' if absents > 1 }}</span>{% endif %}
-              {% endif %}
+              {{ jury_presence(s) }}
+              {% if s.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% endif %}
             {% endif %}
           </div>
           <a class="card-footer" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>

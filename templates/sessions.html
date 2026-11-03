@@ -1,298 +1,172 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>{{ title }}</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
-  <style>
-    :root { --gold:#F4C45A; --gold-dark:#d39b25; --ink:#1d2433; --muted:#687083; --line:#e7e9ef; --surface:#fff; --bg:#f6f7f9; --sidebar:#17191f; --success:#23845b; --danger:#c94b4b; --warning:#b87712; --radius:18px; --shadow:0 8px 28px rgba(29,36,51,.07); }
-    * { box-sizing:border-box; }
-    html { scroll-behavior:smooth; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:Inter,"Segoe UI",Arial,sans-serif; }
-    button,input,select { font:inherit; }
-    a { color:inherit; text-decoration:none; }
-    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid rgba(244,196,90,.5); outline-offset:2px; }
-
-    .app-shell { min-height:100vh; }
-    .sidebar { position:fixed; inset:0 auto 0 0; z-index:30; width:248px; display:flex; flex-direction:column; padding:24px 16px; background:var(--sidebar); color:#fff; }
-    .sidebar-brand { display:flex; align-items:center; gap:12px; padding:0 8px 24px; border-bottom:1px solid rgba(255,255,255,.1); }
-    .sidebar-brand img { width:48px; height:48px; object-fit:contain; border-radius:12px; background:#fff; padding:5px; }
-    .sidebar-brand strong { display:block; font-size:14px; line-height:1.2; }
-    .sidebar-brand span { display:block; margin-top:4px; color:#aeb3bf; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
-    .nav-label { margin:26px 12px 10px; color:#777e8d; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-    .sidebar-nav { display:grid; gap:6px; }
-    .nav-link { width:100%; display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 12px; border:0; border-radius:11px; background:transparent; color:#c7cbd4; font-size:14px; font-weight:600; text-align:left; cursor:pointer; transition:.2s ease; }
-    .nav-link:hover { background:rgba(255,255,255,.07); color:#fff; transform:translateX(2px); }
-    .nav-link.active { background:var(--gold); color:#191a1e; box-shadow:0 8px 20px rgba(244,196,90,.18); }
-    .nav-icon { width:22px; text-align:center; font-size:17px; }
-    .nav-count { min-width:24px; margin-left:auto; padding:3px 7px; border-radius:999px; background:rgba(255,255,255,.1); color:#fff; font-size:10px; text-align:center; }
-    .nav-link.active .nav-count { background:rgba(23,25,31,.14); color:#191a1e; }
-    .sidebar-shortcut { margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,.1); }
-    .sidebar-primary { background:var(--gold); color:#191a1e; box-shadow:0 8px 20px rgba(244,196,90,.16); }
-    .sidebar-primary:hover { background:#edb942; color:#191a1e; }
-    .sidebar-foot { margin-top:auto; padding:16px 12px 0; border-top:1px solid rgba(255,255,255,.1); color:#858b98; font-size:11px; line-height:1.5; }
-
-    .page { min-height:100vh; margin-left:248px; }
-    .topbar { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; min-height:76px; padding:14px 32px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.94); backdrop-filter:blur(12px); }
-    .mobile-brand { display:none; align-items:center; gap:10px; font-weight:800; }
-    .mobile-brand img { width:36px; height:36px; object-fit:contain; border-radius:9px; background:#fff; }
-    .breadcrumb { margin:0 0 4px; color:#8a91a0; font-size:12px; font-weight:700; }
-    .topbar-title { margin:0; font-size:21px; letter-spacing:-.02em; }
-    .topbar-meta { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; }
-    .status-dot { width:8px; height:8px; border-radius:50%; background:#36a875; box-shadow:0 0 0 4px rgba(54,168,117,.12); }
-
-    .content { width:min(1420px,100%); margin:0 auto; padding:34px 32px 44px; }
-    .content section[id] { scroll-margin-top:96px; }
-    .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:26px; }
-    .eyebrow { margin:0 0 8px; color:var(--gold-dark); font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-    .hero h2 { margin:0; font-size:clamp(27px,3vw,38px); letter-spacing:-.04em; }
-    .hero-copy { max-width:700px; margin:9px 0 0; color:var(--muted); font-size:14px; line-height:1.6; }
-    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid transparent; border-radius:11px; padding:11px 16px; font-weight:750; cursor:pointer; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; }
-    .btn:hover { transform:translateY(-1px); }
-    .btn.gold { background:var(--gold); color:#17191f; box-shadow:0 8px 18px rgba(211,155,37,.2); }
-    .btn.gold:hover { background:#edb942; box-shadow:0 10px 24px rgba(211,155,37,.28); }
-    .btn.cancel { margin-left:8px; border-color:var(--line); background:#f4f5f7; color:#525a69; }
-
-    .kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
-    .kpi-card { position:relative; overflow:hidden; padding:20px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); }
-    .kpi-card::after { content:""; position:absolute; right:-24px; bottom:-34px; width:90px; height:90px; border-radius:50%; background:var(--kpi-color,#eee); opacity:.1; }
-    .kpi-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-    .kpi-label { color:var(--muted); font-size:13px; font-weight:700; }
-    .kpi-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:11px; background:var(--kpi-bg,#f8f1df); font-size:18px; }
-    .kpi-value { margin-top:13px; font-size:30px; font-weight:800; line-height:1; letter-spacing:-.04em; }
-    .kpi-caption { margin-top:8px; color:#969caa; font-size:11px; }
-
-    .panel { border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); }
-    .panel + .panel { margin-top:24px; }
-    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; border-bottom:1px solid var(--line); }
-    .panel-title { margin:0; font-size:17px; letter-spacing:-.02em; }
-    .deadlines-accordion { overflow:hidden; }
-    .deadlines-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; cursor:pointer; list-style:none; }
-    .deadlines-summary::-webkit-details-marker { display:none; }
-    .deadlines-summary .panel-subtitle { max-width:720px; }
-    .accordion-indicator { display:inline-flex; align-items:center; gap:8px; padding:8px 11px; border:1px solid var(--line); border-radius:10px; background:#f7f8fa; color:#505867; font-size:12px; font-weight:800; white-space:nowrap; transition:.2s ease; }
-    .accordion-indicator::before { content:"▸"; font-size:13px; transition:transform .2s ease; }
-    .deadlines-accordion[open] .accordion-indicator::before { transform:rotate(90deg); }
-    .deadlines-accordion[open] .accordion-indicator { background:#fff4d8; color:#8a600d; }
-    .panel-subtitle { margin:5px 0 0; color:var(--muted); font-size:12px; }
-    .alert-banner { display:flex; align-items:center; gap:11px; margin:18px 20px 0; padding:12px 14px; border-radius:11px; font-size:13px; font-weight:700; }
-    .global-alert { border:1px solid #f4cccc; background:#fff4f3; color:#a93737; }
-    .global-ok { border:1px solid #cce8da; background:#f2fbf7; color:#23724f; }
-    .recap-table-wrap { overflow-x:auto; padding:12px 20px 20px; }
-    .recap table { width:100%; border-collapse:collapse; }
-    .recap th { padding:11px 12px; background:#f7f8fa; color:#717888; font-size:11px; text-align:left; text-transform:uppercase; letter-spacing:.04em; }
-    .recap th:first-child { border-radius:9px 0 0 9px; }
-    .recap th:last-child { border-radius:0 9px 9px 0; }
-    .recap td { padding:14px 12px; border-bottom:1px solid #eef0f3; vertical-align:top; font-size:13px; }
-    .recap tr:last-child td { border-bottom:0; }
-    .list { margin:3px 0; line-height:1.45; }
-    .ok { color:var(--success); font-weight:650; } .warn { color:var(--warning); font-weight:650; } .late { color:var(--danger); font-weight:650; }
-
-    .sessions-panel { margin-top:24px; }
-    .sessions-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:20px 22px; border-bottom:1px solid var(--line); }
-    .section-count { display:inline-flex; align-items:center; justify-content:center; min-width:27px; height:25px; margin-left:7px; border-radius:999px; background:#fff4d8; color:#9a6b0c; font-size:12px; }
-    .sessions-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; padding:20px; }
-    .session-card { position:relative; display:flex; flex-direction:column; min-height:264px; padding:20px; overflow:hidden; border:1px solid var(--line); border-radius:15px; background:#fff; color:var(--ink); transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease; }
-    .session-card::before { content:""; position:absolute; inset:0 auto 0 0; width:4px; background:var(--accent,var(--gold)); }
-    .session-card:hover { transform:translateY(-3px); border-color:#d9dce4; box-shadow:0 14px 30px rgba(29,36,51,.11); }
-    .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    .session-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; border-radius:999px; background:#eaf8f1; color:#207451; font-size:10px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
-    .session-badge::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
-    .session-card.archived { background:#fafafa; }
-    .session-card.archived .session-badge { background:#edeff2; color:#6f7683; }
-    .next-badge { padding:5px 9px; border-radius:999px; background:#fff4d8; color:#8a600d; font-size:10px; font-weight:800; }
-    .session-title { margin:20px 0 4px; font-size:20px; font-weight:800; letter-spacing:-.03em; }
-    .session-title-input { width:100%; padding:5px 7px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ink); font-size:20px; font-weight:800; letter-spacing:-.03em; outline:none; }
-    .session-title-input:hover,.session-title-input:focus { border-color:#dfd6bd; background:#fffbf1; }
-    .session-save-status { min-height:15px; padding-left:8px; color:var(--success); font-size:10px; }
-    .session-save-status.error { color:var(--danger); }
-    .trainer-contract-status { display:flex; align-items:center; gap:7px; width:fit-content; max-width:100%; margin:7px 0 2px; padding:7px 9px; border:1px solid transparent; border-radius:8px; font-size:11px; font-weight:750; line-height:1.4; }
-    .trainer-contract-status__icon { flex:none; font-size:13px; }
-    .trainer-contract-status__label { min-width:0; overflow-wrap:anywhere; }
-    .trainer-contract-status--signed { color:#207451; background:#eaf8f1; border-color:#cce8da; }
-    .trainer-contract-status--pending { color:#8a600d; background:#fff4d8; border-color:#f3dfab; }
-    .trainer-contract-status--attention { color:#a63d3d; background:#fbeaea; border-color:#f4cccc; }
-    .trainer-contract-status--missing { color:#606879; background:#f1f3f6; border-color:#e3e6ec; }
-    .session-dates { display:grid; gap:8px; margin-top:13px; padding:13px 0; border-top:1px solid #f0f1f4; border-bottom:1px solid #f0f1f4; }
-    .session-sub { display:flex; align-items:center; gap:8px; color:#5f6776; font-size:12px; }
-    .countdown { margin-top:11px; color:#4d5666; font-size:12px; font-weight:700; }
-    .jury-status-line { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
-    .jury-pill { padding:4px 8px; border-radius:7px; background:#f0f1f4; color:#4f5663; font-size:10px; font-weight:700; }
-    .jury-pill.pending { background:#fff0ef; color:#b13e3e; } .jury-pill.present { background:#eaf8f1; color:#207451; } .jury-pill.absent { background:#fbeaea; color:#a63d3d; } .jury-pill.to-notify { background:#fff4d8; color:#8a600d; }
-    .card-action { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:15px; color:#3f4654; font-size:12px; font-weight:800; }
-    .card-action span:last-child { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; background:#f5f6f8; transition:.2s ease; }
-    .session-card:hover .card-action span:last-child { background:var(--gold); transform:translateX(2px); }
-    .empty-state { padding:46px 20px; color:var(--muted); text-align:center; }
-    .section-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:20px 22px; }
-    .toggle-archived-btn { display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:#f7f8fa; color:#505867; font-weight:700; cursor:pointer; }
-    .archived-content { border-top:1px solid var(--line); } .archived-content[hidden] { display:none; }
-
-    .modal { display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; padding:20px; background:rgba(20,22,27,.62); backdrop-filter:blur(5px); }
-    .modal-content { width:min(480px,100%); padding:26px; border-radius:18px; background:#fff; box-shadow:0 24px 70px rgba(0,0,0,.3); }
-    .modal-content h3 { margin:0 0 20px; font-size:21px; }
-    .modal-content label { display:block; margin-top:13px; color:#424957; font-size:12px; font-weight:800; }
-    .modal-content input,.modal-content select { width:100%; margin-top:6px; padding:11px 12px; border:1px solid #dcdfe5; border-radius:10px; background:#fff; color:var(--ink); }
-    .modal-content input:focus,.modal-content select:focus { border-color:var(--gold-dark); outline:3px solid rgba(244,196,90,.18); }
-    .modal-content .btns { display:flex; justify-content:flex-end; margin-top:22px; }
-    .footer { padding:24px 32px 32px; color:#969caa; font-size:11px; text-align:center; }
-
-    @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } .sessions-grid { grid-template-columns:repeat(2,1fr); } }
-    @media (max-width:760px) {
-      .sidebar { position:static; width:100%; height:auto; padding:10px 14px; }
-      .sidebar-brand,.nav-label,.sidebar-foot { display:none; }
-      .sidebar-nav { display:flex; overflow-x:auto; gap:7px; scrollbar-width:none; }
-      .nav-link { flex:0 0 auto; min-height:40px; padding:8px 11px; font-size:12px; }
-      .page { margin-left:0; }
-      .topbar { min-height:64px; padding:10px 18px; }
-      .topbar-heading { display:none; } .mobile-brand { display:flex; } .topbar-meta span:last-child { display:none; }
-      .content { padding:24px 16px 34px; }
-      .hero { align-items:stretch; flex-direction:column; } .hero .btn { width:100%; }
-      .kpi-grid { gap:10px; } .kpi-card { padding:16px; } .kpi-value { font-size:26px; }
-      .sessions-grid { grid-template-columns:1fr; padding:14px; }
-      .recap-table-wrap { padding:8px 14px 16px; }
-      .recap table,.recap tbody,.recap tr,.recap td { display:block; }
-      .recap tr:first-child { display:none; }
-      .recap tr { padding:13px 0; border-bottom:1px solid var(--line); }
-      .recap td { padding:5px 8px; border:0; }
-      .panel-head,.sessions-toolbar,.section-header { padding:16px; }
-    }
-    @media (max-width:480px) { .kpi-grid { grid-template-columns:1fr 1fr; } .kpi-label { font-size:11px; } .kpi-caption { display:none; } .topbar-meta { display:none; } .modal-content .btns { flex-direction:column; } .modal-content .btn { width:100%; } .btn.cancel { margin:8px 0 0; } }
-  </style>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
-  <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · Intégrale Academy</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css') }}">
+  <script defer src="{{ url_for('static', filename='js/sessions.js') }}"></script>
 </head>
 <body>
-{% macro trainer_contract_badge(s) -%}
-  {% set contracts = session_trainer_contract_summary(s) %}
-  {% if contracts %}
-    <div class="trainer-contract-status trainer-contract-status--{{ contracts.tone }}" title="{{ contracts.details }}">
-      <span class="trainer-contract-status__icon" aria-hidden="true">{{ contracts.icon }}</span>
-      <span class="trainer-contract-status__label">{{ contracts.label }}</span>
-    </div>
-  {% endif %}
+{% macro icon(name) -%}
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
-{% set sorted_active = active_sessions|sort(attribute='date_debut') %}
-{% set sorted_archived = archived_sessions|sort(attribute='date_debut') %}
-{% set next_session_found = false %}
-{% set counters = namespace(upcoming=0, ongoing=0) %}
-{% for s in sorted_active %}
-  {% set kpi_start = s.date_debut|datetime %}
-  {% set kpi_end = s.date_fin|datetime %}
-  {% if kpi_start.date() > now().date() %}
-    {% set counters.upcoming = counters.upcoming + 1 %}
-  {% elif kpi_start.date() <= now().date() and kpi_end.date() >= now().date() %}
-    {% set counters.ongoing = counters.ongoing + 1 %}
-  {% endif %}
-{% endfor %}
-<div class="app-shell">
-  <aside class="sidebar" aria-label="Navigation principale">
-    <a class="sidebar-brand" href="{{ url_for('sessions_home') }}">
-      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="Logo Intégrale Academy">
-      <div><strong>Gestion des sessions</strong><span>Intégrale Academy</span></div>
+{% macro dashboard_url(code, state) -%}
+  {{ url_for('sessions_home', formation=code or none, statut=state if state != 'toutes' else none, _anchor='selection-sessions') }}
+{%- endmacro %}
+{% set months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'] %}
+{% set states = {'a-venir':'À venir', 'en-cours':'En cours', 'terminees':'Terminée', 'incomplet':'Dates à compléter'} %}
+{% set metrics = {'toutes':('grid','Toutes les périodes'), 'a-venir':('calendar','Avant le début'), 'en-cours':('activity','En formation'), 'terminees':('check','Clôturées ou archivées')} %}
+<a class="skip-link" href="#catalogue">Aller à la liste des sessions</a>
+<header class="masthead">
+  <div class="frame masthead-inner">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="Intégrale Academy, accueil général">
+      <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt="" width="37" height="37">
+      <span>Intégrale <b>Academy</b></span>
     </a>
-    <p class="nav-label">Navigation sessions</p>
-    <nav class="sidebar-nav">
-      <a class="nav-link active" href="#overview" aria-current="page"><span class="nav-icon">▦</span>Vue d’ensemble</a>
-      <a class="nav-link" href="#deadlines"><span class="nav-icon">⚠</span>Échéances{% if total_late > 0 %}<span class="nav-count">{{ total_late }}</span>{% endif %}</a>
-      <a class="nav-link" href="#active-sessions"><span class="nav-icon">●</span>Sessions actives<span class="nav-count">{{ sorted_active|length }}</span></a>
-      {% if sorted_archived %}
-      <button class="nav-link" type="button" id="sidebarArchives"><span class="nav-icon">✓</span>Sessions terminées<span class="nav-count">{{ sorted_archived|length }}</span></button>
-      {% endif %}
-    </nav>
-    <div class="sidebar-shortcut">
-      <p class="nav-label" style="margin-top:0;">Action rapide</p>
-      <button class="nav-link sidebar-primary" type="button" id="sidebarOpenModal"><span class="nav-icon">＋</span>Nouvelle session</button>
-    </div>
-    <div class="sidebar-foot"><a href="{{ url_for('index') }}">← Retour à l’accueil général</a></div>
-  </aside>
-
-  <div class="page">
-    <header class="topbar">
-      <div class="topbar-heading"><p class="breadcrumb">Gestion / Sessions</p><h1 class="topbar-title">Sessions de formation</h1><a href="https://inscriptionsbts.onrender.com/admin/salles" target="_blank" rel="noopener">Planning commun des salles ↗</a></div>
-      <a class="mobile-brand" href="{{ url_for('sessions_home') }}"><img src="{{ url_for('static', filename='img/logo-integrale.png') }}" alt=""><span>Sessions</span></a>
-      <div class="topbar-meta"><span class="status-dot"></span><span>Plateforme opérationnelle</span></div>
-    </header>
-
-    <main class="content">
-      <section class="hero" id="overview">
-        <div><p class="eyebrow">Pilotage des formations</p><h2>Sessions de formation</h2><p class="hero-copy">Suivez vos échéances, les jurys et l’avancement de toutes les sessions depuis un espace unique.</p></div>
-        <button class="btn gold" id="openModal" type="button"><span>＋</span> Ajouter une session</button>
-      </section>
-
-      <section class="kpi-grid" aria-label="Indicateurs des sessions">
-        <article class="kpi-card" style="--kpi-color:#F4C45A;--kpi-bg:#fff5dc"><div class="kpi-head"><span class="kpi-label">Total sessions</span><span class="kpi-icon">▣</span></div><div class="kpi-value">{{ (active_sessions|length) + (archived_sessions|length) }}</div><div class="kpi-caption">Toutes les sessions enregistrées</div></article>
-        <article class="kpi-card" style="--kpi-color:#4d83d1;--kpi-bg:#edf4ff"><div class="kpi-head"><span class="kpi-label">À venir</span><span class="kpi-icon">↗</span></div><div class="kpi-value">{{ counters.upcoming }}</div><div class="kpi-caption">Sessions qui démarrent prochainement</div></article>
-        <article class="kpi-card" style="--kpi-color:#36a875;--kpi-bg:#eaf8f1"><div class="kpi-head"><span class="kpi-label">En cours</span><span class="kpi-icon">●</span></div><div class="kpi-value">{{ counters.ongoing }}</div><div class="kpi-caption">Formations actuellement actives</div></article>
-        <article class="kpi-card" style="--kpi-color:#858b98;--kpi-bg:#f0f1f4"><div class="kpi-head"><span class="kpi-label">Terminées</span><span class="kpi-icon">✓</span></div><div class="kpi-value">{{ archived_sessions|length }}</div><div class="kpi-caption">Sessions terminées ou archivées</div></article>
-      </section>
-
-      <details class="panel recap deadlines-accordion" id="deadlines">
-        <summary class="deadlines-summary"><div><h3 class="panel-title">Échéances et points d’attention</h3><p class="panel-subtitle">Récapitulatif des retards et des actions à réaliser aujourd’hui</p></div><span class="accordion-indicator" aria-hidden="true">Afficher</span></summary>
-        {% if total_late > 0 %}<div class="alert-banner global-alert">⚠️ {{ total_late }} étape{% if total_late>1 %}s{% endif %} en retard sur {{ formations|length }} formation{% if formations|length>1 %}s{% endif %}</div>{% else %}<div class="alert-banner global-ok">✓ Aucune étape en retard — tout est à jour</div>{% endif %}
-        <div class="recap-table-wrap"><table><tr><th>Formation</th><th>Étapes en retard</th><th>À faire aujourd’hui</th></tr>
-          {% for f, late_steps, today_steps in recap_data %}<tr><td><b>{{ f }}</b></td><td>{% if late_steps %}{% for text, days in late_steps %}<div class="list late">● {{ text }} ({{ days }} j)</div>{% endfor %}{% else %}<div class="list ok">✓ Aucun retard</div>{% endif %}</td><td>{% if today_steps %}{% for text in today_steps %}<div class="list warn">● {{ text }}</div>{% endfor %}{% else %}<div class="list" style="color:#999;">—</div>{% endif %}</td></tr>{% endfor %}
-        </table></div>
-      </details>
-
-      <section class="panel sessions-panel" id="active-sessions">
-        <div class="sessions-toolbar"><div><h3 class="panel-title">Sessions actives <span class="section-count">{{ sorted_active|length }}</span></h3><p class="panel-subtitle">Cliquez sur une session pour accéder à son suivi complet</p></div></div>
-        {% if sorted_active %}<div class="sessions-grid">
-          {% for s in sorted_active %}
-            {% set color = s.color %}{% set date_debut = s.date_debut|datetime %}{% set diff = (date_debut.date() - now().date()).days %}
-            {% if not next_session_found and diff > 0 %}{% set is_next = true %}{% set next_session_found = true %}{% else %}{% set is_next = false %}{% endif %}
-            <a class="session-card" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ color }}">
-              <div class="card-top"><span class="session-badge">Active</span>{% if is_next %}<span class="next-badge">★ Prochaine session</span>{% endif %}</div>
-              <div class="session-title" onclick="event.preventDefault(); event.stopPropagation();"><input class="session-title-input" type="text" value="{{ (s.display_name or s.formation)|e }}" maxlength="80" data-session-id="{{ s.id }}" aria-label="Nom de la session"><div class="session-save-status" data-session-status="{{ s.id }}"></div></div>
-              {{ trainer_contract_badge(s) }}
-              {% set elearning_dates = session_modality_date_range(s, "elearning") %}
-              {% set presentiel_dates = session_modality_date_range(s, "presentiel") %}
-              <div class="session-dates">
-                <div class="session-sub"><span>◷</span><strong>Formation :</strong> {{ format_date_range(s.date_debut, s.date_fin) }}</div>
-                <div class="session-sub"><span>☁</span><strong>E-learning :</strong> {% if elearning_dates %}{{ format_date_range(elearning_dates.start, elearning_dates.end) }}{% else %}—{% endif %}</div>
-                <div class="session-sub"><span>▣</span><strong>Présentiel :</strong> {% if presentiel_dates %}{{ format_date_range(presentiel_dates.start, presentiel_dates.end) }}{% else %}—{% endif %}</div>
-                <div class="session-sub"><span>✓</span><strong>Examen :</strong> {{ s.date_exam|datefr }}</div>
-              </div>
-              {% if diff > 0 %}<div class="countdown">Dans {{ diff }} jour{% if diff>1 %}s{% endif %}</div>{% elif diff == 0 %}<div class="countdown">Commence aujourd’hui</div>{% else %}<div class="countdown" style="color:#6e7582;">Session déjà commencée</div>{% endif %}
-              {% set pending_count = s.jurys|selectattr('status', 'equalto', 'pending')|list|length %}{% set present_count = s.jurys|selectattr('status', 'equalto', 'present')|list|length %}{% set absent_count = s.jurys|selectattr('status', 'equalto', 'absent')|list|length %}
-              <div class="jury-status-line">{% if s.jury_notification_status != "notified" %}<span class="jury-pill to-notify">Jury à notifier</span>{% else %}{% if present_count == 0 %}<span class="jury-pill pending">{{ pending_count }} en attente de réponse</span>{% endif %}<span class="jury-pill present">{{ present_count }} présent{% if present_count > 1 %}s{% endif %}</span>{% if present_count < 2 %}<span class="jury-pill absent">{{ absent_count }} absent{% if absent_count > 1 %}s{% endif %}</span>{% endif %}{% endif %}</div>
-              <div class="card-action"><span>Voir la session</span><span>→</span></div>
-            </a>
-          {% endfor %}
-        </div>{% else %}<div class="empty-state">Aucune session active pour le moment.</div>{% endif %}
-      </section>
-
-      {% if sorted_archived %}<section class="panel" id="archived-section"><div class="section-header"><div><h3 class="panel-title">Sessions archivées / terminées <span class="section-count">{{ sorted_archived|length }}</span></h3><p class="panel-subtitle">Historique des sessions clôturées</p></div><button type="button" class="toggle-archived-btn" id="toggleArchived" aria-expanded="false" aria-controls="archivedSessions"><span id="toggleArchivedIcon">▸</span><span id="toggleArchivedText">Afficher</span></button></div>
-        <div class="archived-content" id="archivedSessions" hidden><div class="sessions-grid">{% for s in sorted_archived %}{% set elearning_dates = session_modality_date_range(s, "elearning") %}{% set presentiel_dates = session_modality_date_range(s, "presentiel") %}<a class="session-card archived" href="{{ url_for('session_detail', sid=s.id) }}" style="--accent: {{ s.color }}"><div class="card-top"><span class="session-badge">Archivée</span></div><div class="session-title">{{ s.formation }}</div>{{ trainer_contract_badge(s) }}<div class="session-dates"><div class="session-sub"><span>◷</span><strong>Formation :</strong> {{ format_date_range(s.date_debut, s.date_fin) }}</div><div class="session-sub"><span>☁</span><strong>E-learning :</strong> {% if elearning_dates %}{{ format_date_range(elearning_dates.start, elearning_dates.end) }}{% else %}—{% endif %}</div><div class="session-sub"><span>▣</span><strong>Présentiel :</strong> {% if presentiel_dates %}{{ format_date_range(presentiel_dates.start, presentiel_dates.end) }}{% else %}—{% endif %}</div><div class="session-sub"><span>✓</span><strong>Examen :</strong> {{ s.date_exam|datefr }}</div></div>{% if s.archived %}<div class="countdown" style="color:#777;">Session archivée</div>{% else %}<div class="countdown" style="color:#777;">Session terminée</div>{% endif %}<div class="card-action"><span>Voir la session</span><span>→</span></div></a>{% endfor %}</div></div>
-      </section>{% endif %}
-    </main>
-
-    <footer class="footer">© <span id="year"></span> Intégrale Academy — Tous droits réservés</footer>
+    <span class="nav-divider"></span><span class="workspace-name">Espace de gestion</span>
+    <a class="room-link" href="https://inscriptionsbts.onrender.com/admin/salles" target="_blank" rel="noopener">{{ icon('calendar') }} Planning des salles {{ icon('external') }}</a>
   </div>
-</div>
+</header>
+<main class="frame dashboard" id="overview">
+  <div class="breadcrumbs"><a href="{{ url_for('index') }}">Accueil</a>{{ icon('chevron') }}<span>Sessions</span></div>
+  <section class="hero">
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 320 170" fill="none" focusable="false">
+        <g transform="rotate(-12 180 90)">
+          <rect x="100" y="5" width="193" height="141" rx="12" stroke="#bca573" opacity=".4"/>
+          <rect x="81" y="17" width="193" height="141" rx="12" fill="#273745" stroke="#9e997e"/>
+          <path d="M81 49h193m-161-39v15m130-15v15" stroke="#d2c6a0" stroke-width="3" stroke-linecap="round"/>
+          <path d="M102 70h151m-151 22h151m-151 22h151m-151 22h151m-117-75v80m35-80v80m35-80v80" stroke="#54606a"/>
+          <rect x="106" y="75" width="57" height="12" rx="4" fill="#97bba9"/><rect x="175" y="97" width="66" height="12" rx="4" fill="#f1c666"/><rect x="140" y="119" width="39" height="12" rx="4" fill="#8dabc3"/>
+        </g>
+      </svg>
+    </div>
+    <div class="hero-copy"><span class="eyebrow">Suivi pédagogique</span>
+      <h1>Sessions de formation</h1>
+      <p>Retrouvez vos sessions, leurs dates d’examen et les échéances à suivre.</p>
+    </div>
+    <button class="primary" type="button" id="openModal">{{ icon('plus') }} Nouvelle session</button>
+  </section>
 
-<div class="modal" id="sessionModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-content"><h3 id="modalTitle">Nouvelle session</h3><form method="post" action="{{ url_for('create_session') }}"><label>Formation :</label><select name="formation" id="sessionFormation" required><option value="">-- Choisir --</option><option value="AFC_APS_SSIAP">AFC France Travail APS + SSIAP</option><option value="APS">APS</option><option value="A3P">A3P</option><option value="SSIAP">SSIAP</option><option value="DIRIGEANT">DIRIGEANT</option><option value="GENERAL">GENERAL</option></select><div id="dirigeantLocationField" hidden><label>Site DIRIGEANT :</label><select name="dirigeant_location" id="dirigeantLocation"><option value="">-- Choisir --</option><option value="PARIS">Paris</option><option value="PUGET">Puget</option></select></div><label>Date début :</label><input type="date" name="date_debut" required><div id="standardSessionDates"><label>Date fin :</label><input type="date" name="date_fin" data-standard-required><label>Date examen :</label><input type="date" name="date_exam" data-standard-required></div><div id="afcEndDateField" hidden><label>Date de fin souhaitée</label><input type="date" name="contractual_end_date" id="afcContractualEndDate"></div><div id="afcInterruptionField" hidden><label>Dates d’interruption (optionnel) :</label><textarea name="interruptions" rows="3" placeholder="Ex : 20/12/2026 au 02/01/2027"></textarea><small>Une période par ligne, aucun créneau ne sera placé sur ces dates.</small></div><div class="btns"><button type="submit" class="btn gold">Créer</button><button type="button" class="btn cancel" id="closeModal">Annuler</button></div></form></div></div>
+  {% with alerts = get_flashed_messages(with_categories=true) %}
+    {% for category, message in alerts %}<p class="notice" role="status">{{ message }}</p>{% endfor %}
+  {% endwith %}
+  <nav class="metrics" id="selection-sessions" aria-label="Filtrer par statut">
+    {% for key,label in status_labels.items() %}
+      <a class="metric metric-{{ key }}" data-state="{{ key }}" href="{{ dashboard_url(formation, key) }}"{% if status == key %} aria-current="true"{% endif %}>
+        <span class="metric-heading"><span class="metric-icon">{{ icon(metrics[key][0]) }}</span><span>{{ label }}</span></span>
+        <strong class="metric-value">{{ counts[key] }}</strong>
+        <span class="metric-caption">{{ metrics[key][1] }}</span><span class="metric-arrow">{{ icon('arrow') }}</span>
+      </a>
+    {% endfor %}
+  </nav>
 
-<script>
-document.getElementById('year').textContent = new Date().getFullYear();
-document.addEventListener("DOMContentLoaded", () => {
-  const openBtn = document.getElementById("openModal"); const sidebarOpenBtn = document.getElementById("sidebarOpenModal"); const sidebarArchives = document.getElementById("sidebarArchives"); const closeBtn = document.getElementById("closeModal"); const modal = document.getElementById("sessionModal"); const toggleArchivedBtn = document.getElementById("toggleArchived"); const archivedSessions = document.getElementById("archivedSessions"); const archivedSection = document.getElementById("archived-section"); const toggleArchivedText = document.getElementById("toggleArchivedText"); const toggleArchivedIcon = document.getElementById("toggleArchivedIcon"); const sessionFormation = document.getElementById("sessionFormation"); const dirigeantLocationField = document.getElementById("dirigeantLocationField"); const dirigeantLocation = document.getElementById("dirigeantLocation"); const standardSessionDates = document.getElementById("standardSessionDates"); const afcInterruptionField = document.getElementById("afcInterruptionField"); const afcEndDateField = document.getElementById("afcEndDateField"); const afcContractualEndDate = document.getElementById("afcContractualEndDate");
-  const toggleDirigeantLocation = () => { const isDirigeant = sessionFormation?.value === "DIRIGEANT"; const isAfc = sessionFormation?.value === "AFC_APS_SSIAP"; if (dirigeantLocationField) dirigeantLocationField.hidden = !isDirigeant; if (dirigeantLocation) { dirigeantLocation.required = isDirigeant; if (!isDirigeant) dirigeantLocation.value = ""; } if (standardSessionDates) standardSessionDates.hidden = isAfc; document.querySelectorAll("[data-standard-required]").forEach((input)=>{ input.required = !isAfc; if(isAfc) input.value = ""; }); if (afcInterruptionField) afcInterruptionField.hidden = !isAfc; if (afcEndDateField) afcEndDateField.hidden = !isAfc; if (afcContractualEndDate) { afcContractualEndDate.required = isAfc; if(!isAfc) afcContractualEndDate.value = ""; } };
-  sessionFormation?.addEventListener("change", toggleDirigeantLocation);
-  toggleDirigeantLocation();
-  const openSessionModal = () => { toggleDirigeantLocation(); if (modal) modal.style.display = "flex"; };
-  if (openBtn) openBtn.addEventListener("click", openSessionModal);
-  if (sidebarOpenBtn) sidebarOpenBtn.addEventListener("click", openSessionModal);
-  if (closeBtn && modal) closeBtn.addEventListener("click", () => modal.style.display = "none");
-  window.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape") modal.style.display = "none"; });
-  if (toggleArchivedBtn && archivedSessions && toggleArchivedText && toggleArchivedIcon) toggleArchivedBtn.addEventListener("click", () => { const shouldOpen = archivedSessions.hasAttribute("hidden"); if (shouldOpen) archivedSessions.removeAttribute("hidden"); else archivedSessions.setAttribute("hidden", ""); toggleArchivedBtn.setAttribute("aria-expanded", shouldOpen ? "true" : "false"); toggleArchivedText.textContent = shouldOpen ? "Masquer" : "Afficher"; toggleArchivedIcon.textContent = shouldOpen ? "⌄" : "▸"; });
-  if (sidebarArchives && archivedSessions && archivedSection) sidebarArchives.addEventListener("click", () => { archivedSessions.removeAttribute("hidden"); toggleArchivedBtn?.setAttribute("aria-expanded", "true"); if (toggleArchivedText) toggleArchivedText.textContent = "Masquer"; if (toggleArchivedIcon) toggleArchivedIcon.textContent = "⌄"; archivedSection.scrollIntoView({behavior:"smooth", block:"start"}); });
-  const titleInputs = document.querySelectorAll(".session-title-input[data-session-id]");
-  const setStatus = (sessionId, message, isError = false) => { const statusEl = document.querySelector(`[data-session-status="${sessionId}"]`); if (!statusEl) return; statusEl.textContent = message; statusEl.classList.toggle("error", isError); };
-  const persistSessionName = async (input) => { const sessionId = input.dataset.sessionId; const nextValue = input.value.trim(); const previousValue = input.dataset.lastSavedValue || ""; if (!sessionId || nextValue === previousValue) return; if (!nextValue) { input.value = previousValue; setStatus(sessionId, "Le nom ne peut pas être vide.", true); return; } setStatus(sessionId, "Enregistrement..."); try { const response = await fetch(`/sessions/${sessionId}/rename`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:nextValue}) }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error || "Erreur inconnue"); input.dataset.lastSavedValue = payload.name; input.value = payload.name; setStatus(sessionId, "✓ Enregistré"); setTimeout(() => setStatus(sessionId, ""), 1800); } catch (error) { input.value = previousValue; setStatus(sessionId, error.message || "Erreur lors de l'enregistrement.", true); } };
-  titleInputs.forEach((input) => { input.dataset.lastSavedValue = input.value.trim(); input.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); }); input.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); persistSessionName(input); input.blur(); } if (event.key === "Escape") { input.value = input.dataset.lastSavedValue || ""; input.blur(); } event.stopPropagation(); }); input.addEventListener("blur", () => persistSessionName(input)); });
-});
-</script>
+  <section class="filters" aria-labelledby="filter-title">
+    <h2 id="filter-title">{{ icon('filter') }} Formation</h2>
+    <nav class="chips" aria-label="Filtrer par formation">
+      <a class="chip" href="{{ dashboard_url('', status) }}"{% if not formation %} aria-current="true"{% endif %}>Toutes les formations</a>
+      {% for key,label in formations.items() %}
+        <a class="chip" data-code="{{ key }}" href="{{ dashboard_url(key, status) }}"{% if formation == key %} aria-current="true"{% endif %}><i aria-hidden="true"></i>{{ label }}</a>
+      {% endfor %}
+    </nav>
+  </section>
+
+  <details class="recap" id="deadlines">
+    <summary><span class="recap-title">{{ icon('clock') }} Échéances à suivre</span>
+      <span class="recap-totals"><span class="{{ 'attention' if total_late else '' }}">{{ total_late }} en retard</span><span>{{ total_today }} aujourd’hui</span></span>
+      <span class="disclosure">{{ icon('chevron') }}</span>
+    </summary>
+    <div class="recap-body">
+      <p>Étapes des sessions non terminées{% if formation %} · {{ formations[formation] }}{% endif %}.</p>
+      {% if recap %}<div class="table-wrap"><table>
+        <thead><tr><th>Formation</th><th>En retard</th><th>Aujourd’hui</th></tr></thead>
+        <tbody>{% for code,(late,due) in recap|dictsort %}
+          <tr><th scope="row">{{ formations.get(code, code) }}</th>
+            <td>{% for label,days in late %}<div>{{ label }} <b>({{ days }} j)</b></div>{% else %}Aucun retard{% endfor %}</td>
+            <td>{% for label in due %}<div>{{ label }}</div>{% else %}—{% endfor %}</td>
+          </tr>
+        {% endfor %}</tbody></table></div>{% else %}<p>Aucune échéance pour cette sélection.</p>{% endif %}
+    </div>
+  </details>
+
+  <section id="catalogue" aria-labelledby="catalogue-title">
+    <div class="list-heading">
+      <div><h2 id="catalogue-title">{{ {'toutes':'Toutes les sessions','a-venir':'Sessions à venir','en-cours':'Sessions en cours','terminees':'Sessions terminées'}[status] }}{% if formation %} · {{ formations[formation] }}{% endif %}</h2>
+        <p class="result-count">{{ sessions|length }} session{{ 's' if sessions|length > 1 }} affichée{{ 's' if sessions|length > 1 }}</p></div>
+      {% if formation or status != 'toutes' %}<a class="reset" href="{{ url_for('sessions_home') }}">{{ icon('close') }} Effacer les filtres</a>{% endif %}
+    </div>
+    {% if sessions %}
+      <div class="cards">
+      {% for item in sessions %}
+        {% set s = item.session %}{% set code = s.formation %}{% set label = formations.get(code,code) %}
+        <article class="session-card" data-code="{{ code }}" data-state="{{ item.state }}" data-session-id="{{ s.id }}">
+          <div class="card-kicker"><span class="program"><i></i>{{ label }}</span><span class="state">{{ states[item.state] if not s.archived else 'Archivée' }}</span></div>
+          <div class="card-heading">
+            <span class="date-stamp" aria-hidden="true"><b>{{ '%02d'|format(item.start.day) if item.start else '—' }}</b><small>{{ months[item.start.month-1] if item.start else 'Date' }}</small></span>
+            <div class="card-name">
+              <h3><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ s.display_name or label }}</a></h3>
+              {% if item.state == 'a-venir' %}<small>{{ 'Prochaine session · ' if s.id == next_id }}Dans {{ item.days_to_start }} jour{{ 's' if item.days_to_start > 1 }}</small>
+              {% elif item.days_to_start == 0 %}<small>Commence aujourd’hui</small>
+              {% elif s.dirigeant_location_label %}<small>{{ s.dirigeant_location_label }}</small>{% endif %}
+            </div>
+            {% if item.state != 'terminees' %}<button class="edit" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ s.display_name or label }}" title="Renommer la session">{{ icon('pencil') }}</button>{% endif %}
+          </div>
+          <dl class="dates">
+            <div><dt>Formation</dt><dd>{{ format_date_range(s.date_debut, s.date_fin) }}</dd></div>
+            {% for key,title in [('elearning','E-learning'),('presentiel','Présentiel')] %}
+              {% set span = session_modality_date_range(s,key) %}
+              {% if span %}<div><dt>{{ title }}</dt><dd>{{ format_date_range(span.start, span.end) }}</dd></div>{% endif %}
+            {% endfor %}
+            <div class="exam"><dt>Examen</dt><dd>{{ (s.date_exam|datefr) or 'À définir' }}</dd></div>
+          </dl>
+          <div class="follow-up">
+            {% set contracts = session_trainer_contract_summary(s) %}
+            {% if contracts %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ contracts.label }}</span>{% endif %}
+            {% if item.state != 'terminees' %}
+              {% if s.jury_notification_status != 'notified' %}<span class="tag">Jury à notifier</span>{% else %}
+                {% set jurys = s.jurys or [] %}{% set presents = jurys|selectattr('status','equalto','present')|list|length %}
+                {% if not presents %}<span class="tag">{{ jurys|selectattr('status','equalto','pending')|list|length }} en attente de réponse</span>{% endif %}
+                <span class="tag tag-signed">{{ presents }} présent{{ 's' if presents > 1 }}</span>
+                {% if presents < 2 %}{% set absents = jurys|selectattr('status','equalto','absent')|list|length %}<span class="tag">{{ absents }} absent{{ 's' if absents > 1 }}</span>{% endif %}
+              {% endif %}
+            {% endif %}
+          </div>
+          <a class="card-footer" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>
+        </article>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">{{ icon('calendar') }}<h3>Aucune session pour cette sélection</h3><p>Choisissez une autre formation ou un autre statut.</p>
+        {% if formation or status != 'toutes' %}<a class="text-link" href="{{ url_for('sessions_home') }}">Afficher toutes les sessions {{ icon('arrow') }}</a>{% endif %}</div>
+    {% endif %}
+  </section>
+</main>
+<footer class="frame site-footer">Intégrale Academy <span>Gestion des sessions</span></footer>
+
+<dialog id="sessionModal" aria-labelledby="creation-title">
+  <form method="post" action="{{ url_for('create_session') }}" class="dialog-form">
+    <header><span class="eyebrow">Sessions de formation</span><h2 id="creation-title">Nouvelle session</h2><button type="button" class="dismiss" aria-label="Fermer">{{ icon('close') }}</button></header>
+    <label><span id="new-formation-label">Formation</span><select name="formation" id="sessionFormation" aria-labelledby="new-formation-label" required>
+      <option value="">Choisir une formation</option>
+      <option value="APS">APS</option><option value="A3P">A3P</option><option value="SSIAP">SSIAP</option><option value="DIRIGEANT">DESP · Dirigeant</option><option value="AFC_APS_SSIAP">AFC France Travail APS + SSIAP</option><option value="GENERAL">Général</option>
+    </select></label>
+    <label id="dirigeantLocationField" hidden>Site DESP<select name="dirigeant_location"><option value="">Choisir un site</option><option value="PARIS">Paris</option><option value="PUGET">Puget</option></select></label>
+    <label>Date de début<input type="date" name="date_debut" required></label>
+    <div class="form-pair" id="standardSessionDates"><label>Date de fin<input type="date" name="date_fin"></label><label>Date d’examen<input type="date" name="date_exam"></label></div>
+    <div id="afcFields" hidden><label>Date de fin souhaitée<input type="date" name="contractual_end_date"></label>
+      <label>Dates d’interruption (facultatif)<textarea name="interruptions" rows="2" placeholder="20/12/2026 au 02/01/2027"></textarea></label><small>Une période par ligne. Aucun créneau ne sera placé sur ces dates.</small></div>
+    <footer><button class="secondary cancel" type="button">Annuler</button><button class="primary" type="submit">Créer la session {{ icon('arrow') }}</button></footer>
+  </form>
+</dialog>
+<dialog id="renameModal" aria-labelledby="rename-title">
+  <form class="dialog-form" id="renameForm">
+    <header><span class="eyebrow">Session de formation</span><h2 id="rename-title">Renommer la session</h2><button type="button" class="dismiss" aria-label="Fermer">{{ icon('close') }}</button></header>
+    <label>Nom de la session<input name="name" type="text" maxlength="80" required></label>
+    <p class="form-error" role="alert" hidden></p>
+    <footer><button type="button" class="secondary cancel">Annuler</button><button class="primary" type="submit">Enregistrer</button></footer>
+  </form>
+</dialog>
 </body>
 </html>

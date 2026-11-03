@@ -7459,83 +7459,92 @@ def price_adaptator_preview(prospect_id):
     }
 
 
+SESSION_FORMATION_FILTERS = {
+    "APS": "APS", "A3P": "A3P", "SSIAP": "SSIAP", "DIRIGEANT": "DESP",
+    "AFC_APS_SSIAP": "AFC APS + SSIAP", "GENERAL": "Général",
+}
+SESSION_STATUS_FILTERS = {
+    "toutes": "Total sessions", "a-venir": "À venir",
+    "en-cours": "En cours", "terminees": "Terminées",
+}
+
+
+def session_dashboard_status(session, start, end, today):
+    if session.get("archived") or (end and end.date() < today):
+        return "terminees"
+    if start and start.date() > today:
+        return "a-venir"
+    if start and end:
+        return "en-cours"
+    return "incomplet"
+
+
 @app.route("/sessions")
 def sessions_home():
-    data = load_sessions()
-    # 🔄 Synchronise automatiquement les étapes manquantes pour chaque session
-    for s in data["sessions"]:
-        sync_steps(s)
+    sessions = load_sessions()["sessions"]
+    now = datetime.now()
+    today = now.date()
+    formation_labels = dict(SESSION_FORMATION_FILTERS)
+    for row in sessions:
+        if row.get("formation"):
+            formation_labels.setdefault(row["formation"], row["formation"])
+    formation = request.args.get("formation", "")
+    if formation not in formation_labels:
+        formation = ""
+    status = request.args.get("statut", "toutes")
+    if status not in SESSION_STATUS_FILTERS:
+        status = "toutes"
 
-    today = datetime.now().date()
-    active = []
-    archived = []
-
-    for s in data["sessions"]:
-        end_date = parse_date(s.get("date_fin"))
-        is_finished = bool(end_date and end_date.date() < today)
-        s["is_finished"] = is_finished
-
-        if s.get("archived") or is_finished:
-            archived.append(s)
-        else:
-            active.append(s)
-
-    for s in data["sessions"]:
-        s["color"] = FORMATION_COLORS.get(s["formation"], "#555")
-
-    # --- DEBUG existant ---
-    print("\n=== DEBUG SESSIONS ===")
-    for s in data["sessions"]:
-        print(f"\nSession: {s['formation']} ({s['date_debut']} → {s['date_exam']})")
-        for i, step in enumerate(s["steps"]):
-            st, dl = status_for_step(i, s)
-            if dl:
-                print(f" - {step['name']}: {st} / deadline={dl.strftime('%Y-%m-%d')}")
-            else:
-                print(f" - {step['name']}: {st} / deadline=N/A")
-
-    # --------- 🧠 On calcule le récap en PYTHON ---------
-    recap_map = {}   # { formation: {"late_steps":[(text,days)], "today_steps":[text]} }
-    total_late = 0
-
-    # On ne prend que les sessions actives (comme avant)
-    for s in active:
-        formation = s.get("formation", "—")
-        rec = recap_map.setdefault(formation, {"late_steps": [], "today_steps": []})
-
-        for i, step in enumerate(s.get("steps", [])):
-            st, dl = status_for_step(i, s)
-            # late
-            if st == "late" and dl:
-                days = max((today - dl.date()).days, 0)
-                text = f"[{format_date(s.get('date_debut','—'))}] {step['name']}"
-                rec["late_steps"].append((text, days))
+    counts = dict.fromkeys(SESSION_STATUS_FILTERS, 0)
+    rows = []
+    recap = {}
+    total_late = total_today = 0
+    for row in sessions:
+        code = row.get("formation", "")
+        if formation and code != formation:
+            continue
+        start = parse_date(row.get("date_debut"))
+        end = parse_date(row.get("date_fin"))
+        state = session_dashboard_status(row, start, end, today)
+        counts["toutes"] += 1
+        if state in counts:
+            counts[state] += 1
+        if status in ("toutes", state):
+            rows.append(dict(session=row, state=state, start=start,
+                             days_to_start=(start.date() - today).days if start else None))
+        if state == "terminees":
+            continue
+        sync_steps(row)
+        late, due = recap.setdefault(code, ([], []))
+        for index, step in enumerate(row.get("steps", [])):
+            step_state, deadline = status_for_step(index, row, now)
+            if not deadline:
+                continue
+            label = f"{format_date(row.get('date_debut'))} · {step['name']}"
+            if step_state == "late":
+                late.append((label, (today - deadline.date()).days))
                 total_late += 1
-            # due today
-            elif st == "on_time" and dl and dl.date() == today:
-                text = f"[{format_date(s.get('date_debut','—'))}] {step['name']}"
-                rec["today_steps"].append(text)
+            elif step_state == "on_time" and deadline.date() == today:
+                due.append(label)
+                total_today += 1
 
-    # On transforme en liste triée par nom de formation pour le template
-    recap_data = []
-    for formation, payload in sorted(recap_map.items(), key=lambda x: x[0]):
-        # trier les retards par nb de jours décroissant (les pires d'abord)
-        payload["late_steps"].sort(key=lambda t: t[1], reverse=True)
-        recap_data.append((formation, payload["late_steps"], payload["today_steps"]))
+    order = {"en-cours": 0, "a-venir": 1, "incomplet": 2, "terminees": 3}
+    def sort_key(item):
+        start = item["start"]
+        ordinal = start.toordinal() if start else 0
+        return order[item["state"]], start is None, -ordinal if item["state"] == "terminees" else ordinal
+
+    rows.sort(key=sort_key)
+    next_id = next((r["session"]["id"] for r in rows if r["state"] == "a-venir"), None)
+    for late, _ in recap.values():
+        late.sort(key=lambda entry: entry[1], reverse=True)
 
     return render_template(
-        "sessions.html",
-        title="Gestion des sessions",
-        active_sessions=active,
-        archived_sessions=archived,
-        status_for_step=status_for_step_jinja,  # garde pour le détail
-        now=datetime.now,
-        # 👇 nouveaux paramètres pour le récap déjà prêt
-        recap_data=recap_data,
-        total_late=total_late,
-        formations=[f for f, *_ in recap_data],
+        "sessions.html", title="Sessions de formation", sessions=rows,
+        formations=formation_labels, formation=formation, status=status,
+        status_labels=SESSION_STATUS_FILTERS, counts=counts, next_id=next_id,
+        recap=recap, total_late=total_late, total_today=total_today,
     )
-
 
 
 @app.route("/sessions/create", methods=["POST"])

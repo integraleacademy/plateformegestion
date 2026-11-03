@@ -1,49 +1,28 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Modifier session</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-location.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/saas-dialogs.css') }}">
-  <script src="{{ url_for('static', filename='js/saas-dialogs.js') }}" defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modifier la session · {{ s.display_name or s.formation }}</title>
+  <link rel="icon" href="{{ url_for('static',filename='img/favicongsessions.png') }}">
+  {% for file in ['session-location','session-visuals','session-sheet','session-dialogs'] %}
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/' ~ file ~ '.css') }}">
+  {% endfor %}
 </head>
-<body>
-<header class="topbar">
-  <div class="brand">
-    <a href="{{ url_for('session_detail', sid=s.id) }}" class="back">← Retour</a>
-    <img src="{{ url_for('static', filename='img/logo-integrale.png') }}" class="logo">
-    <h1>Modifier la session {{ s.formation }}</h1>
-  </div>
-</header>
-
-<main class="container">
-  {% include 'session_location.html' %}
-  <form method="post" class="form-grid">
-    <label>
-      Date de début
-      <input type="date" name="date_debut" value="{{ s.date_debut }}">
-    </label>
-    <label>
-      Date de fin
-      <input type="date" name="date_fin" value="{{ s.date_fin }}">
-    </label>
-    <label>
-      Date d’examen
-      <input type="date" name="date_exam" value="{{ s.date_exam }}">
-    </label>
-    <div class="form-actions">
-      <button type="submit" class="btn gold">💾 Enregistrer</button>
-      <a href="{{ url_for('session_detail', sid=s.id) }}" class="btn">Annuler</a>
+<body class="session-edit-page" data-code="{{ s.formation }}">
+  {% include 'session_masthead.html' %}
+  <main class="detail-main container">
+    <div class="sheet-banner edit-banner">
+      <div class="sheet-caption"><span>{{ s.display_name or s.formation }}</span></div>
+      <div class="sheet-title"><h1>Modifier la session</h1><a class="sheet-edit" href="{{ url_for('session_detail',sid=s.id) }}">← Retour à la fiche</a></div>
+      <div class="sheet-period">{{ session_calendar_span(s.date_debut,s.date_fin) }}</div>
     </div>
-  </form>
-</main>
-
-<footer class="footer">
-  © <span id="year"></span> Intégrale Academy
-</footer>
-<script>document.getElementById('year').textContent=new Date().getFullYear();</script>
+    <div class="edit-layout">
+      <section class="edit-surface" aria-label="Modifier les dates">
+        {% include 'session_dates_form.html' %}
+      </section>
+      {% include 'session_location.html' %}
+    </div>
+  </main>
 </body>
 </html>

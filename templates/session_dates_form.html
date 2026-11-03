@@ -1,0 +1,19 @@
+{% from 'session_visuals.html' import icon %}
+<form class="date-editor" action="{{ url_for('edit_session', sid=s.id) }}" method="post">
+  <fieldset>
+    <legend>Calendrier de la session</legend>
+    <div class="date-fields">
+      {% for name, label, glyph, tone in [('date_debut','Date de début','calendar','start'),('date_fin','Date de fin','check','end'),('date_exam','Date d’examen','award','exam-date')] %}
+        <label class="date-field {{ tone }}">
+          <span class="date-field-label">{{ icon(glyph) }} {{ label }}</span>
+          <input type="date" name="{{ name }}" value="{{ s.get(name)|session_input_date }}">
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="date-actions">
+    {% if in_dialog %}<button class="edit-secondary" type="button" data-edit-close>Annuler</button>
+    {% else %}<a class="edit-secondary" href="{{ url_for('session_detail', sid=s.id) }}">Annuler</a>{% endif %}
+    <button class="edit-primary" type="submit">{{ icon('check') }} Enregistrer les dates</button>
+  </div>
+</form>

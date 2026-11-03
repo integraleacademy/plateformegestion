@@ -1,0 +1,98 @@
+/* Dialogs and date editing in the session workspace. */
+.session-edit-page { margin:0; min-height:100vh; background:#f4f6f8; color:var(--sheet-ink) }
+.session-edit-page *, .session-dialog *, .session-edit-page *::before { box-sizing:border-box }
+.session-edit-page a { text-decoration:none }
+.session-edit-page .sheet-back { color:var(--sheet-ink) }
+.session-edit-page .sheet-masthead-inner { min-height:64px }
+.session-edit-page button,.session-dialog button { cursor:pointer; font:inherit }
+.edit-layout { display:grid; grid-template-columns:minmax(0,1.8fr) minmax(275px,1fr); gap:clamp(16px,1.4vw,30px); margin-block:20px; align-items:start }
+.edit-surface,.edit-layout .session-location { margin:0; background:#fff; border:1px solid #d7e1e9; border-radius:16px; box-shadow:0 5px 20px #18334109 }
+.edit-layout .session-location summary,.edit-layout .session-location-fields { align-items:stretch; flex-direction:column }
+.edit-layout .session-location-edit { align-self:flex-start }
+.edit-layout .session-location button { background:var(--course); color:white; border:0; border-radius:9px; padding:9px 15px; font-weight:700 }
+.date-editor { margin:0; padding:clamp(18px,1.8vw,34px) }
+.date-editor fieldset { border:0; min-width:0; margin:0; padding:0 }
+.date-editor legend { font-size:clamp(19px,1.45vw,27px); font-weight:730; letter-spacing:-.035em; margin-bottom:16px }
+.date-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px }
+.date-field { min-width:0; display:grid; gap:12px; padding:14px; background:#edf4fb; border:1px solid #d5e3ef; border-radius:12px; color:#2b597e }
+.date-field.end { color:#2c715c; background:#ecf6f0; border-color:#cce4d8 }
+.date-field.exam-date { color:#865c16; background:#fff5d9; border-color:#edd99e }
+.date-field-label { display:flex; align-items:center; gap:7px; font-weight:700; font-size:clamp(13px,.96vw,16px) }
+.date-field input[type="date"] { display:block; width:100%; min-width:0; max-width:100%; box-sizing:border-box; min-height:44px; padding:8px 10px; border:1px solid #b4c4cf; border-radius:8px; background:white; color:#182f40; font:650 15px system-ui; font-variant-numeric:tabular-nums }
+.date-field input:focus-visible { outline:3px solid var(--course); outline-offset:2px }
+.date-actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:16px; border-top:1px solid #dce4e9 }
+.edit-primary,.edit-secondary { display:inline-flex; justify-content:center; align-items:center; gap:7px; min-height:44px; padding:10px 17px; border:1px solid #d1dce3; border-radius:9px; text-decoration:none; font:700 14px system-ui!important; cursor:pointer }
+.edit-primary { background:var(--course,#1e4f74); border-color:var(--course,#1e4f74); color:white }
+.edit-secondary { background:white; color:#455b69 }
+.edit-primary:hover,.edit-secondary:hover { filter:brightness(.95) }
+
+.session-dialog { --window-accent:var(--course,#1c4560); box-sizing:border-box; width:min(620px,calc(100% - 28px)); max-width:none; max-height:calc(100dvh - 36px); overflow:auto; overscroll-behavior:contain; margin:auto; padding:0; border:1px solid #cedae3; border-radius:18px; background:white; color:#1b3041; box-shadow:0 26px 90px #0d233e47 }
+#editSessionDialog { width:min(1020px,calc(100% - 28px)) }
+#renameModal { width:min(540px,calc(100% - 28px)) }
+.session-dialog::backdrop { background:#10283da6; backdrop-filter:blur(4px) }
+.session-dialog .dialog-form { padding:0 clamp(16px,3vw,28px) 22px }
+.session-dialog .dialog-form > header,.window-heading {
+  position:relative; margin:0; display:flex; flex-direction:column; align-items:flex-start; gap:6px;
+  background:linear-gradient(115deg,var(--window-accent),color-mix(in srgb,var(--window-accent) 77%,#598faa)); color:white;
+  padding:21px 58px 22px 24px; border:0;
+}
+.session-dialog .dialog-form > header { margin:0 calc(-1 * clamp(16px,3vw,28px)) 20px }
+.window-heading h2,.session-dialog .dialog-form h2 { margin:3px 0 0; font-size:clamp(22px,1.7vw,30px); color:white; line-height:1.18; letter-spacing:-.035em }
+.window-context,.session-dialog .dialog-form .eyebrow { display:block; color:#e2eff9; letter-spacing:.07em; text-transform:uppercase; font:700 11px/1.5 system-ui; overflow-wrap:anywhere }
+.session-dialog .dialog-form .eyebrow::before { content:none }
+.window-close,.session-dialog .dismiss { position:absolute; right:15px; top:15px; display:grid; place-items:center; padding:0; width:36px; height:36px; border:1px solid #ffffff66; border-radius:9px; background:#ffffff16; color:white }
+.window-close:hover,.session-dialog .dismiss:hover { background:#ffffff32; color:white }
+.edit-location-strip { padding:14px clamp(18px,1.8vw,34px); display:flex; align-items:center; gap:9px; background:#f4f7fa; border-bottom:1px solid #dce4e9; font-size:13px }
+.edit-location-strip span { flex:1; min-width:0; overflow-wrap:anywhere }
+.edit-location-strip a { color:var(--course); font-weight:700; text-decoration:underline }
+.session-dialog .dialog-form select,.session-dialog .dialog-form input,.session-dialog .dialog-form textarea { min-height:43px }
+body:has(dialog[open], .modal.open) { overflow:hidden }
+
+.modal[data-session-window] { --window-accent:var(--course,#244e6d); padding:clamp(8px,3vh,26px); background:#10283da6!important; backdrop-filter:blur(5px)!important; -webkit-backdrop-filter:blur(5px)!important }
+.modal[data-session-window="Réinitialisation"] { --window-accent:#94344a }
+.modal[data-session-window] > .modal-content { --win-pad:clamp(16px,2.3vw,30px); width:min(100%,850px); max-width:none; max-height:calc(100dvh - 42px); overflow:auto; overscroll-behavior:contain; padding:0 var(--win-pad) var(--win-pad); border:1px solid #c6d4dd!important; border-radius:18px!important; background:#fff!important; box-shadow:0 24px 72px #10294045!important }
+.modal[data-session-window] .modal-header {
+  position:relative; align-items:flex-start; margin:0 calc(-1 * var(--win-pad)) 18px; padding:19px var(--win-pad);
+  border-bottom:0!important; background:linear-gradient(115deg,var(--window-accent),color-mix(in srgb,var(--window-accent) 80%,#7199a8));
+}
+.modal[data-session-window] .modal-header h3 { margin:0; color:white; font-size:clamp(21px,1.5vw,28px); letter-spacing:-.035em; line-height:1.24 }
+.modal[data-session-window] .window-context { margin-bottom:4px; color:#e1ebf4; font-weight:650 }
+.modal[data-session-window] .modal-header p { color:#f3f6fa!important; line-height:1.45; font-size:13px }
+.modal[data-session-window] .modal-close { flex:none; display:grid; place-items:center; width:36px; height:36px; padding:0; font-size:24px; line-height:1; border-radius:9px!important; border-color:#ffffff66!important; background:#ffffff18!important; color:white!important; box-shadow:none!important }
+.modal[data-session-window] .modal-close:hover { background:#ffffff33!important }
+.modal[data-session-window] form { min-width:0 }
+.modal[data-session-window] input:not([type=checkbox]):not([type=radio]):not([type=hidden]),.modal[data-session-window] select,.modal[data-session-window] textarea { max-width:100%; min-width:0; box-sizing:border-box; min-height:42px; font:inherit; border-radius:8px!important }
+.modal[data-session-window] .btn.gold { background:var(--window-accent)!important; color:white!important; border-color:var(--window-accent)!important }
+.modal[data-session-window] .btn { min-height:40px }
+.modal[data-session-window] .planning-actions { gap:9px; padding-top:12px; border-top:1px solid #dce4e9 }
+#juryModal .jury-checklist { display:grid; gap:7px; max-height:min(38vh,320px); overflow:auto; padding:2px }
+#juryModal .jury-checklist label { display:flex; align-items:center; gap:10px; padding:11px 13px; background:#f6f8fa; border:1px solid #dce4e9; border-radius:9px; cursor:pointer }
+#juryModal .jury-checklist label:has(:checked) { border-color:var(--course); background:var(--course-tint) }
+#juryModal .jury-checklist input { accent-color:var(--course); flex:none }
+#juryModal .jury-identity { display:grid; min-width:0; margin-right:auto }
+#juryModal .jury-identity small { color:#586974; overflow-wrap:anywhere }
+#juryModal .jury-status { flex:none }
+#juryModal hr { border:0; border-top:1px solid #dce4e9 }
+.modal[data-session-editor] { background:#10283da6!important; backdrop-filter:blur(5px)!important }
+.modal[data-session-editor] .aps-contract-modal__header,#a3pModal .a3p-modal-head { border-top:5px solid var(--course); background:var(--course-tint) }
+body[data-code] .saas-dialog { border-radius:18px }
+body[data-code] .saas-dialog__hero::before { background:linear-gradient(120deg,var(--course-tint),white) }
+body[data-code] .saas-dialog__icon { background:var(--course); border-radius:12px }
+body[data-code] .saas-dialog__btn--primary:not(.saas-dialog__btn--danger) { background:var(--course); box-shadow:none }
+
+@media(max-width:850px) {
+  .edit-layout { grid-template-columns:1fr }
+  .edit-layout .session-location { grid-row:auto }
+}
+@media(max-width:620px) {
+  .date-fields { grid-template-columns:1fr; gap:8px }
+  .date-field { grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); align-items:center; gap:7px; padding:8px 10px }
+  .date-field input[type="date"] { font-size:16px; padding:6px 5px }
+  .date-actions { flex-wrap:wrap; margin-top:14px; padding-top:12px }
+  .modal[data-session-window] > .modal-content { max-height:calc(100dvh - 20px) }
+  #juryModal .jury-checklist label { flex-wrap:wrap }
+  .edit-location-strip { flex-wrap:wrap }
+}
+@media(max-width:360px) {
+  .date-field { grid-template-columns:1fr }
+}

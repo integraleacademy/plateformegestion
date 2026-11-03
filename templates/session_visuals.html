@@ -2,6 +2,10 @@
   <svg class="session-glyph" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
 
+{% macro attention(label) -%}
+  <span class="session-alert"><span aria-hidden="true">⚠️</span> {{ label }}</span>
+{%- endmacro %}
+
 {% macro milestones(s) -%}
   {% set remote = session_modality_date_range(s, 'elearning') %}
   {% set onsite = session_modality_date_range(s, 'presentiel') %}

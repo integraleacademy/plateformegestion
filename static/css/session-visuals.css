@@ -41,3 +41,14 @@
 .follow-up .jury-tag { background:#edf1fa; color:#435e8f }
 .session-card .card-footer { color:var(--course); background:color-mix(in srgb,var(--course-tint) 40%,white) }
 .session-card .card-footer:hover { background:var(--course-tint) }
+
+/* A warning always names the action, even when colour is unavailable. */
+.session-alert, .recap-totals .session-alert {
+  display:inline-flex; align-items:center; gap:.4em; width:fit-content; max-width:100%;
+  padding:.32em .68em; border:1px solid #efa9b1; border-radius:7px;
+  background:#fff0f1; color:#a31e32; font-size:clamp(12px,.85vw,15px); font-weight:740; line-height:1.35;
+}
+.session-alert > [aria-hidden], .recap-totals .session-alert > [aria-hidden] {
+  flex:none; font-size:1em; padding:0; border:0; background:none;
+}
+.follow-up .session-alert { font-size:12px }

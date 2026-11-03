@@ -36,3 +36,20 @@ def test_detail_links_match_available_panels(monkeypatch, formation, sections, a
         assert f'id="{panel}" data-sheet-panel="{panel}"' in html
     for panel in absent:
         assert f'data-sheet-link="{panel}"' not in html
+
+
+@pytest.mark.parametrize(('state', 'expected'), [
+    ('missing', True), ('draft', True), ('expired', True),
+    ('ongoing', False), ('signed', False),
+])
+def test_contract_alert_only_when_action_is_needed(state, expected):
+    row = {'formation': 'APS'}
+    if state != 'missing':
+        row['apsTrainerContracts'] = [{'id':'c1', 'trainerName':'Test', 'yousign':{'status':state}}]
+    assert app.session_trainer_contract_summary(row)['action_required'] is expected
+
+
+def test_edit_inputs_use_saved_dates_in_both_formats():
+    assert app.session_input_date('03/11/2026') == '2026-11-03'
+    assert app.session_input_date('2026-12-09') == '2026-12-09'
+    assert app.session_input_date('') == ''

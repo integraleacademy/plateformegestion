@@ -57,7 +57,16 @@ def test_status_then_course_link_preserves_status_and_shows_empty_result(dashboa
     assert 'Effacer les filtres' in empty
 
 
-def test_unfiltered_dashboard_includes_sessions_with_incomplete_dates(dashboard):
+def test_dashboard_opens_on_current_sessions_and_links_to_all(dashboard):
     html = dashboard.get("/sessions").get_data(as_text=True)
-    assert len(re.findall(r'data-session-id="', html)) == 6
+    assert re.findall(r'class="metric metric-([^"]+)"', html) == [
+        "en-cours", "a-venir", "terminees", "toutes",
+    ]
+    assert re.findall(r'data-session-id="([^"]+)"', html) == ["starts-ends-today"]
+    assert re.search(r'class="metric metric-en-cours"[^>]*aria-current="true"', html)
+    all_link = re.search(r'class="metric metric-toutes"[^>]*href="([^"]+)"', html)
+    html = dashboard.get(unescape(all_link[1])).get_data(as_text=True)
+    assert re.findall(r'<article class="session-card"[^>]*data-state="([^"]+)"', html) == [
+        "en-cours", "a-venir", "a-venir", "terminees", "terminees", "incomplet",
+    ]
     assert 'Dates à compléter' in html

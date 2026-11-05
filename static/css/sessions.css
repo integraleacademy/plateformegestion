@@ -103,7 +103,7 @@ td b { color:#95522c }
 .result-count { margin-top:3px; font-size:12px; color:var(--muted) }
 .reset { font-size:12px; font-weight:650; white-space:nowrap }
 .reset .icon { width:14px }
-.cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:stretch }
+.cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(20px,2vw,28px); align-items:stretch }
 .session-card { position:relative; display:flex; flex-direction:column; min-width:0; overflow:hidden; background:white; border:1px solid var(--line); border-radius:15px; box-shadow:0 2px 6px #14273806 }
 .session-card:hover { border-color:#abbac4 }
 .card-kicker, .card-heading { padding-inline:17px; display:flex; align-items:center }
@@ -137,7 +137,7 @@ td b { color:#95522c }
 .tag-signed { background:#e5f4ed; color:#246c4e }
 .tag-pending { background:#fff2d8; color:#80551a }
 .tag-attention { background:#f9e8e6; color:#973d35 }
-.card-footer { margin-top:auto; padding:10px 17px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e6ecef; color:#344a5a; font-size:12px; font-weight:650 }
+.card-footer { margin-top:auto; padding:14px 17px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e6ecef; color:#344a5a; font-size:12px; font-weight:650 }
 .card-footer .icon { width:17px }
 .card-footer:hover { background:#f3f6f7 }
 .empty { padding:28px 18px; border:1px dashed #b6c3cc; border-radius:14px; text-align:center; background:white }

@@ -16,7 +16,7 @@
   <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
 {% macro dashboard_url(code, state) -%}
-  {{ url_for('sessions_home', formation=code or none, statut=state if state != 'toutes' else none, _anchor='selection-sessions') }}
+  {{ url_for('sessions_home', formation=code or none, statut=state, _anchor='selection-sessions') }}
 {%- endmacro %}
 {% set states = {'a-venir':'À venir', 'en-cours':'En cours', 'terminees':'Terminée', 'incomplet':'Dates à compléter'} %}
 {% set metrics = {'toutes':('grid','Toutes les périodes'), 'a-venir':('calendar','Avant le début'), 'en-cours':('activity','En formation'), 'terminees':('check','Clôturées ou archivées')} %}
@@ -97,7 +97,7 @@
     <div class="list-heading">
       <div><h2 id="catalogue-title">{{ {'toutes':'Toutes les sessions','a-venir':'Sessions à venir','en-cours':'Sessions en cours','terminees':'Sessions terminées'}[status] }}{% if formation %} · {{ formations[formation] }}{% endif %}</h2>
         <p class="result-count">{{ sessions|length }} session{{ 's' if sessions|length > 1 }} affichée{{ 's' if sessions|length > 1 }}</p></div>
-      {% if formation or status != 'toutes' %}<a class="reset" href="{{ url_for('sessions_home') }}">{{ icon('close') }} Effacer les filtres</a>{% endif %}
+      {% if formation or status != 'toutes' %}<a class="reset" href="{{ dashboard_url('', 'toutes') }}">{{ icon('close') }} Effacer les filtres</a>{% endif %}
     </div>
     {% if sessions %}
       <div class="cards">
@@ -136,7 +136,7 @@
       </div>
     {% else %}
       <div class="empty">{{ icon('calendar') }}<h3>Aucune session pour cette sélection</h3><p>Choisissez une autre formation ou un autre statut.</p>
-        {% if formation or status != 'toutes' %}<a class="text-link" href="{{ url_for('sessions_home') }}">Afficher toutes les sessions {{ icon('arrow') }}</a>{% endif %}</div>
+        {% if formation or status != 'toutes' %}<a class="text-link" href="{{ dashboard_url('', 'toutes') }}">Afficher toutes les sessions {{ icon('arrow') }}</a>{% endif %}</div>
     {% endif %}
   </section>
 </main>

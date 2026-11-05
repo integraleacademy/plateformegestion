@@ -33,7 +33,7 @@
   </div>
   {% include 'session_location.html' %}
   <details class="sheet-other"><summary>Autres actions</summary>
-    <div><a href="{{ url_for('create_social_post_from_session', sid=s.id) }}" target="_blank" rel="noopener">{{ icon('pencil') }} Créer un visuel</a>
+    <div>
       <form method="post" action="{{ url_for('delete_session', sid=s.id) }}" onsubmit="return confirm('Supprimer cette session ?');">
         <button type="submit">Supprimer la session</button>
       </form></div>

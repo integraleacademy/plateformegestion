@@ -22,7 +22,7 @@
 .milestone:first-child:nth-last-child(2) { grid-column:1/-1 }
 .milestone:first-child:nth-last-child(2) span { display:flex; align-items:center; justify-content:space-between; flex:1; gap:6px }
 .milestone:first-child:nth-last-child(2) small { margin-bottom:0 }
-.card-cover { padding:15px 17px 13px; color:white; background-color:var(--course); background-image:repeating-linear-gradient(125deg,transparent 0 12px,#ffffff09 12px 14px,transparent 14px 24px),linear-gradient(112deg,var(--course) 15%,var(--course-end)); background-size:78px 100%,100% 100%; background-position:right,center; background-repeat:no-repeat }
+.card-cover { padding:20px 17px 18px; color:white; background-color:var(--course); background-image:repeating-linear-gradient(125deg,transparent 0 12px,#ffffff09 12px 14px,transparent 14px 24px),linear-gradient(112deg,var(--course) 15%,var(--course-end)); background-size:78px 100%,100% 100%; background-position:right,center; background-repeat:no-repeat }
 .card-cover .card-kicker,.card-cover .card-heading { padding:0 }
 .card-cover .card-heading { margin:11px 0 4px }
 .card-cover .program { color:white; gap:6px }
@@ -34,7 +34,7 @@
 .course-period { display:flex; align-items:center; flex-wrap:wrap; min-height:23px; gap:6px; color:#fff; font-size:12px; font-weight:520 }
 .course-period .icon { width:15px; height:15px }
 .course-period small { margin-left:auto; border:1px solid #ffffff6b; border-radius:20px; padding:1px 7px; color:white; font-size:10px; font-weight:680 }
-.session-card .follow-up { gap:5px; margin:11px 15px 13px }
+.session-card .follow-up { gap:7px; margin:15px 15px 17px }
 .follow-up .tag { display:inline-flex; align-items:center; gap:4px; line-height:1.35; padding:3px 6px; font-size:10px }
 .follow-up .tag .icon { width:12px; height:12px }
 .follow-up .tag-missing,.follow-up .tag-pending { background:#fff1dd; color:#854816 }

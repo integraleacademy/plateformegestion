@@ -84,7 +84,7 @@ def test_cards_reflect_signature_webhook_and_archived_contracts(monkeypatch):
         with client.session_transaction() as auth:
             auth["admin_logged"] = True
             auth["admin_session_version"] = app.ADMIN_SESSION_VERSION
-        response = client.get("/sessions")
+        response = client.get("/sessions?statut=toutes")
         assert response.status_code == 200
         html = response.get_data(as_text=True)
         assert "Contrat formateur à signer" in html
@@ -100,7 +100,7 @@ def test_cards_reflect_signature_webhook_and_archived_contracts(monkeypatch):
         assert response.status_code == 200
         assert response.get_json()["target"] == "aps_trainer_contract"
 
-        html = client.get("/sessions").get_data(as_text=True)
+        html = client.get("/sessions?statut=toutes").get_data(as_text=True)
         assert "Contrat formateur signé" in html
         assert "Contrat formateur à signer" not in html
         assert api_calls == ["sr-status"]

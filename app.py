@@ -7487,8 +7487,8 @@ SESSION_FORMATION_FILTERS = {
     "AFC_APS_SSIAP": "AFC APS + SSIAP", "GENERAL": "Général",
 }
 SESSION_STATUS_FILTERS = {
-    "toutes": "Total sessions", "a-venir": "À venir",
-    "en-cours": "En cours", "terminees": "Terminées",
+    "en-cours": "En cours", "a-venir": "À venir",
+    "terminees": "Terminées", "toutes": "Toutes les sessions",
 }
 
 
@@ -7514,9 +7514,9 @@ def sessions_home():
     formation = request.args.get("formation", "")
     if formation not in formation_labels:
         formation = ""
-    status = request.args.get("statut", "toutes")
+    status = request.args.get("statut")
     if status not in SESSION_STATUS_FILTERS:
-        status = "toutes"
+        status = "en-cours"
 
     counts = dict.fromkeys(SESSION_STATUS_FILTERS, 0)
     rows = []
@@ -7551,7 +7551,7 @@ def sessions_home():
                 due.append(label)
                 total_today += 1
 
-    order = {"en-cours": 0, "a-venir": 1, "incomplet": 2, "terminees": 3}
+    order = {"en-cours": 0, "a-venir": 1, "terminees": 2, "incomplet": 3}
     def sort_key(item):
         start = item["start"]
         ordinal = start.toordinal() if start else 0

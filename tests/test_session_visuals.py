@@ -31,6 +31,8 @@ def test_detail_links_match_available_panels(monkeypatch, formation, sections, a
         response = client.get('/sessions/sheet')
     assert response.status_code == 200
     html = response.get_data(as_text=True)
+    assert 'Créer un visuel' not in html
+    assert '/social-post/new' not in html
     for panel in ('session-overview', 'planning-section', *sections):
         assert f'href="#{panel}" data-sheet-link="{panel}"' in html
         assert f'id="{panel}" data-sheet-panel="{panel}"' in html
@@ -71,7 +73,7 @@ def test_jury_badge_on_cards_overview_and_jury_tab(monkeypatch, states, label, t
     with app.app.test_client() as client:
         with client.session_transaction() as auth:
             auth.update(admin_logged=True, admin_session_version=app.ADMIN_SESSION_VERSION)
-        for path, occurrences in [('/sessions', 1), ('/sessions/jury-check', 2)]:
+        for path, occurrences in [('/sessions?statut=a-venir', 1), ('/sessions/jury-check', 2)]:
             response = client.get(path)
             assert response.status_code == 200
             html = response.get_data(as_text=True)

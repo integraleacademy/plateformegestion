@@ -22,9 +22,16 @@
 .milestone:first-child:nth-last-child(2) { grid-column:1/-1 }
 .milestone:first-child:nth-last-child(2) span { display:flex; align-items:center; justify-content:space-between; flex:1; gap:6px }
 .milestone:first-child:nth-last-child(2) small { margin-bottom:0 }
-.card-cover { padding:20px 17px 18px; color:white; background-color:var(--course); background-image:repeating-linear-gradient(125deg,transparent 0 12px,#ffffff09 12px 14px,transparent 14px 24px),linear-gradient(112deg,var(--course) 15%,var(--course-end)); background-size:78px 100%,100% 100%; background-position:right,center; background-repeat:no-repeat }
+.session-card {
+  --card-inset:clamp(1rem,1.5vw,1.75rem);
+  --section-gap:clamp(1.25rem,1.6vw,1.875rem);
+}
+.session-card .milestones { gap:.875rem; margin:var(--section-gap) var(--card-inset) }
+.session-card .milestone { padding:clamp(.875rem,1vw,1.125rem) .875rem; gap:.625rem }
+.session-card .milestone small { line-height:1.4 }
+.card-cover { padding:clamp(1.5rem,2vw,2rem) var(--card-inset); color:white; background-color:var(--course); background-image:repeating-linear-gradient(125deg,transparent 0 12px,#ffffff09 12px 14px,transparent 14px 24px),linear-gradient(112deg,var(--course) 15%,var(--course-end)); background-size:78px 100%,100% 100%; background-position:right,center; background-repeat:no-repeat }
 .card-cover .card-kicker,.card-cover .card-heading { padding:0 }
-.card-cover .card-heading { margin:12px 0 8px }
+.card-cover .card-heading { margin:1.125rem 0 .875rem }
 .card-cover .program { color:white; gap:6px }
 .card-cover .program .icon { width:17px; height:17px }
 .card-cover .state { background:white; color:#33536c }
@@ -34,12 +41,14 @@
 .course-period { display:flex; align-items:center; flex-wrap:wrap; min-height:23px; gap:6px; color:#fff; font-size:var(--catalogue-text); font-weight:520 }
 .course-period .icon { width:15px; height:15px }
 .course-period small { margin-left:auto; border:1px solid #ffffff6b; border-radius:20px; padding:1px 7px; color:white; font-size:var(--catalogue-secondary); font-weight:680 }
-.session-card .follow-up { gap:7px; margin:15px 15px 17px }
+.session-card .follow-up { flex-direction:column; align-items:flex-start; gap:.875rem; margin:0 var(--card-inset) var(--section-gap) }
+.session-card .jury-statuses { display:flex; align-items:center; flex-wrap:wrap; gap:.625rem .875rem }
+.follow-up .tag, .follow-up .jury-presence, .follow-up .session-alert { min-height:2rem }
 .follow-up .tag { display:inline-flex; align-items:center; gap:4px; line-height:1.35; padding:3px 6px; font-size:var(--catalogue-secondary) }
 .follow-up .tag .icon { width:1em; height:1em }
 .follow-up .tag-missing,.follow-up .tag-pending { background:#fff1dd; color:#854816 }
 .follow-up .jury-tag { background:#edf1fa; color:#435e8f }
-.session-card .card-footer { color:var(--course); background:color-mix(in srgb,var(--course-tint) 40%,white) }
+.session-card .card-footer { padding:1.125rem var(--card-inset); color:var(--course); background:color-mix(in srgb,var(--course-tint) 40%,white) }
 .session-card .card-footer:hover { background:var(--course-tint) }
 
 /* A warning always names the action, even when colour is unavailable. */

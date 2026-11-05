@@ -11,32 +11,32 @@
 .milestone { display:flex; align-items:flex-start; gap:7px; padding:9px 10px; border-radius:9px; background:var(--phase-bg); color:var(--phase-ink); min-width:0 }
 .milestone .session-glyph { width:16px; height:16px; margin-top:1px }
 .milestone small,.milestone b { display:block }
-.milestone small { margin-bottom:3px; font-size:10px; line-height:1.2; font-weight:650; color:var(--phase-ink) }
-.milestone b { font-size:12px; line-height:1.35; font-weight:680; color:var(--phase-ink) }
+.milestone small { margin-bottom:3px; font-size:var(--catalogue-secondary,10px); line-height:1.2; font-weight:650; color:var(--phase-ink) }
+.milestone b { font-size:var(--catalogue-text,12px); line-height:1.35; font-weight:680; color:var(--phase-ink) }
 .remote { --phase-bg:#efeafa; --phase-ink:#694b94 }
 .onsite { --phase-bg:#e3f4ee; --phase-ink:#22664d }
 .exam { --phase-bg:#fff0ce; --phase-ink:#805319 }
 .milestone.exam { grid-column:1/-1; align-items:center }
 .milestone.exam span { display:flex; align-items:center; justify-content:space-between; flex:1; gap:6px }
-.milestone.exam small { margin:0; font-size:11px }
+.milestone.exam small { margin:0; font-size:var(--catalogue-secondary,11px) }
 .milestone:first-child:nth-last-child(2) { grid-column:1/-1 }
 .milestone:first-child:nth-last-child(2) span { display:flex; align-items:center; justify-content:space-between; flex:1; gap:6px }
 .milestone:first-child:nth-last-child(2) small { margin-bottom:0 }
 .card-cover { padding:20px 17px 18px; color:white; background-color:var(--course); background-image:repeating-linear-gradient(125deg,transparent 0 12px,#ffffff09 12px 14px,transparent 14px 24px),linear-gradient(112deg,var(--course) 15%,var(--course-end)); background-size:78px 100%,100% 100%; background-position:right,center; background-repeat:no-repeat }
 .card-cover .card-kicker,.card-cover .card-heading { padding:0 }
-.card-cover .card-heading { margin:11px 0 4px }
+.card-cover .card-heading { margin:12px 0 8px }
 .card-cover .program { color:white; gap:6px }
 .card-cover .program .icon { width:17px; height:17px }
 .card-cover .state { background:white; color:#33536c }
-.card-cover .card-name h3 { font-size:19px; line-height:1.22 }
+.card-cover .card-name h3 { font-size:var(--catalogue-card-title); line-height:1.22 }
 .card-cover .edit { background:#ffffff16; color:white }
 .card-cover .edit:hover { background:#ffffff38; color:white }
-.course-period { display:flex; align-items:center; flex-wrap:wrap; min-height:23px; gap:6px; color:#fff; font-size:12px; font-weight:520 }
+.course-period { display:flex; align-items:center; flex-wrap:wrap; min-height:23px; gap:6px; color:#fff; font-size:var(--catalogue-text); font-weight:520 }
 .course-period .icon { width:15px; height:15px }
-.course-period small { margin-left:auto; border:1px solid #ffffff6b; border-radius:20px; padding:1px 7px; color:white; font-size:10px; font-weight:680 }
+.course-period small { margin-left:auto; border:1px solid #ffffff6b; border-radius:20px; padding:1px 7px; color:white; font-size:var(--catalogue-secondary); font-weight:680 }
 .session-card .follow-up { gap:7px; margin:15px 15px 17px }
-.follow-up .tag { display:inline-flex; align-items:center; gap:4px; line-height:1.35; padding:3px 6px; font-size:10px }
-.follow-up .tag .icon { width:12px; height:12px }
+.follow-up .tag { display:inline-flex; align-items:center; gap:4px; line-height:1.35; padding:3px 6px; font-size:var(--catalogue-secondary) }
+.follow-up .tag .icon { width:1em; height:1em }
 .follow-up .tag-missing,.follow-up .tag-pending { background:#fff1dd; color:#854816 }
 .follow-up .jury-tag { background:#edf1fa; color:#435e8f }
 .session-card .card-footer { color:var(--course); background:color-mix(in srgb,var(--course-tint) 40%,white) }
@@ -51,8 +51,8 @@
 .session-alert > [aria-hidden], .recap-totals .session-alert > [aria-hidden] {
   flex:none; font-size:1em; padding:0; border:0; background:none;
 }
-.follow-up .session-alert { font-size:12px }
+.follow-up .session-alert { font-size:var(--catalogue-secondary) }
 
 .jury-presence { display:inline-flex; align-items:center; gap:.4em; max-width:100%; width:fit-content; padding:.32em .68em; border:1px solid #efa9b1; border-radius:7px; font-size:clamp(12px,.85vw,15px); font-weight:740; line-height:1.35 }
 .jury-complete { background:#e1f6e9; border-color:#98d2ad; color:#196337 }
-.follow-up .jury-presence { font-size:12px }
+.follow-up .jury-presence { font-size:var(--catalogue-secondary) }

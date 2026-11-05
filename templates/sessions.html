@@ -119,17 +119,21 @@
             </div>
           </header>
           {{ milestones(s) }}
+          {% set contracts = session_trainer_contract_summary(s) %}
+          {% if contracts or item.state != 'terminees' %}
           <div class="follow-up">
-            {% set contracts = session_trainer_contract_summary(s) %}
             {% if contracts %}
               {% if contracts.action_required and item.state != 'terminees' %}<span title="{{ contracts.details }}">{{ attention(contracts.label) }}</span>
               {% else %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
             {% endif %}
             {% if item.state != 'terminees' %}
-              {{ jury_presence(s) }}
-              {% if s.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% endif %}
+              <div class="jury-statuses">
+                {{ jury_presence(s) }}
+                {% if s.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% endif %}
+              </div>
             {% endif %}
           </div>
+          {% endif %}
           <a class="card-footer" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>
         </article>
       {% endfor %}

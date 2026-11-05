@@ -169,7 +169,7 @@ dialog::backdrop { background:#14273586 }
 .session-card .milestone span { min-width:0; flex-wrap:wrap }
 .recap .recap-totals .session-alert { font-size:var(--catalogue-secondary) }
 
-@container (max-width:25rem) {
+@container (max-width:28rem) {
   .session-card .milestones { grid-template-columns:1fr }
 }
 @media(max-width:1150px) { .cards { grid-template-columns:repeat(2,minmax(0,1fr)) } }

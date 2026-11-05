@@ -324,6 +324,8 @@ GLOBAL_DEFAULT_ZOOM_STYLE = """
 
 @app.after_request
 def apply_global_default_zoom(response):
+    if request.endpoint == "sessions_home":
+        return response
     if response.mimetype != "text/html" or response.direct_passthrough:
         return response
 

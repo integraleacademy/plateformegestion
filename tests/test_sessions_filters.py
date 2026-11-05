@@ -59,6 +59,7 @@ def test_status_then_course_link_preserves_status_and_shows_empty_result(dashboa
 
 def test_dashboard_opens_on_current_sessions_and_links_to_all(dashboard):
     html = dashboard.get("/sessions").get_data(as_text=True)
+    assert 'id="global-default-zoom"' not in html
     assert re.findall(r'class="metric metric-([^"]+)"', html) == [
         "en-cours", "a-venir", "terminees", "toutes",
     ]

@@ -58,7 +58,8 @@ from services.formateur_expiration_notifications import (
     last_notification_at as last_formateur_expiration_notification_at,
 )
 from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, compact_a3p_planning, generateA3pSchedule, merge_adjacent_a3p_slots, validate_a3p_planning, is_a3p_non_working_day
-from services.a3p_session_f3c27cf4_update import correct_session_f3c27cf4_a3p_planning\nfrom services.a3p_session_f3c27cf4_shift_11am import shift_11am_training_days
+from services.a3p_session_f3c27cf4_update import correct_session_f3c27cf4_a3p_planning
+from services.a3p_session_f3c27cf4_shift_11am import shift_11am_training_days
 from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
 
 from services.afc_france_travail_attendance import (

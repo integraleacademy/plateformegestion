@@ -60,6 +60,7 @@ from services.formateur_expiration_notifications import (
 from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, compact_a3p_planning, generateA3pSchedule, merge_adjacent_a3p_slots, validate_a3p_planning, is_a3p_non_working_day
 from services.a3p_session_f3c27cf4_update import correct_session_f3c27cf4_a3p_planning
 from services.a3p_session_f3c27cf4_shift_11am import shift_11am_training_days
+from services.a3p_session_f3c27cf4_fix_1211_2212 import correct_1211_and_2212
 from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DESP_PRESENTIEL_HOURS, generate_desp_planning, desp_summary_from_planning
 
 from services.afc_france_travail_attendance import (
@@ -5889,6 +5890,121 @@ def migrate_a3p_session_f3c27cf4_shift_11am():
             "shifted_dates": shifted_dates,
         }
         app.logger.info("A3P_SHIFT_11AM_TO_NOON %s", json.dumps(result, ensure_ascii=False))
+        return result
+
+
+def migrate_a3p_session_f3c27cf4_fix_1211_2212():
+    """Corriger le 12/11 en 12h-21h et l'anomalie 01h-02h du 22/12."""
+    if not os.path.exists(SESSIONS_FILE):
+        return {"status": "not_found"}
+    import fcntl
+
+    version = "2026-11-10-fix-1211-2212-v1"
+    sid = "f3c27cf4"
+    version_key = "a3pFix1211And2212Version"
+    backup_dir = os.path.join(DATA_DIR, "planning_migrations", version)
+    os.makedirs(backup_dir, exist_ok=True)
+
+    with open(os.path.join(backup_dir, "migration.lock"), "a") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        data = load_sessions()
+        target = find_session(data, sid)
+        if not target or (target.get("formation") or "").upper() != "A3P":
+            return {"status": "not_found"}
+        if target.get(version_key) == version:
+            return {"status": "already_applied"}
+
+        original_planning = target.get("a3pPlanningData") or []
+        if not original_planning:
+            return {"status": "no_saved_planning"}
+
+        corrected = compact_a3p_planning(correct_1211_and_2212(original_planning))
+        errors, summary = validate_a3p_planning(corrected, target.get("date_exam"))
+        if errors:
+            raise ValueError("Correction A3P 12/11 et 22/12 non appliquée : " + " ".join(errors))
+
+        backup_id = datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        backup_base = os.path.join(backup_dir, f"session_{sid}_{backup_id}")
+        with open(backup_base + ".json", "x", encoding="utf-8") as handle:
+            json.dump(target, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        planning_filename = os.path.basename(
+            target.get("a3pPlanningFilename")
+            or target.get("a3pPlanningPdfFilename")
+            or f"planning_a3p_session_{sid}.pdf"
+        )
+        attendance_filename = os.path.basename(
+            target.get("a3pAttendanceSheetsFilename")
+            or f"feuilles_presence_a3p_{sid}.pdf"
+        )
+        planning_path = os.path.join(A3P_DOC_DIR, planning_filename)
+        attendance_path = os.path.join(A3P_DOC_DIR, attendance_filename)
+        if os.path.isfile(planning_path):
+            shutil.copy2(planning_path, backup_base + "_planning.pdf")
+        if os.path.isfile(attendance_path):
+            shutil.copy2(attendance_path, backup_base + "_attendance.pdf")
+
+        candidate = deepcopy(target)
+        candidate["a3pPlanningData"] = corrected
+        candidate["a3pPlanningSummary"] = summary
+        candidate[version_key] = version
+        candidate["a3pPlanningNeedsRegeneration"] = False
+        candidate["planning_modified_at"] = append_planning_history(
+            candidate,
+            "planning A3P corrigé : 12/11 en 12h-21h et anomalie 22/12 01h-02h corrigée",
+        )
+
+        builder_state = candidate.get("a3pPlanningBuilder") or candidate.get("a3pPlanningDraftJson") or {}
+        if isinstance(builder_state, dict):
+            builder_state = dict(builder_state)
+            builder_state["preview"] = corrected
+            candidate["a3pPlanningBuilder"] = builder_state
+        candidate.pop("a3pPlanningEditorDraft", None)
+        candidate.pop("a3pPlanningEditorDraftModifiedAt", None)
+
+        planning_tmp = planning_path + ".fix1211-2212.tmp"
+        attendance_tmp = attendance_path + ".fix1211-2212.tmp"
+        try:
+            generate_a3p_planning_pdf(candidate, planning_tmp)
+            generate_a3p_attendance_pdf(candidate, attendance_tmp)
+            if not os.path.isfile(planning_tmp) or os.path.getsize(planning_tmp) <= 0:
+                raise ValueError("Le PDF planning A3P corrigé est vide.")
+            if not os.path.isfile(attendance_tmp) or os.path.getsize(attendance_tmp) <= 0:
+                raise ValueError("Le PDF des feuilles de présence A3P corrigé est vide.")
+            os.replace(planning_tmp, planning_path)
+            os.replace(attendance_tmp, attendance_path)
+        finally:
+            for tmp_path in (planning_tmp, attendance_tmp):
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        candidate["a3pPlanningFilename"] = planning_filename
+        candidate["a3pPlanningPdfFilename"] = planning_filename
+        candidate["a3pPlanningGeneratedAt"] = now
+        candidate["planning_pdf_regenerated_at"] = append_planning_history(
+            candidate, "PDF A3P régénéré après correction du 12/11 et du 22/12"
+        )
+        candidate["a3pAttendanceSheetsFilename"] = attendance_filename
+        candidate["a3pAttendanceSheetsGeneratedAt"] = candidate.get("a3pAttendanceSheetsGeneratedAt") or now
+        candidate["a3pAttendanceSheetsUpdatedAt"] = now
+        docs = candidate.setdefault("a3p_documents", {})
+        docs["planning"] = {"path": planning_path, "generated_at": now}
+        docs["attendance"] = {"path": attendance_path, "generated_at": now}
+
+        data["sessions"] = [candidate if item.get("id") == sid else item for item in data.get("sessions", [])]
+        save_sessions(data)
+
+        result = {
+            "status": "applied",
+            "session": sid,
+            "total_hours": summary.get("totalHours"),
+            "module_totals": summary.get("moduleTotals"),
+            "changed_dates": ["2026-11-12", "2026-12-22"],
+        }
+        app.logger.info("A3P_FIX_1211_2212 %s", json.dumps(result, ensure_ascii=False))
         return result
 
 
@@ -14112,6 +14228,11 @@ try:
     migrate_a3p_session_f3c27cf4_shift_11am()
 except Exception:
     app.logger.exception("A3P_SHIFT_11AM_TO_NOON_FAILED session=f3c27cf4 ; données enregistrées conservées")
+
+try:
+    migrate_a3p_session_f3c27cf4_fix_1211_2212()
+except Exception:
+    app.logger.exception("A3P_FIX_1211_2212_FAILED session=f3c27cf4 ; données enregistrées conservées")
 
 
 from services.shared_rooms import register as register_shared_rooms

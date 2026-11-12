@@ -25,6 +25,28 @@ Application Flask déployable sur Render.
 - `PERSIST_DIR` (recommandé) : dossier persistant pour SQLite (ex: `/mnt/data`).
 - `DATA_DIR` (optionnel) : dossier de persistance des autres JSON de l'application.
 
+### Rappels de saisie des certificats SST
+
+Le service lit les plannings **enregistrés** des sessions APS, A3P, SSIAP 1 et AFC APS + SSIAP. Il rappelle à Elsa de saisir les certificats le lendemain de la dernière journée SST, à **9 h, heure de Paris**, week-ends compris. Les séances de secourisme tactique A3P et les brouillons ne déclenchent pas de rappel.
+
+Configurer uniquement sur Render, sans inscrire les coordonnées dans le dépôt :
+
+- `SST_CERTIFICATE_REMINDERS_ENABLED=true` : actif par défaut sur Render, inactif en local.
+- `SST_CERTIFICATE_REMINDER_EMAIL` : adresse professionnelle d’Elsa.
+- `SST_CERTIFICATE_REMINDER_PHONE` : numéro d’Elsa au format international.
+
+Les transports existants sont réutilisés : Brevo API ou SMTP pour le mail, Brevo transactionnel pour le SMS (`BREVO_API_KEY` et `BREVO_SMS_SENDER`). Aucune copie n’est ajoutée. Les sessions échues au même passage sont regroupées ; chaque mail présente leurs dates SST, leurs lieux et un lien vers leur fiche.
+
+Une boucle interne vérifie les échéances toutes les 60 secondes, sans dépendre des visites. Le journal `DATA_DIR/sst_certificate_reminders.sqlite3` et son verrou interprocessus empêchent les deux workers Gunicorn de doubler les envois et conservent séparément les succès mail/SMS après redémarrage. Les échecs sont repris au plus tôt après 30 minutes, entre 9 h et 18 h. Les rappels survenus pendant un arrêt sont rattrapés. Au premier démarrage, les échéances antérieures au jour d’activation sont exclues pour ne pas relancer l’historique.
+
+Une session annulée, archivée, supprimée ou dont l’étape « Saisie des SST » est déjà cochée est ignorée. Toute modification du planning enregistré est relue avant le prochain traitement. Le suivi des notifications ne modifie pas les plannings ni `sessions.json`.
+
+Contrôles sans envoi (connexion administrateur requise) :
+
+- `GET /api/sst-certificate-reminders` : configuration disponible et échéances issues des plannings.
+- `GET /sessions/<sid>/sst-certificates/reminder-preview` : aperçu du mail, également accessible depuis « Aperçu du mail SST » dans le planning de la session.
+- Journaux Render `SST_REMINDER_WORKER_STARTED` et `SST_REMINDER_SCAN` : activation, disponibilité des transports et prochaines échéances, sans coordonnées ni secrets.
+
 ## Déploiement Render
 1. Créer un **Web Service** Python.
 2. Build command: `pip install -r requirements.txt`.

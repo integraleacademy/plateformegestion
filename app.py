@@ -21,6 +21,7 @@ import secrets
 import unicodedata
 from io import BytesIO
 from datetime import datetime, timedelta, date, time as dt_time
+from zoneinfo import ZoneInfo
 from functools import wraps
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -56,6 +57,10 @@ from services.aps_pdf_presentation import (
 from services.formateur_expiration_notifications import (
     process_notifications as process_formateur_notification_queue,
     last_notification_at as last_formateur_expiration_notification_at,
+)
+from services.sst_certificate_reminders import (
+    collect_sst_reminders,
+    process_reminders as process_sst_reminder_queue,
 )
 from a3p_program import A3P_TOTAL_HOURS, A3P_MAX_DISTINCT_MODULES_PER_DAY, A3P_MODULES, A3P_FORBIDDEN_TERMS, compact_a3p_planning, generateA3pSchedule, merge_adjacent_a3p_slots, validate_a3p_planning, is_a3p_non_working_day
 from services.a3p_session_f3c27cf4_update import correct_session_f3c27cf4_a3p_planning
@@ -8057,6 +8062,7 @@ def session_detail(sid):
         order=order,
         now=datetime.now,
         planning_pdf=session.get("planning_pdf"),
+        sst_certificate_reminder=next(iter(collect_sst_reminders([session])), None),
         aps_planning_compliance=aps_planning_compliance_report(session) if (session.get("formation") or "").upper() == "APS" else None,
         afc_dsf_summary=afc_dsf_summary(session, request.args.get("billingUntil"), request.args.get("periodStart"), request.args.get("periodEnd"), request.args.get("hourlyRate")) if is_afc_aps_ssiap_session(session) else None,
         afc_dsf_modules=AFC_DSF_MODULES,
@@ -10790,6 +10796,151 @@ def send_price_adaptator_sms(phone, message):
             return False, str(e)
 
     return False, "SMS non configuré (BREVO_API_KEY / BREVO_SMS_SENDER manquants)"
+
+
+def sst_certificate_reminders_enabled():
+    return os.environ.get(
+        "SST_CERTIFICATE_REMINDERS_ENABLED", "true" if IS_RENDER else "false"
+    ).lower() == "true"
+
+
+def sst_certificate_delivery_configuration():
+    """Only expose readiness, never recipient values or credentials."""
+    email = os.environ.get("SST_CERTIFICATE_REMINDER_EMAIL", "").strip()
+    phone = normalize_phone_number(os.environ.get("SST_CERTIFICATE_REMINDER_PHONE", "")) or ""
+    smtp = get_smtp_config()
+    return {
+        "email_recipient_configured": bool(re.fullmatch(r"[^@\s,;<>]+@[^@\s,;<>]+\.[^@\s,;<>]+", email)),
+        "sms_recipient_configured": bool(re.fullmatch(r"\+[1-9]\d{7,14}", phone)),
+        "email_transport_configured": bool(
+            (BREVO_API_KEY and (BREVO_SENDER_EMAIL or BREVO_FROM_EMAIL or FROM_EMAIL))
+            or all(smtp.get(key) for key in ("login", "password", "from_email"))
+        ),
+        "sms_transport_configured": bool(BREVO_API_KEY and BREVO_SMS_SENDER),
+    }
+
+
+def load_sst_certificate_reminders():
+    base_url = (os.environ.get("RENDER_EXTERNAL_URL") or "https://plateformegestion.onrender.com").rstrip("/")
+    return [
+        {**reminder, "url": base_url + "/sessions/" + urllib.parse.quote(reminder["session_id"], safe="")}
+        for reminder in collect_sst_reminders(load_sessions()["sessions"])
+    ]
+
+
+def render_sst_certificate_reminder_email(reminders, reminder_date=None):
+    reminder_date = reminder_date or datetime.now(ZoneInfo("Europe/Paris")).date()
+    with app.app_context():
+        return render_template(
+            "emails/sst_certificate_reminder.html", reminders=reminders,
+            reminder_date_label=reminder_date.strftime("%d/%m/%Y"),
+        )
+
+
+def send_sst_certificate_reminder_email(reminders):
+    if not sst_certificate_delivery_configuration()["email_recipient_configured"]:
+        return False, "email_recipient_not_configured"
+    subject = "Certificats SST à saisir"
+    if len(reminders) == 1:
+        subject += " — " + str(reminders[0]["formation"]).replace("\r", " ").replace("\n", " ")[:80]
+    else:
+        subject += f" — {len(reminders)} sessions"
+    return send_email(
+        os.environ["SST_CERTIFICATE_REMINDER_EMAIL"].strip(), subject,
+        render_sst_certificate_reminder_email(reminders),
+    )
+
+
+def build_sst_certificate_reminder_sms(reminders):
+    if len(reminders) == 1:
+        reminder = reminders[0]
+        formation = " ".join(str(reminder["formation"]).split())[:25]
+        return (
+            f"Elsa, pense à saisir les certificats SST ({formation}, "
+            f"fin le {reminder['completed_on_label']}). {reminder['url']}"
+        )
+    base_url = (os.environ.get("RENDER_EXTERNAL_URL") or "https://plateformegestion.onrender.com").rstrip("/")
+    return (
+        f"Elsa, pense à saisir les certificats SST de {len(reminders)} sessions terminées. "
+        f"Détail des sessions : {base_url}/sessions?statut=toutes"
+    )
+
+
+def send_sst_certificate_reminder_sms(reminders):
+    if not sst_certificate_delivery_configuration()["sms_recipient_configured"]:
+        return False, "sms_recipient_not_configured"
+    return send_price_adaptator_sms(
+        os.environ["SST_CERTIFICATE_REMINDER_PHONE"],
+        build_sst_certificate_reminder_sms(reminders),
+    )
+
+
+def process_sst_certificate_reminders(now=None):
+    if not sst_certificate_reminders_enabled():
+        return {"enabled": False}
+    return process_sst_reminder_queue(
+        DATA_DIR, load_sst_certificate_reminders,
+        send_sst_certificate_reminder_email, send_sst_certificate_reminder_sms,
+        now=now,
+    )
+
+
+def sst_certificate_reminder_scheduler_loop():
+    previous = None
+    while True:
+        try:
+            result = process_sst_certificate_reminders()
+            # A startup summary proves that the saved timetables were read;
+            # subsequent summaries are emitted only when their state changes.
+            summary = json.dumps(result, ensure_ascii=False, sort_keys=True)
+            if not result.get("busy") and summary != previous:
+                logging.getLogger("sst-reminders").info("SST_REMINDER_SCAN %s", summary)
+                previous = summary
+        except Exception:
+            logging.getLogger("sst-reminders").exception("SST_REMINDER_SCAN_FAILED")
+        threading.Event().wait(60)
+
+
+_sst_certificate_reminder_thread = None
+
+
+def start_sst_certificate_reminder_scheduler():
+    global _sst_certificate_reminder_thread
+    if not sst_certificate_reminders_enabled():
+        return
+    if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        return
+    if _sst_certificate_reminder_thread is not None and _sst_certificate_reminder_thread.is_alive():
+        return
+    logging.getLogger("sst-reminders").info(
+        "SST_REMINDER_WORKER_STARTED interval_seconds=60 time=09:00 timezone=Europe/Paris config=%s",
+        json.dumps(sst_certificate_delivery_configuration(), sort_keys=True),
+    )
+    _sst_certificate_reminder_thread = threading.Thread(
+        target=sst_certificate_reminder_scheduler_loop, name="sst-certificates", daemon=True,
+    )
+    _sst_certificate_reminder_thread.start()
+
+
+@app.get("/api/sst-certificate-reminders")
+def sst_certificate_reminder_diagnostics():
+    # Protected by the normal admin session; this GET never sends anything.
+    return jsonify(
+        enabled=sst_certificate_reminders_enabled(), time="09:00", timezone="Europe/Paris",
+        configuration=sst_certificate_delivery_configuration(), reminders=load_sst_certificate_reminders(),
+    )
+
+
+@app.get("/sessions/<sid>/sst-certificates/reminder-preview")
+def sst_certificate_reminder_preview(sid):
+    reminder = next((item for item in load_sst_certificate_reminders() if item["session_id"] == sid), None)
+    if reminder is None:
+        abort(404)
+    response = app.make_response(render_sst_certificate_reminder_email(
+        [reminder], date.fromisoformat(reminder["due_on"]),
+    ))
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.route("/dotations")
@@ -14240,3 +14391,6 @@ register_shared_rooms(app, load_sessions, save_sessions, SESSIONS_FILE)
 
 from services.personal_planner import register as register_personal_planner
 register_personal_planner(app, DATA_DIR, load_sessions, session_modality_date_range)
+
+# Start only after saved-planning migrations have completed.
+start_sst_certificate_reminder_scheduler()

@@ -57,6 +57,8 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   const chip = (id,value) => day(value).locator(`[data-event="${id}"]`);
   const refresh = async () => { await page.waitForTimeout(450); await page.locator('#refresh').click(); await page.waitForFunction(() => !document.querySelector('#refresh').disabled); };
   const drag = async (id,from,to,expectedStatus=200) => {
+    await chip(id,from).scrollIntoViewIfNeeded();
+    await chip(id,from).hover();
     const saved = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes('/records/'),{timeout:10000}).catch(error => error);
     await chip(id,from).dragTo(day(to),{targetPosition:{x:30,y:25}});
     const response = await saved;

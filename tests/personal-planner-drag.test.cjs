@@ -129,9 +129,12 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   check('Retour prévisionnel : déplacer une date ne confirme jamais une réservation');
 
   await refresh();
+  // Both the source and the toolbar must be in the viewport for a real mouse drag.
+  await page.evaluate(() => window.scrollTo(0,0));
   await chip(appointment,'2026-11-14').scrollIntoViewIfNeeded();
   const source = await chip(appointment,'2026-11-14').boundingBox();
   const next = await page.locator('#next').boundingBox();
+  assert.ok(next.y >= 0 && source.y + source.height < 1300,JSON.stringify({source,next}));
   await page.mouse.move(source.x + source.width/2,source.y + source.height/2);
   await page.mouse.down();
   await page.mouse.move(source.x + 15,source.y + 10,{steps:5});

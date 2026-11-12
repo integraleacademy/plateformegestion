@@ -33,3 +33,25 @@ body.planner-focus{overflow:hidden;background:#fff}body.planner-focus .topline,b
 /* Small destination illustrations, shared across the planner. */
 .place-mark{display:inline-flex;align-items:center;gap:6px;min-width:0}.place-mark>.icon{width:17px;height:17px;flex-shrink:0;color:var(--place-color);stroke-width:1.55}.place-text{min-width:0;overflow:hidden;text-overflow:ellipsis}.dash-icon.dash-place-icon>.icon{width:23px;height:23px;stroke-width:1.55}.place-name{display:flex;align-items:center;gap:4px}.place-name .place-mark{gap:3px;overflow:hidden}.place-name .place-mark>.icon{width:12px;height:12px}.dash-today .place-mark{color:inherit}.dash-today .place-mark>.icon{color:#e2d8ee;width:15px;height:15px}.day-place .place-mark{margin-top:4px}.legend-label .place-mark{gap:9px}.list-main .place-mark>.icon{width:16px;height:16px}
 @media(max-width:600px){.place-name .place-mark{gap:2px}.place-name .place-mark>.icon{width:10px;height:10px}.dash-icon.dash-place-icon>.icon{width:22px;height:22px}}
+
+/* Each destination stays attached to its person, including shared or missing places. */
+.person-avatar{font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:21px;font-weight:400;line-height:1}
+.person-key{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;color:#77717f;font-size:11px}
+.person-key>span{display:inline-flex;align-items:center;gap:6px}
+.person-key .person-avatar{width:23px;height:23px;font-size:17px}
+.calendar-places{display:grid;gap:3px;margin:0 1px 7px;min-width:0}
+.calendar-place{display:flex;align-items:center;gap:5px;min-width:0;min-height:25px;padding:2px 5px 2px 3px;border-left:2px solid var(--place-color);border-radius:4px;background:color-mix(in srgb,var(--place-color) 8%,white);color:#5f5b69;font-size:10px;line-height:1.3}
+.calendar-place .person-avatar{width:20px;height:20px;font-size:16px}
+.calendar-place .place-mark{flex:1;gap:4px;overflow:hidden;white-space:nowrap}
+.calendar-place .place-mark>.icon{width:13px;height:13px}
+.calendar-place.missing{border-left-style:dotted;background:#faf7f6;color:#9a8580}
+.day-place .day-place-owner{display:flex;align-items:center;gap:7px;margin-bottom:5px;color:#80718f}
+.day-place-owner .person-avatar{width:25px;height:25px;font-size:19px}
+@media(max-width:600px){
+  .calendar-places{gap:3px;margin:0 0 6px}
+  .calendar-place{flex-direction:column;gap:2px;padding:3px 1px;border-left-width:2px;font-size:8px;text-align:center}
+  .calendar-place .person-avatar{width:19px;height:19px;font-size:16px}
+  .calendar-place .place-mark{display:block;width:100%;min-width:0}
+  .calendar-place .place-mark>.icon{display:none}
+  .calendar-place .place-text{display:block;white-space:nowrap}
+}

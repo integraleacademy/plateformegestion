@@ -1,0 +1,33 @@
+name: Personal planner
+
+on:
+  pull_request:
+    paths:
+      - 'services/personal_planner*.py'
+      - 'static/js/personal-planner.js'
+      - 'static/css/personal-planner.css'
+      - 'templates/personal_planner.html'
+      - 'tests/*personal*planner*'
+      - '.github/workflows/personal-planner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  planner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_personal_planner.py -q
+      - run: npm install --no-save playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/personal-planner-drag.test.cjs

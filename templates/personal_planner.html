@@ -6,8 +6,8 @@
   <meta name="planner-csrf" content="{{ planner_csrf }}">
   <title>Clément &amp; Elsa · Notre quotidien</title>
   <link rel="icon" href="{{ url_for('static', filename='img/faviconpg.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=4">
-  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=4" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=5">
+  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=5" defer></script>
 </head>
 <body>
 <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -70,7 +70,7 @@
       </div>
       <div id="view-intro" class="view-intro" hidden></div>
       <div id="view" aria-live="polite"><div class="initial-loading">Votre planning se prépare…</div></div>
-      <div class="calendar-footer" id="calendar-footer"><span><span class="coverage-dot"></span> Lieu manquant : journée à compléter</span><span>Cliquez sur un jour pour voir le détail ou ajouter un événement.</span></div>
+      <div class="calendar-footer" id="calendar-footer"><span><span class="coverage-dot"></span> Lieu manquant : journée à compléter</span><span id="calendar-move-help">Glissez un événement vers une autre date. Maintenez-le sur une flèche pour changer de période. Vous pouvez aussi cliquer pour modifier.</span><span>Les dates de formation se modifient dans leur session. Cliquez sur un jour pour ajouter un événement.</span></div>
     </section>
   </div>
 </main>

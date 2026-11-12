@@ -6,8 +6,8 @@
   <meta name="planner-csrf" content="{{ planner_csrf }}">
   <title>Clément &amp; Elsa · Notre quotidien</title>
   <link rel="icon" href="{{ url_for('static', filename='img/faviconpg.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=2">
-  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=2" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=3">
+  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=3" defer></script>
 </head>
 <body>
 <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -28,6 +28,8 @@
   <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v11h-7zM3 14h7v7H3zM14 18h7v3h-7z"/></symbol>
+  <symbol id="i-restaurant" viewBox="0 0 24 24"><path d="M4 3v6a3 3 0 0 0 6 0V3M7 3v18M20 21V3c-5 3-5 10 0 10"/></symbol>
   <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H3V9h18v8h-4M7 14h10v7H7zM17 11h1"/></symbol>
   <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></symbol>
 </svg>
@@ -39,7 +41,7 @@
 <main class="shell">
   <section class="page-heading">
     <div><p class="eyebrow">UN QUOTIDIEN BIEN ORGANISÉ</p><h1>Clément <span>&amp;</span> Elsa<span class="heading-dot">.</span></h1><p class="subtitle">Les projets, la famille, les petits détails. Tout est ici.</p></div>
-    <div class="heading-actions"><button class="button quiet" id="refresh"><svg class="icon"><use href="#i-refresh"/></svg><span>Actualiser</span></button><button class="button primary" id="add-main"><svg class="icon"><use href="#i-plus"/></svg> Ajouter</button></div>
+    <div class="heading-actions"><button class="button quiet" id="open-export"><svg class="icon"><use href="#i-print"/></svg><span>Exporter un PDF</span></button><button class="button quiet" id="refresh"><svg class="icon"><use href="#i-refresh"/></svg><span>Actualiser</span></button><button class="button primary" id="add-main"><svg class="icon"><use href="#i-plus"/></svg> Ajouter</button></div>
   </section>
   <div id="load-error" class="notice error" role="alert" hidden></div>
   <div id="training-error" class="notice warning" role="status" hidden></div>
@@ -78,6 +80,8 @@
 </dialog>
 <dialog id="day-dialog" class="day-dialog" aria-labelledby="day-title"><header class="dialog-heading"><div><p class="eyebrow">LE DÉTAIL DE VOTRE JOURNÉE</p><h2 id="day-title"></h2></div><button class="icon-button" data-close="day-dialog" aria-label="Fermer"><svg class="icon"><use href="#i-close"/></svg></button></header><div id="day-content" class="dialog-body"></div><footer class="dialog-footer"><button class="button primary" id="day-add"><svg class="icon"><use href="#i-plus"/></svg> Ajouter à cette date</button></footer></dialog>
 <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-body"><h2 id="confirm-title">Supprimer cet élément ?</h2><p>Cette action supprime l’élément de votre planning partagé.</p><label id="delete-series-label" class="check-label" hidden><input type="checkbox" id="delete-series"> Supprimer aussi toutes les autres dates de cette série</label><div id="delete-error" class="notice error" hidden role="alert"></div></div><footer class="dialog-footer"><button class="button" data-close="confirm-dialog">Annuler</button><button class="button destructive" id="confirm-delete">Supprimer</button></footer></dialog>
+<dialog id="shopping-list-dialog" class="confirm-dialog" aria-labelledby="shopping-list-title"><form id="shopping-list-form"><header class="dialog-heading"><h2 id="shopping-list-title">Nouvelle liste</h2><button type="button" class="icon-button" data-close="shopping-list-dialog" aria-label="Fermer"><svg class="icon"><use href="#i-close"/></svg></button></header><div class="dialog-body"><label class="field">Nom de la liste<input id="shopping-list-name" required maxlength="60" placeholder="Ex. Travaux, week-end, cadeaux…"></label><div id="shopping-list-error" class="notice error" hidden role="alert"></div></div><footer class="dialog-footer"><button type="button" class="button" data-close="shopping-list-dialog">Annuler</button><button type="submit" id="save-shopping-list" class="button primary">Enregistrer</button></footer></form></dialog>
+<dialog id="export-dialog" class="editor" aria-labelledby="export-title"><form id="export-form"><header class="dialog-heading"><div><p class="eyebrow">UN PLANNING À EMPORTER</p><h2 id="export-title">Exporter votre planning</h2></div><button type="button" class="icon-button" data-close="export-dialog" aria-label="Fermer"><svg class="icon"><use href="#i-close"/></svg></button></header><div class="dialog-body"><div id="export-fields"></div><p class="form-hint">Choisissez vos dates : un mois, une année ou une période personnalisée, jusqu’à trois ans. Les statuts de réservation sont inclus.</p><div id="export-error" class="notice error" hidden role="alert"></div></div><footer class="dialog-footer"><button type="button" class="button" data-close="export-dialog">Annuler</button><button type="submit" class="button primary" id="generate-export"><svg class="icon"><use href="#i-print"/></svg> Générer le PDF</button></footer></form></dialog>
 <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

@@ -147,7 +147,6 @@ def test_pending_bookings_and_insufficient_boarding_coverage(planner):
     {"kind": "louise", "start": "2027-01-08", "end": "2027-01-01"},
     {"kind": "louise", "start": "2027-01-01", "end": "2027-01-09", "repeat": "weekly", "repeat_until": "2027-02-01"},
     {"kind": "location", "place": "paris", "start": "2027-01-01", "end": "2027-01-05", "boarding_status": "booked"},
-    {"kind": "location", "place": "paris", "start": "2027-01-01", "end": "2027-01-05", "fill_gaps": True},
     {"kind": "transport", "start": "2027-01-01", "end": "2027-01-01", "origin": "Paris"},
     {"kind": "note", "title": ""},
     {"kind": "note", "title": "Note", "owner": ["clement"]},
@@ -370,3 +369,132 @@ def test_pdf_never_silently_omits_unavailable_training(tmp_path):
     response = app.test_client().get(ROOT + "/month.pdf?year=2026&month=12")
     assert response.status_code == 503
     assert "planning complet" in response.json["error"]
+
+
+def test_gap_filling_accepts_reservations_without_duplicating_or_losing_them(planner):
+    _, client, _ = planner
+    existing, = save(client, kind="location", place="puget", start="2027-01-03", end="2027-01-04", owner="clement")
+    original = data(client)["records"][0]
+    ids = save(client, kind="location", place="paris", start="2027-01-01", end="2027-01-05", fill_gaps=True,
+               boarding_status="booked", boarding_start="2026-12-31", boarding_end="2027-01-06", boarding_location="itana",
+               transport_status="needs_change", transport_start="2027-01-01", transport_end="2027-01-05", transport_origin="Nice")
+    assert len(ids) == 3
+    result = data(client)
+    assert next(r for r in result["records"] if r["id"] == existing) == original
+    assert len(result["reservations"]) == 3
+    assert all(r["owner"] == "both" for r in result["reservations"])
+    pension = next(r for r in result["reservations"] if r["kind"] == "boarding")
+    assert pension["boarding_location"] == "itana" and "Itana" in pension["title"]
+    assert (pension["start"], pension["end"]) == ("2026-12-31", "2027-01-06")
+    parent = next(r for r in result["records"] if r["id"] == pension["record_id"])
+    assert client.put(ROOT + "/records/" + parent["id"], json=dict(parent, notes="Conserver la pension"), headers=HEADERS).status_code == 200
+    assert all(r["owner"] == "both" for r in data(client)["reservations"])
+    assert save(client, kind="location", place="paris", start="2027-01-01", end="2027-01-05", fill_gaps=True) == []
+    assert len(data(client)["reservations"]) == 3
+
+
+def test_simple_gap_fill_with_pending_reservations_no_longer_blocks(planner):
+    _, client, _ = planner
+    save(client, kind="location", place="paris", start="2027-01-01", end="2027-01-05", fill_gaps=True)
+    assert len(data(client)["reservations"]) == 3
+
+
+def test_restaurant_booking_and_important_appointment_survive_edits(planner):
+    _, client, _ = planner
+    rid, = save(client, kind="restaurant", title="La Table", start="2027-01-12", end="2027-01-12", start_time="20:30", meal="dinner", guests="2", address="Paris", status="booked", reference="Clément", notes="Table au calme", important=True)
+    saved = data(client)["records"][0]
+    assert (saved["meal"], saved["start_time"], saved["guests"], saved["important"]) == ("dinner", "20:30", 2, True)
+    assert client.put(ROOT + "/records/" + rid, json=dict(saved, meal="lunch", start_time="12:30"), headers=HEADERS).status_code == 200
+    assert data(client)["records"][0]["address"] == "Paris"
+    save(client, kind="personal", title="Rendez-vous important", start="2027-01-13", important=True)
+    assert all(r["important"] for r in data(client)["records"])
+
+
+@pytest.mark.parametrize("changes", [{"meal":"invalid"},{"start_time":""},{"start_time":"25:00"},{"guests":0},{"guests":101},{"end":"2027-01-13"}])
+def test_invalid_restaurant_does_not_save(planner, changes):
+    _, client, _ = planner
+    payload = dict(kind="restaurant", title="Restaurant", start="2027-01-12", end="2027-01-12", start_time="12:00", meal="lunch", **{})
+    payload.update(changes)
+    assert client.post(ROOT + "/records", json=payload, headers=HEADERS).status_code == 400
+    assert not data(client)["records"]
+
+
+def test_shopping_lists_persist_rename_and_move_items_without_cross_list_changes(planner):
+    app, client, _ = planner
+    initial = data(client)["shopping_lists"]
+    assert [r["name"] for r in initial] == ["Puget", "Cantal", "Paris", "Autre"]
+    legacy, = save(client, kind="shopping", title="Café")
+    puget, = save(client, kind="shopping", title="Lait", list_id="puget")
+    response = client.post(ROOT + "/shopping-lists", json={"name":"Travaux"}, headers=HEADERS)
+    assert response.status_code == 201
+    custom_id = response.json["id"]
+    assert any(r["id"] == custom_id for r in data(client)["shopping_lists"])
+    assert client.put(ROOT + "/shopping-lists/autre", json={"name":"Week-end", "revision":1}, headers=HEADERS).status_code == 200
+    assert client.put(ROOT + "/shopping-lists/autre", json={"name":"Stale", "revision":1}, headers=HEADERS).status_code == 409
+    assert client.post(ROOT + "/shopping-lists", json={"name":"paris"}, headers=HEADERS).status_code == 409
+    assert app.test_client().post(ROOT + "/shopping-lists", json={"name":"Private"}, headers=HEADERS).status_code == 302
+    assert client.post(ROOT + "/shopping-lists", json={"name":"No token"}).status_code == 403
+    before = data(client)["records"]
+    item = next(r for r in before if r["id"] == legacy)
+    assert item["list_id"] == "autre"
+    assert client.put(ROOT + "/records/" + legacy, json=dict(item, list_id=custom_id), headers=HEADERS).status_code == 200
+    assert next(r for r in data(client)["records"] if r["id"] == puget) == next(r for r in before if r["id"] == puget)
+    assert client.post(ROOT + "/records", json={"kind":"shopping","title":"No list","list_id":"missing"}, headers=HEADERS).status_code == 409
+
+
+@pytest.mark.parametrize("venue", ["PARIS", "PUGET"])
+def test_director_has_site_in_every_calendar_milestone(venue):
+    events = training_events([{"id":"director", "formation":"DIRIGEANT", "dirigeant_location":venue, "date_debut":"2027-01-01", "date_fin":"2027-02-10", "date_exam":"2027-02-11", "despPresentielStart":"2027-02-01"}], lambda s,m: None)
+    assert len(events) == 4
+    assert all("Dirigeant · " + venue.title() in r["title"] for r in events)
+
+
+def test_coincident_training_start_and_onsite_are_one_event_per_session():
+    sessions = [{"id":key,"formation":"A3P", "date_debut":"2027-01-01", "date_fin":"2027-02-01", "date_exam":"2027-02-02"} for key in ("a","b")]
+    events = training_events(sessions, lambda s,m: {"start":"2027-01-01"})
+    starts = [r for r in events if r["start"] == "2027-01-01"]
+    assert len(starts) == 2
+    assert all(r["milestones"] == ["training_start","training_onsite"] for r in starts)
+    assert all("Début formation en présentiel" in r["title"] for r in starts)
+    assert len({r["id"] for r in starts}) == 2
+
+
+def test_period_pdf_annual_louise_is_private_filters_and_keeps_cross_year_periods(planner):
+    app, client, sessions = planner
+    save(client, kind="louise", start="2026-12-28", end="2027-01-03")
+    save(client, kind="louise", start="2027-12-24", end="2028-01-02")
+    save(client, kind="personal", title="Ne doit pas sortir", start="2027-06-01")
+    sessions["sessions"] = [{"id":"s", "formation":"SSIAP1", "date_debut":"2027-06-01"}]
+    url = ROOT + "/export.pdf?scope=louise&start=2027-01-01&end=2027-12-31&layout=calendar"
+    assert app.test_client().get(url).status_code == 302
+    response = client.get(url)
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "private, no-store"
+    pdf = PdfReader(BytesIO(response.data))
+    assert len(pdf.pages) == 13
+    text = "\n".join(p.extract_text() for p in pdf.pages)
+    assert "Janvier 2027" in text and "Décembre 2027" in text
+    assert "28/12/2026 au 03/01/2027" in text
+    assert "24/12/2027 au 02/01/2028" in text
+    assert "Ne doit pas sortir" not in text and "SSIAP1" not in text
+    compact = client.get(url.replace("layout=calendar", "layout=list"))
+    assert len(PdfReader(BytesIO(compact.data)).pages) == 1
+
+
+def test_export_boarding_venue_and_grouped_transport(planner):
+    _, client, _ = planner
+    save(client, kind="location", place="paris", start="2027-01-11", end="2027-01-14", boarding_location="lafeuillade", transport_origin="Nice")
+    pension = client.get(ROOT + "/export.pdf?scope=boarding&start=2027-01-01&end=2027-12-31&layout=list")
+    text = PdfReader(BytesIO(pension.data)).pages[0].extract_text()
+    assert "Lafeuillade" in text and "À RÉSERVER" in text
+    assert "Aller" not in text
+    flights = client.get(ROOT + "/export.pdf?scope=transport&start=2027-01-01&end=2027-12-31&layout=list")
+    text = PdfReader(BytesIO(flights.data)).pages[0].extract_text()
+    assert text.count("Voyage · Paris") == 1
+    assert "Aller · Nice vers Paris" in text and "Retour · Paris vers Nice" in text
+
+
+@pytest.mark.parametrize("query", ["start=2027-01-01&end=2026-01-01", "start=2027-01-01&end=2032-01-01", "start=bad&end=2027-01-01", "start=2027-01-01&end=2027-12-31&scope=invalid", "start=2027-01-01&end=2027-12-31&layout=invalid"])
+def test_period_export_rejects_invalid_ranges_and_options(planner, query):
+    _, client, _ = planner
+    assert client.get(ROOT + "/export.pdf?" + query).status_code == 400

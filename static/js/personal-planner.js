@@ -13,6 +13,7 @@
   const span = (start, end, year = false) => start === end || !end ? fmt(start, year ? {year:'numeric'} : {}) : `${fmt(start)} → ${fmt(end, year ? {year:'numeric'} : {})}`;
   const ownerName = owner => ({both:'Clément & Elsa',clement:'Clément',elsa:'Elsa'}[owner] || 'Clément & Elsa');
   const personAvatar = person => `<span class="avatar person-avatar ${person}" aria-hidden="true">${person === 'clement' ? '👨' : '👩'}</span>`;
+  const personInitial = person => `<span class="person-initial ${person}" aria-hidden="true">${person === 'clement' ? 'C' : 'E'}</span>`;
   const TYPES = {
     louise:{label:'Louise',icon:'heart',color:'#c66e99'}, boarding:{label:'Pension chien',icon:'paw',color:'#c78244'},
     transport:{label:'Transports',icon:'plane',color:'#4b9b9e'},personal:{label:'Rendez-vous / événement',icon:'calendar',color:'#8674b9'},
@@ -88,9 +89,12 @@
     return {row,persons};
   }
   function calendarPlaces(row,persons) {
-    return '<div class="calendar-places">' + persons.map(person => {
-      const place = row[person], label = place?.title || 'À préciser';
-      return `<div class="calendar-place ${place ? '' : 'missing'}" style="--place-color:${PLACES[place?.place]?.color || '#c39a90'}" title="${ownerName(person)} : ${esc(place?.title || 'lieu à préciser')}">${personAvatar(person)}<span class="sr-only">${ownerName(person)} : </span>${placeLabel(place?.place,label)}</div>`;
+    const first = row[persons[0]];
+    const shared = persons.every(person => row[person]?.place === first?.place && row[person]?.title === first?.title);
+    const entries = shared ? [{people:persons,place:first}] : persons.map(person => ({people:[person],place:row[person]}));
+    return '<div class="calendar-places">' + entries.map(({people,place}) => {
+      const names = people.map(ownerName).join(' & '), label = place?.title || (entries.length === 1 ? 'Lieu à préciser' : 'À préciser');
+      return `<div class="calendar-place ${place ? '' : 'missing'}" style="--place-color:${PLACES[place?.place]?.color || '#c39a90'}" title="${names} : ${esc(place?.title || 'lieu à préciser')}">${entries.length > 1 ? personInitial(people[0]) : ''}<span class="sr-only">${names} : </span>${placeLabel(place?.place,label)}</div>`;
     }).join('') + '</div>';
   }
   function setTab(tab) { s.tab = tab; s.search = ''; render(); }
@@ -113,7 +117,7 @@
     renderLegend(); renderView();
   }
   function renderLegend() {
-    $('#legend').innerHTML = '<div class="person-key" aria-label="Personnes du calendrier">' + ['clement','elsa'].map(p => `<span>${personAvatar(p)}${ownerName(p)}</span>`).join('') + '</div><p class="legend-group">Vos lieux</p>' + Object.entries(PLACES).map(([key,v]) => `<div class="legend-label">${placeLabel(key,v.label)}</div>`).join('') +
+    $('#legend').innerHTML = '<div class="person-key" aria-label="Personnes du calendrier">' + ['clement','elsa'].map(p => `<span>${personInitial(p)}${ownerName(p)}</span>`).join('') + '</div><p class="legend-group">Vos lieux</p>' + Object.entries(PLACES).map(([key,v]) => `<div class="legend-label">${placeLabel(key,v.label)}</div>`).join('') +
       '<p class="legend-group">Vie personnelle</p>' + Object.entries(TYPES).filter(([k]) => ['louise','boarding','transport','restaurant','personal','task'].includes(k)).map(legendCheck).join('') +
       '<p class="legend-group">Vie professionnelle</p>' + legendCheck(['ssiap',{label:'Formations SSIAP',color:'#c62828'}]) + Object.entries(TYPES).filter(([k]) => k.startsWith('training_') || k === 'professional').map(legendCheck).join('');
   }

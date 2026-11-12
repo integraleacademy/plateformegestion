@@ -45,15 +45,16 @@ body.planner-focus{overflow:hidden;background:#fff}body.planner-focus .topline,b
 .calendar-saving .event-chip{cursor:wait}
 .toast{pointer-events:none}
 
-/* Each destination stays attached to its person, including shared or missing places. */
+/* Shared destinations appear once; small initials identify separate places. */
 .person-avatar{font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:21px;font-weight:400;line-height:1}
 .person-key{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;color:#77717f;font-size:11px}
 .person-key>span{display:inline-flex;align-items:center;gap:6px}
-.person-key .person-avatar{width:23px;height:23px;font-size:17px}
+.person-initial{display:inline-grid;place-items:center;flex-shrink:0;min-width:10px;height:14px;font-size:9px;font-weight:700;line-height:1;color:#7360b6}
+.person-initial.elsa{color:#377c62}
+.person-key .person-initial{width:14px;font-size:11px}
 .calendar-places{display:flex;align-items:center;flex-wrap:nowrap;gap:5px;height:16px;margin:0 1px 5px;min-width:0}
 .calendar-place{display:flex;align-items:center;flex:1 1 0;gap:3px;min-width:0;height:16px;overflow:hidden;color:#797284;font-size:9px;line-height:16px;white-space:nowrap}
 .calendar-place+.calendar-place{border-left:1px solid #e5e1e9;padding-left:5px}
-.calendar-place .person-avatar{width:15px;height:16px;font-size:13px;background:none}
 .calendar-place .place-mark{flex:1;gap:2px;overflow:hidden;white-space:nowrap}
 .calendar-place .place-mark>.icon{width:11px;height:11px}
 .calendar-place.missing{color:#a198ac}
@@ -63,7 +64,7 @@ body.planner-focus{overflow:hidden;background:#fff}body.planner-focus .topline,b
   .calendar-places{gap:2px;margin:0 0 5px}
   .calendar-place{gap:1px;font-size:8px}
   .calendar-place+.calendar-place{padding-left:2px}
-  .calendar-place .person-avatar{width:12px;height:16px;font-size:11px}
+  .calendar-place .person-initial{min-width:8px;font-size:8px}
   .calendar-place .place-mark{gap:1px}
   .calendar-place .place-mark>.icon{width:9px;height:9px}
 }

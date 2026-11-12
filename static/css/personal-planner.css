@@ -49,19 +49,20 @@ body.planner-focus{overflow:hidden;background:#fff}body.planner-focus .topline,b
 .person-key{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;color:#77717f;font-size:11px}
 .person-key>span{display:inline-flex;align-items:center;gap:6px}
 .person-key .person-avatar{width:23px;height:23px;font-size:17px}
-.calendar-places{display:grid;gap:3px;margin:0 1px 7px;min-width:0}
-.calendar-place{display:flex;align-items:center;gap:5px;min-width:0;min-height:25px;padding:2px 5px 2px 3px;border-left:2px solid var(--place-color);border-radius:4px;background:color-mix(in srgb,var(--place-color) 8%,white);color:#5f5b69;font-size:10px;line-height:1.3}
-.calendar-place .person-avatar{width:20px;height:20px;font-size:16px}
-.calendar-place .place-mark{flex:1;gap:4px;overflow:hidden;white-space:nowrap}
-.calendar-place .place-mark>.icon{width:13px;height:13px}
-.calendar-place.missing{border-left-style:dotted;background:#faf7f6;color:#9a8580}
+.calendar-places{display:flex;align-items:center;flex-wrap:nowrap;gap:5px;height:16px;margin:0 1px 5px;min-width:0}
+.calendar-place{display:flex;align-items:center;flex:1 1 0;gap:3px;min-width:0;height:16px;overflow:hidden;color:#797284;font-size:9px;line-height:16px;white-space:nowrap}
+.calendar-place+.calendar-place{border-left:1px solid #e5e1e9;padding-left:5px}
+.calendar-place .person-avatar{width:15px;height:16px;font-size:13px;background:none}
+.calendar-place .place-mark{flex:1;gap:2px;overflow:hidden;white-space:nowrap}
+.calendar-place .place-mark>.icon{width:11px;height:11px}
+.calendar-place.missing{color:#a198ac}
 .day-place .day-place-owner{display:flex;align-items:center;gap:7px;margin-bottom:5px;color:#80718f}
 .day-place-owner .person-avatar{width:25px;height:25px;font-size:19px}
 @media(max-width:600px){
-  .calendar-places{gap:3px;margin:0 0 6px}
-  .calendar-place{flex-direction:column;gap:2px;padding:3px 1px;border-left-width:2px;font-size:8px;text-align:center}
-  .calendar-place .person-avatar{width:19px;height:19px;font-size:16px}
-  .calendar-place .place-mark{display:block;width:100%;min-width:0}
-  .calendar-place .place-mark>.icon{display:none}
-  .calendar-place .place-text{display:block;white-space:nowrap}
+  .calendar-places{gap:2px;margin:0 0 5px}
+  .calendar-place{gap:1px;font-size:8px}
+  .calendar-place+.calendar-place{padding-left:2px}
+  .calendar-place .person-avatar{width:12px;height:16px;font-size:11px}
+  .calendar-place .place-mark{gap:1px}
+  .calendar-place .place-mark>.icon{width:9px;height:9px}
 }

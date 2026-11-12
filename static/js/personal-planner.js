@@ -26,7 +26,7 @@
   const PLACES = {paris:{label:'Paris',color:'#7c65bc',icon:'eiffel'},puget:{label:'Puget',color:'#c09240',icon:'coast'},cantal:{label:'Cantal',color:'#4e987c',icon:'mountain'},away:{label:'Déplacement',color:'#5b8fb3',icon:'pin'}};
   const placeLabel = (key,title) => `<span class="place-mark" style="--place-color:${PLACES[key]?.color || '#a198ac'}">${PLACES[key] ? icon(PLACES[key].icon) : ''}<span class="place-text">${esc(title)}</span></span>`;
   const TABS = [ ['dashboard','Tableau de bord','dashboard'],['calendar','Calendrier','calendar'],['louise','Louise','heart'],['location','Séjours','pin'],['boarding','Pension chien','paw'],['transport','Transports','plane'],['restaurant','Restaurants','restaurant'],['shopping','Courses','bag'],['task','À faire','task'],['note','Notes','note'],['training','Formations','work'],['alerts','Anomalies','alert'] ];
-  const s = {data:null,today,cursor:date(today),tab:'dashboard',view:'month',owner:'all',hidden:new Set(),editing:null,listScope:'year',search:'',selectedDay:today,shoppingList:'autre',loading:false,lastLoaded:0,request:0};
+  const s = {data:null,today,cursor:date(today),tab:'dashboard',view:'month',owner:'all',hidden:new Set(),editing:null,listScope:'year',search:'',selectedDay:today,shoppingList:'autre',loading:false,lastLoaded:0,request:0,drag:null,moving:false};
   const BOARDING_PLACES = {itana:'Itana',lafeuillade:'Lafeuillade'};
   const mealLabel = r => ({lunch:'Midi',dinner:'Soir',other:'Autre moment'}[r.meal] || '');
   const displayTitle = r => `${r.important ? '★ ' : ''}${r.kind === 'restaurant' ? mealLabel(r) + ' · ' : ''}${r.title}${r.kind === 'boarding' && BOARDING_PLACES[r.boarding_location] && !r.title.includes(BOARDING_PLACES[r.boarding_location]) ? ' · ' + BOARDING_PLACES[r.boarding_location] : ''}`;
@@ -138,7 +138,63 @@
   }
   function chip(r,value) {
     const label = statusLabel(r), status = r.status || '', title = `${displayTitle(r)}${label ? ' · ' + label : ''} · ${span(r.start,r.end)}${r.estimated_date ? ' · Date prévue à confirmer' : ''}`;
-    return `<button class="event-chip ${status} ${r.start < value ? 'continued' : ''} ${isSsiap(r) ? 'ssiap-event' : ''} ${r.important ? 'important-event' : ''}" style="--event-color:${color(r)}" data-event="${esc(r.id)}" title="${esc(title)}" aria-label="${esc(title)}">${label ? `<span class="event-status">${status === 'booked' ? '✓' : '!'} ${label}</span>` : ''}<span class="event-title">${r.start_time ? esc(r.start_time) + ' ' : ''}${esc(displayTitle(r))}</span></button>`;
+    const movable = !r.readonly && s.data.records.some(record => record.id === (r.record_id || r.id));
+    const hint = movable ? 'Glissez vers une autre date, ou cliquez pour modifier.' : 'Date synchronisée : modifiez-la dans la session de formation.';
+    return `<button class="event-chip ${status} ${r.start < value ? 'continued' : ''} ${isSsiap(r) ? 'ssiap-event' : ''} ${r.important ? 'important-event' : ''}" style="--event-color:${color(r)}" data-event="${esc(r.id)}" draggable="${movable}" title="${esc(title + ' · ' + hint)}" aria-label="${esc(title)}"${movable ? ' aria-describedby="calendar-move-help"' : ''}>${label ? `<span class="event-status">${status === 'booked' ? '✓' : '!'} ${label}</span>` : ''}<span class="event-title">${r.start_time ? esc(r.start_time) + ' ' : ''}${esc(displayTitle(r))}</span></button>`;
+  }
+  function clearDrag() {
+    clearTimeout(s.dragNavTimer); s.dragNav = null;
+    s.drag = null;
+    document.body.classList.remove('calendar-dragging');
+    $$('.drag-source,.drop-target,.drag-nav-target').forEach(el => el.classList.remove('drag-source','drop-target','drag-nav-target'));
+  }
+  function movePayload(drag, targetDay) {
+    // Compare civil dates in UTC so DST and the browser's timezone cannot add a day.
+    const delta = (Date.parse(targetDay + 'T00:00:00Z') - Date.parse(drag.day + 'T00:00:00Z')) / 86400000;
+    const record = {...drag.record}, event = drag.event;
+    if (record.kind === 'task') record.due = add(record.due,delta);
+    else if (event.linked && record.kind === 'location') {
+      if (event.kind === 'boarding') {
+        record.boarding_start = add(event.start,delta);
+        record.boarding_end = add(event.end,delta);
+      } else {
+        // Each leg moves independently; do not move the stay or the other flight.
+        const field = event.direction === 'return' ? 'transport_end' : 'transport_start';
+        record[field] = add(event.start,delta);
+        if (event.direction !== 'return' && record.transport_round_trip !== false && !record.transport_end && record.transport_start > record.end) {
+          throw new Error('Le départ dépasserait la date de retour prévue. Déplacez d’abord le retour ou modifiez le séjour.');
+        }
+        // A projected return date must never turn into a confirmed booking by dragging it.
+        if (event.estimated_date && record.transport_status === 'booked') record.transport_status = 'needs_change';
+      }
+    } else {
+      record.start = add(record.start,delta);
+      record.end = add(record.end,delta);
+    }
+    return record;
+  }
+  async function moveEvent(drag, targetDay) {
+    if (s.moving || targetDay === drag.day) return;
+    s.moving = true;
+    document.body.classList.add('calendar-saving');
+    $('#view').setAttribute('aria-busy','true');
+    $('#save-state').textContent = 'Déplacement en cours…';
+    errorAt('#load-error','');
+    try {
+      const payload = movePayload(drag,targetDay);
+      await api(`/records/${payload.id}`,{method:'PUT',body:JSON.stringify(payload)});
+      // The server is the source of truth: never leave a failed move on the screen.
+      const refreshed = await load();
+      toast(refreshed ? 'Date déplacée dans votre planning partagé.' : 'Déplacement enregistré. Cliquez sur Actualiser pour afficher les nouvelles dates.');
+    } catch (e) {
+      $('#save-state').textContent = 'Déplacement non confirmé · actualisez le planning avant de réessayer.';
+      errorAt('#load-error',e.message);
+      toast(e.message);
+    } finally {
+      s.moving = false;
+      document.body.classList.remove('calendar-saving');
+      $('#view').removeAttribute('aria-busy');
+    }
   }
   function renderCalendar() {
     const week = s.view === 'week', d = new Date(s.cursor);
@@ -297,7 +353,7 @@
   const select = (name,label,options,value) => `<label class="field">${label}<select name="${name}">${options.map(([k,v]) => `<option value="${esc(k)}" ${k === value ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>`;
   const statuses = [['pending','À réserver'],['booked','Réservé'],['needs_change','À modifier'],['not_needed','Pas nécessaire']];
   function openEditor(kind='personal',id=null,defaults={}) {
-    if (!s.data) return;
+    if (!s.data || s.moving) return;
     $('#day-dialog').close();
     s.editing = id ? s.data.records.find(r => r.id === id) : null;
     if (id && !s.editing) { toast('Cet élément n’est plus disponible. Actualisez le planning.'); return; }
@@ -468,6 +524,58 @@
     const query = new URLSearchParams({year:String(s.cursor.getFullYear()),month:String(s.cursor.getMonth() + 1),owner:s.owner,hidden:[...s.hidden].join(',')});
     return downloadPdf(`/month.pdf?${query}`,$('#export-pdf'),`planning-clement-elsa-${s.cursor.getFullYear()}-${String(s.cursor.getMonth()+1).padStart(2,'0')}.pdf`);
   }
+  document.addEventListener('dragstart',e => {
+    const chip = e.target.closest('.calendar-day .event-chip');
+    if (!chip) return;
+    if (chip.draggable !== true || s.loading || s.moving) { e.preventDefault(); return; }
+    const event = calendarEvents().find(r => r.id === chip.dataset.event);
+    const record = s.data.records.find(r => r.id === (event?.record_id || event?.id));
+    if (!record || event.readonly) { e.preventDefault(); return; }
+    s.drag = {event:{...event},record:{...record},day:chip.closest('.calendar-day').dataset.day};
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain',event.id);
+    chip.classList.add('drag-source');
+    document.body.classList.add('calendar-dragging');
+  });
+  document.addEventListener('dragover',e => {
+    if (!s.drag || s.moving) return;
+    const day = e.target.closest('.calendar-day'), nav = e.target.closest('#prev,#next');
+    $$('.drop-target').forEach(el => { if (el !== day) el.classList.remove('drop-target'); });
+    if (day || nav) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+    if (day) day.classList.toggle('drop-target',day.dataset.day !== s.drag.day);
+    if (nav !== s.dragNav) {
+      clearTimeout(s.dragNavTimer);
+      $$('.drag-nav-target').forEach(el => el.classList.remove('drag-nav-target'));
+      s.dragNav = nav;
+      if (nav) {
+        nav.classList.add('drag-nav-target');
+        s.dragNavTimer = setTimeout(() => { if (s.drag) navigate(nav.id === 'prev' ? -1 : 1); },700);
+      }
+    }
+  });
+  document.addEventListener('dragleave',e => {
+    const day = e.target.closest('.calendar-day');
+    if (day && !day.contains(e.relatedTarget)) day.classList.remove('drop-target');
+    if (s.dragNav && e.target.closest('#prev,#next') === s.dragNav && !s.dragNav.contains(e.relatedTarget)) {
+      clearTimeout(s.dragNavTimer); s.dragNav.classList.remove('drag-nav-target'); s.dragNav = null;
+    }
+  });
+  document.addEventListener('drop',e => {
+    if (!s.drag) return;
+    e.preventDefault();
+    const day = e.target.closest('.calendar-day'), drag = s.drag;
+    s.ignoreClickUntil = Date.now() + 400;
+    clearDrag();
+    if (day && !s.loading) moveEvent(drag,day.dataset.day);
+  });
+  document.addEventListener('dragend',() => {
+    if (s.drag) s.ignoreClickUntil = Date.now() + 400;
+    clearDrag();
+  });
+  document.addEventListener('keydown',e => { if (e.key === 'Escape' && s.drag) clearDrag(); });
+  document.addEventListener('click',e => {
+    if (Date.now() < (s.ignoreClickUntil || 0)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  },true);
   document.addEventListener('click', async e => {
     const target = e.target.closest('button,a,[data-day]'); if (!target) return;
     if (target.dataset.close) { $('#' + target.dataset.close).close(); return; }
@@ -568,6 +676,6 @@
     catch (e) { errorAt('#delete-error',e.message); }
     finally { btn.disabled = false; }
   });
-  document.addEventListener('visibilitychange',() => { if (!document.hidden && !s.loading && !$$('dialog[open]').length && Date.now() - s.lastLoaded > 60000) load(); });
+  document.addEventListener('visibilitychange',() => { if (!document.hidden && !s.loading && !s.drag && !s.moving && !$$('dialog[open]').length && Date.now() - s.lastLoaded > 60000) load(); });
   load();
 })();

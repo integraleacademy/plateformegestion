@@ -552,7 +552,7 @@
   document.addEventListener('dragleave',e => {
     const day = e.target.closest('.calendar-day');
     if (day && !day.contains(e.relatedTarget)) day.classList.remove('drop-target');
-    if (s.dragNav && !s.dragNav.contains(e.relatedTarget)) {
+    if (s.dragNav && e.target.closest('#prev,#next') === s.dragNav && !s.dragNav.contains(e.relatedTarget)) {
       clearTimeout(s.dragNavTimer); s.dragNav.classList.remove('drag-nav-target'); s.dragNav = null;
     }
   });

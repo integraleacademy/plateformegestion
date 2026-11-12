@@ -146,6 +146,7 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   // Both the source and the toolbar must be in the viewport for a real mouse drag.
   await page.evaluate(() => window.scrollTo(0,0));
   await chip(appointment,'2026-11-14').scrollIntoViewIfNeeded();
+  await chip(appointment,'2026-11-14').hover();
   const source = await chip(appointment,'2026-11-14').boundingBox();
   const next = await page.locator('#next').boundingBox();
   assert.ok(next.y >= 0 && source.y + source.height < 1300,JSON.stringify({source,next}));
@@ -153,7 +154,12 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   await page.mouse.down();
   await page.mouse.move(source.x + 15,source.y + 10,{steps:5});
   await page.mouse.move(next.x + next.width/2,next.y + next.height/2,{steps:10});
-  await page.waitForFunction(() => document.querySelector('#period-label').textContent.includes('décembre'));
+  try {
+    await page.waitForFunction(() => document.querySelector('#period-label').textContent.includes('décembre'),{},{timeout:5000});
+  } catch (error) {
+    console.error('Navigation diagnostics',await page.evaluate(() => ({events:window.dragTrace,body:document.body.className,period:document.querySelector('#period-label').textContent,next:document.querySelector('#next').className,scrollY:window.scrollY})));
+    throw error;
+  }
   const target = await day('2026-12-15').boundingBox();
   const moved = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes(appointment));
   await page.mouse.move(target.x + 30,target.y + 25,{steps:10});

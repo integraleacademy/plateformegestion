@@ -35,7 +35,14 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   const page = await browser.newPage({viewport:{width:1560,height:1300},timezoneId:'Europe/Paris'});
   await page.clock.install({time:new Date('2026-11-12T12:00:00Z')});
   const errors = [];
-  page.on('pageerror',e => errors.push(e.message));
+  page.on('pageerror',e => { errors.push(e.message); console.error('Browser error:',e.message); });
+  await page.addInitScript(() => {
+    window.dragTrace = [];
+    for (const type of ['dragstart','dragover','drop','dragend']) document.addEventListener(type,event => {
+      window.dragTrace.push({type,target:event.target.className,day:event.target.closest?.('[data-day]')?.dataset.day,id:event.target.closest?.('[id]')?.id});
+      if (window.dragTrace.length > 25) window.dragTrace.shift();
+    },true);
+  });
   await page.route('https://fonts.googleapis.com/**',r => r.abort());
   const root = '/gestion-clement-elsa';
   await page.goto(origin + root + '/');
@@ -50,9 +57,14 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   const chip = (id,value) => day(value).locator(`[data-event="${id}"]`);
   const refresh = async () => { await page.waitForTimeout(450); await page.locator('#refresh').click(); await page.waitForFunction(() => !document.querySelector('#refresh').disabled); };
   const drag = async (id,from,to,expectedStatus=200) => {
-    const saved = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes('/records/'));
+    const saved = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes('/records/'),{timeout:10000}).catch(error => error);
     await chip(id,from).dragTo(day(to),{targetPosition:{x:30,y:25}});
-    assert.equal((await saved).status(),expectedStatus);
+    const response = await saved;
+    if (response instanceof Error) {
+      console.error('Drag diagnostics',await page.evaluate(() => ({events:window.dragTrace,body:document.body.className,error:document.querySelector('#load-error').textContent,scrollY:window.scrollY})));
+      throw response;
+    }
+    assert.equal(response.status(),expectedStatus);
     await page.waitForFunction(() => !document.body.classList.contains('calendar-saving'));
     assert.equal(await page.locator('dialog[open]').count(),0,'A drop must not open the day/editor dialog');
     await page.waitForTimeout(450);

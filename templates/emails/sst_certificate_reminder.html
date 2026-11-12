@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Certificats SST à saisir — Intégrale Academy</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f2eb;color:#25221b;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+  <div style="display:none;font-size:1px;line-height:1px;color:#f5f2eb;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+    Bonjour Elsa, pense à saisir les certificats SST des stagiaires concernés. Les sessions et leurs plannings sont réunis ici.
+  </div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;background:#f5f2eb;">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+        <!--[if mso]><table role="presentation" width="620" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;border-collapse:separate;border-spacing:0;background:#ffffff;border-radius:18px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 26px;background:#17140f;border-bottom:4px solid #e9bf56;border-radius:18px 18px 0 0;">
+              <p style="margin:0;color:#e9bf56;font-size:19px;line-height:1.3;letter-spacing:1.3px;font-weight:700;">INTÉGRALE ACADEMY</p>
+              <p style="margin:9px 0 0;color:#e5dfd3;font-size:12px;line-height:1.5;letter-spacing:0.8px;">SUIVI DES FORMATIONS</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 26px 20px;">
+              <p style="margin:0 0 13px;color:#80601e;font-size:12px;line-height:1.5;font-weight:700;letter-spacing:0.7px;">TON RAPPEL{% if reminder_date_label %} · {{ reminder_date_label }}{% endif %}</p>
+              <h1 style="margin:0 0 23px;color:#17140f;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:-0.5px;">Certificats SST<br>à saisir</h1>
+              <p style="margin:0 0 12px;color:#25221b;font-size:16px;line-height:1.7;">Bonjour Elsa,</p>
+              <p style="margin:0;color:#504a3f;font-size:15px;line-height:1.7;">Les séances SST ci-dessous sont terminées. Pense à <strong style="color:#25221b;">saisir les certificats des stagiaires concernés.</strong></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 26px 8px;">
+              {% for reminder in reminders %}
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:0 0 18px;border:1px solid #e8e0d0;border-radius:12px;background:#fdfbf6;">
+                <tr>
+                  <td style="padding:22px 20px 17px;">
+                    <p style="margin:0 0 9px;color:#80601e;font-size:11px;line-height:1.5;font-weight:700;letter-spacing:0.7px;">{{ reminder.formation }}</p>
+                    <h2 style="margin:0 0 18px;color:#25221b;font-size:20px;line-height:1.35;font-weight:700;overflow-wrap:anywhere;">{{ reminder.name }}</h2>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;">
+                      {% if reminder.location %}
+                      <tr>
+                        <td style="padding:0 0 13px;color:#504a3f;font-size:14px;line-height:1.55;">
+                          <span style="color:#79705f;font-size:11px;letter-spacing:0.4px;">LIEU</span><br>
+                          <strong style="font-weight:600;color:#25221b;">{{ reminder.location }}</strong>
+                        </td>
+                      </tr>
+                      {% endif %}
+                      <tr>
+                        <td style="padding:0 0 13px;color:#504a3f;font-size:14px;line-height:1.55;">
+                          <span style="color:#79705f;font-size:11px;letter-spacing:0.4px;">JOURNÉES SST</span><br>
+                          <strong style="font-weight:600;color:#25221b;">{{ reminder.sst_dates_label }}</strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0;color:#504a3f;font-size:13px;line-height:1.55;">Dernière journée SST : <strong style="color:#25221b;">{{ reminder.completed_on_label }}</strong></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 20px 22px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;border-spacing:0;">
+                      <tr>
+                        <td align="center" bgcolor="#e9bf56" style="border-radius:8px;background:#e9bf56;mso-padding-alt:14px 22px;">
+                          <a href="{{ reminder.url }}" style="display:inline-block;padding:14px 22px;color:#17140f;font-size:14px;line-height:1.3;font-weight:700;text-decoration:none;border:1px solid #e9bf56;border-radius:8px;">Ouvrir la session&nbsp; →</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              {% endfor %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 26px 28px;">
+              <p style="margin:0;color:#504a3f;font-size:15px;line-height:1.7;">Merci Elsa !<br><strong style="color:#25221b;">L’équipe Intégrale Academy</strong></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 26px;background:#faf8f3;border-top:1px solid #eee8dc;border-radius:0 0 18px 18px;color:#79705f;font-size:11px;line-height:1.7;">
+              <strong style="color:#5e574b;font-weight:600;">Intégrale Academy · Suivi des formations</strong><br>
+              Rappel automatique après la dernière journée SST indiquée au planning.
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

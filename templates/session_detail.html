@@ -822,6 +822,10 @@ a.back:hover{ background:#d9a848 !important; }
 
     <div class="planning-actions"><a class="btn small" href="https://inscriptionsbts.onrender.com/admin/salles?session_id={{ s.id|urlencode }}" target="_blank" rel="noopener">Salles · planning commun</a>
 
+      {% if sst_certificate_reminder %}
+        <a class="btn small" href="{{ url_for('sst_certificate_reminder_preview', sid=s.id) }}" target="_blank" rel="noopener">Aperçu du mail SST</a>
+      {% endif %}
+
       {% if s.formation == "A3P" and a3p_document_exists(s, 'planning') %}
         <a class="btn small" href="{{ url_for('view_a3p_document', sid=s.id, kind='planning') }}" target="_blank">👀 Voir le planning</a>
       {% elif planning_pdf and not aps_pdf_blocked %}

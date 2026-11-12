@@ -6,6 +6,7 @@ two users and the two Gunicorn workers; no whole-document overwrite is used.
 """
 from contextlib import closing
 from datetime import date, datetime, timedelta
+from io import BytesIO
 import hmac
 import json
 import os
@@ -15,12 +16,13 @@ import sqlite3
 import uuid
 from urllib.parse import quote
 
-from flask import Blueprint, current_app, jsonify, render_template, request, session
+from flask import Blueprint, current_app, jsonify, render_template, request, session, send_file
 
 KINDS = {"location", "louise", "boarding", "transport", "personal", "professional", "shopping", "task", "note"}
 OWNERS = {"both", "clement", "elsa"}
 PLACES = {"paris": "Paris", "puget": "Puget", "cantal": "Cantal", "away": "Déplacement"}
-STATUSES = {"pending", "booked", "not_needed"}
+STATUSES = {"pending", "booked", "needs_change", "not_needed"}
+STATUS_LABELS = {"pending": "À réserver", "booked": "Réservé", "needs_change": "À modifier", "not_needed": "Pas nécessaire"}
 ITEMS = {"shopping", "task", "note"}
 
 
@@ -96,20 +98,27 @@ def validate(data):
                 raise PlannerError("Choisissez un statut de réservation valide.")
             result[prefix + "_status"] = status
             result[prefix + "_notes"] = text_field(data, prefix + "_notes", 10000)
-            if status == "booked":
-                first = day(data.get(prefix + "_start"), "Début de réservation")
+            if status != "not_needed":
+                # Keep planned / existing booking dates when its status changes.
+                first_value = data.get(prefix + "_start")
+                first = day(first_value or (None if status == "booked" else result["start"]), "Début de réservation")
                 last_value = data.get(prefix + "_end")
+                if not last_value and status != "booked":
+                    last_value = result["end"]
                 last = day(last_value, "Fin de réservation / retour") if last_value else first
                 if last < first or (last - first).days > 1096:
                     raise PlannerError("Vérifiez les dates de réservation.")
                 result[prefix + "_start"] = first.isoformat()
                 result[prefix + "_end"] = last.isoformat() if prefix == "boarding" or last_value else ""
+        result["transport_round_trip"] = data.get("transport_round_trip") is not False
+        if not result["transport_round_trip"]:
+            result["transport_end"] = ""
         result["transport_mode"] = text_field(data, "transport_mode", 40) or "Avion"
         result["transport_origin"] = text_field(data, "transport_origin")
     if kind in {"boarding", "transport"}:
         result["status"] = data.get("status", "pending")
-        if not isinstance(result["status"], str) or result["status"] not in {"pending", "booked"}:
-            raise PlannerError("Choisissez À réserver ou Réservé.")
+        if not isinstance(result["status"], str) or result["status"] not in STATUSES:
+            raise PlannerError("Choisissez un statut de réservation valide.")
         for key in ("origin", "destination", "reference", "mode"):
             result[key] = text_field(data, key)
         if kind == "transport" and (not result["origin"] or not result["destination"]):
@@ -241,8 +250,8 @@ def reservations(records):
     for r in records:
         if r["kind"] in {"boarding", "transport"}:
             result.append(r)
-            if r["status"] == "pending":
-                alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": r["kind"], "title": r["title"] + " : à réserver"})
+            if r["status"] in {"pending", "needs_change"}:
+                alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": r["kind"], "title": r["title"] + " : " + STATUS_LABELS[r["status"]].lower()})
         if r["kind"] != "location":
             continue
         for kind in ("boarding", "transport"):
@@ -254,17 +263,21 @@ def reservations(records):
                     "title": title, "owner": r["owner"], "status": status,
                     "notes": r.get(kind + "_notes", ""), "linked": True, "stay": r["title"]}
             start = r.get(kind + "_start") or r["start"]
-            end = r.get(kind + "_end") or start
+            end = r.get(kind + "_end") or r["end"]
             if kind == "boarding":
-                result.append(dict(base, start=start, end=end if status == "booked" else r["end"]))
+                result.append(dict(base, start=start, end=end))
             else:
-                result.append(dict(base, title=title + " · aller", start=start, end=start,
+                result.append(dict(base, title="Aller · " + (r.get("transport_origin", "") + " → " if r.get("transport_origin") else "") + r["title"], start=start, end=start, direction="outbound",
                                    mode=r.get("transport_mode", ""), origin=r.get("transport_origin", ""), destination=r["title"]))
-                if status == "booked" and r.get("transport_end"):
-                    result.append(dict(base, id=base["id"] + ":return", title=title + " · retour", start=end, end=end,
+                if r.get("transport_round_trip") is not False:
+                    return_status = "pending" if status == "booked" and not r.get("transport_end") else status
+                    result.append(dict(base, id=base["id"] + ":return", title="Retour · " + r["title"] + (" → " + r["transport_origin"] if r.get("transport_origin") else ""), start=end, end=end, direction="return", status=return_status,
+                                       estimated_date=not bool(r.get("transport_end")),
                                        mode=r.get("transport_mode", ""), origin=r["title"], destination=r.get("transport_origin", "")))
-            if status == "pending":
-                alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": kind, "title": title + " : à réserver"})
+                    if return_status == "pending" and status == "booked":
+                        alerts.append({"record_id": r["id"], "start": end, "end": end, "kind": kind, "title": "Retour de " + r["title"] + " : réservation et date à confirmer"})
+            if status in {"pending", "needs_change"}:
+                alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": kind, "title": title + " : " + STATUS_LABELS[status].lower()})
             elif kind == "boarding" and (start > r["start"] or end < r["end"]):
                 alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": kind, "title": "Pension : dates à vérifier pour " + r["title"]})
     return result, sorted(alerts, key=lambda a: a["start"])
@@ -295,6 +308,8 @@ def training_events(sessions, modality_range):
             if value:
                 result.append({"id": "session:" + str(s["id"]) + ":" + key, "kind": key,
                                "title": str(s.get("formation") or "Formation") + " · " + label,
+                               "formation": str(s.get("formation") or ""),
+                               "ssiap": "SSIAP" in str(s.get("formation") or "").upper(),
                                "start": value, "end": value, "owner": "both", "readonly": True,
                                "url": "/sessions/" + quote(str(s["id"]), safe=""),
                                "notes": str(s.get("dirigeant_location_label") or s.get("salle") or s.get("room") or "")})
@@ -360,6 +375,33 @@ def register(app, data_dir, load_sessions, modality_range):
         return jsonify(records=records, training=training, training_error=training_error,
                        reservations=bookings, alerts=alerts, coverage=coverage(records, year), year=year,
                        today=date.today().isoformat())
+
+    @bp.get("/month.pdf")
+    def month_pdf():
+        from services.personal_planner_pdf import render_month
+        try:
+            year = int(request.args.get("year", date.today().year))
+            month = int(request.args.get("month", date.today().month))
+        except ValueError:
+            raise PlannerError("Mois ou année invalide.") from None
+        if not 2000 <= year <= 2100 or not 1 <= month <= 12:
+            raise PlannerError("Mois ou année invalide.")
+        owner = request.args.get("owner", "all")
+        if owner not in OWNERS | {"all"}:
+            raise PlannerError("Personne invalide.")
+        hidden = request.args.get("hidden", "").split(",")
+        hidden = {key for key in hidden if key in KINDS | {"ssiap", "training_start", "training_onsite", "training_end", "training_exam"}}
+        with closing(connect(current_app.config["PERSONAL_PLANNER_DB"])) as db:
+            records = read_records(db)
+        try:
+            training = training_events(load_sessions().get("sessions", []), modality_range)
+        except Exception:
+            current_app.logger.exception("PERSONAL_PLANNER_PDF_TRAINING_FAILED")
+            raise PlannerError("Export indisponible : les dates de formation ne peuvent pas être chargées. Réessayez pour obtenir un planning complet.", 503) from None
+        bookings, _ = reservations(records)
+        document = render_month(records, training, bookings, coverage(records, year)["days"], year, month, owner, hidden)
+        return send_file(BytesIO(document), mimetype="application/pdf", as_attachment=False,
+                         download_name=f"planning-clement-elsa-{year}-{month:02d}.pdf", max_age=0)
 
     @bp.post("/records")
     def create():

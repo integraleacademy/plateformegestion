@@ -23,7 +23,12 @@
   const PLACES = {paris:{label:'Paris',color:'#7c65bc'},puget:{label:'Puget',color:'#c09240'},cantal:{label:'Cantal',color:'#4e987c'},away:{label:'Déplacement',color:'#5b8fb3'}};
   const TABS = [ ['calendar','Calendrier','calendar'],['louise','Louise','heart'],['location','Déplacements','pin'],['boarding','Pension chien','paw'],['transport','Transports','plane'],['shopping','Courses','bag'],['task','À faire','task'],['note','Notes','note'],['training','Formations','work'],['alerts','Anomalies','alert'] ];
   const s = {data:null,today,cursor:date(today),tab:'calendar',view:'month',owner:'all',hidden:new Set(),editing:null,listScope:'year',search:'',selectedDay:today,loading:false,lastLoaded:0,request:0};
-  const color = r => (r.kind === 'location' ? PLACES[r.place]?.color : TYPES[r.kind]?.color) || '#8674b9';
+  const isSsiap = r => r.ssiap === true || /SSIAP/i.test(`${r.formation || ''} ${r.title || ''}`);
+  const color = r => isSsiap(r) ? '#c62828' : (r.kind === 'location' ? PLACES[r.place]?.color : TYPES[r.kind]?.color) || '#8674b9';
+  const STATUS_LABELS = {pending:'À réserver',booked:'Réservé',needs_change:'À modifier',not_needed:'Pas nécessaire'};
+  const statusLabel = r => STATUS_LABELS[r.status] || '';
+  const statusBadge = r => r.status ? `<span class="badge ${esc(r.status)}">${r.status === 'booked' ? '✓ ' : r.status === 'not_needed' ? '' : '! '}${statusLabel(r)}</span>` : '';
+  const dayOrder = (a,b) => (a.kind === 'transport' ? 0 : a.kind === 'boarding' ? 1 : 2) - (b.kind === 'transport' ? 0 : b.kind === 'boarding' ? 1 : 2) || (a.start_time || '').localeCompare(b.start_time || '') || a.title.localeCompare(b.title);
   const owns = r => s.owner === 'all' || r.owner === 'both' || r.owner === s.owner;
   const inYear = r => r.start <= `${s.cursor.getFullYear()}-12-31` && r.end >= `${s.cursor.getFullYear()}-01-01`;
   const api = async (url, options = {}) => {
@@ -60,7 +65,7 @@
     return [...s.data.records.filter(r => !['location','boarding','transport','shopping','note','task'].includes(r.kind)),
       ...s.data.reservations, ...s.data.training,
       ...s.data.records.filter(r => r.kind === 'task' && r.due && !r.done).map(r => ({...r,start:r.due,end:r.due}))]
-      .filter(r => owns(r) && !s.hidden.has(r.kind)).sort((a,b) => a.start.localeCompare(b.start) || (a.start_time || '').localeCompare(b.start_time || '') || a.title.localeCompare(b.title));
+      .filter(r => owns(r) && r.status !== 'not_needed' && !s.hidden.has(r.kind) && !(isSsiap(r) && s.hidden.has('ssiap'))).sort((a,b) => a.start.localeCompare(b.start) || dayOrder(a,b));
   }
   function dayCoverage(value) {
     const known = s.data.coverage.days.find(d => d.date === value);
@@ -99,19 +104,25 @@
   function renderLegend() {
     $('#legend').innerHTML = '<p class="legend-group">Vos lieux</p>' + Object.entries(PLACES).map(([key,v]) => `<div class="legend-label"><span class="legend-dot" style="--event-color:${v.color}"></span>${v.label}</div>`).join('') +
       '<p class="legend-group">Vie personnelle</p>' + Object.entries(TYPES).filter(([k]) => ['louise','boarding','transport','personal','task'].includes(k)).map(legendCheck).join('') +
-      '<p class="legend-group">Vie professionnelle</p>' + Object.entries(TYPES).filter(([k]) => k.startsWith('training_') || k === 'professional').map(legendCheck).join('');
+      '<p class="legend-group">Vie professionnelle</p>' + legendCheck(['ssiap',{label:'Formations SSIAP',color:'#c62828'}]) + Object.entries(TYPES).filter(([k]) => k.startsWith('training_') || k === 'professional').map(legendCheck).join('');
   }
   function legendCheck([key,v]) { return `<label class="legend-label"><input type="checkbox" data-filter="${key}" ${s.hidden.has(key) ? '' : 'checked'}><span class="legend-dot" style="--event-color:${v.color}"></span>${v.label}</label>`; }
   function renderView() {
     const calendar = s.tab === 'calendar', undated = ['shopping','task','note'].includes(s.tab);
     $('#view-switch').hidden = !calendar; $('#calendar-footer').hidden = !calendar; $('#today-button').hidden = !calendar;
+    $('#calendar-actions').hidden = !calendar;
+    $('#export-pdf').hidden = s.view === 'year';
+    $('#export-pdf').title = `Imprimer le planning de ${s.cursor.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}`;
     $('#prev').hidden = undated; $('#next').hidden = undated; $('#view-intro').hidden = calendar;
     $$('#view-switch button').forEach(b => { b.classList.toggle('active',b.dataset.view === s.view); b.setAttribute('aria-pressed',b.dataset.view === s.view); });
     $('#period-label').textContent = undated ? TABS.find(t => t[0] === s.tab)[1] : calendar && s.view !== 'year' ? s.cursor.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}) : String(s.cursor.getFullYear());
     if (calendar) { if (s.view === 'year') renderYear(); else renderCalendar(); }
     else renderList();
   }
-  function chip(r,value) { return `<button class="event-chip ${r.status === 'pending' ? 'pending' : ''} ${r.start < value ? 'continued' : ''}" style="--event-color:${color(r)}" data-event="${esc(r.id)}" title="${esc(r.title + (r.status === 'pending' ? ' · À réserver' : '') + ' · ' + span(r.start,r.end))}">${r.start_time ? esc(r.start_time) + ' ' : ''}${r.status === 'booked' ? '✓ ' : ''}${esc(r.title)}</button>`; }
+  function chip(r,value) {
+    const label = statusLabel(r), status = r.status || '', title = `${r.title}${label ? ' · ' + label : ''} · ${span(r.start,r.end)}${r.estimated_date ? ' · Date prévue à confirmer' : ''}`;
+    return `<button class="event-chip ${status} ${r.start < value ? 'continued' : ''} ${isSsiap(r) ? 'ssiap-event' : ''}" style="--event-color:${color(r)}" data-event="${esc(r.id)}" title="${esc(title)}" aria-label="${esc(title)}">${label ? `<span class="event-status">${status === 'booked' ? '✓' : '!'} ${label}</span>` : ''}<span class="event-title">${r.start_time ? esc(r.start_time) + ' ' : ''}${esc(r.title)}</span></button>`;
+  }
   function renderCalendar() {
     const week = s.view === 'week', d = new Date(s.cursor);
     if (!week) d.setDate(1);
@@ -122,10 +133,11 @@
     let html = '<div class="weekday-row">' + ['LUN.','MAR.','MER.','JEU.','VEN.','SAM.','DIM.'].map(x => `<span>${x}</span>`).join('') + `</div><div class="month-grid ${week ? 'week-grid' : ''}">`;
     for (let i = 0; i < days; i++) {
       const value = add(first,i), day = date(value), {row,persons,title} = placesForDay(value);
-      const ev = events.filter(r => r.start <= value && r.end >= value), limit = week ? 30 : 3;
+      const ev = events.filter(r => r.start <= value && r.end >= value).sort(dayOrder), limit = week ? ev.length : 4;
       html += `<div class="calendar-day ${day.getMonth() !== s.cursor.getMonth() && !week ? 'outside' : ''} ${value === s.today ? 'today' : ''}" data-day="${value}" tabindex="0" role="group" aria-label="${esc(fmt(value,{weekday:'long',month:'long',year:'numeric'}))}${missingDay(row) ? ' — lieu à compléter' : ''}"><div class="day-top"><span class="day-number">${day.getDate()}</span>${missingDay(row) ? '<span class="coverage-dot" title="Lieu à compléter"></span>' : '<span class="day-add-hint">+</span>'}</div><div class="location-lines">${persons.map(p => `<span class="location-line ${row[p] ? '' : 'missing'}" style="--event-color:${PLACES[row[p]?.place]?.color || '#edcfc9'}" title="${ownerName(p)} : ${esc(row[p]?.title || 'lieu manquant')}"></span>`).join('')}</div><span class="place-name">${esc(title || 'Lieu à compléter')}</span>${ev.slice(0,limit).map(r => chip(r,value)).join('')}${ev.length > limit ? `<button class="more-events" data-day="${value}">+ ${ev.length - limit} autre${ev.length - limit > 1 ? 's' : ''}</button>` : ''}</div>`;
     }
     $('#view').innerHTML = html + '</div>';
+    $('#view').style.setProperty('--calendar-weeks', String(days / 7));
   }
   function renderYear() {
     const year = s.cursor.getFullYear(), events = calendarEvents();
@@ -135,11 +147,12 @@
       html += `<section class="mini-month"><h3>${first.toLocaleDateString('fr-FR',{month:'long'})}</h3><div class="mini-grid">${['L','M','M','J','V','S','D'].map(x => `<span>${x}</span>`).join('')}${'<span></span>'.repeat((first.getDay() + 6) % 7)}`;
       for (let n = 1; n <= count; n++) {
         const value = iso(new Date(year,m,n)), missing = missingDay(dayCoverage(value));
-        html += `<button class="mini-day ${missing ? 'missing' : 'covered'} ${value === s.today ? 'today' : ''}" data-day="${value}" title="${esc(fmt(value,{month:'long'}))} · ${missing ? 'Lieu à compléter' : 'Lieux renseignés'}">${n}${events.some(r => r.start <= value && r.end >= value) ? '<span class="mini-event-dot"></span>' : ''}</button>`;
+        const dayEvents = events.filter(r => r.start <= value && r.end >= value);
+        html += `<button class="mini-day ${missing ? 'missing' : 'covered'} ${value === s.today ? 'today' : ''}" data-day="${value}" title="${esc(fmt(value,{month:'long'}))} · ${missing ? 'Lieu à compléter' : 'Lieux renseignés'}">${n}${dayEvents.length ? `<span class="mini-event-dot" style="background:${dayEvents.some(isSsiap) ? '#c62828' : '#7360b6'}"></span>` : ''}</button>`;
       }
       html += '</div></section>';
     }
-    $('#view').innerHTML = html + '</div><p class="year-key">Vert : lieux renseignés · Rose : lieu manquant · Point violet : événement prévu. Les 365 jours de l’année sont contrôlés (366 les années bissextiles).</p>';
+    $('#view').innerHTML = html + '</div><p class="year-key">Vert : lieux renseignés · Rose : lieu manquant · Point : événement prévu (rouge pour SSIAP). Les 365 jours de l’année sont contrôlés (366 les années bissextiles).</p>';
   }
   const empty = (title,text,type = 'calendar') => `<div class="empty-state"><div class="empty-icon">${icon(TYPES[type]?.icon || 'calendar')}</div><h3>${esc(title)}</h3><p>${esc(text)}</p><button class="button primary" data-new="${type}">${icon('plus')} Ajouter</button></div>`;
   function listRecords() {
@@ -182,8 +195,8 @@
     let month = '';
     $('#view').innerHTML = '<div class="list-content">' + (s.tab !== 'training' ? `<button class="button small" data-new="${type}">${icon('plus')} Ajouter ${s.tab === 'louise' ? 'une période' : 'un élément'}</button>` : '') + records.map(r => {
       const nextMonth = r.start.slice(0,7), heading = nextMonth !== month ? `<h3 class="list-group-label">${fmt(r.start,{day:undefined,month:'long',year:'numeric'})}</h3>` : ''; month = nextMonth;
-      const details = [ownerName(r.owner),r.origin && r.destination ? `${r.origin} → ${r.destination}` : '',r.mode || '',r.reference || '',r.linked ? 'Lié au séjour · modifier le séjour' : '',r.series_id ? 'Période récurrente' : ''].filter(Boolean).join(' · ');
-      return heading + `<div class="list-row"><span class="list-color" style="--event-color:${color(r)}"></span><div class="list-date">${span(r.start,r.end)}</div><div class="list-main">${r.readonly ? `<a class="row-open" href="${esc(r.url)}"><strong>${esc(r.title)}</strong></a>` : `<button class="row-open" data-edit="${esc(r.record_id || r.id)}"><strong>${esc(r.title)}</strong></button>`}<small>${esc(details)}</small>${r.notes ? `<small class="notes-preview">${esc(r.notes)}</small>` : ''}</div>${r.readonly ? '<span class="badge automatic">Automatique</span>' : r.status ? `<span class="badge ${r.status}">${r.status === 'booked' ? '✓ Réservé' : 'À réserver'}</span>` : ''}<button class="icon-button" ${r.readonly ? `data-url="${esc(r.url)}"` : `data-edit="${esc(r.record_id || r.id)}"`} aria-label="Ouvrir ${esc(r.title)}">${icon('right')}</button></div>`;
+      const details = [ownerName(r.owner),r.origin && r.destination ? `${r.origin} → ${r.destination}` : '',r.mode || '',r.reference || '',r.linked ? 'Lié au séjour · modifier le séjour' : '',r.series_id ? 'Période récurrente' : '',r.estimated_date ? 'Date de retour prévue à confirmer' : '',r.status ? statusLabel(r) : ''].filter(Boolean).join(' · ');
+      return heading + `<div class="list-row"><span class="list-color" style="--event-color:${color(r)}"></span><div class="list-date">${span(r.start,r.end)}</div><div class="list-main">${r.readonly ? `<a class="row-open" href="${esc(r.url)}"><strong>${esc(r.title)}</strong></a>` : `<button class="row-open" data-edit="${esc(r.record_id || r.id)}"><strong>${esc(r.title)}</strong></button>`}<small>${esc(details)}</small>${r.notes ? `<small class="notes-preview">${esc(r.notes)}</small>` : ''}</div>${r.readonly ? '<span class="badge automatic">Automatique</span>' : statusBadge(r)}<button class="icon-button" ${r.readonly ? `data-url="${esc(r.url)}"` : `data-edit="${esc(r.record_id || r.id)}"`} aria-label="Ouvrir ${esc(r.title)}">${icon('right')}</button></div>`;
     }).join('') + '</div>';
   }
   function renderAlerts() {
@@ -193,9 +206,9 @@
   function openDay(value) {
     s.selectedDay = value; const row = dayCoverage(value);
     $('#day-title').textContent = fmt(value,{weekday:'long',month:'long',year:'numeric'});
-    const events = calendarEvents().filter(r => r.start <= value && r.end >= value);
+    const events = calendarEvents().filter(r => r.start <= value && r.end >= value).sort(dayOrder);
     $('#day-content').innerHTML = '<div class="day-places">' + ['clement','elsa'].map(p => `<button class="day-place ${row[p] ? '' : 'missing'}" ${row[p] ? `data-edit="${row[p].id}"` : `data-fill-start="${value}" data-fill-end="${value}" data-fill-owner="${p}"`}><small>${ownerName(p)}</small><strong>${esc(row[p]?.title || '＋ Renseigner le lieu')}</strong></button>`).join('') + '</div>' +
-      events.map(r => `<button class="day-event" data-event="${esc(r.id)}"><span class="legend-dot" style="--event-color:${color(r)}"></span><span><strong>${esc(r.title)}</strong><small>${span(r.start,r.end,true)}${r.start_time ? ' · ' + esc(r.start_time) : ''}${r.end_time ? ' → ' + esc(r.end_time) : ''} · ${ownerName(r.owner)}${r.notes ? '\n' + esc(r.notes) : ''}</small></span>${r.status ? `<span class="badge ${r.status}">${r.status === 'booked' ? 'Réservé' : 'À réserver'}</span>` : r.readonly ? '<span class="badge automatic">Session ↗</span>' : ''}</button>`).join('') + (!events.length ? '<p class="side-empty">Aucun autre événement affiché pour cette journée.</p>' : '');
+      events.map(r => `<button class="day-event" data-event="${esc(r.id)}"><span class="legend-dot" style="--event-color:${color(r)}"></span><span><strong>${esc(r.title)}</strong><small>${span(r.start,r.end,true)}${r.start_time ? ' · ' + esc(r.start_time) : ''}${r.end_time ? ' → ' + esc(r.end_time) : ''} · ${ownerName(r.owner)}${r.estimated_date ? '\nDate de retour prévue à confirmer' : ''}${r.notes ? '\n' + esc(r.notes) : ''}</small></span>${r.status ? statusBadge(r) : r.readonly ? '<span class="badge automatic">Session ↗</span>' : ''}</button>`).join('') + (!events.length ? '<p class="side-empty">Aucun autre événement affiché pour cette journée.</p>' : '');
     if (!$('#day-dialog').open) $('#day-dialog').showModal();
   }
   function openEvent(id) {
@@ -207,7 +220,7 @@
   const input = (name,label,value='',type='text',extra='') => `<label class="field">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;
   const textarea = (name,label,value='',extra='') => `<label class="field">${label}<textarea name="${name}" maxlength="20000" ${extra}>${esc(value)}</textarea></label>`;
   const select = (name,label,options,value) => `<label class="field">${label}<select name="${name}">${options.map(([k,v]) => `<option value="${k}" ${k === value ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
-  const statuses = [['pending','À réserver'],['booked','Réservé'],['not_needed','Pas nécessaire']];
+  const statuses = [['pending','À réserver'],['booked','Réservé'],['needs_change','À modifier'],['not_needed','Pas nécessaire']];
   function openEditor(kind='personal',id=null,defaults={}) {
     if (!s.data) return;
     $('#day-dialog').close();
@@ -240,11 +253,11 @@
       html += '<label class="check-label"><input name="replace_conflicts" type="checkbox"> Remplacer le lieu habituel sur ces dates</label><p class="form-hint">Utile si votre année est déjà remplie. Les dates autour de ce séjour restent inchangées. Un séjour avec des réservations doit être modifié directement.</p>';
       for (const prefix of ['boarding','transport']) {
         const stat = r[prefix + '_status'] || (['paris','away'].includes(r.place) ? 'pending' : 'not_needed');
-        html += `<section class="form-section"><h3>${icon(prefix === 'boarding' ? 'paw' : 'plane')} ${prefix === 'boarding' ? 'La pension du chien' : 'Les billets et trajets'}</h3>${select(prefix + '_status','Réservation',statuses,stat)}<div id="${prefix}-dates"><div class="field-row">${input(prefix + '_start',prefix === 'boarding' ? 'Début de pension' : 'Date de l’aller',r[prefix + '_start'] || r.start,'date')}${input(prefix + '_end',prefix === 'boarding' ? 'Fin de pension' : 'Date du retour (facultatif)',r[prefix + '_end'] || (prefix === 'boarding' ? r.end : ''),'date')}</div>${prefix === 'transport' ? `<div class="field-row">${select('transport_mode','Transport',[['Avion','Avion'],['Train','Train'],['Voiture','Voiture'],['Autre','Autre']],r.transport_mode || 'Avion')}${input('transport_origin','Ville de départ / de retour',r.transport_origin || '','text','maxlength="300" placeholder="Ex. Nice"')}</div>` : ''}<p class="form-hint">${prefix === 'boarding' ? 'Ces dates apparaîtront sur le calendrier comme pension réservée.' : 'Les trajets aller et retour seront visibles sur le calendrier. Ajoutez un trajet séparé si le retour se fait dans une autre ville.'}</p></div>${textarea(prefix + '_notes',prefix === 'boarding' ? 'Notes pension (contact, horaires, consignes…)' : 'Notes transport (référence, horaires, bagages…)',r[prefix + '_notes'] || '', 'maxlength="10000"')}</section>`;
+        html += `<section class="form-section"><h3>${icon(prefix === 'boarding' ? 'paw' : 'plane')} ${prefix === 'boarding' ? 'La pension du chien' : 'Les billets et trajets'}</h3>${select(prefix + '_status','Réservation',statuses,stat)}<div id="${prefix}-dates">${prefix === 'transport' ? `<label class="check-label"><input name="transport_round_trip" type="checkbox" ${r.transport_round_trip !== false ? 'checked' : ''}> Prévoir un aller et un retour</label>` : ''}<div class="field-row">${input(prefix + '_start',prefix === 'boarding' ? 'Début de pension' : 'Date de l’aller',r[prefix + '_start'] || r.start,'date')}${input(prefix + '_end',prefix === 'boarding' ? 'Fin de pension' : 'Date du retour prévu',r[prefix + '_end'] || (prefix === 'boarding' || stat !== 'booked' || !s.editing ? r.end : ''),'date')}</div>${prefix === 'transport' ? `<div class="field-row">${select('transport_mode','Transport',[['Avion','Avion'],['Train','Train'],['Voiture','Voiture'],['Autre','Autre']],r.transport_mode || 'Avion')}${input('transport_origin','Ville de départ / de retour',r.transport_origin || '','text','maxlength="300" placeholder="Ex. Nice"')}</div>` : ''}<p class="form-hint">${prefix === 'boarding' ? 'Ces dates sont affichées avec le statut choisi : à réserver, réservé ou à modifier.' : 'L’aller et le retour restent visibles, même avant réservation. Ajoutez un trajet séparé si le retour se fait dans une autre ville.'}</p>${prefix === 'transport' ? '<p class="form-hint" id="transport-return-hint">Sans date de retour, la fin du séjour est affichée comme retour à confirmer ; elle ne vaut pas réservation.</p>' : ''}</div>${textarea(prefix + '_notes',prefix === 'boarding' ? 'Notes pension (contact, horaires, consignes…)' : 'Notes transport (référence, horaires, bagages…)',r[prefix + '_notes'] || '', 'maxlength="10000"')}</section>`;
       }
     }
     if (kind === 'boarding' || kind === 'transport') {
-      html += select('status','Statut',statuses.slice(0,2),r.status || 'pending');
+      html += select('status','Statut',statuses,r.status || 'pending');
       if (kind === 'transport') html += `<div class="field-row">${input('origin','Départ',r.origin || '', 'text','required maxlength="300" placeholder="Ex. Paris Orly"')}${input('destination','Arrivée',r.destination || '', 'text','required maxlength="300" placeholder="Ex. Nice / Puget"')}</div>${select('mode','Moyen de transport',[['Avion','Avion'],['Train','Train'],['Voiture','Voiture'],['Autre','Autre']],r.mode || 'Avion')}`;
       html += input('reference','Référence de réservation (facultatif)',r.reference || '', 'text','maxlength="300"');
       html += '<p class="form-hint">Réservation indépendante. Pour mettre à jour une réservation déjà liée à un séjour, ouvrez le séjour dans Déplacements.</p>';
@@ -263,9 +276,17 @@
     for (const prefix of ['boarding','transport']) {
       const status = form.elements[prefix + '_status'];
       if (!status) continue;
-      const visible = status.value === 'booked', area = $(`#${prefix}-dates`);
+      const visible = status.value !== 'not_needed', area = $(`#${prefix}-dates`);
       area.hidden = !visible;
       $$('input,select',area).forEach(el => { el.disabled = !visible; el.required = visible && (el.name === prefix + '_start' || prefix === 'boarding' && el.name === 'boarding_end'); });
+      if (prefix === 'transport') {
+        const returning = form.elements.transport_round_trip?.checked !== false;
+        const end = form.elements.transport_end;
+        end.disabled = !visible || !returning;
+        end.closest('.field').hidden = !returning;
+        const hint = $('#transport-return-hint');
+        if (hint) hint.hidden = !visible || !returning || !!end.value;
+      }
     }
     if ($('#repeat-dates')) { const repeating = form.elements.repeat.value !== 'none'; $('#repeat-dates').hidden = !repeating; form.elements.repeat_until.disabled = !repeating; form.elements.repeat_until.required = repeating; }
     if (form.elements.kind.value === 'location') {
@@ -278,6 +299,7 @@
     data.done = form.elements.done?.checked || false;
     data.fill_gaps = form.elements.fill_gaps?.checked || false;
     data.replace_conflicts = form.elements.replace_conflicts?.checked || false;
+    if (form.elements.transport_round_trip) data.transport_round_trip = form.elements.transport_round_trip.checked;
     if (s.editing) data.revision = s.editing.revision;
     return data;
   }
@@ -303,6 +325,49 @@
     else { s.cursor.setDate(1); s.cursor.setMonth(s.cursor.getMonth() + delta); }
     if (s.cursor.getFullYear() < 2000 || s.cursor.getFullYear() > 2100) { s.cursor.setFullYear(old); return; }
     if (old !== s.cursor.getFullYear()) { if (!await load()) s.cursor = before; } else renderView();
+  }
+  function setFocus(active) {
+    s.focus = active;
+    document.body.classList.toggle('planner-focus',active);
+    $('#fullscreen').setAttribute('aria-pressed',String(active));
+    $('#fullscreen span').textContent = active ? 'Quitter le plein écran' : 'Plein écran';
+    $('#add-calendar').hidden = !active;
+  }
+  async function toggleFullscreen() {
+    if (s.focus) {
+      setFocus(false);
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen().catch(() => {});
+      s.nativeFullscreen = false;
+      return;
+    }
+    setFocus(true);
+    // A full-window layout remains available when native fullscreen is denied
+    // or unsupported, including iOS and embedded browsers.
+    if (document.documentElement.requestFullscreen && document.fullscreenEnabled !== false) {
+      try { await document.documentElement.requestFullscreen(); s.nativeFullscreen = true; }
+      catch (_) { s.nativeFullscreen = false; }
+    }
+  }
+  async function exportPdf() {
+    if (!s.data || $('#export-pdf').disabled) return;
+    const button = $('#export-pdf'); button.disabled = true;
+    const popup = window.open('about:blank','_blank');
+    if (popup) { popup.opener = null; popup.document.title = 'Préparation du planning'; popup.document.body.textContent = 'Préparation du PDF du mois…'; }
+    try {
+      const query = new URLSearchParams({year:String(s.cursor.getFullYear()),month:String(s.cursor.getMonth() + 1),owner:s.owner,hidden:[...s.hidden].join(',')});
+      const response = await fetch(`/gestion-clement-elsa/month.pdf?${query}`,{credentials:'same-origin',cache:'no-store'});
+      if (response.redirected || !response.headers.get('content-type')?.includes('application/pdf') || !response.ok) {
+        const error = response.headers.get('content-type')?.includes('application/json') ? (await response.json()).error : 'Votre session a expiré. Rechargez la page avant de réessayer.';
+        throw new Error(error || 'Impossible de préparer le PDF. Réessayez.');
+      }
+      const url = URL.createObjectURL(await response.blob());
+      if (popup && !popup.closed) popup.location.replace(url);
+      else if (!popup) {
+        const link = document.createElement('a'); link.href = url; link.download = `planning-clement-elsa-${s.cursor.getFullYear()}-${String(s.cursor.getMonth()+1).padStart(2,'0')}.pdf`; document.body.append(link); link.click(); link.remove();
+      }
+      setTimeout(() => URL.revokeObjectURL(url),120000);
+    } catch (e) { if (popup && !popup.closed) popup.close(); errorAt('#load-error',e.message); toast(e.message); }
+    finally { button.disabled = false; }
   }
   document.addEventListener('click', async e => {
     const target = e.target.closest('button,a,[data-day]'); if (!target) return;
@@ -346,7 +411,7 @@
         for (const prefix of ['boarding','transport']) {
           const first = form.elements[prefix + '_start'], last = form.elements[prefix + '_end'];
           if (first && !first.dataset.manual) first.value = form.elements.start.value;
-          if (last && !last.dataset.manual && prefix === 'boarding') last.value = form.elements.end.value;
+          if (last && !last.dataset.manual) last.value = form.elements.end.value;
         }
       }
       updateConditionalFields();
@@ -364,6 +429,11 @@
     catch (e) { btn.disabled = false; errorAt('#load-error',e.message); }
   });
   $('#event-form').addEventListener('submit',save);
+  $('#fullscreen').addEventListener('click',toggleFullscreen);
+  $('#export-pdf').addEventListener('click',exportPdf);
+  $('#add-calendar').addEventListener('click',() => openEditor('personal'));
+  document.addEventListener('fullscreenchange',() => { if (s.nativeFullscreen && !document.fullscreenElement) { s.nativeFullscreen = false; setFocus(false); } });
+  document.addEventListener('keydown',e => { if (e.key === 'Escape' && s.focus && !$$('dialog[open]').length) toggleFullscreen(); });
   $('#refresh').addEventListener('click',load);
   $('#add-main').addEventListener('click',() => openEditor(['calendar','training','alerts'].includes(s.tab) ? 'personal' : s.tab));
   $('#add-main').disabled = true;

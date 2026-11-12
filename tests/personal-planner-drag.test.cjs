@@ -116,6 +116,18 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   assert.equal(await chip(task,'2026-11-24').count(),1);
   check('Conflit concurrent et indisponibilité : données conservées, erreur visible');
 
+  const projected = await create({kind:'location',place:'paris',start:'2026-11-25',end:'2026-11-27',boarding_status:'not_needed',transport_status:'booked',transport_start:'2026-11-25',transport_origin:'Nice'});
+  await refresh();
+  await drag(projected + ':transport','2026-11-25','2026-11-24');
+  assert.equal((await record(projected)).transport_end,'');
+  let projectedReturn = (await api('/data')).data.reservations.find(r => r.id === projected + ':transport:return');
+  assert.equal(projectedReturn.status,'pending');
+  await drag(projected + ':transport:return','2026-11-27','2026-11-28');
+  projectedReturn = (await api('/data')).data.reservations.find(r => r.id === projected + ':transport:return');
+  assert.equal(projectedReturn.start,'2026-11-28');
+  assert.equal(projectedReturn.status,'needs_change');
+  check('Retour prévisionnel : déplacer une date ne confirme jamais une réservation');
+
   await refresh();
   await chip(appointment,'2026-11-14').scrollIntoViewIfNeeded();
   const source = await chip(appointment,'2026-11-14').boundingBox();
@@ -142,6 +154,17 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   await drag(decemberTask,'2026-12-02','2026-12-03');
   assert.equal((await record(decemberTask)).due,'2026-12-03');
   check('Glisser-déposer dans la vue semaine');
+
+  const recurring = (await api('/records','POST',{kind:'louise',start:'2026-10-23',end:'2026-10-25',repeat:'weekly',repeat_until:'2026-11-08'})).data.ids;
+  const untouched = await record(recurring[1]);
+  await page.locator('#view-switch [data-view="month"]').click();
+  await page.locator('#prev').click(); await page.locator('#prev').click();
+  await refresh();
+  await drag(recurring[0],'2026-10-24','2026-10-26');
+  saved = await record(recurring[0]);
+  assert.deepEqual([saved.start,saved.end],['2026-10-25','2026-10-27']);
+  assert.deepEqual(await record(recurring[1]),untouched);
+  check('Changement d’heure : durée conservée et seule l’occurrence saisie est déplacée');
 
   assert.deepEqual(errors,[]);
   console.log(`${passed.length} scénarios navigateur réussis, aucune erreur JavaScript.`);

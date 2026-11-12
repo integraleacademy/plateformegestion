@@ -151,7 +151,9 @@
         // Each leg moves independently; do not move the stay or the other flight.
         const field = event.direction === 'return' ? 'transport_end' : 'transport_start';
         record[field] = add(event.start,delta);
-        if (record.transport_round_trip !== false && !record.transport_end) record.transport_end = record.end;
+        if (event.direction !== 'return' && record.transport_round_trip !== false && !record.transport_end && record.transport_start > record.end) {
+          throw new Error('Le départ dépasserait la date de retour prévue. Déplacez d’abord le retour ou modifiez le séjour.');
+        }
         // A projected return date must never turn into a confirmed booking by dragging it.
         if (event.estimated_date && record.transport_status === 'booked') record.transport_status = 'needs_change';
       }

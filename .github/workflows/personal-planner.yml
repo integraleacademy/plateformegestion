@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   planner:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,8 @@ jobs:
           node-version: '22'
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest tests/test_personal_planner.py -q
+        env:
+          DATA_DIR: ${{ runner.temp }}/planner-data
       - run: npm install --no-save playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/personal-planner-drag.test.cjs

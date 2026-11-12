@@ -327,7 +327,7 @@ GLOBAL_DEFAULT_ZOOM_STYLE = """
 
 @app.after_request
 def apply_global_default_zoom(response):
-    if request.endpoint == "sessions_home":
+    if request.endpoint in {"sessions_home", "personal_planner.index"}:
         return response
     if response.mimetype != "text/html" or response.direct_passthrough:
         return response
@@ -14237,3 +14237,6 @@ except Exception:
 
 from services.shared_rooms import register as register_shared_rooms
 register_shared_rooms(app, load_sessions, save_sessions, SESSIONS_FILE)
+
+from services.personal_planner import register as register_personal_planner
+register_personal_planner(app, DATA_DIR, load_sessions, session_modality_date_range)

@@ -154,6 +154,8 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   await page.mouse.down();
   await page.mouse.move(source.x + 15,source.y + 10,{steps:5});
   await page.mouse.move(next.x + next.width/2,next.y + next.height/2,{steps:10});
+  // Chromium needs a second move at the destination to dispatch dragover reliably.
+  await page.mouse.move(next.x + next.width/2,next.y + next.height/2);
   try {
     await page.waitForFunction(() => document.querySelector('#period-label').textContent.includes('décembre'),{},{timeout:5000});
   } catch (error) {
@@ -163,6 +165,7 @@ const check = label => { passed.push(label); console.log('PASS',label); };
   const target = await day('2026-12-15').boundingBox();
   const moved = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes(appointment));
   await page.mouse.move(target.x + 30,target.y + 25,{steps:10});
+  await page.mouse.move(target.x + 30,target.y + 25);
   await page.mouse.up();
   assert.equal((await moved).status(),200);
   await page.waitForFunction(() => !document.body.classList.contains('calendar-saving'));

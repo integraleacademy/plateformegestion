@@ -94,6 +94,12 @@
           <p>Accédez à vos applications métiers et visualisez les actions qui demandent votre attention.</p>
         </div>
 <div class="grid">
+  <a class="card" href="{{ url_for('personal_planner.index') }}" style="background:linear-gradient(145deg,#fff,#f0edff);border-color:#ded8f7">
+    <span class="app-icon app-icon--emoji" aria-hidden="true" style="background:#eee9ff">🗓️</span>
+    <div class="title">Gestion Clément &amp; Elsa</div>
+    <div class="desc">Notre calendrier, Louise, déplacements, pension et quotidien</div>
+    <div class="notif" style="background:#ebe5fc;color:#6550a1">Ouvrir notre planning</div>
+  </a>
   <a class="card prospecting-card" href="{{ url_for('prospecting.admin_prospects') }}">
     <span class="app-icon app-icon--emoji" aria-hidden="true">🔎</span>
     <div class="title">Prospection sécurité</div>

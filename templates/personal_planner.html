@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="planner-csrf" content="{{ planner_csrf }}">
+  <title>Clément &amp; Elsa · Notre quotidien</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/faviconpg.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=1">
+  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=1" defer></script>
+</head>
+<body>
+<svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.8a5.5 5.5 0 0 0-7.8 0L12 6l-1-1.2a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><path d="M6 17c0-3 3-6 6-6s6 3 6 6c0 4-4 2-6 2s-6 2-6-2Z"/><ellipse cx="5" cy="9" rx="2" ry="3"/><ellipse cx="10" cy="5" rx="2" ry="3"/><ellipse cx="16" cy="5" rx="2" ry="3"/><ellipse cx="21" cy="10" rx="2" ry="3"/></symbol>
+  <symbol id="i-plane" viewBox="0 0 24 24"><path d="m22 2-8 20-3-9L2 10 22 2ZM11 13 22 2"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 7h14l2 14H3L5 7ZM8 8V6a4 4 0 0 1 8 0v2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-task" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m7 12 3 3 7-7"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M14 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-8M14 3v7h7M14 3l7 7M7 14h10M7 17h6"/></symbol>
+  <symbol id="i-work" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="3"/><path d="M8 7V4h8v3M3 12c5 4 13 4 18 0M10 14h4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m10 4-8 14a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3L14 4a2 2 0 0 0-4 0ZM12 9v5M12 17h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+</svg>
+<header class="topline">
+  <a href="/" class="home-link"><svg class="icon"><use href="#i-left"/></svg> Plateforme de gestion</a>
+  <span class="topline-label">INTÉGRALE <span>·</span> ESPACE PERSONNEL</span>
+  <div class="couple" aria-label="Clément et Elsa"><span>C</span><span>E</span></div>
+</header>
+<main class="shell">
+  <section class="page-heading">
+    <div><p class="eyebrow">UN QUOTIDIEN BIEN ORGANISÉ</p><h1>Clément <span>&amp;</span> Elsa<span class="heading-dot">.</span></h1><p class="subtitle">Les projets, la famille, les petits détails. Tout est ici.</p></div>
+    <div class="heading-actions"><button class="button quiet" id="refresh"><svg class="icon"><use href="#i-refresh"/></svg><span>Actualiser</span></button><button class="button primary" id="add-main"><svg class="icon"><use href="#i-plus"/></svg> Ajouter</button></div>
+  </section>
+  <div id="load-error" class="notice error" role="alert" hidden></div>
+  <div id="training-error" class="notice warning" role="status" hidden></div>
+  <section class="metrics" id="metrics" aria-label="En un coup d’œil"><div class="loading-card">Chargement de votre quotidien…</div></section>
+  <nav class="tabs" id="tabs" aria-label="Rubriques du quotidien"></nav>
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="sidebar-heading"><span class="eyebrow">AUJOURD’HUI</span><span id="today-label"></span></div>
+      <div id="today-places" class="today-places"></div>
+      <div class="side-section"><div class="side-title"><h2>À préparer</h2><span class="small-label">À venir</span></div><div id="upcoming"></div></div>
+      <div class="side-section"><div class="side-title"><h2>Sur le calendrier</h2><button class="text-button" id="reset-filters">Tout voir</button></div><div id="legend"></div></div>
+      <div class="side-tip"><svg class="icon"><use href="#i-pin"/></svg><div><strong>Une place pour chaque jour.</strong><p>Renseignez vos séjours, puis complétez les jours restants avec votre lieu habituel.</p><button class="text-button" id="fill-year">Compléter l’année <span aria-hidden="true">→</span></button></div></div>
+      <p class="save-state" id="save-state" role="status">Connexion au planning…</p>
+    </aside>
+    <section class="content" aria-label="Planning et listes">
+      <div class="content-toolbar">
+        <div class="period-nav"><button class="icon-button" id="prev" aria-label="Période précédente"><svg class="icon"><use href="#i-left"/></svg></button><button class="icon-button" id="next" aria-label="Période suivante"><svg class="icon"><use href="#i-right"/></svg></button><h2 id="period-label">Calendrier</h2><button class="button small" id="today-button">Aujourd’hui</button></div>
+        <div class="view-tools"><label class="sr-only" for="owner-filter">Personne affichée</label><select id="owner-filter"><option value="all">Tout le monde</option><option value="clement">Clément</option><option value="elsa">Elsa</option></select><div class="view-switch" id="view-switch" aria-label="Vue du calendrier"><button data-view="month" aria-pressed="true">Mois</button><button data-view="week" aria-pressed="false">Semaine</button><button data-view="year" aria-pressed="false">Année</button></div></div>
+      </div>
+      <div id="view-intro" class="view-intro" hidden></div>
+      <div id="view" aria-live="polite"><div class="initial-loading">Votre planning se prépare…</div></div>
+      <div class="calendar-footer" id="calendar-footer"><span><span class="coverage-dot"></span> Lieu manquant : journée à compléter</span><span>Cliquez sur un jour pour voir le détail ou ajouter un événement.</span></div>
+    </section>
+  </div>
+</main>
+<dialog id="editor" class="editor" aria-labelledby="editor-title">
+  <form id="event-form">
+    <header class="dialog-heading"><div><p class="eyebrow" id="editor-eyebrow">VOTRE QUOTIDIEN</p><h2 id="editor-title">Ajouter un événement</h2></div><button type="button" class="icon-button" data-close="editor" aria-label="Fermer"><svg class="icon"><use href="#i-close"/></svg></button></header>
+    <div class="dialog-body"><div id="editor-fields"></div><div id="form-error" class="notice error" role="alert" hidden></div></div>
+    <footer class="dialog-footer"><div class="edit-tools"><button type="button" class="text-button danger" id="delete-record" hidden>Supprimer</button><button type="button" class="text-button" id="duplicate-record" hidden>Dupliquer</button></div><button type="button" class="button" data-close="editor">Annuler</button><button type="submit" class="button primary" id="save-record">Enregistrer</button></footer>
+  </form>
+</dialog>
+<dialog id="day-dialog" class="day-dialog" aria-labelledby="day-title"><header class="dialog-heading"><div><p class="eyebrow">LE DÉTAIL DE VOTRE JOURNÉE</p><h2 id="day-title"></h2></div><button class="icon-button" data-close="day-dialog" aria-label="Fermer"><svg class="icon"><use href="#i-close"/></svg></button></header><div id="day-content" class="dialog-body"></div><footer class="dialog-footer"><button class="button primary" id="day-add"><svg class="icon"><use href="#i-plus"/></svg> Ajouter à cette date</button></footer></dialog>
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-body"><h2 id="confirm-title">Supprimer cet élément ?</h2><p>Cette action supprime l’élément de votre planning partagé.</p><label id="delete-series-label" class="check-label" hidden><input type="checkbox" id="delete-series"> Supprimer aussi toutes les autres dates de cette série</label><div id="delete-error" class="notice error" hidden role="alert"></div></div><footer class="dialog-footer"><button class="button" data-close="confirm-dialog">Annuler</button><button class="button destructive" id="confirm-delete">Supprimer</button></footer></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

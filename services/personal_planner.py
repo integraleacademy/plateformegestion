@@ -18,12 +18,15 @@ from urllib.parse import quote
 
 from flask import Blueprint, current_app, jsonify, render_template, request, session, send_file
 
-KINDS = {"location", "louise", "boarding", "transport", "personal", "professional", "shopping", "task", "note"}
+KINDS = {"location", "louise", "boarding", "transport", "restaurant", "personal", "professional", "shopping", "task", "note"}
 OWNERS = {"both", "clement", "elsa"}
 PLACES = {"paris": "Paris", "puget": "Puget", "cantal": "Cantal", "away": "Déplacement"}
 STATUSES = {"pending", "booked", "needs_change", "not_needed"}
 STATUS_LABELS = {"pending": "À réserver", "booked": "Réservé", "needs_change": "À modifier", "not_needed": "Pas nécessaire"}
 ITEMS = {"shopping", "task", "note"}
+BOARDING_PLACES = {"itana": "Itana", "lafeuillade": "Lafeuillade"}
+SHOPPING_LISTS = {"puget": "Puget", "cantal": "Cantal", "paris": "Paris", "autre": "Autre"}
+EXPORT_SCOPES = {"all", "louise", "location", "boarding", "transport", "restaurant", "training", "personal", "professional", "task"}
 
 
 class PlannerError(ValueError):
@@ -67,6 +70,7 @@ def validate(data):
         raise PlannerError("Choisissez une catégorie et une personne valides.")
     result = {"kind": kind, "owner": data.get("owner", "both"),
               "title": text_field(data, "title", 200), "notes": text_field(data, "notes", 20000)}
+    result["important"] = data.get("important") is True
     if kind not in ITEMS:
         start = day(data.get("start"), "Date de début")
         end = day(data.get("end") or data.get("start"), "Date de fin")
@@ -115,14 +119,34 @@ def validate(data):
             result["transport_end"] = ""
         result["transport_mode"] = text_field(data, "transport_mode", 40) or "Avion"
         result["transport_origin"] = text_field(data, "transport_origin")
-    if kind in {"boarding", "transport"}:
-        result["status"] = data.get("status", "pending")
+    if kind in {"location", "boarding"}:
+        result["boarding_location"] = text_field(data, "boarding_location", 30)
+        if result["boarding_location"] not in {"", *BOARDING_PLACES}:
+            raise PlannerError("Choisissez Itana ou Lafeuillade pour la pension.")
+    if kind in {"boarding", "transport", "restaurant"}:
+        result["status"] = data.get("status", "booked" if kind == "restaurant" else "pending")
         if not isinstance(result["status"], str) or result["status"] not in STATUSES:
             raise PlannerError("Choisissez un statut de réservation valide.")
         for key in ("origin", "destination", "reference", "mode"):
             result[key] = text_field(data, key)
         if kind == "transport" and (not result["origin"] or not result["destination"]):
             raise PlannerError("Indiquez le départ et l’arrivée du trajet.")
+    if kind == "restaurant":
+        result["meal"] = text_field(data, "meal", 20) or "dinner"
+        if result["meal"] not in {"lunch", "dinner", "other"}:
+            raise PlannerError("Choisissez midi, soir ou un autre moment.")
+        if result["end"] != result["start"] or not result["start_time"]:
+            raise PlannerError("Indiquez la date et l’heure de réservation du restaurant.")
+        result["address"] = text_field(data, "address", 500)
+        guests = data.get("guests", "")
+        if guests in ("", None):
+            result["guests"] = ""
+        elif isinstance(guests, (str, int)) and str(guests).isdigit() and 1 <= int(guests) <= 100:
+            result["guests"] = int(guests)
+        else:
+            raise PlannerError("Indiquez entre 1 et 100 personnes au restaurant.")
+    if kind == "shopping":
+        result["list_id"] = text_field(data, "list_id", 64) or "autre"
     if not result["title"]:
         result["title"] = {"louise": "Avec Louise", "boarding": "Pension chien", "transport": "Trajet"}.get(kind, "")
     if not result["title"]:
@@ -145,7 +169,20 @@ def connect(path):
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA busy_timeout=15000")
     db.execute("CREATE TABLE IF NOT EXISTS planner_records (id TEXT PRIMARY KEY, payload TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1)")
+    db.execute("CREATE TABLE IF NOT EXISTS planner_shopping_lists (id TEXT PRIMARY KEY, name TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1)")
+    db.executemany("INSERT OR IGNORE INTO planner_shopping_lists(id,name) VALUES(?,?)", SHOPPING_LISTS.items())
+    db.commit()
     return db
+
+
+def read_shopping_lists(db):
+    rows = [dict(row) for row in db.execute("SELECT id, name, revision FROM planner_shopping_lists")]
+    return sorted(rows, key=lambda r: (list(SHOPPING_LISTS).index(r["id"]) if r["id"] in SHOPPING_LISTS else 4, r["name"].casefold()))
+
+
+def check_shopping_list(db, record):
+    if record["kind"] == "shopping" and not db.execute("SELECT 1 FROM planner_shopping_lists WHERE id=?", (record["list_id"],)).fetchone():
+        raise PlannerError("Cette liste n’existe plus. Actualisez puis choisissez une liste de courses.", 409)
 
 
 def put_record(db, record, record_id=None, revision=1):
@@ -187,8 +224,18 @@ def fill_locations(candidate, records):
         by_owner[person] = ranges(value for value in date_range(candidate["start"], candidate["end"]) if value not in covered)
     if len(by_owner) == 2 and by_owner["clement"] == by_owner["elsa"]:
         by_owner = {"both": by_owner["clement"]}
-    return [dict(candidate, owner=owner, start=start, end=end)
-            for owner, spans in by_owner.items() for start, end in spans]
+    pieces = [dict(candidate, owner=owner, start=start, end=end)
+              for owner, spans in by_owner.items() for start, end in spans]
+    # A booking belongs to the requested trip, not to every hole in the location
+    # calendar. Retain it once, with its original dates and travelers.
+    if pieces:
+        pieces[0]["reservation_owner"] = candidate["owner"]
+        for piece in pieces[1:]:
+            for prefix in ("boarding", "transport"):
+                piece[prefix + "_status"] = "not_needed"
+                for suffix in ("start", "end", "notes"):
+                    piece[prefix + "_" + suffix] = ""
+    return pieces
 
 
 def replace_base_locations(db, candidate, records):
@@ -260,12 +307,14 @@ def reservations(records):
                 continue
             title = ("Pension chien" if kind == "boarding" else "Transport") + " · " + r["title"]
             base = {"id": r["id"] + ":" + kind, "record_id": r["id"], "kind": kind,
-                    "title": title, "owner": r["owner"], "status": status,
+                    "title": title, "owner": r.get("reservation_owner", r["owner"]), "status": status,
                     "notes": r.get(kind + "_notes", ""), "linked": True, "stay": r["title"]}
             start = r.get(kind + "_start") or r["start"]
             end = r.get(kind + "_end") or r["end"]
             if kind == "boarding":
-                result.append(dict(base, start=start, end=end))
+                venue = BOARDING_PLACES.get(r.get("boarding_location"), "")
+                result.append(dict(base, start=start, end=end, boarding_location=r.get("boarding_location", ""),
+                                   title="Pension chien" + (" · " + venue if venue else "") + " · " + r["title"]))
             else:
                 result.append(dict(base, title="Aller · " + (r.get("transport_origin", "") + " → " if r.get("transport_origin") else "") + r["title"], start=start, end=start, direction="outbound",
                                    mode=r.get("transport_mode", ""), origin=r.get("transport_origin", ""), destination=r["title"]))
@@ -277,7 +326,7 @@ def reservations(records):
                     if return_status == "pending" and status == "booked":
                         alerts.append({"record_id": r["id"], "start": end, "end": end, "kind": kind, "title": "Retour de " + r["title"] + " : réservation et date à confirmer"})
             if status in {"pending", "needs_change"}:
-                alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": kind, "title": title + " : " + STATUS_LABELS[status].lower()})
+                alerts.append({"record_id": r["id"], "start": start, "end": end, "kind": kind, "title": title + " : " + STATUS_LABELS[status].lower()})
             elif kind == "boarding" and (start > r["start"] or end < r["end"]):
                 alerts.append({"record_id": r["id"], "start": r["start"], "end": r["end"], "kind": kind, "title": "Pension : dates à vérifier pour " + r["title"]})
     return result, sorted(alerts, key=lambda a: a["start"])
@@ -300,19 +349,34 @@ def training_events(sessions, modality_range):
         # Only infer an on-site start for a course explicitly known to be on site.
         if not presentiel and (s.get("apsPlanningMode") == "full_presentiel" or str(s.get("formation", "")).upper() in {"SSIAP1", "SSIAP2", "SSIAP3", "SST"}):
             presentiel = s.get("date_debut")
+        formation = str(s.get("formation") or "Formation")
+        is_director = formation.upper() in {"DIRIGEANT", "DESP"}
+        address = str(s.get("salle") or s.get("room") or "")
+        venue = str({"PARIS": "Paris", "PUGET": "Puget"}.get(str(s.get("dirigeant_location", "")).upper(), "") or s.get("dirigeant_location_label") or "")
+        if not venue:
+            venue = next((label for key, label in (("paris", "Paris"), ("puget", "Puget")) if key in address.lower()), "")
+        heading = ("Dirigeant" if formation.upper() == "DIRIGEANT" else formation) + (" · " + (venue or "Lieu à préciser") if is_director else "")
+        milestones = {}
         for key, label, value in (("training_start", "Début formation", s.get("date_debut")),
                                   ("training_onsite", "Début présentiel", presentiel),
                                   ("training_end", "Fin formation", s.get("date_fin")),
                                   ("training_exam", "Examen", s.get("date_exam"))):
             value = normalize(value)
             if value:
-                result.append({"id": "session:" + str(s["id"]) + ":" + key, "kind": key,
-                               "title": str(s.get("formation") or "Formation") + " · " + label,
-                               "formation": str(s.get("formation") or ""),
-                               "ssiap": "SSIAP" in str(s.get("formation") or "").upper(),
-                               "start": value, "end": value, "owner": "both", "readonly": True,
-                               "url": "/sessions/" + quote(str(s["id"]), safe=""),
-                               "notes": str(s.get("dirigeant_location_label") or s.get("salle") or s.get("room") or "")})
+                milestones.setdefault(value, []).append((key, label))
+        for value, entries in milestones.items():
+            keys = [key for key, _ in entries]
+            key = "training_exam" if "training_exam" in keys else keys[0]
+            label = " / ".join(label for _, label in entries)
+            if keys == ["training_start", "training_onsite"]:
+                label = "Début formation en présentiel"
+            result.append({"id": "session:" + str(s["id"]) + ":" + key, "kind": key, "milestones": keys,
+                           "title": heading + " · " + label, "venue": venue,
+                           "formation": formation,
+                           "ssiap": "SSIAP" in formation.upper(),
+                           "start": value, "end": value, "owner": "both", "readonly": True,
+                           "url": "/sessions/" + quote(str(s["id"]), safe=""),
+                           "notes": address or venue})
     return result
 
 
@@ -364,6 +428,7 @@ def register(app, data_dir, load_sessions, modality_range):
             raise PlannerError("Année invalide.")
         with closing(connect(current_app.config["PERSONAL_PLANNER_DB"])) as db:
             records = read_records(db)
+            shopping_lists = read_shopping_lists(db)
         training_error = None
         try:
             training = training_events(load_sessions().get("sessions", []), modality_range)
@@ -372,7 +437,7 @@ def register(app, data_dir, load_sessions, modality_range):
             training = []
             training_error = "Les dates de formation sont temporairement indisponibles. Votre planning personnel reste accessible."
         bookings, alerts = reservations(records)
-        return jsonify(records=records, training=training, training_error=training_error,
+        return jsonify(records=records, shopping_lists=shopping_lists, training=training, training_error=training_error,
                        reservations=bookings, alerts=alerts, coverage=coverage(records, year), year=year,
                        today=date.today().isoformat())
 
@@ -403,6 +468,59 @@ def register(app, data_dir, load_sessions, modality_range):
         return send_file(BytesIO(document), mimetype="application/pdf", as_attachment=False,
                          download_name=f"planning-clement-elsa-{year}-{month:02d}.pdf", max_age=0)
 
+    @bp.get("/export.pdf")
+    def period_pdf():
+        from services.personal_planner_pdf import render_period
+        start, end = day(request.args.get("start")), day(request.args.get("end"))
+        if end < start or (end - start).days > 1096:
+            raise PlannerError("Choisissez une période de trois ans maximum, avec la fin après le début.")
+        scope, layout = request.args.get("scope", "all"), request.args.get("layout", "calendar")
+        owner = request.args.get("owner", "all")
+        if scope not in EXPORT_SCOPES or layout not in {"calendar", "list"} or owner not in OWNERS | {"all"}:
+            raise PlannerError("Choisissez une catégorie, une présentation et une personne valides.")
+        with closing(connect(current_app.config["PERSONAL_PLANNER_DB"])) as db:
+            records = read_records(db)
+        training = []
+        if scope in {"all", "training"}:
+            try:
+                training = training_events(load_sessions().get("sessions", []), modality_range)
+            except Exception:
+                current_app.logger.exception("PERSONAL_PLANNER_PDF_TRAINING_FAILED")
+                raise PlannerError("Export indisponible : impossible de charger les formations. Réessayez.", 503) from None
+        bookings, _ = reservations(records)
+        days = [d for year in range(start.year, end.year + 1) for d in coverage(records, year)["days"]] if layout == "calendar" else []
+        document = render_period(records, training, bookings, days, start.isoformat(), end.isoformat(), scope, layout, owner)
+        return send_file(BytesIO(document), mimetype="application/pdf", as_attachment=False,
+                         download_name=f"planning-{scope}-{start.isoformat()}-{end.isoformat()}.pdf", max_age=0)
+
+    @bp.route("/shopping-lists", methods=["POST"])
+    @bp.route("/shopping-lists/<list_id>", methods=["PUT"])
+    def shopping_list(list_id=None):
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            raise PlannerError("Requête invalide.")
+        name = text_field(payload, "name", 60)
+        if not name:
+            raise PlannerError("Donnez un nom à cette liste.")
+        with closing(connect(current_app.config["PERSONAL_PLANNER_DB"])) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            lists = read_shopping_lists(db)
+            if any(r["id"] != list_id and r["name"].casefold() == name.casefold() for r in lists):
+                raise PlannerError("Une liste porte déjà ce nom.", 409)
+            if list_id:
+                current = next((r for r in lists if r["id"] == list_id), None)
+                if not current:
+                    raise PlannerError("Liste introuvable.", 404)
+                if type(payload.get("revision")) is not int or payload["revision"] != current["revision"]:
+                    raise PlannerError("Cette liste a changé sur un autre appareil. Actualisez avant de la renommer.", 409)
+                db.execute("UPDATE planner_shopping_lists SET name=?, revision=revision+1 WHERE id=?", (name, list_id))
+            else:
+                if len(lists) >= 50:
+                    raise PlannerError("Vous avez atteint la limite de 50 listes.")
+                list_id = uuid.uuid4().hex
+                db.execute("INSERT INTO planner_shopping_lists(id,name) VALUES(?,?)", (list_id, name))
+        return jsonify(id=list_id), 200 if request.method == "PUT" else 201
+
     @bp.post("/records")
     def create():
         payload = request.get_json(silent=True)
@@ -428,14 +546,11 @@ def register(app, data_dir, load_sessions, modality_range):
         with closing(connect(current_app.config["PERSONAL_PLANNER_DB"])) as db, db:
             db.execute("BEGIN IMMEDIATE")
             existing = read_records(db)
+            check_shopping_list(db, record)
             if record["kind"] == "location":
                 if payload.get("fill_gaps") is True and payload.get("replace_conflicts") is True:
                     raise PlannerError("Choisissez soit le remplissage des jours manquants, soit le remplacement du lieu habituel.")
                 if payload.get("fill_gaps") is True:
-                    # Gap filling is for a base location, not for copying bookings
-                    # onto several disconnected stays.
-                    if record["boarding_status"] != "not_needed" or record["transport_status"] != "not_needed":
-                        raise PlannerError("Pour remplir les jours sans lieu, indiquez « Pas nécessaire » pour les réservations. Ajoutez les séjours à réserver séparément.")
                     candidates = fill_locations(record, existing)
                 elif payload.get("replace_conflicts") is True:
                     replace_base_locations(db, record, existing)
@@ -464,6 +579,7 @@ def register(app, data_dir, load_sessions, modality_range):
                 db.executemany("DELETE FROM planner_records WHERE id=?", [(rid,) for rid in ids])
                 return jsonify(count=len(ids))
             replacement = validate(payload)
+            check_shopping_list(db, replacement)
             if replacement["kind"] != record["kind"]:
                 raise PlannerError("La catégorie ne peut pas être changée après la création.")
             if replacement["kind"] == "location":
@@ -473,6 +589,8 @@ def register(app, data_dir, load_sessions, modality_range):
                     location_overlap(dict(replacement, id=record_id), records)
             if record.get("series_id"):
                 replacement["series_id"] = record["series_id"]
+            if record.get("reservation_owner") and replacement["owner"] == record["owner"]:
+                replacement["reservation_owner"] = record["reservation_owner"]
             put_record(db, replacement, record_id, record["revision"] + 1)
         return jsonify(id=record_id)
 

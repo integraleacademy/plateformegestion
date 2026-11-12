@@ -29,3 +29,7 @@ body.planner-focus{overflow:hidden;background:#fff}body.planner-focus .topline,b
 @media(max-width:430px){.dash-cards{grid-template-columns:1fr}.dash-card{min-height:190px}.dash-card-top{flex-wrap:nowrap}.dash-countdown{margin-left:auto}.dash-bottom{gap:15px}.dash-today button{min-width:0;flex:1;padding:8px}.dash-today{width:100%}.journey-legs{grid-template-columns:1fr}.journey-leg{border-right:0;border-bottom:1px solid #ececf1}.journey-leg:last-child{border-bottom:0}.dash-agenda-row{gap:9px}.dash-agenda-row .badge{font-size:8px}.dash-hero{padding:22px}}
 
 .dash-date{border-left:3px solid var(--event-color,#8c75ad)}
+
+/* Small destination illustrations, shared across the planner. */
+.place-mark{display:inline-flex;align-items:center;gap:6px;min-width:0}.place-mark>.icon{width:17px;height:17px;flex-shrink:0;color:var(--place-color);stroke-width:1.55}.place-text{min-width:0;overflow:hidden;text-overflow:ellipsis}.dash-icon.dash-place-icon>.icon{width:23px;height:23px;stroke-width:1.55}.place-name{display:flex;align-items:center;gap:4px}.place-name .place-mark{gap:3px;overflow:hidden}.place-name .place-mark>.icon{width:12px;height:12px}.dash-today .place-mark{color:inherit}.dash-today .place-mark>.icon{color:#e2d8ee;width:15px;height:15px}.day-place .place-mark{margin-top:4px}.legend-label .place-mark{gap:9px}.list-main .place-mark>.icon{width:16px;height:16px}
+@media(max-width:600px){.place-name .place-mark{gap:2px}.place-name .place-mark>.icon{width:10px;height:10px}.dash-icon.dash-place-icon>.icon{width:22px;height:22px}}

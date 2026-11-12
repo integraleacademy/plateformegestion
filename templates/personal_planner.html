@@ -6,8 +6,8 @@
   <meta name="planner-csrf" content="{{ planner_csrf }}">
   <title>Clément &amp; Elsa · Notre quotidien</title>
   <link rel="icon" href="{{ url_for('static', filename='img/faviconpg.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=1">
-  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=1" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/personal-planner.css') }}?v=2">
+  <script src="{{ url_for('static', filename='js/personal-planner.js') }}?v=2" defer></script>
 </head>
 <body>
 <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -28,6 +28,8 @@
   <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H3V9h18v8h-4M7 14h10v7H7zM17 11h1"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></symbol>
 </svg>
 <header class="topline">
   <a href="/" class="home-link"><svg class="icon"><use href="#i-left"/></svg> Plateforme de gestion</a>
@@ -56,6 +58,10 @@
       <div class="content-toolbar">
         <div class="period-nav"><button class="icon-button" id="prev" aria-label="Période précédente"><svg class="icon"><use href="#i-left"/></svg></button><button class="icon-button" id="next" aria-label="Période suivante"><svg class="icon"><use href="#i-right"/></svg></button><h2 id="period-label">Calendrier</h2><button class="button small" id="today-button">Aujourd’hui</button></div>
         <div class="view-tools"><label class="sr-only" for="owner-filter">Personne affichée</label><select id="owner-filter"><option value="all">Tout le monde</option><option value="clement">Clément</option><option value="elsa">Elsa</option></select><div class="view-switch" id="view-switch" aria-label="Vue du calendrier"><button data-view="month" aria-pressed="true">Mois</button><button data-view="week" aria-pressed="false">Semaine</button><button data-view="year" aria-pressed="false">Année</button></div></div>
+      </div>
+      <div class="calendar-actions" id="calendar-actions">
+        <div class="reservation-key"><span class="status-key pending">! À réserver</span><span class="status-key needs_change">! À modifier</span><span class="status-key booked">✓ Réservé</span><span class="ssiap-key">● SSIAP</span></div>
+        <div class="calendar-action-buttons"><button class="button small" id="add-calendar" hidden><svg class="icon"><use href="#i-plus"/></svg> Ajouter</button><button class="button small" id="export-pdf"><svg class="icon"><use href="#i-print"/></svg> PDF du mois</button><button class="button small" id="fullscreen" aria-pressed="false"><svg class="icon"><use href="#i-expand"/></svg><span>Plein écran</span></button></div>
       </div>
       <div id="view-intro" class="view-intro" hidden></div>
       <div id="view" aria-live="polite"><div class="initial-loading">Votre planning se prépare…</div></div>

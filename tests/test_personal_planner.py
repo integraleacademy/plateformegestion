@@ -1,12 +1,15 @@
 """Calendar coverage, linked bookings, recurrence, persistence and edit safety."""
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 import json
 import sqlite3
 
 import pytest
 from flask import Flask, session, redirect
+from pypdf import PdfReader
 
-from services.personal_planner import register, training_events
+from services.personal_planner import register, training_events, reservations
+from services.personal_planner_pdf import event_color, SSIAP_RED
 
 ROOT = "/gestion-clement-elsa"
 TOKEN = "test-only-csrf"
@@ -264,3 +267,106 @@ def test_corrupt_personal_store_is_not_replaced_with_empty_data(planner):
     assert response.status_code == 503
     with open(app.config["PERSONAL_PLANNER_DB"], "rb") as handle:
         assert handle.read() == b"broken-database"
+
+
+def test_legacy_unbooked_paris_stay_has_visible_return_on_last_day():
+    stay = {"id": "paris", "kind": "location", "owner": "both", "place": "paris", "title": "Paris", "start": "2026-12-11", "end": "2026-12-14", "boarding_status": "pending", "transport_status": "pending"}
+    bookings, alerts = reservations([stay])
+    assert len(bookings) == 3
+    outward = next(r for r in bookings if r.get("direction") == "outbound")
+    returning = next(r for r in bookings if r.get("direction") == "return")
+    assert outward["start"] == outward["end"] == "2026-12-11"
+    assert returning["start"] == returning["end"] == "2026-12-14"
+    assert returning["status"] == "pending"
+    assert returning["estimated_date"] is True
+    assert "Retour" in returning["title"]
+    assert len(alerts) == 2
+
+
+def test_unknown_return_is_never_presented_as_a_booked_ticket():
+    stay = {"id": "paris", "kind": "location", "owner": "both", "place": "paris", "title": "Paris", "start": "2026-12-11", "end": "2026-12-14", "boarding_status": "not_needed", "transport_status": "booked", "transport_start": "2026-12-11", "transport_end": ""}
+    bookings, alerts = reservations([stay])
+    assert next(r for r in bookings if r.get("direction") == "outbound")["status"] == "booked"
+    assert next(r for r in bookings if r.get("direction") == "return")["status"] == "pending"
+    assert "à confirmer" in alerts[0]["title"]
+    stay["transport_round_trip"] = False
+    bookings, alerts = reservations([stay])
+    assert len(bookings) == 1
+    assert alerts == []
+
+
+def test_change_status_keeps_real_dates_and_notes(planner):
+    _, client, _ = planner
+    rid, = save(client, kind="location", place="paris", start="2027-01-11", end="2027-01-14", boarding_status="booked", boarding_start="2027-01-10", boarding_end="2027-01-15", boarding_notes="Appeler la pension", transport_status="booked", transport_start="2027-01-11", transport_end="2027-01-16", transport_notes="Référence ABC123")
+    original = data(client)["records"][0]
+    response = client.put(ROOT + "/records/" + rid, json=dict(original, boarding_status="needs_change", transport_status="needs_change"), headers=HEADERS)
+    assert response.status_code == 200
+    result = data(client)
+    assert len(result["alerts"]) == 2
+    assert all("à modifier" in r["title"] for r in result["alerts"])
+    pension = next(r for r in result["reservations"] if r["kind"] == "boarding")
+    assert (pension["start"], pension["end"], pension["notes"], pension["status"]) == ("2027-01-10", "2027-01-15", "Appeler la pension", "needs_change")
+    returning = next(r for r in result["reservations"] if r.get("direction") == "return")
+    assert (returning["start"], returning["status"], returning["notes"]) == ("2027-01-16", "needs_change", "Référence ABC123")
+
+
+@pytest.mark.parametrize("kind", ["boarding", "transport"])
+def test_independent_booking_supports_change_and_not_needed(planner, kind):
+    _, client, _ = planner
+    rid, = save(client, kind=kind, title="À ajuster", start="2027-03-01", end="2027-03-01", origin="Paris", destination="Nice", status="needs_change")
+    assert "à modifier" in data(client)["alerts"][0]["title"]
+    record = data(client)["records"][0]
+    assert client.put(ROOT + "/records/" + rid, json=dict(record, status="not_needed"), headers=HEADERS).status_code == 200
+    assert not data(client)["alerts"]
+
+
+@pytest.mark.parametrize("formation", ["SSIAP1", "SSIAP 2", "RECYCLAGE SSIAP3", "Remise à niveau SSIAP 1"])
+def test_all_ssiap_milestones_are_red(formation):
+    events = training_events([{"id": "s", "formation": formation, "date_debut": "2027-01-01", "date_fin": "2027-01-10", "date_exam": "2027-01-11"}], lambda s, m: {"start": "2027-01-02"})
+    assert len(events) == 4
+    assert all(r["ssiap"] and event_color(r) == SSIAP_RED for r in events)
+    assert event_color({"kind": "professional", "title": "Réunion SSIAP"}) == SSIAP_RED
+    assert event_color({"kind": "training_exam", "title": "Examen APS"}) != SSIAP_RED
+
+
+def test_print_pdf_is_private_complete_and_honors_filters(planner):
+    app, client, sessions = planner
+    sessions["sessions"] = [{"id": "ssiap", "formation": "SSIAP1", "date_debut": "2026-12-11", "date_fin": "2026-12-14", "date_exam": "2026-12-15"}]
+    save(client, kind="location", place="paris", start="2026-12-11", end="2026-12-14", boarding_status="needs_change", transport_status="pending", transport_origin="Nice")
+    save(client, kind="personal", title="Rendez-vous Elsa uniquement", owner="elsa", start="2026-12-12", end="2026-12-12")
+    save(client, kind="personal", title="Rendez-vous hors mois", start="2027-01-01", end="2027-01-01")
+    assert app.test_client().get(ROOT + "/month.pdf?year=2026&month=12").status_code == 302
+    response = client.get(ROOT + "/month.pdf?year=2026&month=12")
+    assert response.status_code == 200
+    assert response.mimetype == "application/pdf"
+    assert "private, no-store" == response.headers["Cache-Control"]
+    assert "planning-clement-elsa-2026-12.pdf" in response.headers["Content-Disposition"]
+    pdf = PdfReader(BytesIO(response.data))
+    assert len(pdf.pages) >= 2
+    assert pdf.pages[0].mediabox.width > pdf.pages[0].mediabox.height
+    text = "\n".join(p.extract_text() for p in pdf.pages)
+    for value in ("Décembre 2026", "À MODIFIER", "À RÉSERVER", "SSIAP1", "Retour", "Aller · Nice vers Paris", "11/12/2026", "14/12/2026", "Rendez-vous Elsa uniquement"):
+        assert value in text
+    assert "Rendez-vous hors mois" not in text
+    filtered = client.get(ROOT + "/month.pdf?year=2026&month=12&owner=clement&hidden=ssiap,boarding")
+    text = "\n".join(p.extract_text() for p in PdfReader(BytesIO(filtered.data)).pages)
+    assert "Rendez-vous Elsa uniquement" not in text
+    assert "SSIAP1" not in text
+    assert "Pension chien" not in text
+    assert "Retour" in text
+
+
+@pytest.mark.parametrize("query", ["month=13", "month=0", "year=abc", "year=1999", "owner=invalid"])
+def test_pdf_rejects_invalid_parameters(planner, query):
+    _, client, _ = planner
+    assert client.get(ROOT + "/month.pdf?" + query).status_code == 400
+
+
+def test_pdf_never_silently_omits_unavailable_training(tmp_path):
+    app = Flask(__name__)
+    def unavailable():
+        raise OSError("source unavailable")
+    register(app, str(tmp_path), unavailable, lambda s, m: None)
+    response = app.test_client().get(ROOT + "/month.pdf?year=2026&month=12")
+    assert response.status_code == 503
+    assert "planning complet" in response.json["error"]

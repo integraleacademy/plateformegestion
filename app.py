@@ -70,12 +70,14 @@ from desp_program import DESP_LABEL, DESP_TOTAL_HOURS, DESP_ELEARNING_HOURS, DES
 
 from services.afc_france_travail_attendance import (
     is_afc_session as ft_is_afc_session,
+    attendance_students as ft_attendance_students,
     update_afc_france_travail_settings,
     save_france_travail_ids,
     preview as preview_france_travail_attendance,
     generate_france_travail_workbook,
     safe_filename as ft_safe_filename,
 )
+from services.afc_attendance_roster import RosterUnavailable, attendance_roster, parse_source_session
 from services.afc_dsf_france_travail_excel import (
     dsf_excel_filename,
     generate_dsf_excel_from_snapshot,
@@ -8056,6 +8058,7 @@ def session_detail(sid):
         "session_detail.html",
         title=f"{session['formation']} — Détail",
         s=session,
+        ft_roster_enabled=bool(os.environ.get("AFC_ATTENDANCE_SYNC_TOKEN", "").strip()),
         global_jurys=data.get("jurys", []),
         session_jurys_by_id={j.get("id"): j for j in session.get("jurys", [])},
         statuses=statuses,
@@ -9547,7 +9550,16 @@ def save_afc_france_travail_settings_route(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
-    settings = update_afc_france_travail_settings(session_data, request.get_json(silent=True) or {})
+    payload = request.get_json(silent=True) or {}
+    if "sourceSessionId" in payload:
+        try:
+            source_id = parse_source_session(payload["sourceSessionId"])
+        except ValueError as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+        if source_id and source_id != session_data.get("afcAttendanceSourceSessionId"):
+            attendance_roster({**session_data, "afcAttendanceSourceSessionId": source_id})
+        session_data["afcAttendanceSourceSessionId"] = source_id
+    settings = update_afc_france_travail_settings(session_data, payload)
     session_data["afcFranceTravailUpdatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_sessions(data)
     return jsonify({"ok": True, "settings": settings})
@@ -9563,13 +9575,32 @@ def save_afc_france_travail_ids_route(sid):
     save_sessions(data)
     return jsonify({"ok": True, "students": students})
 
+@app.errorhandler(RosterUnavailable)
+def afc_roster_error(exc):
+    return jsonify(ok=False, error=str(exc)), exc.status
+
+
+@app.get("/api/sessions/<sid>/afc-france-travail/roster")
+def afc_france_travail_roster(sid):
+    session_data = find_session(load_sessions(), sid)
+    if not session_data: return jsonify(ok=False, error="Session introuvable."), 404
+    if not ft_is_afc_session(session_data): return jsonify(ok=False, error="Session AFC requise."), 403
+    resolved, source = attendance_roster(session_data)
+    response = jsonify(ok=True, source=source, students=ft_attendance_students(resolved))
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @app.get("/api/sessions/<sid>/afc-france-travail/preview")
 def preview_afc_france_travail_attendance_route(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
+    resolved, source = attendance_roster(session_data)
     try:
-        return jsonify({"ok": True, "preview": preview_france_travail_attendance(session_data)})
+        response = jsonify(ok=True, preview=preview_france_travail_attendance(resolved), source=source)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
     except FileNotFoundError as exc:
         app.logger.error("Modèle France Travail absent session=%s error=%s", sid, exc)
         return jsonify({"ok": False, "error": str(exc)}), 500
@@ -9582,10 +9613,15 @@ def generate_afc_france_travail_attendance_route(sid):
     data = load_sessions(); session_data = find_session(data, sid)
     if not session_data: return jsonify({"ok": False, "error": "Session introuvable."}), 404
     if not ft_is_afc_session(session_data): return jsonify({"ok": False, "error": "Cette action est réservée aux sessions AFC."}), 403
+    resolved, source = attendance_roster(session_data)
+    if source and not resolved["apsAttendanceStudents"]:
+        return jsonify(ok=False, error="Aucun stagiaire inscrit dans la session source."), 409
     try:
-        output = generate_france_travail_workbook(session_data, current_app.root_path)
+        output = generate_france_travail_workbook(resolved, current_app.root_path)
         filename = ft_safe_filename(session_data.get("display_name") or session_data.get("formation") or sid)
-        return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=filename)
+        response = send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=filename)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
     except FileNotFoundError as exc:
         app.logger.error("Modèle France Travail absent session=%s path=%s", sid, exc)
         return jsonify({"ok": False, "error": str(exc)}), 500

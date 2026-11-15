@@ -77,7 +77,7 @@ from services.afc_france_travail_attendance import (
     generate_france_travail_workbook,
     safe_filename as ft_safe_filename,
 )
-from services.afc_attendance_roster import RosterUnavailable, attendance_roster, parse_source_session
+from services.afc_attendance_roster import RosterUnavailable, attendance_roster, parse_source_session, update_attendance_student
 from services.afc_dsf_france_travail_excel import (
     dsf_excel_filename,
     generate_dsf_excel_from_snapshot,
@@ -9581,12 +9581,17 @@ def afc_roster_error(exc):
 
 
 @app.get("/api/sessions/<sid>/afc-france-travail/roster")
-def afc_france_travail_roster(sid):
+@app.patch("/api/sessions/<sid>/afc-france-travail/roster/<student_id>")
+def afc_france_travail_roster(sid, student_id=None):
     session_data = find_session(load_sessions(), sid)
     if not session_data: return jsonify(ok=False, error="Session introuvable."), 404
     if not ft_is_afc_session(session_data): return jsonify(ok=False, error="Session AFC requise."), 403
-    resolved, source = attendance_roster(session_data)
-    response = jsonify(ok=True, source=source, students=ft_attendance_students(resolved))
+    if student_id is not None:
+        student = update_attendance_student(session_data, student_id, request.get_json(silent=True))
+        response = jsonify(ok=True, student=student)
+    else:
+        resolved, source = attendance_roster(session_data)
+        response = jsonify(ok=True, source=source, students=ft_attendance_students(resolved))
     response.headers["Cache-Control"] = "private, no-store"
     return response
 

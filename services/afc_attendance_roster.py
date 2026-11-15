@@ -1,4 +1,4 @@
-"""Read the current AFC enrolments without changing the planning or the local list."""
+"""Read and update the authoritative enrolments used by the AFC attendance sheets."""
 from collections import Counter
 from datetime import date
 import os
@@ -55,15 +55,20 @@ def source_students(local, rows):
     return result
 
 
+def source_query(session):
+    source_id = session.get('afcAttendanceSourceSessionId')
+    if source_id:
+        return {'session_id': source_id}
+    return {'date_start': session.get('date_debut'), 'date_end': session.get('date_fin')}
+
+
 def attendance_roster(session):
     token = os.environ.get('AFC_ATTENDANCE_SYNC_TOKEN', '').strip()
     if not token:
         return session, None
     source_id = session.get('afcAttendanceSourceSessionId')
-    query = ({'session_id': source_id} if source_id else
-             {'date_start': session.get('date_debut'), 'date_end': session.get('date_fin')})
     try:
-        response = requests.get(FEED_URL, params=query, headers={'Authorization': 'Bearer ' + token},
+        response = requests.get(FEED_URL, params=source_query(session), headers={'Authorization': 'Bearer ' + token},
                                 timeout=(15, 20), allow_redirects=False)
         if response.status_code in (404, 409):
             message = ('Plusieurs sessions AFC correspondent à ces dates.' if response.status_code == 409
@@ -88,6 +93,32 @@ def attendance_roster(session):
         return {**session, 'apsAttendanceStudents': resolved}, source
     except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise RosterUnavailable('Impossible de récupérer la liste et les dates auprès de Gestion des stagiaires. Réessayez dans un instant.') from exc
+
+
+def update_attendance_student(session, student_id, payload):
+    token = os.environ.get('AFC_ATTENDANCE_SYNC_TOKEN', '').strip()
+    if not token:
+        raise RosterUnavailable('La liaison avec Gestion des stagiaires est indisponible.')
+    if not isinstance(payload, dict):
+        raise RosterUnavailable('Modification de stagiaire invalide.', 400)
+    body = {key: payload.get(key) for key in ('sourceSessionId', 'changes', 'previous')}
+    body['studentId'] = student_id
+    try:
+        response = requests.patch(FEED_URL, params=source_query(session), json=body,
+                                  headers={'Authorization': 'Bearer ' + token},
+                                  timeout=(15, 50), allow_redirects=False)
+        if response.status_code in (400, 404, 409):
+            message = response.json().get('error') or 'Vérifiez les données du stagiaire.'
+            raise RosterUnavailable(message, response.status_code)
+        response.raise_for_status()
+        result = response.json()
+        student = result['student']
+        if (not result['ok'] or student['id'] != student_id or
+                not {'france_travail_id', 'entryDate', 'ranHours'} <= student.keys()):
+            raise ValueError('invalid enrolment response')
+        return student
+    except (requests.RequestException, KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise RosterUnavailable('Enregistrement non confirmé par Gestion des stagiaires. Réessayez pour vérifier la modification.') from exc
 
 
 def parse_source_session(value):

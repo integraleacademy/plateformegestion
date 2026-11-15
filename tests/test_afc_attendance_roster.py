@@ -135,3 +135,74 @@ def test_feed_requires_an_authenticated_platform_session_and_an_afc_training(cas
     for action in ('roster', 'preview', 'generate'):
         assert client.get(BASE + action).status_code == 403
     assert not calls
+
+
+def test_edit_from_roster_updates_source_preview_and_next_workbook(case, monkeypatch):
+    client, planning, feed, _, _ = case
+    student = feed['students'][0]
+    student['france_travail_id'] = ''
+    assert client.get(BASE + 'preview').json['preview']['missingIdCount'] == 1
+    original = deepcopy(planning)
+    writes = []
+
+    def patch(url, *, params, json, headers, timeout, allow_redirects):
+        assert url == roster.FEED_URL and headers == {'Authorization': 'Bearer test-feed'}
+        assert not allow_redirects and timeout
+        assert json['sourceSessionId'] == 'source' and json['studentId'] == student['id']
+        assert json['previous'] == {key: student[key] for key in json['changes']}
+        writes.append(params)
+        student.update(json['changes'])
+        return SourceResponse(200, {'ok': True, 'student': student})
+
+    monkeypatch.setattr(roster.requests, 'patch', patch)
+    def edit(changes):
+        return client.patch(BASE + 'roster/new-b', json={
+            'sourceSessionId': 'source', 'studentId': 'ignore-client-override', 'changes': changes,
+            'previous': {key: student[key] for key in changes}})
+
+    result = edit({'france_travail_id': '0000123B', 'entryDate': '2026-11-23', 'ranHours': 40})
+    assert result.status_code == 200 and 'no-store' in result.headers['Cache-Control']
+    assert result.json['student']['france_travail_id'] == '0000123B'
+    preview = client.get(BASE + 'preview').json['preview']
+    assert preview['missingIdCount'] == 0 and preview['totalPlannedHours'] == 18
+    assert client.get(BASE + 'roster').json['students'][0]['ranHours'] == 40
+    assert planning == original
+    planning['afcAttendanceSourceSessionId'] = 'source'
+    assert edit({'france_travail_id': '0000124B'}).status_code == 200
+    book = load_workbook(BytesIO(client.get(BASE + 'generate').data))
+    assert book.active['B14'].value == '000A'
+    assert (book.worksheets[1]['B14'].value, book.worksheets[1]['B14'].data_type) == ('0000124B', 's')
+    assert writes == [{'date_start': planning['date_debut'], 'date_end': planning['date_fin']}, {'session_id': 'source'}]
+
+
+class SourceResponse:
+    def __init__(self, status, payload):
+        self.status_code, self.payload = status, payload
+
+    def json(self):
+        return self.payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError()
+
+
+def test_edit_rejects_unavailable_source_conflicts_and_out_of_scope_sessions(case, monkeypatch):
+    client, planning, *_ = case
+    url = BASE + 'roster/new-b'
+    assert app.app.test_client().patch(url, json={}).status_code == 302
+    assert client.patch(url, json=['wrong']).status_code == 400
+    for code in (400, 404, 409, 403, 503):
+        monkeypatch.setattr(roster.requests, 'patch', lambda *args, **kw: SourceResponse(code, {'ok': False, 'error': 'Actualisez la ligne.'}))
+        result = client.patch(url, json={})
+        assert result.status_code == (code if code in (400, 404, 409) else 503)
+        assert result.json['ok'] is False
+        if code == 409:
+            assert result.json['error'] == 'Actualisez la ligne.'
+    monkeypatch.setattr(roster.requests, 'patch', lambda *args, **kw: SourceResponse(200, {'ok': True, 'student': {'id': 'other'}}))
+    assert client.patch(url, json={}).status_code == 503
+    monkeypatch.delenv('AFC_ATTENDANCE_SYNC_TOKEN')
+    assert client.patch(url, json={}).status_code == 503
+    planning['formation'] = 'APS'
+    assert client.patch(url, json={}).status_code == 403
+    assert client.patch(url.replace('/planning/', '/absent/'), json={}).status_code == 404

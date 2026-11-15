@@ -556,6 +556,9 @@ a.back:hover{ background:#d9a848 !important; }
 .contract-form-card input,.contract-form-card textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:10px;margin-top:5px;}
 .contract-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;}
 .contract-table th,.contract-table td{border-bottom:1px solid #e5e7eb;padding:6px;text-align:left;}
+#ftRosterRows input,#ftRosterRows select{box-sizing:border-box;width:100%;min-width:8rem;max-width:16rem;padding:6px 8px;border:1px solid #adb8c4;border-radius:6px;font:inherit;}
+#ftRosterRows .ft-row-actions{display:flex;align-items:center;gap:6px;}
+#ftRosterRows .ft-row-message:not(:empty){display:block;margin-top:5px;min-width:12rem;color:#9d291c;}
 
 .attendance-students-panel{
   margin-top:14px;
@@ -1170,7 +1173,7 @@ a.back:hover{ background:#d9a848 !important; }
       {% if ft_roster_enabled %}
       <h3 style="margin-top:18px;">Stagiaires inscrits dans Gestion des stagiaires</h3>
       <p id="ftRosterStatus" aria-live="polite"></p>
-      <div style="overflow:auto;"><table class="contract-table"><thead><tr><th>Stagiaire</th><th>Identifiant France Travail</th><th>Entrée en formation</th><th>Fin de formation</th><th>Remise à niveau</th></tr></thead><tbody id="ftRosterRows"></tbody></table></div>
+      <div style="overflow:auto;"><table class="contract-table"><thead><tr><th>Stagiaire</th><th>Identifiant France Travail</th><th>Entrée en formation</th><th>Fin de formation</th><th>Remise à niveau</th><th>Action</th></tr></thead><tbody id="ftRosterRows"></tbody></table></div>
       {% else %}
       <h3 style="margin-top:18px;">Identifiants France Travail des stagiaires</h3>
       <div style="overflow:auto;"><table class="contract-table"><thead><tr><th>Stagiaire</th><th>Identifiant France Travail</th></tr></thead><tbody>
@@ -1183,7 +1186,7 @@ a.back:hover{ background:#d9a848 !important; }
     </div>
     <div id="afcFranceTravailPreview" class="flash warning" style="display:none;margin-top:14px;"></div>
   </section>
-  <script defer src="{{ url_for('static', filename='js/afc-france-travail-attendance.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/afc-france-travail-attendance.js', v='edition-inscrits') }}"></script>
   {% endif %}
 
 

@@ -64,7 +64,7 @@ def attendance_roster(session):
              {'date_start': session.get('date_debut'), 'date_end': session.get('date_fin')})
     try:
         response = requests.get(FEED_URL, params=query, headers={'Authorization': 'Bearer ' + token},
-                                timeout=(3, 12), allow_redirects=False)
+                                timeout=(15, 20), allow_redirects=False)
         if response.status_code in (404, 409):
             message = ('Plusieurs sessions AFC correspondent à ces dates.' if response.status_code == 409
                        else 'Aucune session AFC correspondante dans Gestion des stagiaires.')

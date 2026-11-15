@@ -64,7 +64,7 @@ def attendance_students(session):
         if not (last and first): continue
         status = str(s.get("status") or s.get("statut") or "").lower()
         if any(x in status for x in ("supprim", "annul")): continue
-        out.append({"index": i, "id": s.get("id") or f"student-{i+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}", "entryDate": s.get("entryDate") or s.get("dateEntree") or s.get("startDate") or session.get("date_debut") or "", "exitDate": s.get("exitDate") or s.get("dateSortie") or s.get("endDate") or s.get("abandonDate") or session.get("date_fin") or "", "france_travail_id": str(s.get("france_travail_id") or "")})
+        out.append({"index": i, "id": s.get("id") or f"student-{i+1}", "lastName": last, "firstName": first, "displayName": f"{last} {first}", "entryDate": s.get("entryDate") or s.get("dateEntree") or s.get("startDate") or session.get("date_debut") or "", "exitDate": s.get("exitDate") or s.get("dateSortie") or s.get("endDate") or s.get("abandonDate") or session.get("date_fin") or "", "france_travail_id": str(s.get("france_travail_id") or ""), "ranHours": s.get("ranHours"), "attendanceSlotIds": s.get("attendanceSlotIds")})
     return out
 
 
@@ -113,7 +113,8 @@ def slot_student_ids(slot):
     if isinstance(ids, str): ids = [ids]
     return tuple(str(i) for i in ids if str(i))
 def slot_applies_to_student(slot_info, student):
-    return not slot_info.student_ids or str(student.get("id")) in slot_info.student_ids or str(student.get("index")) in slot_info.student_ids
+    aliases = student.get("attendanceSlotIds") or (str(student.get("id")), str(student.get("index")))
+    return not slot_info.student_ids or any(key in slot_info.student_ids for key in aliases)
 def fmt_hours(h): return int(h) if abs(h-int(h))<0.001 else str(round(h,2)).replace('.', ',')
 
 def build_week_schedule(session, week):
@@ -150,7 +151,7 @@ def get_week_trainees(session, week, schedule=None):
     schedule = schedule if schedule is not None else build_week_schedule(session, week)
     result=[]
     for st in attendance_students(session):
-        if any(applicable(st, sl.date) for sl in schedule): result.append(st)
+        if any(applicable(st, sl.date) and slot_applies_to_student(sl, st) for sl in schedule): result.append(st)
     return result
 
 def get_week_trainers(schedule):
@@ -164,7 +165,8 @@ def preview(session):
     weeks=build_session_weeks(session); schedules=[build_week_schedule(session,w) for w in weeks]; students=attendance_students(session); settings=get_afc_france_travail_settings(session)
     trainers={sl.trainer.strip() for sch in schedules for sl in sch if sl.trainer.strip()}
     missing_ids=[s["displayName"] for s in students if not s.get("france_travail_id")]
-    total=sum(sl.minutes/60 for sch in schedules for sl in sch)*len(students)
+    total = sum(sl.minutes for sch in schedules for sl in sch for st in students
+                if applicable(st, sl.date) and slot_applies_to_student(sl, st)) / 60
     return {"sessionName":session.get("display_name") or session.get("formation"),"dateStart":session.get("date_debut"),"dateEnd":session.get("date_fin"),"weekCount":len(weeks),"sheetNames":[w["name"] for w in weeks],"studentCount":len(students),"missingIdCount":len(missing_ids),"missingIds":missing_ids,"missingSettings":[k for k,v in settings.items() if not v],"trainerCount":len(trainers),"totalPlannedHours":fmt_hours(total),"settings":settings}
 
 # Excel helpers
@@ -201,8 +203,16 @@ def populate_week_slots(ws, week, schedule):
 
 def populate_week_trainees(ws, trainees, schedule):
     totals=[0]*10
+    if not trainees:
+        # A blank week still has one styled pair of rows from the example sheet.
+        for row in ws.iter_rows(min_row=STUDENT_START_ROW, max_row=STUDENT_START_ROW+1, max_col=13):
+            for cell in row:
+                cell.value = None
+                if 3 <= cell.column <= 12:
+                    cell.fill = copy.copy(GREY_FILL)
     for idx, st in enumerate(trainees,1):
         r=STUDENT_START_ROW+(idx-1)*2; ws.cell(r,1).value=f"{idx} {st['displayName']}"; ws.cell(r,2).value=st.get('france_travail_id') or ""; ws.cell(r,2).number_format='@'; ws.cell(r+1,1).value="Soutien personnalisé"; main_hours=0; sp_hours=0; total_hours=0
+        ws.cell(r, 2).data_type = 's'
         for c in range(3,13):
             day_slots=[s for s in schedule if s.col==c and applicable(st,s.date) and slot_applies_to_student(s, st)]; classic=sum(s.minutes for s in day_slots if s.module!='S'); support=sum(s.minutes for s in day_slots if s.module=='S')
             main_hours+=classic/60; sp_hours+=support/60; total_hours+=(classic+support)/60; totals[c-3]+=(classic+support)/60

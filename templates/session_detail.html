@@ -1215,7 +1215,7 @@ a.back:hover{ background:#d9a848 !important; }
 </div></div>
 {% endif %}
 {% if s.formation in ["APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"] %}
-<div class="modal" id="apsPlanningModal" data-session-window="Planification" role="dialog" aria-modal="true" aria-labelledby="apsPlanningModalTitle" aria-hidden="true">
+<div class="modal" id="apsPlanningModal" data-session-window="Planification" data-explicit-close role="dialog" aria-modal="true" aria-labelledby="apsPlanningModalTitle" aria-hidden="true">
   <div class="modal-content">
     <div class="modal-header">
       <div>
@@ -1256,7 +1256,13 @@ a.back:hover{ background:#d9a848 !important; }
       </fieldset>
       {% endif %}
       <label for="apsFormateur" style="display:block;margin-top:14px;"><strong>{% if s.formation in ["SSIAP", "SSIAP1"] or ("SSIAP" in (s.formation|string|upper) and s.formation != "AFC_APS_SSIAP") %}Formateur SSIAP 1{% else %}Nom et prénom du formateur{% endif %}</strong></label>
-      <input id="apsFormateur" name="formateur" type="text" placeholder="NOM Prénom" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;" required>
+      <select id="apsFormateur" name="formateur" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;background:#fff;" required aria-describedby="apsFormateurHelp">
+        <option value="" disabled selected>Choisir un formateur</option>
+        {% for trainer in planning_trainers %}
+        <option value="{{ trainer }}">{{ trainer }}</option>
+        {% endfor %}
+      </select>
+      <p id="apsFormateurHelp" class="muted" style="margin:8px 0 0;">{% if not planning_trainers %}Aucun formateur enregistré. Ajoutez un formateur dans le répertoire, puis actualisez cette page. {% endif %}<a href="{{ url_for('formateurs_home') }}" target="_blank" rel="noopener">Gérer les formateurs</a></p>
       <label for="apsRoom" style="display:block;margin-top:14px;"><strong>Salle présentiel</strong> <span class="muted">(facultatif)</span></label>
       <input id="apsRoom" name="room" type="text" value="{{ training_location(s) }}" placeholder="Nom du lieu et adresse" style="width:100%;margin-top:8px;padding:12px;border:1px solid #dcdfe5;border-radius:12px;">
       {% if s.formation in ["DESP", "DIRIGEANT"] %}
@@ -1806,14 +1812,15 @@ document.getElementById('year').textContent = new Date().getFullYear();
       closeModal(closeButton.closest(".modal"));
       return;
     }
-    if(event.target.classList && event.target.classList.contains("modal")){
+    if(event.target.classList && event.target.classList.contains("modal") && !event.target.hasAttribute("data-explicit-close")){
       closeModal(event.target);
     }
   });
   document.addEventListener("keydown", function(event){
     if(event.key !== "Escape") return;
     const openModals = Array.from(document.querySelectorAll(".modal.open"));
-    closeModal(openModals.at(-1));
+    const activeModal = openModals.at(-1);
+    if(!activeModal?.hasAttribute("data-explicit-close")) closeModal(activeModal);
   });
 })();
 
@@ -1948,9 +1955,6 @@ openApsPlanningModal?.addEventListener("click", () => {
 });
 closeApsPlanningModal?.addEventListener("click", closeApsModal);
 cancelApsPlanning?.addEventListener("click", closeApsModal);
-apsPlanningModal?.addEventListener("click", (event) => {
-  if(event.target === apsPlanningModal) closeApsModal();
-});
 function closeResetApsModal(){
   resetApsPlanningModal?.classList.remove("open");
   resetApsPlanningModal?.setAttribute("aria-hidden", "true");
@@ -2052,7 +2056,7 @@ apsPlanningForm?.addEventListener("submit", async (event) => {
     return;
   }
   if(!formateur && "{{ s.formation }}" !== "AFC_APS_SSIAP"){
-    apsPlanningError.textContent = "Veuillez renseigner le nom et prénom du formateur.";
+    apsPlanningError.textContent = "Veuillez choisir un formateur dans la liste.";
     apsPlanningError.style.display = "block";
     return;
   }

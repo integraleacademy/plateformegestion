@@ -8065,6 +8065,7 @@ def session_detail(sid):
         order=order,
         now=datetime.now,
         planning_pdf=session.get("planning_pdf"),
+        planning_trainers=planning_trainer_options() if session.get("formation") in {"APS", "DESP", "DIRIGEANT", "SSIAP", "SSIAP1", "AFC_APS_SSIAP"} else [],
         sst_certificate_reminder=next(iter(collect_sst_reminders([session])), None),
         aps_planning_compliance=aps_planning_compliance_report(session) if (session.get("formation") or "").upper() == "APS" else None,
         afc_dsf_summary=afc_dsf_summary(session, request.args.get("billingUntil"), request.args.get("periodStart"), request.args.get("periodEnd"), request.args.get("hourlyRate")) if is_afc_aps_ssiap_session(session) else None,
@@ -11231,6 +11232,10 @@ def normalize_lookup_text(value):
 
 def formateur_full_name(formateur):
     return " ".join(part for part in [(formateur.get("prenom") or "").strip(), (formateur.get("nom") or "").strip()] if part).strip()
+
+def planning_trainer_options():
+    names = {formateur_full_name(formateur) for formateur in load_formateurs()}
+    return sorted(names - {""}, key=normalize_lookup_text)
 
 def find_formateur_by_identity(name="", email=""):
     wanted_email = normalize_lookup_text(email)

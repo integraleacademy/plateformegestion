@@ -128,7 +128,46 @@ def session_metadata(row):
                 exam_dates=sorted(exams),embedded_exam_dates=embedded,assignment=config.get('assignment',''))
 
 
-def _projection(row, include_unassigned=False):
+def trainer_names(value):
+    values = value if isinstance(value, list) else [value]
+    return tuple(dict.fromkeys(name.strip() for name in values
+                               if isinstance(name, str) and name.strip() not in ('', '-', '—')))
+
+
+def session_trainer(row):
+    formation = str(row.get('formation') or '').upper()
+    fallback = row.get('formateur') or row.get('trainer')
+    if formation == 'A3P':
+        return row.get('a3pTrainerName') or fallback
+    if formation.startswith('SSIAP'):
+        return row.get('ssiapTrainer') or fallback
+    return fallback
+
+
+def display_trainers(row, groups):
+    """Coalesce consecutive modules taught by the same people in the same room."""
+    days = {}
+    for (day, room_id, room_name, names), ranges in groups.items():
+        spans = []
+        for start, end in sorted(ranges):
+            if spans and start <= spans[-1][1]:
+                spans[-1][1] = max(spans[-1][1], end)
+            else:
+                spans.append([start, end])
+        room = {'room_name': room_name} if room_name else {'room_id': room_id}
+        days.setdefault(day, []).append(dict(**room, names=list(names), spans=spans))
+    staff = {'days': days} if days else {}
+    if not (row.get('apsPlanningData') or row.get('a3pPlanningData')):
+        names = trainer_names(session_trainer(row))
+        if names:
+            staff['default'] = list(names)
+    exam = trainer_names(row.get('ssiapExamTrainer')) if str(row.get('formation') or '').upper().startswith('SSIAP') else ()
+    if exam:
+        staff['exam'] = list(exam)
+    return staff
+
+
+def _projection(row, include_unassigned=False, trainer_groups=None):
     """Preserve v2 exactly; v3 also publishes real slots awaiting a room."""
     old = projection_v1(row)
     metadata = session_metadata(row)
@@ -151,6 +190,14 @@ def _projection(row, include_unassigned=False):
                         start,end=clock(slot.get('start')),clock(slot.get('end'),True)
                         if include_unassigned and start>=end:raise RoomError('Complétez les horaires du présentiel.')
                         slots.append(dict(date=day['date'],start=start,end=end,**room))
+                        if trainer_groups is not None:
+                            names = tuple(dict.fromkeys(trainer_names(slot.get('trainer')) + trainer_names(slot.get('trainers'))))
+                            if not names:
+                                names = trainer_names(day.get('trainers') or day.get('trainer')
+                                                      or (row.get('a3pTrainerName') if row.get('formation') == 'A3P' else None))
+                            if names:
+                                key = (day['date'], room.get('room_id'), room.get('room_name'), names)
+                                trainer_groups.setdefault(key, []).append((start, end))
                     except RoomError:
                         if not include_unassigned or room.get('room_id') or room.get('room_name'):raise
                         needs_schedule=True
@@ -207,7 +254,8 @@ def projection_v2(row):
 
 def projection(row):
     """Carry venue changes through the same durable protocol as room changes."""
-    result = dict(_projection(row, True), schema=3, compat_revision=projection_v2(row)['revision'])
+    trainer_groups = {}
+    result = dict(_projection(row, True, trainer_groups), schema=3, compat_revision=projection_v2(row)['revision'])
     location = {
         'site': row.get('dirigeant_location') or row.get('dirigeant_location_label'),
         'venue': (row.get('a3pRoom') if row.get('formation') == 'A3P' else None) or row.get('salle') or row.get('room'),
@@ -219,11 +267,15 @@ def projection(row):
         result['metadata']['location'] = location
         canonical = {key: result[key] for key in ('owner', 'title', 'slots', 'metadata')}
         result['revision'] = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    # Staff are refreshed from the saved timetable, independently of room holds.
+    # Keep their names out of the reservation checksum, including for old sessions.
+    result['metadata']['display_trainers'] = display_trainers(row, trainer_groups)
     return result
 
 
 def empty_projection(item):
     empty = dict(owner=item['owner'], title=item['title'], slots=[],metadata=dict(item.get('metadata',{}),deleted=True))
+    empty['metadata'].pop('display_trainers', None)
     return dict(empty, revision=hashlib.sha256(json.dumps(empty, sort_keys=True, ensure_ascii=False).encode()).hexdigest())
 
 
@@ -316,9 +368,9 @@ def register(app, load_sessions, save_sessions, sessions_file):
             with _locked(sessions_file, exclusive=True):
                 data = _read(sessions_file, False)
                 sources = data['sessions']
-                registry = call('reconcile', dict(owners=[projection(s) for s in sources],complete=True))
-            for source in sources:
-                p = projection(source)
+                projections = [projection(s) for s in sources]
+                registry = call('reconcile', dict(owners=projections,complete=True))
+            for source, p in zip(sources, projections):
                 assignment=registry.get('assignments',{}).get(p['owner'],{})
                 total=assignment.get('total',len(p['slots']))
                 unassigned=assignment.get('unassigned',sum(not (s.get('room_id') or s.get('room_name')) for s in p['slots']))

@@ -73,6 +73,40 @@ def test_site_change_is_published_even_for_a_generic_title_and_room():
     assert paris['pre_location_revision'] == puget['pre_location_revision'] == rooms._projection(session, True)['revision']
 
 
+@pytest.mark.parametrize('formation,field', [('APS', 'apsPlanningData'), ('A3P', 'a3pPlanningData'),
+                                             ('SSIAP1', 'apsPlanningData'), ('DIRIGEANT', 'apsPlanningData'),
+                                             ('AFC_APS_SSIAP', 'apsPlanningData')])
+def test_published_trainers_follow_saved_in_person_slots(formation, field):
+    row = dict(id='school', formation=formation, date_debut='2027-01-04', date_fin='2027-01-04')
+    def slot(start, end, name, **changes):
+        return dict(start=start, end=end, trainer=name, room='Salle A', **changes)
+    row[field] = [dict(date='2027-01-04', slots=[
+        slot('08:30', '10:00', 'Anne Martin'), slot('10:00', '12:00', 'Anne Martin'),
+        slot('13:00', '17:00', '', trainers=['Hugo Petit', 'Léa Vidal']),
+        slot('17:00', '18:00', 'En ligne', modality='elearning')])]
+    original = rooms.projection(row)
+    staff = original['metadata']['display_trainers']
+    assert staff == {'days': {'2027-01-04': [
+        dict(room_name='Salle A', names=['Anne Martin'], spans=[['08:30', '12:00']]),
+        dict(room_name='Salle A', names=['Hugo Petit', 'Léa Vidal'], spans=[['13:00', '17:00']])]}}
+    row[field][0]['slots'][0]['trainer'] = 'Remplacement'
+    changed = rooms.projection(row)
+    assert changed['revision'] == original['revision']
+    assert changed['metadata']['display_trainers'] != staff
+    assert rooms.empty_projection(changed) == rooms.empty_projection(original)
+
+
+def test_a3p_default_and_separate_ssiap_exam_are_scoped():
+    row = dict(id='school', formation='A3P', date_debut='2027-01-04', date_fin='2027-01-04',
+               a3pTrainerName='Léa Vidal', salle='Salle A')
+    assert rooms.projection(row)['metadata']['display_trainers'] == {'default': ['Léa Vidal']}
+    row['a3pPlanningData'] = [dict(date=row['date_debut'], slots=[dict(start='09:00', end='12:00')])]
+    assert rooms.projection(row)['metadata']['display_trainers']['days'][row['date_debut']][0]['names'] == ['Léa Vidal']
+    ssiap = dict(id='fire', formation='SSIAP1', salle='Salle A', date_debut='2027-01-04', date_fin='2027-01-05',
+                 ssiapTrainer='Émilie Roy', ssiapExamTrainer='Hugo Petit', date_exam='2027-01-06')
+    assert rooms.projection(ssiap)['metadata']['display_trainers'] == {'default': ['Émilie Roy'], 'exam': ['Hugo Petit']}
+
+
 @pytest.mark.parametrize('remaining,assigned',[(1,False),(0,True)])
 def test_sessions_api_uses_effective_central_room_overrides(api,monkeypatch,remaining,assigned):
     client,path,legacy,calls=api

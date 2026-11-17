@@ -206,9 +206,20 @@ def projection_v2(row):
 
 
 def projection(row):
-    """Include real unassigned presence/exams, with exact prior-version hashes."""
-    old=projection_v2(row)
-    return dict(_projection(row,True),schema=3,compat_revision=old['revision'])
+    """Carry venue changes through the same durable protocol as room changes."""
+    result = dict(_projection(row, True), schema=3, compat_revision=projection_v2(row)['revision'])
+    location = {
+        'site': row.get('dirigeant_location') or row.get('dirigeant_location_label'),
+        'venue': (row.get('a3pRoom') if row.get('formation') == 'A3P' else None) or row.get('salle') or row.get('room'),
+        'exam_venue': row.get('exam_room') or row.get('ssiapExamRoom'),
+    }
+    location = {key: value.strip()[:300] for key, value in location.items() if isinstance(value, str) and value.strip()}
+    if location:
+        result['pre_location_revision'] = result['revision']
+        result['metadata']['location'] = location
+        canonical = {key: result[key] for key in ('owner', 'title', 'slots', 'metadata')}
+        result['revision'] = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    return result
 
 
 def empty_projection(item):

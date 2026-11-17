@@ -63,6 +63,16 @@ def test_exact_v2_hash_remains_compatible():
     assert rooms.projection(source())['compat_revision']=='71cc8ae3dd1b6f599335323697f2adb5bdce9dda40080a8cad1dc18471f4bc93'
 
 
+def test_site_change_is_published_even_for_a_generic_title_and_room():
+    session = dict(source(), formation='DIRIGEANT', display_name='Dirigeant', dirigeant_location='PARIS',
+                   salle='Salle 1', exam_room='Salle des examens')
+    paris = rooms.projection(session)
+    puget = rooms.projection(dict(session, dirigeant_location='PUGET'))
+    assert paris['metadata']['location'] == dict(site='PARIS', venue='Salle 1', exam_venue='Salle des examens')
+    assert paris['revision'] != puget['revision'] and paris['slots'] == puget['slots']
+    assert paris['pre_location_revision'] == puget['pre_location_revision'] == rooms._projection(session, True)['revision']
+
+
 @pytest.mark.parametrize('remaining,assigned',[(1,False),(0,True)])
 def test_sessions_api_uses_effective_central_room_overrides(api,monkeypatch,remaining,assigned):
     client,path,legacy,calls=api

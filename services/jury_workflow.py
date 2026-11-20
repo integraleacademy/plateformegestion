@@ -151,7 +151,7 @@ def draft(services, data, training, jid, channels, token):
     messages = [message(services, training, member, stage, links) for stage in STAGES]
     digest = fingerprint([jid, member.get('email'), member.get('telephone'), member.get('notified_at'),
                           member.get('deliveries', {}).get('invitation'), usable, messages])
-    return {'jid': jid, 'member': member, 'channels': usable, 'messages': messages, 'links': links, 'digest': digest}
+    return {'jid': jid, 'member': member, 'channels': usable, 'messages': messages, 'digest': digest}
 
 
 def serializer():
@@ -387,8 +387,7 @@ def register(app, services):
                 signed.append([jid, item['member']['token'], item['digest']])
             # Keep the actual SMS text. All buttons in the isolated email preview are inert.
             for msg in item['messages']:
-                for link in item['links']:
-                    msg['html'] = msg['html'].replace(link, '#apercu')
+                msg['html'] = re.sub(r'<a href="[^"]+"', '<a aria-disabled="true"', msg['html'])
             previews.append(item)
         if not signed:
             flash('Aucun destinataire joignable sur les canaux choisis parmi les jurés sans réponse.', 'error')

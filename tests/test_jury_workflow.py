@@ -66,7 +66,7 @@ def test_preview_uses_actual_prepared_content_no_delivery_and_replay_is_harmless
     html, ticket = preview(client)
     assert 'E-mail' in html and 'jury@example.test' in html and '0600000000' in html
     assert 'Dernier rappel pour le jury' in html and '<iframe sandbox=""' in html
-    assert 'href=&#34;#apercu&#34;' in html
+    assert 'aria-disabled=&#34;true&#34;' in html and 'href=&#34;https://plateformegestion' not in html
     assert not snapshot()['jurys']
     client.post(ROOT + '/notify', data={'jury_ids': ['j1']})
     email.assert_not_called()

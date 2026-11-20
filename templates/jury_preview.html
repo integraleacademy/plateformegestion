@@ -1,0 +1,27 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aperçu des invitations · Intégrale Academy</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/jury-preview.css') }}"></head>
+<body><main>
+<a class="back" href="{{ url_for('session_detail', sid=training.id, _anchor='jury-section') }}">← Retour au jury</a>
+<header><p class="course">{{ training.display_name or training.formation|formation_label }}</p><h1>Aperçu avant envoi</h1>
+<p>Vérifiez les destinataires et les messages. Chaque juré pourra confirmer sa disponibilité depuis son lien personnel.</p></header>
+{% macro content(item, msg) %}
+{% if 'email' in item.channels %}
+<h3>E-mail <small>{{ item.member.email }}</small></h3><p class="subject"><b>Objet</b> {{ msg.subject }}</p>
+<iframe sandbox="" inert tabindex="-1" referrerpolicy="no-referrer" title="Aperçu de l’e-mail pour {{ item.member.prenom }} {{ item.member.nom }}" srcdoc="{{ msg.html }}"></iframe>
+{% endif %}
+{% if 'sms' in item.channels %}
+<h3>SMS <small>{{ item.member.telephone }}</small></h3><pre>{{ msg.sms }}</pre>
+{% endif %}
+{% endmacro %}
+{% for item in previews %}
+<section><h2>{{ item.member.prenom }} {{ item.member.nom }}</h2>
+{% if item.channels %}{{ content(item, item.messages[0]) }}
+<details><summary>Voir les relances à 24 h et 48 h</summary>
+{% for msg in item.messages[1:] %}<h2>Relance à {{ '24 h' if loop.first else '48 h' }}</h2>{{ content(item, msg) }}{% endfor %}</details>
+{% else %}<p>Aucune coordonnée disponible pour les canaux choisis. Aucun message prévu pour ce juré.</p>{% endif %}</section>
+{% endfor %}
+<footer><p>Les relances sont calculées depuis l’invitation et s’arrêtent dès que le juré répond.</p>
+<form method="post" action="{{ url_for('notify_jury', sid=training.id) }}"><input type="hidden" name="preview" value="{{ ticket }}">
+<button type="submit">Confirmer l’envoi</button><a href="{{ url_for('session_detail', sid=training.id, _anchor='jury-section') }}">Annuler</a></form></footer>
+</main></body></html>

@@ -741,6 +741,11 @@ a.back:hover{ background:#d9a848 !important; }
         <li class="jury-item">
           <div>
             <div class="jury-name">{{ jury.prenom }} {{ jury.nom }}</div>
+            {% if jury.status == 'present' %}
+              {% set sync = jury.jury_sync or {} %}
+              {% if sync.status == 'synced' %}<small class="jury-sync-ok">Ajouté dans Organisation et jury</small>
+              {% else %}<small class="jury-sync-info">{{ sync.error or 'Ajout dans Organisation et jury en attente' }}</small>{% endif %}
+            {% endif %}
             <div class="muted" style="font-size:12px;">
               {{ jury.email }}{% if jury.telephone %} • {{ jury.telephone }}{% endif %}
             </div>
@@ -751,7 +756,7 @@ a.back:hover{ background:#d9a848 !important; }
             {% elif jury.status == "absent" %}
               <span class="jury-status absent">jury absent</span>
             {% else %}
-              <span class="jury-status pending">en attente de réponse</span>
+              <span class="jury-status pending">{{ 'en attente de réponse' if jury.notified_at else 'à inviter' }}</span>
             {% endif %}
             <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}#jury-section" onsubmit="return confirm('Supprimer ce jury ?');">
               <button type="submit" class="btn small danger">Supprimer</button>
@@ -763,6 +768,17 @@ a.back:hover{ background:#d9a848 !important; }
   {% else %}
     <p class="muted" style="margin-top:12px;">Aucun jury enregistré pour cette session.</p>
   {% endif %}
+{% if s.jurys|selectattr('status','equalto','present')|list %}
+  <details class="jury-association"><summary>Session associée dans Gestion des stagiaires</summary>
+    <form method="post" action="{{ url_for('link_jury_session', sid=s.id) }}">
+      <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
+      <label>Identifiant ou lien de la session
+        <input type="text" name="target" value="{{ s.jury_target_id or s.afcAttendanceSourceSessionId or '' }}" placeholder="Association automatique par formation et dates">
+      </label>
+      <button class="btn small" type="submit">Enregistrer</button>
+    </form>
+  </details>
+  {% endif %}
 </section>
 
 <div class="modal" id="juryModal" data-session-window="Jury d’examen" role="dialog" aria-modal="true" aria-labelledby="juryModalTitle" aria-hidden="true">
@@ -772,14 +788,14 @@ a.back:hover{ background:#d9a848 !important; }
       <button class="modal-close" type="button" id="closeJuryModal" aria-label="Fermer">×</button>
     </div>
 
-    <form method="post" action="{{ url_for('notify_jury', sid=s.id) }}#jury-section">
+    <form method="post" action="{{ url_for('preview_jury', sid=s.id) }}">
       <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
       {% if global_jurys %}
         <div class="jury-checklist">
           {% for jury in global_jurys %}
             {% set session_jury = session_jurys_by_id.get(jury.id) %}
             <label>
-              <input type="checkbox" name="jury_ids" value="{{ jury.id }}">
+              <input type="checkbox" name="jury_ids" value="{{ jury.id }}" {% if session_jury and session_jury.status in ('present', 'absent') %}disabled{% endif %}>
               <span class="jury-identity"><b>{{ jury.prenom }} {{ jury.nom }}</b><small>{{ jury.email or "Email manquant" }}</small></span>
               {% if session_jury %}
                 {% if session_jury.status == "present" %}
@@ -787,7 +803,7 @@ a.back:hover{ background:#d9a848 !important; }
                 {% elif session_jury.status == "absent" %}
                   <span class="jury-status absent" style="margin-left:6px;">déjà répondu (absent)</span>
                 {% else %}
-                  <span class="jury-status pending" style="margin-left:6px;">déjà ajouté</span>
+                  <span class="jury-status pending" style="margin-left:6px;">{{ 'invitation déjà envoyée' if session_jury.notified_at else 'à inviter' }}</span>
                 {% endif %}
               {% else %}
                 <span class="jury-status pending" style="margin-left:6px;">disponible</span>
@@ -798,7 +814,11 @@ a.back:hover{ background:#d9a848 !important; }
       {% else %}
         <p class="muted">Aucun jury disponible. Ajoutez-en un ci-dessous.</p>
       {% endif %}
-      <button type="submit" class="btn gold">Envoyer la notification</button>
+      <fieldset class="jury-channels"><legend>Canaux d’envoi</legend>
+        <label><input type="checkbox" name="channels" value="email" checked> E-mail</label>
+        <label><input type="checkbox" name="channels" value="sms" checked> SMS</label>
+      </fieldset>
+      <button type="submit" class="btn gold">Prévisualiser les messages</button>
     </form>
 
     <hr style="margin:20px 0;">

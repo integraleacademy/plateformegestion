@@ -67,7 +67,7 @@ def test_jury_badge_on_cards_overview_and_jury_tab(monkeypatch, states, label, t
     row = dict(id='jury-check', formation='APS', date_debut='2099-01-04',
                date_fin='2099-02-08', date_exam='2099-02-09', steps=[],
                jury_notification_status='notified' if states else 'to_notify',
-               jurys=[dict(id=str(i), status=st) for i, st in enumerate(states)])
+               jurys=[dict(id=str(i), status=st, notified_at='2026-11-20') for i, st in enumerate(states)])
     monkeypatch.setattr(app, 'load_sessions', lambda: dict(sessions=[row], jurys=[]))
     monkeypatch.setattr(app, 'save_sessions', lambda data: None)
     with app.app.test_client() as client:

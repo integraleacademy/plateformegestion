@@ -65,14 +65,14 @@ body:has(dialog[open], .modal.open) { overflow:hidden }
 .modal[data-session-window] .btn.gold { background:var(--window-accent)!important; color:white!important; border-color:var(--window-accent)!important }
 .modal[data-session-window] .btn { min-height:40px }
 .modal[data-session-window] .planning-actions { gap:9px; padding-top:12px; border-top:1px solid #dce4e9 }
-#juryModal .jury-checklist { display:grid; gap:7px; max-height:min(38vh,320px); overflow:auto; padding:2px }
-#juryModal .jury-checklist label { display:flex; align-items:center; gap:10px; padding:11px 13px; background:#f6f8fa; border:1px solid #dce4e9; border-radius:9px; cursor:pointer }
-#juryModal .jury-checklist label:has(:checked) { border-color:var(--course); background:var(--course-tint) }
-#juryModal .jury-checklist input { accent-color:var(--course); flex:none }
-#juryModal .jury-identity { display:grid; min-width:0; margin-right:auto }
-#juryModal .jury-identity small { color:#586974; overflow-wrap:anywhere }
-#juryModal .jury-status { flex:none }
-#juryModal hr { border:0; border-top:1px solid #dce4e9 }
+.jury-modal .jury-checklist { display:grid; gap:7px; max-height:min(38vh,320px); overflow:auto; padding:2px }
+.jury-modal .jury-checklist label { display:flex; align-items:center; gap:10px; padding:11px 13px; background:#f6f8fa; border:1px solid #dce4e9; border-radius:9px; cursor:pointer }
+.jury-modal .jury-checklist label:has(:checked) { border-color:var(--course); background:var(--course-tint) }
+.jury-modal .jury-checklist input { accent-color:var(--course); flex:none }
+.jury-modal .jury-identity { display:grid; min-width:0; margin-right:auto }
+.jury-modal .jury-identity small { color:#586974; overflow-wrap:anywhere }
+.jury-modal .jury-status { flex:none }
+.jury-modal hr { border:0; border-top:1px solid #dce4e9 }
 .modal[data-session-editor] { background:#10283da6!important; backdrop-filter:blur(5px)!important }
 .modal[data-session-editor] .aps-contract-modal__header,#a3pModal .a3p-modal-head { border-top:5px solid var(--course); background:var(--course-tint) }
 body[data-code] .saas-dialog { border-radius:18px }
@@ -90,7 +90,7 @@ body[data-code] .saas-dialog__btn--primary:not(.saas-dialog__btn--danger) { back
   .date-field input[type="date"] { font-size:16px; padding:6px 5px }
   .date-actions { flex-wrap:wrap; margin-top:14px; padding-top:12px }
   .modal[data-session-window] > .modal-content { max-height:calc(100dvh - 20px) }
-  #juryModal .jury-checklist label { flex-wrap:wrap }
+  .jury-modal .jury-checklist label { flex-wrap:wrap }
   .edit-location-strip { flex-wrap:wrap }
 }
 @media(max-width:360px) {

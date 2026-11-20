@@ -1,0 +1,148 @@
+{% from 'session_visuals.html' import jury_presence, attention %}
+{% macro exam_input(exam) -%}
+  {% if exam.jury_exam_key %}<input type="hidden" name="examen" value="{{ exam.jury_exam_key }}">{% endif %}
+{%- endmacro %}
+<section class="jury-panel" id="jury-section" data-sheet-panel="jury-section">
+  {% for exam in jury_examinations %}
+  {% set suffix = '-' ~ exam.jury_exam_key if exam.jury_exam_key else '' %}
+  <section class="jury-exam" aria-labelledby="jury-title{{ suffix }}">
+    <div class="jury-header">
+      <div class="jury-exam-heading">
+        <h2 id="jury-title{{ suffix }}">{% if exam.jury_exam_key == 'unassigned' %}Jurés à rattacher{% elif exam.jury_exam_label %}Jury {{ exam.jury_exam_label }}{% else %}Jury d’examen{% endif %}</h2>
+        {% if exam.jury_exam_key and exam.jury_exam_key != 'unassigned' %}
+          <span>{{ exam.date_exam|datefr if exam.date_exam else 'Date à préciser dans le planning' }}</span>
+        {% endif %}
+      </div>
+      {% if exam.jury_exam_key != 'unassigned' %}
+        {{ jury_presence(exam) }}
+        {% if exam.jury_notification_status == 'notified' %}<span class="jury-label notified">Jury notifié</span>
+        {% else %}{{ attention('Jury à notifier') }}{% endif %}
+        <button class="btn gold" type="button" data-jury-open aria-controls="juryModal{{ suffix }}">Notifier le jury{% if exam.jury_exam_label %} {{ exam.jury_exam_label }}{% endif %}</button>
+      {% endif %}
+    </div>
+  {% if exam.jurys %}
+    <ul class="jury-list">
+      {% for jury in exam.jurys %}
+        <li class="jury-item">
+          <div>
+            <div class="jury-name">{{ jury.prenom }} {{ jury.nom }}</div>
+            {% if jury.status == 'present' and exam.jury_exam_key != 'unassigned' %}
+              {% set sync = jury.jury_sync or {} %}
+              {% if sync.status == 'synced' %}<small class="jury-sync-ok">Ajouté dans Organisation et jury</small>
+              {% else %}<small class="jury-sync-info">{{ sync.error or 'Ajout dans Organisation et jury en attente' }}</small>{% endif %}
+            {% endif %}
+            <div class="muted" style="font-size:12px;">
+              {{ jury.email }}{% if jury.telephone %} • {{ jury.telephone }}{% endif %}
+            </div>
+          </div>
+          <div class="jury-actions">
+            {% if jury.status == "present" %}
+              <span class="jury-status present">jury présent</span>
+              {% if exam.jury_exam_key != 'unassigned' and (jury.jury_sync or {}).get('status') != 'synced' %}
+                <form method="post" action="{{ url_for('retry_jury_sync', sid=s.id, jid=jury.id) }}">
+                  {{ exam_input(exam) }}
+                  <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
+                  <button type="submit" class="btn small">Réessayer la synchronisation</button>
+                </form>
+              {% endif %}
+            {% elif jury.status == "absent" %}
+              <span class="jury-status absent">jury absent</span>
+            {% else %}
+              <span class="jury-status pending">{{ 'en attente de réponse' if jury.notified_at else 'à inviter' }}</span>
+            {% endif %}
+            {% if exam.jury_exam_key == 'unassigned' %}
+              <form method="post" action="{{ url_for('assign_legacy_jury', sid=s.id, jid=jury.id) }}">
+                <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
+                <label>Rattacher à <select name="examen" required>
+                  <option value="">Choisir un examen</option><option value="aps">APS</option><option value="ssiap1">SSIAP 1</option>
+                </select></label>
+                <button type="submit" class="btn small">Rattacher</button>
+              </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}#jury-section" onsubmit="return confirm('Supprimer ce jury ?');">
+              {{ exam_input(exam) }}
+              <button type="submit" class="btn small danger">Supprimer</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted" style="margin-top:12px;">Aucun membre de jury pour {{ 'cet examen' if exam.jury_exam_key else 'cette session' }}.</p>
+  {% endif %}
+  </section>
+  {% endfor %}
+{% if jury_examinations|map(attribute='jurys')|sum(start=[])|selectattr('status','equalto','present')|list %}
+  <details class="jury-association"><summary>Session associée dans Gestion des stagiaires</summary>
+    <form method="post" action="{{ url_for('link_jury_session', sid=s.id) }}">
+      <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
+      <label>Identifiant ou lien de la session
+        <input type="text" name="target" value="{{ s.jury_target_id or s.afcAttendanceSourceSessionId or '' }}" placeholder="Association automatique par formation et dates">
+      </label>
+      <button class="btn small" type="submit">Enregistrer</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% for exam in jury_examinations if exam.jury_exam_key != 'unassigned' %}
+{% set suffix = '-' ~ exam.jury_exam_key if exam.jury_exam_key else '' %}
+<div class="modal jury-modal" id="juryModal{{ suffix }}" data-session-window="Jury d’examen" role="dialog" aria-modal="true" aria-labelledby="juryModalTitle{{ suffix }}" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="juryModalTitle{{ suffix }}" style="margin:0;"><span class="window-context">{{ s.display_name or s.formation }}{% if exam.jury_exam_label %} · {{ exam.date_exam|datefr if exam.date_exam else 'Date à préciser' }}{% endif %}</span>Notifier le jury{% if exam.jury_exam_label %} {{ exam.jury_exam_label }}{% endif %}</h3>
+      <button class="modal-close" type="button" data-jury-close aria-label="Fermer">×</button>
+    </div>
+
+    <form method="post" action="{{ url_for('preview_jury', sid=s.id) }}">
+      {{ exam_input(exam) }}
+      <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
+      {% if global_jurys %}
+        <div class="jury-checklist">
+          {% for jury in global_jurys %}
+            {% set session_jury = exam.jurys|selectattr('id','equalto',jury.id)|first %}
+            <label>
+              <input type="checkbox" name="jury_ids" value="{{ jury.id }}" {% if session_jury and session_jury.status in ('present', 'absent') %}disabled{% endif %}>
+              <span class="jury-identity"><b>{{ jury.prenom }} {{ jury.nom }}</b><small>{{ jury.email or "Email manquant" }}</small></span>
+              {% if session_jury %}
+                {% if session_jury.status == "present" %}
+                  <span class="jury-status present" style="margin-left:6px;">déjà répondu (présent)</span>
+                {% elif session_jury.status == "absent" %}
+                  <span class="jury-status absent" style="margin-left:6px;">déjà répondu (absent)</span>
+                {% else %}
+                  <span class="jury-status pending" style="margin-left:6px;">{{ 'invitation déjà envoyée' if session_jury.notified_at else 'à inviter' }}</span>
+                {% endif %}
+              {% else %}
+                <span class="jury-status pending" style="margin-left:6px;">disponible</span>
+              {% endif %}
+            </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Aucun jury disponible. Ajoutez-en un ci-dessous.</p>
+      {% endif %}
+      <fieldset class="jury-channels"><legend>Canaux d’envoi</legend>
+        <label><input type="checkbox" name="channels" value="email" checked> E-mail</label>
+        <label><input type="checkbox" name="channels" value="sms" checked> SMS</label>
+      </fieldset>
+      {% if exam.jury_exam_key and not exam.date_exam %}<p>Renseignez la date de l’examen {{ exam.jury_exam_label }} dans le planning pour préparer les invitations.</p>{% endif %}
+      <button type="submit" class="btn gold" {% if exam.jury_exam_key and not exam.date_exam %}disabled{% endif %}>Prévisualiser les messages</button>
+    </form>
+
+    <hr style="margin:20px 0;">
+
+    <button type="button" class="btn" data-jury-add>➕ Ajouter un nouveau jury</button>
+    <form method="post" action="{{ url_for('add_jury', sid=s.id) }}#jury-section" data-jury-add-form hidden>
+      {{ exam_input(exam) }}
+      <div class="jury-form-grid">
+        <input type="text" name="nom" placeholder="Nom" required>
+        <input type="text" name="prenom" placeholder="Prénom" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="text" name="telephone" placeholder="Téléphone" required>
+      </div>
+      <div style="margin-top:12px;">
+        <button type="submit" class="btn">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}

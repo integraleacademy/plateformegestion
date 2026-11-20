@@ -11,7 +11,7 @@
   <script defer src="{{ url_for('static', filename='js/sessions.js') }}"></script>
 </head>
 <body>
-{% from 'session_visuals.html' import milestones, attention, jury_presence %}
+{% from 'session_visuals.html' import milestones, attention, jury_summary %}
 {% macro icon(name) -%}
   <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
@@ -128,8 +128,7 @@
             {% endif %}
             {% if item.state != 'terminees' %}
               <div class="jury-statuses">
-                {{ jury_presence(s) }}
-                {% if s.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% endif %}
+                {{ jury_summary(s) }}
               </div>
             {% endif %}
           </div>

@@ -19,6 +19,7 @@ import requests
 from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 from itsdangerous import BadData, URLSafeTimedSerializer
 
+from services import jury_exams
 from services.session_storage import SessionStorageConflict
 
 
@@ -75,6 +76,26 @@ def edit(services, change):
                 raise
 
 
+def migrate_afc_jurys(services):
+    def pending(data):
+        return [row for row in data['sessions'] if row.get('jurys') and services.is_afc_aps_ssiap_session(row)]
+    if not pending(services.load_sessions()):
+        return
+    def migrate(data):
+        result = []
+        for row in pending(data):
+            exams = jury_exams.views(services, row, include_unassigned=True)
+            result.append((row['id'], [(exam['jury_exam_key'], exam['date_exam'], len(exam['jurys'])) for exam in exams]))
+        return result
+    for sid, groups in edit(services, migrate):
+        LOG.info('JURY_AFC_MIGRATION session=%s exams=%s', sid, groups)
+
+
+def reload_exam(services, data, sid, key):
+    row = services.find_session(data, sid)
+    return jury_exams.select(services, row, key) if row else None
+
+
 def assigned(training, jid):
     return next((j for j in training.get('jurys', []) if str(j.get('id')) == jid), None)
 
@@ -94,12 +115,12 @@ def exam_selector(services, training):
         number = re.search(r'SSIAP\s*([123])', descriptor, re.I)
         level = 'SSIAP ' + (number.group(1) if number else '1')
     when = services.session_input_date(training.get('date_exam'))
-    afc = code == 'AFC_APS_SSIAP'
+    afc = services.is_afc_aps_ssiap_session(training)
     if afc:
-        kinds = {sl.get('afcCategory') for d in training.get('apsPlanningData', [])
-                 if services.session_input_date(d.get('date')) == when for sl in d.get('slots', [])}
-        if ('EXAM_SSIAP1' in kinds) != ('EXAM_APS' in kinds):
-            level = 'SSIAP 1' if 'EXAM_SSIAP1' in kinds else 'APS'
+        key = training.get('jury_exam_key')
+        if key not in jury_exams.AFC_EXAMS or not when:
+            raise ValueError('Précisez l’examen et sa date dans le planning AFC.')
+        level = jury_exams.AFC_EXAMS[key][0]
     return {'source_id': str(training['id']), 'level': level, 'afc': afc,
             'site': str(training.get('dirigeant_location') or '').lower() if level == 'DESP initial' else '',
             'target_id': training.get('jury_target_id') or (training.get('afcAttendanceSourceSessionId') if afc else '') or '',
@@ -108,6 +129,9 @@ def exam_selector(services, training):
 
 
 def closed(services, training, now):
+    if services.is_afc_aps_ssiap_session(training) and (
+            training.get('jury_exam_key') not in jury_exams.AFC_EXAMS or not training.get('date_exam')):
+        return True
     last_day = services.parse_date(training.get('date_exam')) or services.parse_date(training.get('date_fin'))
     return bool(training.get('archived') or training.get('cancelled') or training.get('canceled')
                 or (last_day and last_day.date() < now.astimezone(PARIS).date()))
@@ -116,8 +140,11 @@ def closed(services, training, now):
 def response_urls(training, member):
     base = (os.environ.get('RENDER_EXTERNAL_URL') or 'https://plateformegestion.onrender.com').rstrip('/')
     adapter = current_app.url_map.bind('localhost')
+    args = {'token': member['token']}
+    if training.get('jury_exam_key'):
+        args['examen'] = training['jury_exam_key']
     return [base + adapter.build('jury_response', {'sid': training['id'], 'jid': member['id'], 'response': choice})
-            + '?' + urlencode({'token': member['token']}) for choice in ('present', 'absent')]
+            + '?' + urlencode(args) for choice in ('present', 'absent')]
 
 
 def message(services, training, member, stage, links):
@@ -149,7 +176,8 @@ def draft(services, data, training, jid, channels, token):
     person = contact(services, data, training, jid)
     if not person or person.get('status') in ('present', 'absent'):
         return None
-    member = {**person, 'id': jid, 'token': person.get('token') or token}
+    existing = assigned(training, jid)
+    member = {**person, 'id': jid, 'token': (existing or {}).get('token') or token}
     usable = available_channels(services, member, channels)
     links = response_urls(training, member)
     messages = [message(services, training, member, stage, links) for stage in STAGES]
@@ -188,10 +216,10 @@ def due_reminders(services, training, member, now):
     return result
 
 
-def deliver(services, sid, member, stage, channel, content, attempt_id, now):
+def deliver(services, sid, member, stage, channel, content, attempt_id, now, exam_key=''):
     jid = member['id']
     def reserve(data):
-        training = services.find_session(data, sid)
+        training = reload_exam(services, data, sid, exam_key)
         if not training or closed(services, training, now):
             return False
         current = assigned(training, jid)
@@ -223,7 +251,7 @@ def deliver(services, sid, member, stage, channel, content, attempt_id, now):
         status, error = 'unknown', 'réception par le prestataire à vérifier'
 
     def finish(data):
-        training = services.find_session(data, sid)
+        training = reload_exam(services, data, sid, exam_key)
         current = assigned(training, jid) if training else None
         if not current:
             return
@@ -279,6 +307,8 @@ def sync_member(services, training, member, now):
         if body.get('ok') is not True or not isinstance(body.get('session_id'), str) or not body['session_id']:
             raise ValueError('La plateforme n’a pas confirmé l’enregistrement.')
         result.update(status='synced', target_id=body['session_id'])
+        if selector['afc']:
+            result.update(exam=training['jury_exam_key'], exam_date=selector['exam_date'])
     except requests.RequestException:
         previous_delay = (member.get('jury_sync') or {}).get('retry_minutes', 0)
         delay = min(15, max(1, 2 * previous_delay))
@@ -287,18 +317,21 @@ def sync_member(services, training, member, now):
     except ValueError as exc:
         result.update(status='pending', error=str(exc)[:200])
     def finish(data):
-        row = services.find_session(data, training['id'])
+        row = reload_exam(services, data, training['id'], training.get('jury_exam_key', ''))
         current = assigned(row, str(member['id'])) if row else None
         if current and current.get('status') == 'present':
             current['jury_sync'] = result
     edit(services, finish)
-    LOG.info('JURY_SYNC session=%s status=%s http=%s target=%s',
-             training['id'], result['status'], http_status, result.get('target_id', ''))
+    LOG.info('JURY_SYNC session=%s status=%s http=%s target=%s exam=%s',
+             training['id'], result['status'], http_status, result.get('target_id', ''), training.get('jury_exam_key', ''))
     return result
 
 
 def needs_sync(services, training, member, now):
     if member.get('status') != 'present':
+        return False
+    if services.is_afc_aps_ssiap_session(training) and (
+            training.get('jury_exam_key') not in jury_exams.AFC_EXAMS or not training.get('date_exam')):
         return False
     sync = member.get('jury_sync') or {}
     if sync.get('status') == 'synced' or (not sync and closed(services, training, now)):
@@ -309,12 +342,13 @@ def needs_sync(services, training, member, now):
 
 def scan(services, now=None):
     now = now or utcnow()
-    candidates = [(row['id'], str(m['id'])) for row in services.load_sessions()['sessions']
+    candidates = [(row['id'], row.get('jury_exam_key', ''), str(m['id'])) for training in services.load_sessions()['sessions']
+                  for row in jury_exams.views(services, training)
                   for m in row.get('jurys', []) if m.get('id') and (
                       needs_sync(services, row, m, now) or due_reminders(services, row, m, now))]
-    for sid, jid in candidates:
+    for sid, exam_key, jid in candidates:
         with member_lock(services, sid, jid):
-            row = services.find_session(services.load_sessions(), sid)
+            row = reload_exam(services, services.load_sessions(), sid, exam_key)
             member = assigned(row, jid) if row else None
             if not member:
                 continue
@@ -326,7 +360,7 @@ def scan(services, now=None):
                 member = {**member, 'id': jid, 'token': member.get('token') or secrets.token_urlsafe(24)}
                 content = message(services, row, member, stage, response_urls(row, member))
                 for channel in channels:
-                    deliver(services, sid, member, stage, channel, content, secrets.token_hex(12), now)
+                    deliver(services, sid, member, stage, channel, content, secrets.token_hex(12), now, exam_key)
 
 
 def scan_once(app, services):
@@ -368,6 +402,7 @@ def start(app, services):
 def register(app, services):
     probe_lock = threading.Lock()
     probe = {'checked': float('-inf'), 'ready': False}
+    app.jinja_env.globals['jury_exam_views'] = lambda row: jury_exams.views(services, row)
 
     @app.before_request
     def ensure_jury_worker():
@@ -398,10 +433,18 @@ def register(app, services):
             abort(404)
         return row
 
+    def selected_exam(data, sid, key):
+        row = training_for(data, sid)
+        exam = jury_exams.select(services, row, key)
+        if exam is None:
+            abort(400, 'Choisissez le jury APS ou le jury SSIAP 1.')
+        return exam
+
     @app.post('/sessions/<sid>/jury/preview')
     def preview_jury(sid):
         data = services.load_sessions()
-        training = training_for(data, sid)
+        exam_key = request.form.get('examen', '')
+        training = selected_exam(data, sid, exam_key)
         ids = list(dict.fromkeys(request.form.getlist('jury_ids')))
         channels = [ch for ch in CHANNELS if ch in request.form.getlist('channels')]
         if not ids or not channels or closed(services, training, utcnow()):
@@ -421,7 +464,8 @@ def register(app, services):
         if not signed:
             flash('Aucun destinataire joignable sur les canaux choisis parmi les jurés sans réponse.', 'error')
             return back(sid)
-        token = serializer().dumps({'sid': sid, 'channels': channels, 'members': signed, 'id': secrets.token_hex(12)})
+        token = serializer().dumps({'sid': sid, 'exam': exam_key, 'channels': channels,
+                                    'members': signed, 'id': secrets.token_hex(12)})
         return render_template('jury_preview.html', training=training, previews=previews, ticket=token), 200, {'Cache-Control': 'no-store'}
 
     @app.post('/sessions/<sid>/jury/notify')
@@ -433,18 +477,19 @@ def register(app, services):
             return back(sid)
         if selection['sid'] != sid:
             abort(400)
+        exam_key = selection.get('exam', '')
         results = []
         for jid, token, digest in selection['members']:
             with member_lock(services, sid, jid):
                 data = services.load_sessions()
-                training = training_for(data, sid)
-                item = draft(services, data, training, jid, selection['channels'], token)
-                if closed(services, training, utcnow()) or not item or not hmac.compare_digest(digest, item['digest']):
+                training = selected_exam(data, sid, exam_key)
+                item = None if closed(services, training, utcnow()) else draft(services, data, training, jid, selection['channels'], token)
+                if not item or not hmac.compare_digest(digest, item['digest']):
                     results.append('Sélection déjà traitée ou modifiée. Actualisez l’aperçu.')
                     continue
                 member = item['member']
                 outcomes = [CHANNELS[ch] + ' ' + deliver(services, sid, member, 'invitation', ch, item['messages'][0],
-                                                         selection['id'], utcnow()) for ch in item['channels']]
+                                                         selection['id'], utcnow(), exam_key) for ch in item['channels']]
                 results.append(f"{member.get('prenom', '')} {member.get('nom', '')} · " + ' / '.join(outcomes))
         flash(' | '.join(results), 'success' if any(' envoyé' in r for r in results) else 'error')
         return back(sid)
@@ -456,10 +501,17 @@ def register(app, services):
         token = request.args.get('token') or ''
         def resolve(data):
             row = training_for(data, sid)
-            member = assigned(row, jid)
-            if not member or not member.get('token') or not hmac.compare_digest(str(member['token']).encode(), token.encode()):
+            requested = request.args.get('examen')
+            # Historical links have no exam parameter. Their personal token still selects
+            # precisely the original assignment when the juror is invited to both exams.
+            matches = [(exam, member) for exam in jury_exams.views(services, row, include_unassigned=True)
+                       if requested is None or exam.get('jury_exam_key', '') == requested
+                       for member in exam.get('jurys', [])
+                       if str(member.get('id')) == jid and member.get('token')
+                       and hmac.compare_digest(str(member['token']).encode(), token.encode())]
+            if len(matches) != 1:
                 abort(403)
-            return row, member
+            return matches[0]
         if request.method == 'POST':
             with member_lock(services, sid, jid):
                 def record(data):
@@ -490,7 +542,7 @@ def register(app, services):
     def retry_jury_sync(sid, jid):
         check_admin_nonce()
         with member_lock(services, sid, jid):
-            row = training_for(services.load_sessions(), sid)
+            row = selected_exam(services.load_sessions(), sid, request.form.get('examen', ''))
             member = assigned(row, jid)
             if not member or member.get('status') != 'present':
                 abort(404)
@@ -514,9 +566,31 @@ def register(app, services):
         def change(data):
             row = training_for(data, sid)
             row['jury_target_id'] = target
-            for member in row.get('jurys', []):
-                if member.get('status') == 'present' and (member.get('jury_sync') or {}).get('status') != 'synced':
-                    member['jury_sync'] = {'status': 'pending'}
+            for exam in jury_exams.views(services, row):
+                for member in exam.get('jurys', []):
+                    if member.get('status') == 'present' and (member.get('jury_sync') or {}).get('status') != 'synced':
+                        member['jury_sync'] = {'status': 'pending'}
         edit(services, change)
         flash('Association enregistrée. Les présences en attente seront transmises au prochain passage.', 'success')
+        return back(sid)
+
+    @app.post('/sessions/<sid>/jury/<jid>/affecter')
+    def assign_legacy_jury(sid, jid):
+        check_admin_nonce()
+        def change(data):
+            row = training_for(data, sid)
+            exam = selected_exam(data, sid, request.form.get('examen', ''))
+            unassigned = jury_exams.select(services, row, 'unassigned', include_unassigned=True)
+            member = assigned(unassigned, jid) if unassigned else None
+            if not member:
+                abort(404)
+            if assigned(exam, jid):
+                return 'Ce juré a déjà une fiche pour cet examen.'
+            if member.get('jury_invitation_date') and member['jury_invitation_date'] != exam['date_exam']:
+                return 'La date de l’ancienne invitation est différente. Invitez ce juré depuis l’examen souhaité.'
+            unassigned['jurys'].remove(member)
+            exam['jurys'].append(member)
+        with member_lock(services, sid, jid):
+            error = edit(services, change)
+        flash(error or 'Le juré est rattaché à cet examen.', 'error' if error else 'success')
         return back(sid)

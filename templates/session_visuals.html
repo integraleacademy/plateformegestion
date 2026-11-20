@@ -21,6 +21,15 @@
   <span class="jury-waiting"><b>{{ waiting }}</b> en attente de réponse</span>
 {%- endmacro %}
 
+{% macro jury_summary(s) -%}
+  {% for exam in jury_exam_views(s) %}
+    {% if exam.jury_exam_label %}<span class="jury-summary-exam"><strong>{{ exam.jury_exam_label }}</strong>{% endif %}
+    {{ jury_presence(exam) }}
+    {% if exam.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% endif %}
+    {% if exam.jury_exam_label %}</span>{% endif %}
+  {% endfor %}
+{%- endmacro %}
+
 {% macro milestones(s) -%}
   {% set remote = session_modality_date_range(s, 'elearning') %}
   {% set onsite = session_modality_date_range(s, 'presentiel') %}
@@ -29,6 +38,8 @@
       {% if remote %}<div class="milestone remote">{{ icon('screen') }}<span><small>E-learning</small><b>{{ session_calendar_span(remote.start, remote.end) }}</b></span></div>{% endif %}
       {% if onsite %}<div class="milestone onsite">{{ icon('pin') }}<span><small>Présentiel</small><b>{{ session_calendar_span(onsite.start, onsite.end) }}</b></span></div>{% endif %}
     {% endif %}
-    <div class="milestone exam">{{ icon('award') }}<span><small>Examen</small><b>{{ session_calendar_span(s.date_exam) if s.date_exam else 'À définir' }}</b></span></div>
+    {% for exam in jury_exam_views(s) %}
+    <div class="milestone exam">{{ icon('award') }}<span><small>Examen{% if exam.jury_exam_label %} {{ exam.jury_exam_label }}{% endif %}</small><b>{{ session_calendar_span(exam.date_exam) if exam.date_exam else 'À définir' }}</b></span></div>
+    {% endfor %}
   </div>
 {%- endmacro %}

@@ -41,8 +41,8 @@ def case(tmp_path, monkeypatch):
     return client, email, sms, api
 
 
-def preview(client, channels=('email', 'sms')):
-    response = client.post(ROOT + '/preview', data={'jury_ids': ['j1'], 'channels': list(channels)})
+def preview(client, channels=('email', 'sms'), exam=''):
+    response = client.post(ROOT + '/preview', data={'jury_ids': ['j1'], 'channels': list(channels), 'examen': exam})
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     ticket = unescape(re.search(r'name="preview" value="([^"]+)"', html)[1])
@@ -249,3 +249,120 @@ def test_gunicorn_starts_one_scanner_per_serving_process(case, monkeypatch):
     conf['post_worker_init'](Mock())
     case[0].get('/healthz')
     threads.return_value.start.assert_called_once()
+
+
+@pytest.fixture
+def afc(case):
+    data = app.load_sessions()
+    row = data['sessions'][0]
+    row.update(formation='AFC_APS_SSIAP', date_exam='2027-04-20', afcAttendanceSourceSessionId='destination',
+               apsPlanningData=[{'date': '2027-04-02', 'slots': [{'afcCategory': 'EXAM_APS'}] * 2},
+                                {'date': '2027-04-20', 'slots': [{'category': 'EXAM_SSIAP1'}]}])
+    app.save_sessions(data)
+    return case
+
+
+def test_two_afc_invitations_answers_and_reminders_are_independent(afc):
+    client, email, sms, api = afc
+    data = {'jury_ids': ['j1'], 'channels': ['email']}
+    assert client.post(ROOT + '/preview', data=data).status_code == 400
+    for key, level, date in [('aps', 'APS', '02/04/2027'), ('ssiap1', 'SSIAP 1', '20/04/2027')]:
+        html, ticket = preview(client, exam=key)
+        assert level + ' · AFC France Travail · ' + date in unescape(html)
+        assert client.post(ROOT + '/notify', data={'preview': ticket}).status_code == 302
+        assert level in sms.call_args.args[1] and date in sms.call_args.args[1]
+        assert 'examen=' + key in sms.call_args.args[1]
+    assert email.call_count == sms.call_count == 2
+    scopes = snapshot()['afc_exam_jurys']
+    token_aps, token_ssiap = (scopes[k][0]['token'] for k in ('aps', 'ssiap1'))
+    assert token_aps != token_ssiap
+    route = '/jury-response/S/j1/present'
+    assert client.post(route, query_string={'token': token_aps, 'examen': 'ssiap1'}).status_code == 403
+    response = client.post(route, query_string={'token': token_aps, 'examen': 'aps'})
+    assert response.status_code == 200 and '02/04/2027' in response.get_data(as_text=True)
+    selector = api.call_args.kwargs['json']['session']
+    assert selector['level'] == 'APS' and selector['exam_date'] == '2027-04-02' and selector['target_id'] == 'destination'
+    scan(NOW + timedelta(hours=24))
+    scan(NOW + timedelta(hours=48))
+    assert email.call_count == sms.call_count == 4
+    for call in sms.call_args_list[2:]:
+        assert 'SSIAP 1' in call.args[1] and '20/04/2027' in call.args[1]
+    assert client.post('/jury-response/S/j1/absent', query_string={'token': token_ssiap, 'examen': 'ssiap1'}).status_code == 200
+    scopes = snapshot()['afc_exam_jurys']
+    assert scopes['aps'][0]['status'] == 'present' and scopes['ssiap1'][0]['status'] == 'absent'
+    assert api.call_count == 1
+    assert client.post(ROOT + '/j1/delete').status_code == 400
+    assert client.post(ROOT + '/j1/delete', data={'examen': 'ssiap1'}).status_code == 302
+    scopes = snapshot()['afc_exam_jurys']
+    assert len(scopes['aps']) == 1 and scopes['ssiap1'] == []
+
+
+def test_afc_migration_pins_legacy_members_and_preserves_their_links(afc):
+    client, email, sms, api = afc
+    data = app.load_sessions()
+    row = data['sessions'][0]
+    row['jurys'] = [{**CONTACT, 'status': 'pending', 'token': 'original', 'notified_at': NOW.isoformat()},
+                    {**CONTACT, 'id': 'j2', 'status': 'present', 'token': 'confirmed',
+                     'jury_sync': {'status': 'synced', 'target_id': 'destination'}},
+                    {**CONTACT, 'id': 'j3', 'status': 'pending', 'token': 'never-invited'}]
+    app.save_sessions(data)
+    flow.migrate_afc_jurys(app)
+    flow.migrate_afc_jurys(app)
+    row = snapshot()
+    assert row['jurys'] == [] and row['afc_exam_jurys']['aps'] == []
+    assert [m['id'] for m in row['afc_exam_jurys']['ssiap1']] == ['j1', 'j2']
+    assert row['afc_exam_jurys']['ssiap1'][1]['jury_sync']['status'] == 'synced'
+    html = client.get('/sessions/S').get_data(as_text=True)
+    assert 'Notifier le jury APS' in html and 'Notifier le jury SSIAP 1' in html and 'Jurés à rattacher' in html
+    with client.session_transaction() as auth:
+        nonce = auth['jury_link_nonce']
+    client.post(ROOT + '/j3/affecter', data={'csrf': nonce, 'examen': 'aps'})
+    assert [m['id'] for m in snapshot()['afc_exam_jurys']['aps']] == ['j3']
+    assert client.post('/jury-response/S/j1/present?token=original').status_code == 200
+    selector = api.call_args.kwargs['json']['session']
+    assert selector['level'] == 'SSIAP 1' and selector['exam_date'] == '2027-04-20'
+    email.assert_not_called()
+    sms.assert_not_called()
+
+
+def test_afc_missing_or_ambiguous_dates_do_not_choose_an_exam(afc):
+    client, email, sms, api = afc
+    data = app.load_sessions()
+    row = data['sessions'][0]
+    row['apsPlanningData'] = [{'date': row['date_exam'], 'slots': [{'uv': 'EXAM_APS'}, {'uv': 'EXAM_SSIAP1'}]}]
+    row['jurys'] = [{**CONTACT, 'status': 'present', 'token': 'legacy'}]
+    app.save_sessions(data)
+    flow.migrate_afc_jurys(app)
+    assert snapshot()['afc_exam_jurys']['unassigned'][0]['id'] == 'j1'
+    scan(NOW)
+    data = app.load_sessions()
+    data['sessions'][0]['apsPlanningData'] = []
+    app.save_sessions(data)
+    r = client.post(ROOT + '/preview', data={'jury_ids': ['j1'], 'channels': ['email'], 'examen': 'aps'})
+    assert r.status_code == 302
+    api.assert_not_called()
+    email.assert_not_called()
+    sms.assert_not_called()
+
+
+def test_afc_changed_date_invalidates_an_existing_preview(afc):
+    client, email, sms, _ = afc
+    _, ticket = preview(client, exam='aps')
+    data = app.load_sessions()
+    data['sessions'][0]['apsPlanningData'][0]['date'] = '2027-04-04'
+    app.save_sessions(data)
+    client.post(ROOT + '/notify', data={'preview': ticket})
+    email.assert_not_called()
+    sms.assert_not_called()
+
+
+def test_same_contact_can_be_added_to_both_afc_juries(afc):
+    client, email, sms, _ = afc
+    fields = {key: CONTACT[key] for key in ('nom', 'prenom', 'email', 'telephone')}
+    for key in ('aps', 'ssiap1', 'aps'):
+        assert client.post(ROOT + '/add', data={**fields, 'examen': key}).status_code == 302
+    groups = snapshot()['afc_exam_jurys']
+    assert [m['id'] for m in groups['aps']] == [m['id'] for m in groups['ssiap1']] == ['j1']
+    assert groups['aps'][0]['token'] != groups['ssiap1'][0]['token']
+    email.assert_not_called()
+    sms.assert_not_called()

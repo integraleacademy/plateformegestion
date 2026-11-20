@@ -723,126 +723,7 @@ a.back:hover{ background:#d9a848 !important; }
 
 {% include 'session_overview.html' %}
 
-<section class="jury-panel" id="jury-section" data-sheet-panel="jury-section">
-  <div class="jury-header">
-    <h2 style="margin:0;">Jury d’examen</h2>
-    {{ jury_presence(s) }}
-    {% if s.jury_notification_status == "notified" %}
-      <span class="jury-label notified">Jury notifié</span>
-    {% else %}
-      {{ attention('Jury à notifier') }}
-    {% endif %}
-    <button class="btn gold" id="openJuryModal" type="button">Notifier le jury</button>
-  </div>
-
-  {% if s.jurys %}
-    <ul class="jury-list">
-      {% for jury in s.jurys %}
-        <li class="jury-item">
-          <div>
-            <div class="jury-name">{{ jury.prenom }} {{ jury.nom }}</div>
-            {% if jury.status == 'present' %}
-              {% set sync = jury.jury_sync or {} %}
-              {% if sync.status == 'synced' %}<small class="jury-sync-ok">Ajouté dans Organisation et jury</small>
-              {% else %}<small class="jury-sync-info">{{ sync.error or 'Ajout dans Organisation et jury en attente' }}</small>{% endif %}
-            {% endif %}
-            <div class="muted" style="font-size:12px;">
-              {{ jury.email }}{% if jury.telephone %} • {{ jury.telephone }}{% endif %}
-            </div>
-          </div>
-          <div class="jury-actions">
-            {% if jury.status == "present" %}
-              <span class="jury-status present">jury présent</span>
-              {% if (jury.jury_sync or {}).get('status') != 'synced' %}
-                <form method="post" action="{{ url_for('retry_jury_sync', sid=s.id, jid=jury.id) }}">
-                  <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
-                  <button type="submit" class="btn small">Réessayer la synchronisation</button>
-                </form>
-              {% endif %}
-            {% elif jury.status == "absent" %}
-              <span class="jury-status absent">jury absent</span>
-            {% else %}
-              <span class="jury-status pending">{{ 'en attente de réponse' if jury.notified_at else 'à inviter' }}</span>
-            {% endif %}
-            <form method="post" action="{{ url_for('delete_jury', sid=s.id, jid=jury.id) }}#jury-section" onsubmit="return confirm('Supprimer ce jury ?');">
-              <button type="submit" class="btn small danger">Supprimer</button>
-            </form>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted" style="margin-top:12px;">Aucun jury enregistré pour cette session.</p>
-  {% endif %}
-{% if s.jurys|selectattr('status','equalto','present')|list %}
-  <details class="jury-association"><summary>Session associée dans Gestion des stagiaires</summary>
-    <form method="post" action="{{ url_for('link_jury_session', sid=s.id) }}">
-      <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
-      <label>Identifiant ou lien de la session
-        <input type="text" name="target" value="{{ s.jury_target_id or s.afcAttendanceSourceSessionId or '' }}" placeholder="Association automatique par formation et dates">
-      </label>
-      <button class="btn small" type="submit">Enregistrer</button>
-    </form>
-  </details>
-  {% endif %}
-</section>
-
-<div class="modal" id="juryModal" data-session-window="Jury d’examen" role="dialog" aria-modal="true" aria-labelledby="juryModalTitle" aria-hidden="true">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="juryModalTitle" style="margin:0;"><span class="window-context">Jury d’examen · {{ s.display_name or s.formation }}</span>Notifier le jury</h3>
-      <button class="modal-close" type="button" id="closeJuryModal" aria-label="Fermer">×</button>
-    </div>
-
-    <form method="post" action="{{ url_for('preview_jury', sid=s.id) }}">
-      <p class="muted">Sélectionnez un ou plusieurs jurys à notifier.</p>
-      {% if global_jurys %}
-        <div class="jury-checklist">
-          {% for jury in global_jurys %}
-            {% set session_jury = session_jurys_by_id.get(jury.id) %}
-            <label>
-              <input type="checkbox" name="jury_ids" value="{{ jury.id }}" {% if session_jury and session_jury.status in ('present', 'absent') %}disabled{% endif %}>
-              <span class="jury-identity"><b>{{ jury.prenom }} {{ jury.nom }}</b><small>{{ jury.email or "Email manquant" }}</small></span>
-              {% if session_jury %}
-                {% if session_jury.status == "present" %}
-                  <span class="jury-status present" style="margin-left:6px;">déjà répondu (présent)</span>
-                {% elif session_jury.status == "absent" %}
-                  <span class="jury-status absent" style="margin-left:6px;">déjà répondu (absent)</span>
-                {% else %}
-                  <span class="jury-status pending" style="margin-left:6px;">{{ 'invitation déjà envoyée' if session_jury.notified_at else 'à inviter' }}</span>
-                {% endif %}
-              {% else %}
-                <span class="jury-status pending" style="margin-left:6px;">disponible</span>
-              {% endif %}
-            </label>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="muted">Aucun jury disponible. Ajoutez-en un ci-dessous.</p>
-      {% endif %}
-      <fieldset class="jury-channels"><legend>Canaux d’envoi</legend>
-        <label><input type="checkbox" name="channels" value="email" checked> E-mail</label>
-        <label><input type="checkbox" name="channels" value="sms" checked> SMS</label>
-      </fieldset>
-      <button type="submit" class="btn gold">Prévisualiser les messages</button>
-    </form>
-
-    <hr style="margin:20px 0;">
-
-    <button type="button" class="btn" id="toggleAddJury">➕ Ajouter un nouveau jury</button>
-    <form method="post" action="{{ url_for('add_jury', sid=s.id) }}#jury-section" id="addJuryForm" style="display:none;">
-      <div class="jury-form-grid">
-        <input type="text" name="nom" placeholder="Nom" required>
-        <input type="text" name="prenom" placeholder="Prénom" required>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="text" name="telephone" placeholder="Téléphone" required>
-      </div>
-      <div style="margin-top:12px;">
-        <button type="submit" class="btn">Ajouter</button>
-      </div>
-    </form>
-  </div>
-</div>
+{% include 'session_jury.html' %}
 
 <!-- ===================== PLANNING PDF ===================== -->
 <section class="planning-box" id="planning-section" data-sheet-panel="planning-section">
@@ -1912,33 +1793,24 @@ document.getElementById("toggleAllBtn")?.addEventListener("click", ()=>{
   });
 });
 
-// Jury modal
-const juryModal = document.getElementById("juryModal");
-const openJuryModal = document.getElementById("openJuryModal");
-const closeJuryModal = document.getElementById("closeJuryModal");
-const toggleAddJury = document.getElementById("toggleAddJury");
-const addJuryForm = document.getElementById("addJuryForm");
-
-openJuryModal?.addEventListener("click", () => {
-  juryModal?.classList.add("open");
-  juryModal?.setAttribute("aria-hidden", "false");
-});
-closeJuryModal?.addEventListener("click", () => {
-  juryModal?.classList.remove("open");
-  juryModal?.setAttribute("aria-hidden", "true");
-});
-
-juryModal?.addEventListener("click", (event) => {
-  if (event.target === juryModal) {
-    juryModal.classList.remove("open");
-    juryModal.setAttribute("aria-hidden", "true");
-  }
-});
-
-toggleAddJury?.addEventListener("click", () => {
-  if (!addJuryForm) return;
-  const isHidden = addJuryForm.style.display === "none" || !addJuryForm.style.display;
-  addJuryForm.style.display = isHidden ? "block" : "none";
+document.querySelectorAll('[data-jury-open]').forEach(button => {
+  const modal = document.getElementById(button.getAttribute('aria-controls'));
+  const closeButton = modal.querySelector('[data-jury-close]');
+  const close = () => {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    button.focus();
+  };
+  button.addEventListener('click', () => {
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    closeButton.focus();
+  });
+  closeButton.addEventListener('click', close);
+  modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  modal.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+  const form = modal.querySelector('[data-jury-add-form]');
+  modal.querySelector('[data-jury-add]').addEventListener('click', () => { form.hidden = !form.hidden; });
 });
 
 // Génération planning APS

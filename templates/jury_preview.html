@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/jury-preview.css') }}"></head>
 <body><main>
 <a class="back" href="{{ url_for('session_detail', sid=training.id, _anchor='jury-section') }}">← Retour au jury</a>
-<header><p class="course">{{ training.display_name or training.formation|formation_label }}</p><h1>Aperçu avant envoi</h1>
+<header><p class="course">{{ training.display_name or training.formation|formation_label }}{% if training.jury_exam_label %} · Examen {{ training.jury_exam_label }} · {{ training.date_exam|datefr }}{% endif %}</p><h1>Aperçu avant envoi</h1>
 <p>Vérifiez les destinataires et les messages. Chaque juré pourra confirmer sa disponibilité depuis son lien personnel.</p></header>
 {% macro content(item, msg) %}
 {% if 'email' in item.channels %}

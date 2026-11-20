@@ -20,9 +20,10 @@
 <body>
   <div class="card">
     <div class="status {{ response }}">{{ "Jury présent" if response == "present" else "Jury absent" }}</div>
+    {% if session.jury_exam_label %}<p><strong>{{ session.jury_exam_label }}</strong>{% if session.date_exam %} · {{ session.date_exam|datefr }}{% endif %}</p>{% endif %}
     {% if choosing %}
       <h1>{{ 'Confirmer ma présence' if response == 'present' else 'Signaler mon indisponibilité' }}</h1>
-      <p>{{ session.display_name or session.formation|formation_label }}{% if session.date_exam %} · {{ session.date_exam|datefr }}{% endif %}</p>
+      <p>{{ session.display_name or session.formation|formation_label }}{% if session.date_exam and not session.jury_exam_label %} · {{ session.date_exam|datefr }}{% endif %}</p>
       <form method="post"><button class="confirm" type="submit">{{ 'Je confirme ma présence' if response == 'present' else 'Je confirme mon indisponibilité' }}</button></form>
     {% elif already_responded %}
       <h1>Vous avez déjà répondu</h1>

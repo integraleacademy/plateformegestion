@@ -1,4 +1,4 @@
-{% from 'session_visuals.html' import icon, milestones, attention, jury_presence %}
+{% from 'session_visuals.html' import icon, milestones, attention, jury_summary %}
 {% set task_total = statuses|length %}
 {% set done = s.steps|selectattr('done')|list|length %}
 {% set late = statuses|selectattr('status','equalto','late')|list|length %}
@@ -22,8 +22,8 @@
       {% endif %}
       <a class="summary-tile jury-tile" href="#jury-section">
         <span class="overview-label">{{ icon('users') }} Jury d’examen</span>
-        {{ jury_presence(s) }}
-        <span class="tile-foot">{{ 'Jury notifié' if s.jury_notification_status == 'notified' else attention('Jury à notifier') }}</span>
+        {{ jury_summary(s) }}
+        {% if s.jury_notification_status == 'notified' and not s.afc_exam_jurys %}<span class="tile-foot">Jury notifié</span>{% endif %}
       </a>
     </div>
   </div>

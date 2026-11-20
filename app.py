@@ -46,7 +46,7 @@ from services.session_storage import (
     SessionStorageError, SessionStorageConflict, load_session_store,
     save_session_store, storage_diagnostics,
 )
-from services import jury_workflow
+from services import jury_exams, jury_workflow
 from services.session_location import training_location, update_training_location
 from services.aps_day_distribution import grouped_day_minutes
 from services.afc_sst_planning import group_afc_sst_days, validate_afc_sst_days, is_afc_sst_slot
@@ -6285,7 +6285,7 @@ def start_price_adaptator_scheduler():
 def ensure_jury_defaults(session):
     session.setdefault("jurys", [])
     session.setdefault("jury_notification_status", "to_notify")
-    for jury in session["jurys"]:
+    for jury in session_jury_members(session):
         # URL path parameters are strings.  Normalize legacy numeric ids here so
         # that a jury rendered in the page can also be found by POST handlers.
         jury["id"] = str(jury.get("id") or str(uuid.uuid4())[:8])
@@ -6293,6 +6293,11 @@ def ensure_jury_defaults(session):
         jury.setdefault("token", str(uuid.uuid4()))
         jury.setdefault("notified_at", None)
         jury.setdefault("reminded_at", None)
+
+def session_jury_members(training):
+    yield from training.get("jurys", [])
+    for members in training.get("afc_exam_jurys", {}).values():
+        yield from members
 
 def ensure_global_jury_defaults(data):
     data.setdefault("jurys", [])
@@ -6315,7 +6320,7 @@ def find_global_jury_by_id(data, jury_id):
 def sync_global_jurys(data):
     ensure_global_jury_defaults(data)
     for session in data.get("sessions", []):
-        for jury in session.get("jurys", []):
+        for jury in session_jury_members(session):
             if not jury.get("email") and not jury.get("id"):
                 continue
             existing = find_global_jury_by_email(data, jury.get("email"))
@@ -7776,7 +7781,7 @@ def session_detail(sid):
         ft_roster_enabled=bool(os.environ.get("AFC_ATTENDANCE_SYNC_TOKEN", "").strip()),
         jury_link_csrf=jury_link_nonce(),
         global_jurys=data.get("jurys", []),
-        session_jurys_by_id={j.get("id"): j for j in session.get("jurys", [])},
+        jury_examinations=jury_exams.views(sys.modules[__name__], session, include_unassigned=True),
         statuses=statuses,
         order=order,
         now=datetime.now,
@@ -8028,56 +8033,39 @@ def api_afc_dsf_cancel(sid, dsf_id):
 
 @app.route("/sessions/<sid>/jury/add", methods=["POST"])
 def add_jury(sid):
-    data = load_sessions()
-    session = find_session(data, sid)
-    if not session:
-        abort(404)
-    ensure_jury_defaults(session)
-    ensure_global_jury_defaults(data)
-    sync_global_jurys(data)
-    nom = request.form.get("nom", "").strip()
-    prenom = request.form.get("prenom", "").strip()
-    email = request.form.get("email", "").strip()
-    telephone = request.form.get("telephone", "").strip()
-    if not nom or not prenom:
+    fields = {key: request.form.get(key, "").strip() for key in ("nom", "prenom", "email", "telephone")}
+    if not fields["nom"] or not fields["prenom"]:
         flash("Nom et prénom du jury requis.", "error")
-        return redirect(url_for("session_detail", sid=sid))
-    existing_global = find_global_jury_by_email(data, email)
-    if existing_global:
-        existing_global.update({
-            "nom": nom or existing_global.get("nom", ""),
-            "prenom": prenom or existing_global.get("prenom", ""),
-            "email": email or existing_global.get("email", ""),
-            "telephone": telephone or existing_global.get("telephone", ""),
-        })
-        jury_id = existing_global["id"]
+        return redirect(url_for("session_detail", sid=sid, _anchor="jury-section"))
+
+    exam_key = request.form.get("examen", "")
+    def add(data):
+        training = find_session(data, sid)
+        if not training:
+            abort(404)
+        ensure_jury_defaults(training)
+        sync_global_jurys(data)
+        exam = jury_exams.select(sys.modules[__name__], training, exam_key)
+        if exam is None:
+            abort(400, "Choisissez le jury APS ou le jury SSIAP 1.")
+        person = find_global_jury_by_email(data, fields["email"])
+        if person:
+            person.update({key: value for key, value in fields.items() if value})
+        else:
+            person = {"id": str(uuid.uuid4())[:8], **fields}
+            data["jurys"].append(person)
+        if jury_workflow.assigned(exam, person["id"]):
+            return False
+        exam["jurys"].append({"id": person["id"], **fields, "status": "pending", "token": str(uuid.uuid4()),
+                              "notified_at": None, "reminded_at": None})
+        return True
+
+    added = jury_workflow.edit(sys.modules[__name__], add)
+    if added:
+        flash("Jury ajouté.", "success")
     else:
-        jury_id = str(uuid.uuid4())[:8]
-        data["jurys"].append({
-            "id": jury_id,
-            "nom": nom,
-            "prenom": prenom,
-            "email": email,
-            "telephone": telephone,
-        })
-    if any(j.get("id") == jury_id for j in session["jurys"]):
-        flash("Ce jury est déjà associé à la session.", "info")
-        save_sessions(data)
-        return redirect(url_for("session_detail", sid=sid))
-    session["jurys"].append({
-        "id": jury_id,
-        "nom": nom,
-        "prenom": prenom,
-        "email": email,
-        "telephone": telephone,
-        "status": "pending",
-        "token": str(uuid.uuid4()),
-        "notified_at": None,
-        "reminded_at": None,
-    })
-    save_sessions(data)
-    flash("Jury ajouté.", "success")
-    return redirect(url_for("session_detail", sid=sid))
+        flash("Ce juré est déjà associé à cet examen.", "info")
+    return redirect(url_for("session_detail", sid=sid, _anchor="jury-section"))
 
 
 @app.route("/sessions/<sid>/jury/<jid>/delete", methods=["POST"])
@@ -8087,16 +8075,20 @@ def delete_jury(sid, jid):
         if not training:
             abort(404)
         ensure_jury_defaults(training)
-        before = len(training["jurys"])
-        training["jurys"] = [j for j in training["jurys"] if j.get("id") != jid]
-        return before == len(training["jurys"])
+        exam = jury_exams.select(sys.modules[__name__], training, request.form.get("examen", ""), include_unassigned=True)
+        if exam is None:
+            abort(400, "Choisissez l’examen du juré à supprimer.")
+        member = jury_workflow.assigned(exam, jid)
+        if member is not None:
+            exam["jurys"].remove(member)
+        return member is None
     with jury_workflow.member_lock(sys.modules[__name__], sid, jid):
         missing = jury_workflow.edit(sys.modules[__name__], remove)
     if missing:
         flash("Jury introuvable.", "error")
     else:
         flash("Jury supprimé.", "success")
-    return redirect(url_for("session_detail", sid=sid))
+    return redirect(url_for("session_detail", sid=sid, _anchor="jury-section"))
 
 
 # ------------------------------------------------------------
@@ -14044,6 +14036,10 @@ register_shared_rooms(app, load_sessions, save_sessions, SESSIONS_FILE)
 from services.personal_planner import register as register_personal_planner
 register_personal_planner(app, DATA_DIR, load_sessions, session_modality_date_range)
 
+try:
+    jury_workflow.migrate_afc_jurys(sys.modules[__name__])
+except Exception:
+    app.logger.exception("JURY_AFC_MIGRATION_FAILED")
 jury_workflow.register(app, sys.modules[__name__])
 
 # Start only after saved-planning migrations have completed.

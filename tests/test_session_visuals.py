@@ -96,6 +96,7 @@ def test_ssiap_jury_threshold(formation, name, statuses, label):
         badge = app.app.jinja_env.get_template('session_visuals.html').module.jury_presence(row)
     assert label in badge
     assert ('jury-complete' in badge) == label.startswith('Jury complet')
+    assert ('Jury à notifier' in badge) != label.startswith('Jury complet')
 
 
 def test_afc_ssiap_jury_is_complete_while_aps_still_needs_another_member(monkeypatch):

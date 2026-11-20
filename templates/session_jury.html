@@ -14,9 +14,7 @@
         {% endif %}
       </div>
       {% if exam.jury_exam_key != 'unassigned' %}
-        {{ jury_presence(exam) }}
-        {% if exam.jury_notification_status == 'notified' %}<span class="jury-label notified">Jury notifié</span>
-        {% else %}{{ attention('Jury à notifier') }}{% endif %}
+        {{ jury_presence(exam, show_notified=true) }}
         <button class="btn gold" type="button" data-jury-open aria-controls="juryModal{{ suffix }}">Notifier le jury{% if exam.jury_exam_label %} {{ exam.jury_exam_label }}{% endif %}</button>
       {% endif %}
     </div>

@@ -6,7 +6,7 @@
   <span class="session-alert"><span aria-hidden="true">⚠️</span> {{ label }}</span>
 {%- endmacro %}
 
-{% macro jury_presence(s) -%}
+{% macro jury_presence(s, show_notified=false) -%}
   {% set required = 1 if jury_exam_level(s) == 'SSIAP 1' else 2 %}
   {% set members = s.jurys or [] %}
   {% set present = members|selectattr('status','equalto','present')|list|length %}
@@ -23,13 +23,15 @@
     {% endif %}
   </span>
   <span class="jury-waiting"><b>{{ waiting }}</b> en attente de réponse</span>
+  {% if s.jury_notification_status == 'notified' %}
+    {% if show_notified %}<span class="jury-label notified">Jury notifié</span>{% endif %}
+  {% elif not (required == 1 and complete) %}{{ attention('Jury à notifier') }}{% endif %}
 {%- endmacro %}
 
 {% macro jury_summary(s) -%}
   {% for exam in jury_exam_views(s) %}
     {% if exam.jury_exam_label %}<span class="jury-summary-exam"><strong>{{ exam.jury_exam_label }}</strong>{% endif %}
     {{ jury_presence(exam) }}
-    {% if exam.jury_notification_status != 'notified' %}{{ attention('Jury à notifier') }}{% endif %}
     {% if exam.jury_exam_label %}</span>{% endif %}
   {% endfor %}
 {%- endmacro %}

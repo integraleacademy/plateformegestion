@@ -1,6 +1,22 @@
 """Keep each jury attached to one examination of an AFC training session."""
+import re
 
 AFC_EXAMS = {'aps': ('APS', 'EXAM_APS'), 'ssiap1': ('SSIAP 1', 'EXAM_SSIAP1')}
+
+
+def level(services, training):
+    if services.is_afc_aps_ssiap_session(training):
+        key = training.get('jury_exam_key')
+        return AFC_EXAMS[key][0] if key in AFC_EXAMS else ''
+    code = str(training.get('formation') or '').upper()
+    if 'SSIAP' in code and 'AFC' not in code:
+        # A legacy "SSIAP" session can specify its level in its display name.
+        descriptor = (training.get('display_name') or '') + ' ' + code
+        number = re.search(r'SSIAP\s*([123])', descriptor, re.I)
+        return 'SSIAP ' + (number.group(1) if number else '1')
+    if services.is_ssiap1_session(training):
+        return 'SSIAP 1'
+    return {'APS': 'APS', 'A3P': 'A3P', 'DIRIGEANT': 'DESP initial', 'DESP': 'DESP initial'}.get(code, '')
 
 
 def exam_dates(services, training):

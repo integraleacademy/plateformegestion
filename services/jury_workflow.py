@@ -108,19 +108,11 @@ def contact(services, data, training, jid):
 
 
 def exam_selector(services, training):
-    code = str(training.get('formation') or '').upper()
-    level = {'APS': 'APS', 'A3P': 'A3P', 'DIRIGEANT': 'DESP initial', 'DESP': 'DESP initial'}.get(code, '')
-    if 'SSIAP' in code and 'AFC' not in code:
-        descriptor = (training.get('display_name') or '') + ' ' + code
-        number = re.search(r'SSIAP\s*([123])', descriptor, re.I)
-        level = 'SSIAP ' + (number.group(1) if number else '1')
+    level = jury_exams.level(services, training)
     when = services.session_input_date(training.get('date_exam'))
     afc = services.is_afc_aps_ssiap_session(training)
-    if afc:
-        key = training.get('jury_exam_key')
-        if key not in jury_exams.AFC_EXAMS or not when:
-            raise ValueError('Précisez l’examen et sa date dans le planning AFC.')
-        level = jury_exams.AFC_EXAMS[key][0]
+    if afc and (not level or not when):
+        raise ValueError('Précisez l’examen et sa date dans le planning AFC.')
     return {'source_id': str(training['id']), 'level': level, 'afc': afc,
             'site': str(training.get('dirigeant_location') or '').lower() if level == 'DESP initial' else '',
             'target_id': training.get('jury_target_id') or (training.get('afcAttendanceSourceSessionId') if afc else '') or '',
@@ -403,6 +395,7 @@ def register(app, services):
     probe_lock = threading.Lock()
     probe = {'checked': float('-inf'), 'ready': False}
     app.jinja_env.globals['jury_exam_views'] = lambda row: jury_exams.views(services, row)
+    app.jinja_env.globals['jury_exam_level'] = lambda row: jury_exams.level(services, row)
 
     @app.before_request
     def ensure_jury_worker():

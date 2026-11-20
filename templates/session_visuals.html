@@ -7,7 +7,7 @@
 {%- endmacro %}
 
 {% macro jury_presence(s) -%}
-  {% set required = 2 %}
+  {% set required = 1 if jury_exam_level(s) == 'SSIAP 1' else 2 %}
   {% set members = s.jurys or [] %}
   {% set present = members|selectattr('status','equalto','present')|list|length %}
   {% set absent = members|selectattr('status','equalto','absent')|list|length %}
@@ -16,7 +16,11 @@
   <span class="jury-presence {{ 'jury-complete' if complete else 'session-alert' }}"
         title="Membres du jury · Présents : {{ present }} · Absents : {{ absent }} · En attente de réponse : {{ waiting }}">
     <span aria-hidden="true">{{ '✓' if complete else '⚠️' }}</span>
-    <span>Jurys {% if present > required %}{{ present }} présents ({{ required }} attendus){% else %}{{ present }}/{{ required }} présents{% endif %}</span>
+    {% if required == 1 %}
+      <span>{% if complete %}Jury complet · {% endif %}{% if present > 1 %}{{ present }} présents (1 attendu){% else %}{{ present }}/1 présent{% endif %}</span>
+    {% else %}
+      <span>Jurys {% if present > required %}{{ present }} présents ({{ required }} attendus){% else %}{{ present }}/{{ required }} présents{% endif %}</span>
+    {% endif %}
   </span>
   <span class="jury-waiting"><b>{{ waiting }}</b> en attente de réponse</span>
 {%- endmacro %}

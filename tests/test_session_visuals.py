@@ -81,3 +81,37 @@ def test_jury_badge_on_cards_overview_and_jury_tab(monkeypatch, states, label, t
             assert html.count(f'<span>{label}</span>') == occurrences
             assert f'Absents : {states.count("absent")}' in html
             assert f'En attente de réponse : {states.count("pending")}' in html
+
+
+@pytest.mark.parametrize(('formation', 'name', 'statuses', 'label'), [
+    ('SSIAP1', '', ['pending', 'absent'], '0/1 présent'),
+    ('SSIAP', 'SSIAP 1 novembre', ['present', 'pending'], 'Jury complet · 1/1 présent'),
+    ('SSIAP 1', '', ['present', 'present'], 'Jury complet · 2 présents (1 attendu)'),
+    ('SSIAP', 'SSIAP 2 novembre', ['present'], 'Jurys 1/2 présents'),
+    ('SSIAP3', '', ['present'], 'Jurys 1/2 présents'),
+])
+def test_ssiap_jury_threshold(formation, name, statuses, label):
+    row = dict(formation=formation, display_name=name, jurys=[dict(status=s) for s in statuses])
+    with app.app.test_request_context():
+        badge = app.app.jinja_env.get_template('session_visuals.html').module.jury_presence(row)
+    assert label in badge
+    assert ('jury-complete' in badge) == label.startswith('Jury complet')
+
+
+def test_afc_ssiap_jury_is_complete_while_aps_still_needs_another_member(monkeypatch):
+    member = dict(id='j', status='present')
+    row = dict(id='afc', formation='AFC_APS_SSIAP', date_debut='2099-01-04', date_fin='2099-03-01',
+               date_exam='2099-03-01', steps=[], jurys=[],
+               afc_exam_jurys={'aps': [dict(member)], 'ssiap1': [dict(member)]})
+    monkeypatch.setattr(app, 'load_sessions', lambda: dict(sessions=[row], jurys=[]))
+    monkeypatch.setattr(app, 'save_sessions', lambda data: None)
+    with app.app.test_client() as client:
+        with client.session_transaction() as auth:
+            auth.update(admin_logged=True, admin_session_version=app.ADMIN_SESSION_VERSION)
+        for path, count in [('/sessions?statut=a-venir', 1), ('/sessions/afc', 2)]:
+            response = client.get(path)
+            assert response.status_code == 200
+            html = response.get_data(as_text=True)
+            assert html.count('Jury complet · 1/1 présent') == count
+            assert html.count('Jurys 1/2 présents') == count
+            assert html.count('class="jury-presence jury-complete"') == count

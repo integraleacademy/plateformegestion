@@ -14045,7 +14045,6 @@ from services.personal_planner import register as register_personal_planner
 register_personal_planner(app, DATA_DIR, load_sessions, session_modality_date_range)
 
 jury_workflow.register(app, sys.modules[__name__])
-jury_workflow.start(app, sys.modules[__name__])
 
 # Start only after saved-planning migrations have completed.
 start_sst_certificate_reminder_scheduler()

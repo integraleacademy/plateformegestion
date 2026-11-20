@@ -28,6 +28,7 @@ DESTINATION = 'https://gestionstagiaires-r5no.onrender.com/api/integrations/plat
 CHANNELS = {'email': 'E-mail', 'sms': 'SMS'}
 STAGES = ('invitation', '24h', '48h')
 FOLLOW_UPS = STAGES[1:]
+_worker_guard = threading.Lock()
 
 
 def utcnow():
@@ -54,7 +55,10 @@ def member_lock(services, sid, jid):
     directory.mkdir(exist_ok=True)
     with (directory / fingerprint([sid, jid])).open('a') as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
-        yield
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def edit(services, change):
@@ -258,6 +262,7 @@ def sync_member(services, training, member, now):
     # Called with this member's lock. The receiver deduplicates by source IDs.
     key = integration_key()
     result = {'at': now.isoformat()}
+    http_status = None
     try:
         if not key:
             raise ValueError('La liaison avec Gestion des stagiaires est à configurer.')
@@ -266,6 +271,7 @@ def sync_member(services, training, member, now):
                         email=member.get('email') or '', phone=member.get('telephone') or '')
         reply = requests.post(DESTINATION, json={'session': selector, 'member': identity},
                               headers={'Authorization': 'Bearer ' + key}, timeout=(3, 8), allow_redirects=False)
+        http_status = reply.status_code
         if reply.status_code in (400, 409):
             raise ValueError(reply.json().get('error') or 'Vérifiez la session associée.')
         reply.raise_for_status()
@@ -274,7 +280,10 @@ def sync_member(services, training, member, now):
             raise ValueError('La plateforme n’a pas confirmé l’enregistrement.')
         result.update(status='synced', target_id=body['session_id'])
     except requests.RequestException:
-        result.update(status='pending', error='Liaison indisponible. Nouvel essai automatique dans 15 minutes.')
+        previous_delay = (member.get('jury_sync') or {}).get('retry_minutes', 0)
+        delay = min(15, max(1, 2 * previous_delay))
+        result.update(status='pending', retry_minutes=delay,
+                      error=f'Liaison indisponible. Nouvel essai automatique dans {delay} minute' + ('s.' if delay > 1 else '.'))
     except ValueError as exc:
         result.update(status='pending', error=str(exc)[:200])
     def finish(data):
@@ -283,7 +292,8 @@ def sync_member(services, training, member, now):
         if current and current.get('status') == 'present':
             current['jury_sync'] = result
     edit(services, finish)
-    LOG.info('JURY_SYNC session=%s status=%s', training['id'], result['status'])
+    LOG.info('JURY_SYNC session=%s status=%s http=%s target=%s',
+             training['id'], result['status'], http_status, result.get('target_id', ''))
     return result
 
 
@@ -294,7 +304,7 @@ def needs_sync(services, training, member, now):
     if sync.get('status') == 'synced' or (not sync and closed(services, training, now)):
         return False
     last = instant(sync.get('at'))
-    return not last or now - last >= timedelta(minutes=15)
+    return not last or now - last >= timedelta(minutes=sync.get('retry_minutes', 15))
 
 
 def scan(services, now=None):
@@ -319,31 +329,50 @@ def scan(services, now=None):
                     deliver(services, sid, member, stage, channel, content, secrets.token_hex(12), now)
 
 
+def scan_once(app, services):
+    with (Path(services.DATA_DIR) / 'jury_scan.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        try:
+            with app.app_context():
+                scan(services)
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
 def start(app, services):
     if not services.IS_RENDER:
         return
+
     def worker():
-        path = Path(services.DATA_DIR) / 'jury_scan.lock'
-        LOG.info('JURY_WORKER_STARTED interval=60 sync_configured=%s', bool(integration_key()))
+        LOG.info('JURY_WORKER_STARTED pid=%s interval=60 sync_configured=%s', os.getpid(), bool(integration_key()))
         while True:
             try:
-                with path.open('a') as lock:
-                    try:
-                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    except BlockingIOError:
-                        pass
-                    else:
-                        with app.app_context():
-                            scan(services)
+                scan_once(app, services)
             except Exception:
                 LOG.exception('JURY_SCAN_FAILED')
-            threading.Event().wait(60)
-    threading.Thread(target=worker, name='jury-followups', daemon=True).start()
+            time.sleep(60)
+
+    with _worker_guard:
+        pid = os.getpid()
+        registered = app.extensions.get('jury_worker')
+        if registered and registered[0] == pid and registered[1].is_alive():
+            return
+        thread = threading.Thread(target=worker, name='jury-followups', daemon=True)
+        thread.start()
+        app.extensions['jury_worker'] = (pid, thread)
 
 
 def register(app, services):
     probe_lock = threading.Lock()
     probe = {'checked': float('-inf'), 'ready': False}
+
+    @app.before_request
+    def ensure_jury_worker():
+        # Also support WSGI hosts that don't load this project's Gunicorn hook.
+        start(app, services)
 
     @app.get('/healthz/jury-sync')
     def jury_sync_health():
@@ -452,11 +481,31 @@ def register(app, services):
                                response=member['status'] if already else response, already_responded=already), 200, {
                                    'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'}
 
-    @app.post('/sessions/<sid>/jury/association')
-    def link_jury_session(sid):
+    def check_admin_nonce():
         csrf = session.get('jury_link_nonce') or ''
         if not csrf or not hmac.compare_digest(csrf.encode(), (request.form.get('csrf') or '').encode()):
             abort(403)
+
+    @app.post('/sessions/<sid>/jury/<jid>/synchroniser')
+    def retry_jury_sync(sid, jid):
+        check_admin_nonce()
+        with member_lock(services, sid, jid):
+            row = training_for(services.load_sessions(), sid)
+            member = assigned(row, jid)
+            if not member or member.get('status') != 'present':
+                abort(404)
+            result = member.get('jury_sync') or {}
+            if result.get('status') != 'synced':
+                result = sync_member(services, row, member, utcnow())
+        if result['status'] == 'synced':
+            flash('Présence enregistrée dans Organisation et jury.', 'success')
+        else:
+            flash(result['error'], 'error')
+        return back(sid)
+
+    @app.post('/sessions/<sid>/jury/association')
+    def link_jury_session(sid):
+        check_admin_nonce()
         try:
             target = services.parse_source_session(request.form.get('target'))
         except ValueError as exc:

@@ -753,6 +753,12 @@ a.back:hover{ background:#d9a848 !important; }
           <div class="jury-actions">
             {% if jury.status == "present" %}
               <span class="jury-status present">jury présent</span>
+              {% if (jury.jury_sync or {}).get('status') != 'synced' %}
+                <form method="post" action="{{ url_for('retry_jury_sync', sid=s.id, jid=jury.id) }}">
+                  <input type="hidden" name="csrf" value="{{ jury_link_csrf }}">
+                  <button type="submit" class="btn small">Réessayer la synchronisation</button>
+                </form>
+              {% endif %}
             {% elif jury.status == "absent" %}
               <span class="jury-status absent">jury absent</span>
             {% else %}

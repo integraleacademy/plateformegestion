@@ -2,7 +2,10 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from html import unescape
+import os
+from pathlib import Path
 import re
+import runpy
 from unittest.mock import Mock
 
 import pytest
@@ -152,8 +155,9 @@ def test_existing_present_retries_sync_and_worker_never_sends_to_unsolicited_jur
     api.side_effect = [flow.requests.Timeout(), Mock(status_code=200, json=lambda: {'ok': True, 'session_id': 'destination'})]
     scan(NOW)
     assert snapshot()['jurys'][0]['jury_sync']['status'] == 'pending'
-    scan(NOW + timedelta(minutes=5))
-    scan(NOW + timedelta(minutes=16))
+    scan(NOW + timedelta(seconds=59))
+    assert api.call_count == 1
+    scan(NOW + timedelta(minutes=1))
     assert snapshot()['jurys'][0]['jury_sync']['target_id'] == 'destination'
     scan(NOW + timedelta(days=3))
     assert api.call_count == 2 and email.call_count == sms.call_count == 0
@@ -184,3 +188,64 @@ def test_outage_paces_overdue_messages_and_respects_closed_sessions(case):
     app.save_sessions(data)
     scan(NOW + timedelta(hours=90))
     assert email.call_count == 2
+
+
+def test_admin_retry_only_transfers_a_confirmed_member_once(case):
+    client, email, sms, api = case
+    data = app.load_sessions()
+    data['sessions'][0]['jurys'] = [
+        {**CONTACT, 'status': 'present', 'jury_sync': {'status': 'pending', 'at': NOW.isoformat()}},
+        {**CONTACT, 'id': 'j2', 'status': 'pending'},
+    ]
+    app.save_sessions(data)
+    with client.session_transaction() as auth:
+        auth['jury_link_nonce'] = 'example'
+    path = ROOT + '/j1/synchroniser'
+    assert client.post(path).status_code == 403
+    assert client.post(ROOT + '/j2/synchroniser', data={'csrf': 'example'}).status_code == 404
+    api.assert_not_called()
+    for _ in range(2):
+        assert client.post(path, data={'csrf': 'example'}).status_code == 302
+    assert snapshot()['jurys'][0]['jury_sync']['target_id'] == 'destination'
+    api.assert_called_once()
+    email.assert_not_called()
+    sms.assert_not_called()
+
+
+def test_locks_are_released_even_if_a_fork_copied_the_descriptor(case, monkeypatch):
+    original_flock = flow.fcntl.flock
+    copies = []
+
+    def keep_descriptor(file, operation):
+        original_flock(file, operation)
+        if operation & flow.fcntl.LOCK_EX:
+            copies.append((os.dup(file.fileno()), file.name))
+
+    monkeypatch.setattr(flow.fcntl, 'flock', keep_descriptor)
+    def fail_scan(_services):
+        raise RuntimeError('interrupted scan')
+    monkeypatch.setattr(flow, 'scan', fail_scan)
+    try:
+        with pytest.raises(RuntimeError, match='interrupted scan'):
+            flow.scan_once(app.app, app)
+        with flow.member_lock(app, 'S', 'j1'):
+            pass
+        assert len(copies) == 2
+        for _, path in copies:
+            with open(path, 'a') as independent:
+                original_flock(independent, flow.fcntl.LOCK_EX | flow.fcntl.LOCK_NB)
+    finally:
+        for duplicate, _ in copies:
+            os.close(duplicate)
+
+
+def test_gunicorn_starts_one_scanner_per_serving_process(case, monkeypatch):
+    threads = Mock()
+    monkeypatch.setattr(app, 'IS_RENDER', True)
+    monkeypatch.setattr(flow.threading, 'Thread', threads)
+    monkeypatch.delitem(app.app.extensions, 'jury_worker', raising=False)
+    conf = runpy.run_path(str(Path(app.__file__).with_name('gunicorn.conf.py')))
+    threads.assert_not_called()
+    conf['post_worker_init'](Mock())
+    case[0].get('/healthz')
+    threads.return_value.start.assert_called_once()

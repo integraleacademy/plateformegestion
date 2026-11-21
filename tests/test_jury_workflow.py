@@ -69,6 +69,7 @@ def test_preview_uses_actual_prepared_content_no_delivery_and_replay_is_harmless
     html, ticket = preview(client)
     assert 'E-mail' in html and 'jury@example.test' in html and '0600000000' in html
     assert 'Dernier rappel pour le jury' in html and '<iframe sandbox=""' in html
+    assert unescape(html).count('>Bonjour Camille,</p>') == 3
     assert 'aria-disabled=&#34;true&#34;' in html and 'href=&#34;https://plateformegestion' not in html
     assert not snapshot()['jurys']
     client.post(ROOT + '/notify', data={'jury_ids': ['j1']})
@@ -105,6 +106,7 @@ def test_24_and_48_real_elapsed_hours_single_delivery_per_channel(case):
         count = 1 + int(delta >= 24) + int(delta >= 48)
         assert email.call_count == sms.call_count == count
     assert 'Dernier rappel' in email.call_args.args[1]
+    assert all('>Bonjour Camille,</p>' in call.args[2] for call in email.call_args_list)
 
 
 @pytest.mark.parametrize('answer', ['present', 'absent'])

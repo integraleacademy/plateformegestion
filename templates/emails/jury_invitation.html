@@ -13,7 +13,8 @@
 <tr><td class="inset" align="left" bgcolor="#faf0dc" style="padding:14px 34px;background-color:#faf0dc;border-bottom:3px solid #d4a443;color:#26343d">
 <p style="margin:0;font:italic 22px/28px Georgia,serif">{{ label }}</p><p style="margin:5px 0 0;font:bold 15px/23px Arial,sans-serif">{{ date }}</p></td></tr>
 <tr><td class="inset" align="left" style="padding:24px 34px 10px;color:#25333d;font:16px/25px Arial,sans-serif">
-<p style="margin:0 0 12px">Bonjour {{ member.prenom }} {{ member.nom }},</p><p style="margin:0 0 16px">{{ intro }}</p>
+{% set first_name = (member.prenom or '')|trim %}
+<p style="margin:0 0 12px">Bonjour{% if first_name %} {{ first_name }}{% endif %},</p><p style="margin:0 0 16px">{{ intro }}</p>
 <table role="presentation" cellspacing="0" cellpadding="0"><tr>
 <td class="action" style="padding:0 10px 8px 0"><a href="{{ yes_url }}" style="display:inline-block;padding:11px 16px;border:1px solid #1d5747;border-radius:7px;background:#1d5747;color:white;font:bold 15px/20px Arial,sans-serif;text-decoration:none">Je serai présent(e)</a></td>
 <td class="action" style="padding:0 0 8px"><a href="{{ no_url }}" style="display:inline-block;padding:11px 16px;border:1px solid #9ba9ae;border-radius:7px;color:#243642;font:bold 15px/20px Arial,sans-serif;text-decoration:none">Je suis indisponible</a></td>

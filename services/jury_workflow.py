@@ -16,7 +16,7 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 import requests
-from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
+from flask import abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from itsdangerous import BadData, URLSafeTimedSerializer
 
 from services import jury_exams
@@ -107,15 +107,39 @@ def contact(services, data, training, jid):
     return next((j for j in data.get('jurys', []) if str(j.get('id')) == jid), None)
 
 
-def exam_selector(services, training):
+def clean_names(first, last):
+    names = {'prenom': first, 'nom': last}
+    for field, value in names.items():
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError('Renseignez le prénom et le nom du juré.')
+        value = value.strip()
+        if len(value) > 80 or not value.isprintable():
+            raise ValueError('Chaque nom doit tenir sur une ligne de 80 caractères maximum.')
+        names[field] = value
+    return names
+
+
+def rename(services, data, person, names, version):
+    person.update(names, name_version=version)
+    for training in data['sessions']:
+        for member in services.session_jury_members(training):
+            if services.directory_juror(data, member) is not person:
+                continue
+            member.update(names, name_version=version)
+            old_sync = member.get('jury_sync') or {}
+            if member.get('status') == 'present' and old_sync:
+                member['jury_sync'] = {'status': 'pending', 'target_id': old_sync.get('target_id', '')}
+
+
+def exam_selector(services, training, linked_target=''):
     level = jury_exams.level(services, training)
     when = services.session_input_date(training.get('date_exam'))
     afc = services.is_afc_aps_ssiap_session(training)
-    if afc and (not level or not when):
+    if afc and (not level or not (when or linked_target)):
         raise ValueError('Précisez l’examen et sa date dans le planning AFC.')
     return {'source_id': str(training['id']), 'level': level, 'afc': afc,
             'site': str(training.get('dirigeant_location') or '').lower() if level == 'DESP initial' else '',
-            'target_id': training.get('jury_target_id') or (training.get('afcAttendanceSourceSessionId') if afc else '') or '',
+            'target_id': linked_target or training.get('jury_target_id') or (training.get('afcAttendanceSourceSessionId') if afc else '') or '',
             'date_start': services.session_input_date(training.get('date_debut')),
             'date_end': services.session_input_date(training.get('date_fin')), 'exam_date': when}
 
@@ -173,7 +197,7 @@ def draft(services, data, training, jid, channels, token):
     usable = available_channels(services, member, channels)
     links = response_urls(training, member)
     messages = [message(services, training, member, stage, links) for stage in STAGES]
-    digest = fingerprint([jid, member.get('email'), member.get('telephone'), member.get('notified_at'),
+    digest = fingerprint([jid, member.get('prenom'), member.get('nom'), member.get('email'), member.get('telephone'), member.get('notified_at'),
                           member.get('deliveries', {}).get('invitation'), usable, messages])
     return {'jid': jid, 'member': member, 'channels': usable, 'messages': messages, 'digest': digest}
 
@@ -215,10 +239,15 @@ def deliver(services, sid, member, stage, channel, content, attempt_id, now, exa
         if not training or closed(services, training, now):
             return False
         current = assigned(training, jid)
+        fresh = current if current is not None else contact(services, data, training, jid)
+        if not fresh or any(fresh.get(k) != member.get(k) for k in ('prenom', 'nom', 'name_version')):
+            return False
         if current is None:
-            if stage != 'invitation' or not contact(services, data, training, jid):
+            if stage != 'invitation':
                 return False
             current = {k: member.get(k) or '' for k in ('id', 'nom', 'prenom', 'email', 'telephone', 'token')}
+            if member.get('name_version'):
+                current['name_version'] = member['name_version']
             current['status'] = 'pending'
             training.setdefault('jurys', []).append(current)
         if current.get('status') in ('present', 'absent'):
@@ -281,14 +310,18 @@ def integration_key():
 def sync_member(services, training, member, now):
     # Called with this member's lock. The receiver deduplicates by source IDs.
     key = integration_key()
-    result = {'at': now.isoformat()}
+    previous = member.get('jury_sync') or {}
+    result = {'at': now.isoformat(), 'target_id': previous.get('target_id', '')}
+    version = member.get('name_version', 0)
     http_status = None
     try:
         if not key:
             raise ValueError('La liaison avec Gestion des stagiaires est à configurer.')
-        selector = exam_selector(services, training)
+        selector = exam_selector(services, training, previous.get('target_id') if version else '')
         identity = dict(id=str(member['id']), first_name=member.get('prenom'), last_name=member.get('nom'),
                         email=member.get('email') or '', phone=member.get('telephone') or '')
+        if version:
+            identity['name_version'] = version
         reply = requests.post(DESTINATION, json={'session': selector, 'member': identity},
                               headers={'Authorization': 'Bearer ' + key}, timeout=(3, 8), allow_redirects=False)
         http_status = reply.status_code
@@ -298,6 +331,8 @@ def sync_member(services, training, member, now):
         body = reply.json()
         if body.get('ok') is not True or not isinstance(body.get('session_id'), str) or not body['session_id']:
             raise ValueError('La plateforme n’a pas confirmé l’enregistrement.')
+        if version and (type(body.get('name_version')) is not int or body['name_version'] < version):
+            raise ValueError('Mise à jour du nom en attente dans Gestion stagiaires.')
         result.update(status='synced', target_id=body['session_id'])
         if selector['afc']:
             result.update(exam=training['jury_exam_key'], exam_date=selector['exam_date'])
@@ -311,7 +346,7 @@ def sync_member(services, training, member, now):
     def finish(data):
         row = reload_exam(services, data, training['id'], training.get('jury_exam_key', ''))
         current = assigned(row, str(member['id'])) if row else None
-        if current and current.get('status') == 'present':
+        if current and current.get('status') == 'present' and current.get('name_version', 0) == version:
             current['jury_sync'] = result
     edit(services, finish)
     LOG.info('JURY_SYNC session=%s status=%s http=%s target=%s exam=%s',
@@ -322,10 +357,11 @@ def sync_member(services, training, member, now):
 def needs_sync(services, training, member, now):
     if member.get('status') != 'present':
         return False
-    if services.is_afc_aps_ssiap_session(training) and (
-            training.get('jury_exam_key') not in jury_exams.AFC_EXAMS or not training.get('date_exam')):
-        return False
     sync = member.get('jury_sync') or {}
+    linked_name_edit = member.get('name_version') and sync.get('target_id')
+    if services.is_afc_aps_ssiap_session(training) and (
+            training.get('jury_exam_key') not in jury_exams.AFC_EXAMS or not (training.get('date_exam') or linked_name_edit)):
+        return False
     if sync.get('status') == 'synced' or (not sync and closed(services, training, now)):
         return False
     last = instant(sync.get('at'))
@@ -530,6 +566,80 @@ def register(app, services):
         csrf = session.get('jury_link_nonce') or ''
         if not csrf or not hmac.compare_digest(csrf.encode(), (request.form.get('csrf') or '').encode()):
             abort(403)
+
+    def identity_for(data, sid, jid):
+        training = training_for(data, sid)
+        person = services.find_global_jury_by_id(data, jid)
+        if person is None:
+            member = next((m for m in services.session_jury_members(training) if str(m.get('id')) == jid), None)
+            if member is None:
+                abort(404)
+            person = services.directory_juror(data, member)
+            if person is None:
+                person = {field: member.get(field) or '' for field in ('prenom', 'nom', 'email', 'telephone')}
+                person['id'] = jid
+                data['jurys'].append(person)
+        return training, person
+
+    @app.route('/sessions/<sid>/jury/<jid>/modifier', methods=['GET', 'POST'])
+    def edit_juror(sid, jid):
+        def revision(person):
+            return fingerprint([person['id'], person.get('name_version', 0), person.get('prenom'), person.get('nom')])
+
+        def form(training, person, error='', values=None, status=200):
+            return render_template('jury_edit.html', training=training, person=person, values=values or person,
+                                   revision=revision(person), csrf=services.jury_link_nonce(), error=error), status, {'Cache-Control': 'no-store'}
+
+        if request.method == 'GET':
+            return form(*identity_for(services.load_sessions(), sid, jid))
+        check_admin_nonce()
+        try:
+            names = clean_names(request.form.get('prenom'), request.form.get('nom'))
+        except ValueError as exc:
+            return form(*identity_for(services.load_sessions(), sid, jid), str(exc), request.form, 400)
+
+        def change(data):
+            training, person = identity_for(data, sid, jid)
+            if all(person.get(k) == value for k, value in names.items()):
+                return
+            if request.form.get('revision') != revision(person):
+                return training, person
+            version = max(time.time_ns() // 1000, person.get('name_version', 0) + 1)
+            rename(services, data, person, names, version)
+
+        conflict = edit(services, change)
+        if conflict:
+            return form(*conflict, 'La fiche a été modifiée entre-temps. Vérifiez les noms affichés.', status=409)
+        flash('Le nom et le prénom du juré sont enregistrés.', 'success')
+        return back(sid)
+
+    @app.post('/api/integrations/gestionstagiaires/jury-identite')
+    def receive_juror_name():
+        key = integration_key()
+        if not key or not hmac.compare_digest(request.headers.get('Authorization', '').encode(), ('Bearer ' + key).encode()):
+            abort(403)
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            abort(400)
+        version = payload.get('name_version')
+        if type(version) is not int or not 0 < version < 2**53:
+            abort(400)
+        try:
+            names = clean_names(payload.get('first_name'), payload.get('last_name'))
+        except ValueError as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+
+        def accept(data):
+            sid, jid = payload.get('session_id'), payload.get('member_id')
+            row = selected_exam(data, sid, payload.get('exam') or '')
+            member = assigned(row, jid)
+            if not member or member.get('status') != 'present':
+                abort(404)
+            _, person = identity_for(data, sid, jid)
+            if version > person.get('name_version', 0):
+                rename(services, data, person, names, version)
+            return person['name_version']
+        return jsonify(ok=True, name_version=edit(services, accept))
 
     @app.post('/sessions/<sid>/jury/<jid>/synchroniser')
     def retry_jury_sync(sid, jid):

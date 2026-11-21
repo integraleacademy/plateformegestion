@@ -66,6 +66,7 @@ body:has(dialog[open], .modal.open) { overflow:hidden }
 .modal[data-session-window] .btn { min-height:40px }
 .modal[data-session-window] .planning-actions { gap:9px; padding-top:12px; border-top:1px solid #dce4e9 }
 .jury-modal .jury-checklist { display:grid; gap:7px; max-height:min(38vh,320px); overflow:auto; padding:2px }
+.jury-choice { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center }
 .jury-modal .jury-checklist label { display:flex; align-items:center; gap:10px; padding:11px 13px; background:#f6f8fa; border:1px solid #dce4e9; border-radius:9px; cursor:pointer }
 .jury-modal .jury-checklist label:has(:checked) { border-color:var(--course); background:var(--course-tint) }
 .jury-modal .jury-checklist input { accent-color:var(--course); flex:none }

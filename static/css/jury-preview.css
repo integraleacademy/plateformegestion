@@ -18,4 +18,10 @@ details { border-top:1px solid #dde5e9; margin-top:18px; padding-top:12px }
 summary { cursor:pointer; font-weight:600; margin-bottom:12px }
 button { cursor:pointer; font:inherit; font-weight:650; color:white; background:#1b5141; padding:11px 18px; border:0; border-radius:7px }
 footer a { margin-left:16px }
+.jury-edit { max-width:680px }
+.jury-name-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); gap:16px }
+.jury-name-fields label { display:grid; gap:6px; font-weight:600 }
+.jury-name-fields input { width:100%; padding:10px 12px; font:inherit; font-weight:400; color:inherit; border:1px solid #98a9af; border-radius:7px }
+.jury-edit-actions { display:flex; gap:18px; align-items:center; margin-top:22px }
+.jury-edit [role=alert] { color:#9e2922; font-weight:600 }
 @media(max-width:540px) { main { padding:16px 10px 30px } iframe { height:640px } }

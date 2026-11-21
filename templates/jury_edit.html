@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Modifier le juré · Intégrale Academy</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/jury-preview.css') }}">
+</head>
+<body>
+<main class="jury-edit">
+  {% set back = url_for('session_detail', sid=training.id, _anchor='jury-section') %}
+  <a class="back" href="{{ back }}">← Retour au jury</a>
+  <header>
+    <p class="course">{{ training.display_name or training.formation|formation_label }}</p>
+    <h1>Modifier le juré</h1>
+    <p>Cette correction s’applique aux sessions de ce juré et à ses prochains messages.</p>
+  </header>
+  <section aria-label="Identité du juré">
+    {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="revision" value="{{ revision }}">
+      <div class="jury-name-fields">
+        <label>Prénom<input name="prenom" type="text" value="{{ values.prenom }}" maxlength="80" required></label>
+        <label>Nom<input name="nom" type="text" value="{{ values.nom }}" maxlength="80" required></label>
+      </div>
+      <div class="jury-edit-actions"><button type="submit">Enregistrer</button><a class="back" href="{{ back }}">Annuler</a></div>
+    </form>
+  </section>
+</main>
+</body>
+</html>

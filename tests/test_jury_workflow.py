@@ -98,6 +98,87 @@ def test_changed_contact_invalidates_preview(case):
     sms.assert_not_called()
 
 
+def edit_fields(client, path):
+    view = client.get(path)
+    assert view.status_code == 200
+    return dict(re.findall(r'name="(csrf|revision)" value="([^"]+)"', view.get_data(as_text=True)))
+
+
+def test_edit_directory_before_inviting_and_reject_stale_forms(case):
+    client, email, sms, _ = case
+    path = ROOT + '/j1/modifier'
+    assert app.app.test_client().get(path).status_code == 302
+    assert path in client.get('/sessions/S').get_data(as_text=True)
+    initial, ticket = preview(client)
+    assert path in initial
+    form = edit_fields(client, path)
+    fields = {**form, 'prenom': ' Anne-Marie ', 'nom': 'D’Auvergne'}
+    assert client.post(path, data={**fields, 'csrf': 'other'}).status_code == 403
+    assert client.post(path, data={**fields, 'nom': ' '}).status_code == 400
+    assert client.post(path, data=fields).location.endswith('/sessions/S#jury-section')
+    assert client.post(path, data={**fields, 'nom': 'Autre'}).status_code == 409
+    assert not snapshot()['jurys']  # Editing the directory does not assign or invite anyone.
+    client.post(ROOT + '/notify', data={'preview': ticket})
+    email.assert_not_called()
+    sms.assert_not_called()
+    html, ticket = preview(client)
+    assert unescape(html).count('>Bonjour Anne-Marie,</p>') == 3
+    client.post(ROOT + '/notify', data={'preview': ticket})
+    member, = snapshot()['jurys']
+    assert (member['id'], member['nom'], member['prenom']) == ('j1', 'D’Auvergne', 'Anne-Marie')
+    assert member['name_version'] == app.load_sessions()['jurys'][0]['name_version']
+
+
+def test_edit_preserves_responses_legacy_links_and_independent_afc_rosters(afc):
+    client, email, sms, api = afc
+    data = app.load_sessions()
+    data['sessions'][0]['afc_exam_jurys'] = {
+        'aps': [{**CONTACT, 'id': 'legacy', 'token': 'aps-old', 'status': 'present',
+                 'jury_sync': {'status': 'synced', 'target_id': 'target'}, 'responded_at': 'old'}],
+        'ssiap1': [{**CONTACT, 'token': 'ssiap-old', 'status': 'pending', 'notified_at': NOW.isoformat()}]}
+    data['sessions'].append(dict(id='old', formation='A3P', archived=True, jurys=[{**CONTACT, 'status':'absent', 'token':'old'}]))
+    data['jurys'].append({**CONTACT, 'id':'different', 'email':'other@example.test'})
+    app.save_sessions(data)
+    path = ROOT + '/legacy/modifier'
+    assert client.post(path, data={**edit_fields(client, path), 'prenom':'Émilie', 'nom':'Dupré'}).status_code == 302
+    fresh = app.load_sessions()
+    aps, = fresh['sessions'][0]['afc_exam_jurys']['aps']
+    ssiap, = fresh['sessions'][0]['afc_exam_jurys']['ssiap1']
+    assert (aps['id'], aps['token'], aps['status'], aps['responded_at']) == ('legacy', 'aps-old', 'present', 'old')
+    assert (ssiap['token'], ssiap['status'], ssiap['notified_at']) == ('ssiap-old','pending', NOW.isoformat())
+    assert all(m['prenom']=='Émilie' for m in (aps, ssiap, fresh['jurys'][0], fresh['sessions'][1]['jurys'][0]))
+    assert fresh['jurys'][1]['prenom'] == 'Camille'
+    assert client.get('/jury-response/S/legacy/present?token=aps-old&examen=aps').status_code == 200
+    version = aps['name_version']
+    api.return_value.json = lambda: {'ok':True, 'session_id':'target', 'name_version':version}
+    scan(NOW)
+    assert api.call_args.kwargs['json']['session']['target_id'] == 'target'
+    assert api.call_args.kwargs['json']['member']['name_version'] == version
+    assert snapshot()['afc_exam_jurys']['aps'][0]['jury_sync']['status'] == 'synced'
+    email.assert_not_called()
+    sms.assert_not_called()
+
+
+def test_remote_name_edit_requires_confirmed_link_and_is_idempotent(case):
+    client, email, sms, _ = case
+    data = app.load_sessions()
+    data['sessions'][0]['jurys'] = [{**CONTACT, 'status':'present','token':'kept','jury_sync':{'status':'synced','target_id':'target'}}]
+    app.save_sessions(data)
+    endpoint = '/api/integrations/gestionstagiaires/jury-identite'
+    event = {'session_id':'S','member_id':'j1','exam':'','name_version':200,'first_name':'Ana','last_name':'Dupont'}
+    api = app.app.test_client()
+    headers = {'Authorization':'Bearer fixture-key'}
+    assert api.post(endpoint, json=event).status_code == 403
+    assert api.post(endpoint, headers=headers, json={**event,'member_id':'wrong'}).status_code == 404
+    assert api.post(endpoint, headers=headers, json=event).json == {'ok':True,'name_version':200}
+    assert api.post(endpoint, headers=headers, json={**event,'name_version':100,'first_name':'Ancien'}).json['name_version'] == 200
+    assert api.post(endpoint, headers=headers, json=event).json['name_version'] == 200
+    assert snapshot()['jurys'][0]['prenom'] == 'Ana'
+    assert 'value="Ana"' in client.get(ROOT+'/j1/modifier').get_data(as_text=True)
+    email.assert_not_called()
+    sms.assert_not_called()
+
+
 def test_24_and_48_real_elapsed_hours_single_delivery_per_channel(case):
     client, email, sms, _ = case
     invite(client)

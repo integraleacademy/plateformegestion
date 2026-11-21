@@ -16,6 +16,7 @@
 {% endmacro %}
 {% for item in previews %}
 <section><h2>{{ item.member.prenom }} {{ item.member.nom }}</h2>
+<a class="back" href="{{ url_for('edit_juror', sid=training.id, jid=item.jid) }}">Modifier le nom ou le prénom</a>
 {% if item.channels %}{{ content(item, item.messages[0]) }}
 <details><summary>Voir les relances à 24 h et 48 h</summary>
 {% for msg in item.messages[1:] %}<h2>Relance à {{ '24 h' if loop.first else '48 h' }}</h2>{{ content(item, msg) }}{% endfor %}</details>

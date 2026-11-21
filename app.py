@@ -423,6 +423,8 @@ def protect_all_routes():
     # Server-to-server room endpoints validate their own shared bearer token.
     if path.startswith("/api/shared-rooms/"):
         return None
+    if path == "/api/integrations/gestionstagiaires/jury-identite":
+        return None  # The jury integration checks its own bearer token.
 
     # ✅ autoriser page login / logout
     if path.startswith("/login") or path.startswith("/logout"):
@@ -6315,7 +6317,16 @@ def find_global_jury_by_email(data, email):
     return next((j for j in data.get("jurys", []) if j.get("email", "").strip().lower() == normalized), None)
 
 def find_global_jury_by_id(data, jury_id):
-    return next((j for j in data.get("jurys", []) if j.get("id") == jury_id), None)
+    return next((j for j in data.get("jurys", []) if str(j.get("id")) == str(jury_id)), None)
+
+def directory_juror(data, member):
+    person = find_global_jury_by_id(data, member.get("id"))
+    if person is not None:
+        return person
+    # Older rosters can have session-specific IDs. Only use an unambiguous address.
+    address = (member.get("email") or "").strip().casefold()
+    matches = [j for j in data["jurys"] if address and (j.get("email") or "").strip().casefold() == address]
+    return matches[0] if len(matches) == 1 else None
 
 def sync_global_jurys(data):
     ensure_global_jury_defaults(data)
@@ -6323,14 +6334,14 @@ def sync_global_jurys(data):
         for jury in session_jury_members(session):
             if not jury.get("email") and not jury.get("id"):
                 continue
-            existing = find_global_jury_by_email(data, jury.get("email"))
+            existing = directory_juror(data, jury)
             if existing:
-                existing.update({
-                    "nom": jury.get("nom", existing.get("nom", "")),
-                    "prenom": jury.get("prenom", existing.get("prenom", "")),
-                    "email": jury.get("email", existing.get("email", "")),
-                    "telephone": jury.get("telephone", existing.get("telephone", "")),
-                })
+                if not existing.get("name_version"):
+                    for key in ("nom", "prenom"):
+                        existing[key] = jury.get(key, existing.get(key, ""))
+                if find_global_jury_by_email(data, jury.get("email")) is existing:
+                    for key in ("email", "telephone"):
+                        existing[key] = jury.get(key, existing.get(key, ""))
                 if not existing.get("id") and jury.get("id"):
                     existing["id"] = jury.get("id")
             elif find_global_jury_by_id(data, jury.get("id")) is None:
@@ -8050,13 +8061,16 @@ def add_jury(sid):
             abort(400, "Choisissez le jury APS ou le jury SSIAP 1.")
         person = find_global_jury_by_email(data, fields["email"])
         if person:
+            if person.get("name_version"):
+                fields.update(nom=person["nom"], prenom=person["prenom"])
             person.update({key: value for key, value in fields.items() if value})
         else:
             person = {"id": str(uuid.uuid4())[:8], **fields}
             data["jurys"].append(person)
         if jury_workflow.assigned(exam, person["id"]):
             return False
-        exam["jurys"].append({"id": person["id"], **fields, "status": "pending", "token": str(uuid.uuid4()),
+        exam["jurys"].append({"id": person["id"], **fields, "name_version": person.get("name_version", 0),
+                              "status": "pending", "token": str(uuid.uuid4()),
                               "notified_at": None, "reminded_at": None})
         return True
 

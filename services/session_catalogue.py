@@ -167,14 +167,9 @@ def rows(services, sessions, *, include_past=False):
                 "visibility": visibility, "target": session.get("catalogue_target_id", ""),
                 "aliases": session.get("catalogue_aliases", [])}
         for prefix, modality in (("remote", "elearning"), ("onsite", "presentiel")):
-            period = services.session_modality_date_range(session, modality) or {}
-            limits = [services.session_input_date(period.get(k)) for k in ("start", "end")]
-            if not all(limits) or not key["start"] <= limits[0] <= limits[1] <= key["end"]:
-                period = {}
+            period = {} if undated else services.session_modality_date_range(session, modality) or {}
             for boundary in ("start", "end"):
-                field = prefix + "_" + boundary
-                item[field] = "" if field in session.get("catalogue_cleared_periods", ()) else (
-                    session.get(field) or services.session_input_date(period.get(boundary)))
+                item[prefix + "_" + boundary] = period.get(boundary, "")
         if key["slug"] == "afc":
             exams = jury_exams.exam_dates(services, session)
             item.update(exam=exams["aps"], ssiap_exam=exams["ssiap1"])

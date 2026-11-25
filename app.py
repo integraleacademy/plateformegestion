@@ -508,11 +508,44 @@ app.jinja_env.filters['datetime'] = to_datetime
 
 
 def session_modality_date_range(session_data, modality):
-    """Return session dates for SSIAP attendance, planning dates otherwise."""
+    """Use the saved session period, then the detailed timetable or older DESP fields."""
     if not session_data:
         return None
 
     wanted = (modality or "").strip().lower()
+    prefix = {"presentiel": "onsite", "elearning": "remote"}.get(wanted)
+    if not prefix:
+        return _planning_modality_date_range(session_data, wanted)
+    first, last = prefix + "_start", prefix + "_end"
+    cleared = session_data.get("catalogue_cleared_periods") or ()
+    if first in cleared or last in cleared:
+        return None
+    lower = session_input_date(session_data.get("date_debut"))
+    upper = session_input_date(session_data.get("date_fin"))
+
+    def within_session(start, end):
+        start, end = session_input_date(start), session_input_date(end)
+        if start and end and start <= end and (not lower or lower <= start) and (not upper or end <= upper):
+            return {"start": start, "end": end}
+        return None
+
+    saved_start, saved_end = session_data.get(first), session_data.get(last)
+    if saved_start and saved_end:
+        return within_session(saved_start, saved_end)
+    planned = _planning_modality_date_range(session_data, wanted) or {}
+    period = within_session(saved_start or planned.get("start"), saved_end or planned.get("end"))
+    if period or session_data.get("formation") not in ("DIRIGEANT", "DESP"):
+        return period
+    if wanted == "elearning":
+        start = session_data.get("despElearningStart") or lower
+        end = session_data.get("despElearningEnd") or session_data.get("date_distanciel_fin") or session_data.get("date_elearning_fin")
+    else:
+        start = session_data.get("despPresentielStart") or session_data.get("date_presentiel_debut")
+        end = session_data.get("despPresentielEnd") or session_data.get("date_presentiel_fin") or upper
+    return within_session(saved_start or start, saved_end or end)
+
+
+def _planning_modality_date_range(session_data, wanted):
     if is_ssiap1_session(session_data) and wanted in {"presentiel", "elearning"}:
         # SST and revision slots are also on site. Their separate planning
         # labels must not shorten the attendance period shown on session cards.

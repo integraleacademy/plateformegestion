@@ -1,6 +1,9 @@
+import re
+
 import pytest
 
 import app
+from services import session_catalogue
 
 
 @pytest.mark.parametrize(('start', 'end', 'expected'), [
@@ -12,6 +15,51 @@ import app
 ])
 def test_calendar_spans_keep_exact_dates(start, end, expected):
     assert app.session_calendar_span(start, end) == expected
+
+
+def test_desp_periods_without_daily_slots_on_cards_detail_and_catalogue(monkeypatch):
+    row = dict(id='puget', formation='DIRIGEANT', dirigeant_location='PUGET', steps=[], jurys=[],
+               date_debut='2098-02-01', date_fin='2098-03-18', date_exam='2098-03-19',
+               remote_start='2098-02-01', remote_end='2098-03-05',
+               onsite_start='2098-03-08', onsite_end='2098-03-18')
+    monkeypatch.setattr(app, 'load_sessions', lambda: dict(sessions=[row], jurys=[]))
+    monkeypatch.setattr(app, 'save_sessions', lambda data: None)
+    with app.app.test_client() as client:
+        with client.session_transaction() as auth:
+            auth.update(admin_logged=True, admin_session_version=app.ADMIN_SESSION_VERSION)
+        for path in ('/sessions?formation=DIRIGEANT&statut=a-venir', '/sessions/puget'):
+            result = client.get(path)
+            assert result.status_code == 200
+            milestones = re.findall(r'<small>(Distanciel|Présentiel|Examen)</small>\s*<b>([^<]+)</b>',
+                                    result.get_data(as_text=True))
+            assert milestones == [
+                ('Distanciel', '1 févr. – 5 mars 2098'), ('Présentiel', '8 – 18 mars 2098'), ('Examen', '19 mars 2098')]
+    published, = session_catalogue.rows(app, [row])
+    assert all(published[field] == row[field] for field in session_catalogue.PERIODS)
+
+
+def test_desp_uses_saved_periods_then_daily_slots_then_legacy_dates():
+    row = dict(formation='DIRIGEANT', date_debut='2098-02-01', date_fin='2098-03-18',
+               despPresentielStart='08/03/2098', date_distanciel_fin='05/03/2098')
+    assert app.session_modality_date_range(row, 'elearning') == {'start': '2098-02-01', 'end': '2098-03-05'}
+    assert app.session_modality_date_range(row, 'presentiel') == {'start': '2098-03-08', 'end': '2098-03-18'}
+    row['apsPlanningData'] = [dict(date='2098-03-10', slots=[dict(modality='presentiel')])]
+    assert app.session_modality_date_range(row, 'presentiel') == {'start': '2098-03-10', 'end': '2098-03-10'}
+    row.update(onsite_start='2098-03-09', onsite_end='2098-03-15')
+    assert app.session_modality_date_range(row, 'presentiel') == {'start': '2098-03-09', 'end': '2098-03-15'}
+    row.update(onsite_start='', onsite_end='', catalogue_cleared_periods=['onsite_start', 'onsite_end'])
+    assert app.session_modality_date_range(row, 'presentiel') is None
+
+
+def test_missing_desp_periods_are_explicit_and_ssiap_keeps_full_attendance():
+    row = dict(formation='DIRIGEANT', date_debut='2098-03-01', date_fin='2098-03-20',
+               apsPlanningData=[dict(date='2098-02-15', slots=[dict(modality='elearning')])])
+    with app.app.test_request_context():
+        render = app.app.jinja_env.get_template('session_visuals.html').module.milestones
+        html = render(row)
+        assert html.count('À renseigner') == 2
+        html = render({**row, 'formation': 'SSIAP1'})
+        assert 'Distanciel' not in html and '1 – 20 mars 2098' in html
 
 
 @pytest.mark.parametrize(('formation', 'sections', 'absent'), [

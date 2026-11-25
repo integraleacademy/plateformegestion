@@ -8,6 +8,11 @@ function updateFields() {
   document.getElementById('dirigeantLocationField').hidden = !dirigeant;
   document.getElementById('standardSessionDates').hidden = afc;
   document.getElementById('afcFields').hidden = !afc;
+  for (const group of form.querySelectorAll('[data-catalogue-kinds]')) {
+    const visible = group.dataset.catalogueKinds.split(' ').includes(fields.formation.value);
+    group.hidden = !visible;
+    for (const input of group.querySelectorAll('input,select')) input.disabled = !visible;
+  }
   fields.dirigeant_location.required = dirigeant;
   fields.dirigeant_location.disabled = !dirigeant;
   fields.contractual_end_date.required = afc;

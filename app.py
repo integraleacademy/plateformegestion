@@ -46,7 +46,7 @@ from services.session_storage import (
     SessionStorageError, SessionStorageConflict, load_session_store,
     save_session_store, storage_diagnostics,
 )
-from services import jury_exams, jury_workflow
+from services import jury_exams, jury_workflow, session_catalogue
 from services.session_location import training_location, update_training_location
 from services.aps_day_distribution import grouped_day_minutes
 from services.afc_sst_planning import group_afc_sst_days, validate_afc_sst_days, is_afc_sst_slot
@@ -423,7 +423,7 @@ def protect_all_routes():
     # Server-to-server room endpoints validate their own shared bearer token.
     if path.startswith("/api/shared-rooms/"):
         return None
-    if path == "/api/integrations/gestionstagiaires/jury-identite":
+    if path in ("/api/integrations/gestionstagiaires/jury-identite", "/api/integrations/session-catalogue"):
         return None  # The jury integration checks its own bearer token.
 
     # ✅ autoriser page login / logout
@@ -7655,6 +7655,21 @@ def sessions_home():
     )
 
 
+@app.get("/api/integrations/session-catalogue")
+def planning_session_catalogue():
+    token = os.environ.get("SESSION_CATALOG_TOKEN", "")
+    if not token or not hmac.compare_digest(request.headers.get("Authorization", "").encode(), ("Bearer " + token).encode()):
+        abort(401)
+    rows = session_catalogue.rows(sys.modules[__name__], load_sessions()["sessions"])
+    response = jsonify(version=1, sessions=rows)
+    response.add_etag()
+    response.headers["Cache-Control"] = "private, no-cache"
+    return response.make_conditional(request)
+
+
+app.jinja_env.globals.update(catalogue_ssiap_level=session_catalogue.level, catalogue_centre=session_catalogue.centre)
+
+
 @app.route("/sessions/create", methods=["POST"])
 def create_session():
     formation = request.form.get("formation","").upper().strip()
@@ -7674,6 +7689,7 @@ def create_session():
     session = {
         "id": sid,
         "formation": formation,
+        "catalogue_visibility": "internal" if formation in {"GENERAL", "AFC_APS_SSIAP"} else "public",
         "date_debut": date_debut,
         "date_fin": date_fin,
         "date_exam": date_exam,
@@ -7713,6 +7729,11 @@ def create_session():
     if formation == "DIRIGEANT":
         session["dirigeant_location"] = dirigeant_location
         session["dirigeant_location_label"] = DIRIGEANT_LOCATIONS[dirigeant_location]
+    try:
+        session_catalogue.edit_fields(sys.modules[__name__], session, request.form)
+    except ValueError as error:
+        flash(str(error), "error")
+        return redirect(url_for("sessions_home"))
     data = load_sessions()
     data["sessions"].append(session)
     save_sessions(data)
@@ -8225,9 +8246,19 @@ def edit_session(sid):
     if not session:
         abort(404)
     if request.method == "POST":
+        previous = session_catalogue.identity(sys.modules[__name__], session)
         session["date_debut"] = request.form.get("date_debut","").strip()
         session["date_fin"] = request.form.get("date_fin","").strip()
         session["date_exam"] = request.form.get("date_exam","").strip()
+        try:
+            session_catalogue.edit_fields(sys.modules[__name__], session, request.form)
+        except ValueError as error:
+            flash(str(error), "error")
+            return redirect(url_for("edit_session", sid=sid))
+        if previous["slug"] and previous["start"] and previous != session_catalogue.identity(sys.modules[__name__], session):
+            aliases = session.setdefault("catalogue_aliases", [])
+            if previous not in aliases:
+                aliases.append(previous)
         save_sessions(data)
         flash("Session mise à jour.","ok")
         return redirect(url_for("session_detail", sid=sid))

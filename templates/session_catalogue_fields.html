@@ -1,0 +1,23 @@
+{% set kinds = 'APS A3P SSIAP DIRIGEANT AFC_APS_SSIAP' %}
+{% if not s or s.formation == 'SSIAP' %}
+<label data-catalogue-kinds="SSIAP">Niveau SSIAP
+  <select name="ssiap_level">{% for n in ('1','2','3') %}<option value="{{ n }}" {% if catalogue_ssiap_level(s) == n %}selected{% endif %}>SSIAP {{ n }}</option>{% endfor %}</select>
+</label>
+{% endif %}
+{% if not s or s.formation != 'AFC_APS_SSIAP' %}
+<label data-catalogue-kinds="APS A3P SSIAP DIRIGEANT">Publication
+  <select name="catalogue_visibility"><option value="public">Ouverte aux demandes</option><option value="internal" {% if s.catalogue_visibility == 'internal' %}selected{% endif %}>Interne</option></select>
+</label>
+{% endif %}
+<label data-catalogue-kinds="{{ kinds }}">Capacité de la session
+  <input name="catalogue_capacity" type="number" min="1" max="12" required value="{{ s.get('catalogue_capacity', 12) }}">
+</label>
+{% if not s or s.formation in ('DIRIGEANT','APS','A3P') %}
+<details data-catalogue-kinds="APS A3P DIRIGEANT"><summary>Périodes à distance et en centre</summary>
+{% for key, label in [('remote_start','Début à distance'),('remote_end','Fin à distance'),('onsite_start','Début en centre'),('onsite_end','Fin en centre')] %}
+<label>{{ label }}<input type="date" name="{{ key }}" value="{{ s.get(key,'') }}"></label>{% endfor %}
+</details>
+{% endif %}
+{% if s %}<details><summary>Rattachement à Gestion Stagiaires</summary>
+<label>Identifiant de la fiche existante (facultatif)<input name="catalogue_target_id" value="{{ s.get('catalogue_target_id','') }}" maxlength="64"></label>
+</details>{% endif %}

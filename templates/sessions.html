@@ -153,6 +153,7 @@
       <option value="APS">APS</option><option value="A3P">A3P</option><option value="SSIAP">SSIAP</option><option value="DIRIGEANT">DESP · Dirigeant</option><option value="AFC_APS_SSIAP">AFC France Travail APS + SSIAP</option><option value="GENERAL">Général</option>
     </select></label>
     <label id="dirigeantLocationField" hidden>Site DESP<select name="dirigeant_location"><option value="">Choisir un site</option><option value="PARIS">Paris</option><option value="PUGET">Puget</option></select></label>
+    {% set s = {} %}{% include "session_catalogue_fields.html" %}
     <label>Date de début<input type="date" name="date_debut" required></label>
     <div class="form-pair" id="standardSessionDates"><label>Date de fin<input type="date" name="date_fin"></label><label>Date d’examen<input type="date" name="date_exam"></label></div>
     <div id="afcFields" hidden><label>Date de fin souhaitée<input type="date" name="contractual_end_date"></label>

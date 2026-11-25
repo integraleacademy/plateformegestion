@@ -13,7 +13,7 @@ def level(services, training):
         # A legacy "SSIAP" session can specify its level in its display name.
         descriptor = (training.get('display_name') or '') + ' ' + code
         number = re.search(r'SSIAP\s*([123])', descriptor, re.I)
-        return 'SSIAP ' + (number.group(1) if number else '1')
+        return 'SSIAP ' + str(training.get("ssiap_level") or (number.group(1) if number else '1'))
     if services.is_ssiap1_session(training):
         return 'SSIAP 1'
     return {'APS': 'APS', 'A3P': 'A3P', 'DIRIGEANT': 'DESP initial', 'DESP': 'DESP initial'}.get(code, '')

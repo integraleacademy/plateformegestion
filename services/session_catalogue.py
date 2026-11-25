@@ -54,6 +54,11 @@ def edit_fields(services, session, form):
         if not session.get("display_name") or re.fullmatch(r"SSIAP\s*[123]?", session["display_name"], re.I):
             session["display_name"] = "SSIAP " + form["ssiap_level"]
         session.update(ssiap_level=form["ssiap_level"], training_code="SSIAP" + form["ssiap_level"])
+    if session.get("formation") == "SSIAP" and "catalogue_standard_start" in form:
+        value = form["catalogue_standard_start"].strip() if level(session) == "1" else ""
+        if value and (services.session_input_date(value) != value or not session["date_debut"] < value <= session["date_fin"]):
+            raise ValueError("Le début sans SST doit se situer après le début avec SST et dans la période de la session.")
+        session["catalogue_standard_start"] = value
     if session.get("formation") == "DIRIGEANT" and "dirigeant_location" in form:
         location = form["dirigeant_location"].upper()
         if location not in services.DIRIGEANT_LOCATIONS:
@@ -93,7 +98,8 @@ def rows(services, sessions):
             visibility = "internal"
         item = {**key, "id": session["id"], "capacity": session.get("catalogue_capacity", 12),
                 "visibility": visibility, "target": session.get("catalogue_target_id", ""),
-                "aliases": session.get("catalogue_aliases", [])}
+                "aliases": session.get("catalogue_aliases", []),
+                "standard_start": session.get("catalogue_standard_start", "") if key["slug"] == "ssiap-1" else ""}
         for prefix, modality in (("remote", "elearning"), ("onsite", "presentiel")):
             period = services.session_modality_date_range(session, modality) or {}
             for boundary in ("start", "end"):

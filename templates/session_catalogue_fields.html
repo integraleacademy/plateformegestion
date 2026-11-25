@@ -3,6 +3,9 @@
 <label data-catalogue-kinds="SSIAP">Niveau SSIAP
   <select name="ssiap_level">{% for n in ('1','2','3') %}<option value="{{ n }}" {% if catalogue_ssiap_level(s) == n %}selected{% endif %}>SSIAP {{ n }}</option>{% endfor %}</select>
 </label>
+<label data-catalogue-kinds="SSIAP">Début du SSIAP 1 sans SST, si les deux formules sont proposées
+  <input type="date" name="catalogue_standard_start" value="{{ s.get('catalogue_standard_start','') }}">
+</label>
 {% endif %}
 {% if not s or s.formation != 'AFC_APS_SSIAP' %}
 <label data-catalogue-kinds="APS A3P SSIAP DIRIGEANT">Publication

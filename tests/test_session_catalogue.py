@@ -37,3 +37,23 @@ def test_reserved_and_general_never_publish():
     base=dict(id="reserved",date_debut="2098-02-01", date_fin="2098-03-01", formation="AFC_APS_SSIAP")
     result=cat.rows(host,[base,{**base,"id":"internal","formation":"GENERAL"}])
     assert len(result)==1 and result[0]["visibility"]=="internal"
+
+
+def test_import_uses_published_capacity_variants_and_respects_existing_records():
+    import csv
+    from services import published_schedule_import as migration
+    with migration.MANIFEST.open() as stream:
+        offers=list(csv.DictReader(stream))
+    def existing(offer, id, **meta):
+        return dict(id=id, formation="APS", date_debut=offer["start"], date_fin=offer["end"], date_exam=offer["exam"], **meta)
+    aps=[r for r in offers if r["slug"]=="aps"]
+    current={"sessions":[existing(aps[0],"operational",notes="conserver",catalogue_capacity=8),
+                         existing(aps[1],"private",catalogue_visibility="internal")]}
+    assert migration.reconcile(host,current,offers,"2026-11-25")
+    assert not migration.reconcile(host,current,offers,"2026-11-25")
+    assert len(current["sessions"])==22
+    assert current["sessions"][0]["notes"]=="conserver" and current["sessions"][0]["catalogue_capacity"]==8
+    assert current["sessions"][1]["catalogue_visibility"]=="internal"
+    rows=cat.rows(host,current["sessions"])
+    assert len([r for r in rows if r["standard_start"]])==4
+    assert [r["capacity"] for r in rows if r["slug"]=="ssiap-3"] == [10,10]

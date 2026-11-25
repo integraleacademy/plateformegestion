@@ -72,3 +72,16 @@ def test_save_both_dates_before_rescheduling_ssiap(monkeypatch):
     assert reply.status_code==302
     row,=cat.rows(host,data["sessions"])
     assert row["standard_start"]=="2098-02-10" and row["aliases"][0]["standard_start"]=="2098-02-09"
+
+
+def test_existing_public_form_group_is_attached_once_and_respects_later_withdrawal():
+    from services import published_schedule_import as migration
+    row = dict(id="7b549596", formation="APS", date_debut="2027-02-04", date_fin="2027-03-10", date_exam="2027-03-11")
+    for existing, expected in (({}, "public"), ({"catalogue_visibility":"internal"}, "internal"), ({"archived":True}, None)):
+        group = {**row, **existing}
+        data = {"sessions":[group], migration.RECEIPT:{}}
+        assert migration.adopt_public_form_session(host,data,"2026-11-25")
+        assert group.get("catalogue_visibility")==expected and len(data["sessions"])==1
+        group["catalogue_visibility"]="internal"
+        assert not migration.adopt_public_form_session(host,data,"2026-11-25")
+        assert group["catalogue_visibility"]=="internal"

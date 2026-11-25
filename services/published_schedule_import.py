@@ -71,6 +71,24 @@ def reconcile(services, data, offers, today):
     return True
 
 
+def adopt_public_form_session(services, data, today):
+    # This existing APS group was offered in the public information form at cutover.
+    # Its absence from the website catalogue must not create a second group.
+    receipt = data[RECEIPT]
+    if "information_form" in receipt:
+        return False
+    receipt["information_form"] = []
+    for session in data["sessions"]:
+        if (session.get("id") != "7b549596" or session.get("archived") or session.get("catalogue_visibility", "match") != "match"):
+            continue
+        key = session_catalogue.identity(services, session)
+        if (today <= key["start"] and (key["slug"], key["centre"], key["start"], key["end"], key["exam"]) ==
+                ("aps", "puget", "2027-02-04", "2027-03-10", "2027-03-11")):
+            session["catalogue_visibility"] = "public"
+            receipt["information_form"].append(session["id"])
+    return True
+
+
 def start(services):
     import os
     if os.getenv("RENDER_SERVICE_ID") != "srv-d3kj73muk2gs73fao7ug":
@@ -80,10 +98,12 @@ def start(services):
         for delay in (2, 5, 15, 30, 60):
             try:
                 data = services.load_sessions()
-                if RECEIPT in data:
-                    return
-                with MANIFEST.open(encoding="utf-8", newline="") as stream:
-                    changed = reconcile(services, data, csv.DictReader(stream), datetime.now(ZoneInfo("Europe/Paris")).date().isoformat())
+                today = datetime.now(ZoneInfo("Europe/Paris")).date().isoformat()
+                changed = False
+                if RECEIPT not in data:
+                    with MANIFEST.open(encoding="utf-8", newline="") as stream:
+                        changed = reconcile(services, data, csv.DictReader(stream), today)
+                changed = adopt_public_form_session(services, data, today) or changed
                 if changed:
                     services.save_sessions(data)
                     services.app.logger.info("Planning public repris : %s", {key:len(value) for key,value in data[RECEIPT].items()})

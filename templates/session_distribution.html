@@ -1,0 +1,11 @@
+{% macro distribution(s, immediate=false, help_id=none) -%}
+<div class="session-distribution">
+  {% if not immediate %}<input type="hidden" name="catalogue_scope_form" value="1">{% endif %}
+  <label class="distribution-choice">
+    <input type="checkbox" {% if immediate %}data-gestion-only="{{ url_for('set_session_gestion_only', sid=s.id) }}" data-csrf="{{ session_location_csrf() }}"{% else %}name="catalogue_gestion_only" value="1"{% endif %}{% if s.get('catalogue_gestion_only') %} checked{% endif %}{% if help_id %} aria-describedby="{{ help_id }}"{% endif %}>
+    <span>Uniquement dans Gestion Stagiaires</span>
+  </label>
+  {% if help_id %}<small id="{{ help_id }}" class="distribution-help">Cochez cette case pour masquer la session sur le site, dans le CRM et dans le formulaire de renseignements.</small>{% endif %}
+  {% if immediate %}<span role="status" aria-live="polite"></span>{% endif %}
+</div>
+{%- endmacro %}

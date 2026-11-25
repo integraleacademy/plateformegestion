@@ -1,9 +1,4 @@
 {% if not s %}<label>Nom de la session (facultatif)<input type="text" name="session_name" maxlength="80"></label>{% endif %}
-<label class="catalogue-scope-check">
-  <input type="hidden" name="catalogue_scope_form" value="1">
-  <input type="checkbox" name="catalogue_gestion_only" value="1" {% if s.get('catalogue_gestion_only') %}checked{% endif %}>
-  Uniquement dans Gestion Stagiaires
-</label>
 {% set kinds = 'APS A3P SSIAP DIRIGEANT AFC_APS_SSIAP' %}
 {% if not s or s.formation == 'SSIAP' %}
 <label data-catalogue-kinds="SSIAP">Niveau SSIAP

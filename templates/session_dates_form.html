@@ -1,7 +1,9 @@
 {% from 'session_visuals.html' import icon %}
+{% from 'session_distribution.html' import distribution with context %}
 <form class="date-editor" action="{{ url_for('edit_session', sid=s.id) }}" method="post">
   <fieldset>
     <legend>Calendrier de la session</legend>
+    {{ distribution(s, help_id='edition-diffusion-info') }}
     <div class="date-fields">
       {% for name, label, glyph, tone in [('date_debut','Date de début','calendar','start'),('date_fin','Date de fin','check','end'),('date_exam','Date d’examen','award','exam-date')] %}
         <label class="date-field {{ tone }}">
@@ -13,8 +15,6 @@
     {% if s.formation != 'GENERAL' %}
       {% if s.formation == 'DIRIGEANT' %}<label>Centre DESP<select name="dirigeant_location" required><option value="">Choisir le centre</option>{% for code, label in [('PARIS','Paris'), ('PUGET','Puget-sur-Argens')] %}<option value="{{ code }}" {% if catalogue_centre(s) == code|lower %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% endif %}
       {% include "session_catalogue_fields.html" %}
-    {% else %}
-      <label><input type="hidden" name="catalogue_scope_form" value="1"><input type="checkbox" name="catalogue_gestion_only" value="1" {% if s.get('catalogue_gestion_only') %}checked{% endif %}> Uniquement dans Gestion Stagiaires</label>
     {% endif %}
   </fieldset>
   <div class="date-actions">

@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Intégrale Academy</title>
   <link rel="icon" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css', v='diffusion-2') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-dialogs.css') }}">
-  <script defer src="{{ url_for('static', filename='js/sessions.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-distribution.css') }}">
+  <script defer src="{{ url_for('static', filename='js/sessions.js', v='diffusion-2') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/session-distribution.js') }}"></script>
 </head>
 <body>
 {% from 'session_visuals.html' import milestones, attention, jury_summary %}
+{% from 'session_distribution.html' import distribution with context %}
 {% macro icon(name) -%}
   <svg class="icon" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/sessions-icons.svg') }}#{{ name }}"></use></svg>
 {%- endmacro %}
@@ -49,7 +52,10 @@
       <h1>Sessions de formation</h1>
       <p>Retrouvez vos sessions, leurs dates d’examen et les échéances à suivre.</p>
     </div>
-    <button class="primary" type="button" id="openModal">{{ icon('plus') }} Nouvelle session</button>
+    <div class="hero-actions">
+      <button class="primary" type="button" id="openModal">{{ icon('plus') }} Nouvelle session</button>
+      <a class="distribution-shortcut" href="{{ url_for('sessions_home', statut='toutes', _anchor='catalogue') }}">{{ icon('grid') }} Diffusion des sessions</a>
+    </div>
   </section>
 
   {% with alerts = get_flashed_messages(with_categories=true) %}
@@ -118,6 +124,7 @@
               {% if item.state == 'a-venir' %}<small title="Dans {{ item.days_to_start }} jours">{{ 'Prochaine · ' if s.id == next_id }}J−{{ item.days_to_start }}</small>{% elif item.days_to_start == 0 %}<small>Aujourd’hui</small>{% endif %}
             </div>
           </header>
+          {{ distribution(s, immediate=true) }}
           {{ milestones(s) }}
           {% set contracts = session_trainer_contract_summary(s) %}
           {% if contracts or item.state != 'terminees' %}
@@ -133,10 +140,6 @@
             {% endif %}
           </div>
           {% endif %}
-          <div class="session-distribution">
-            <label><input type="checkbox" data-gestion-only="{{ url_for('set_session_gestion_only', sid=s.id) }}" data-csrf="{{ session_location_csrf() }}" {% if s.get('catalogue_gestion_only') %}checked{% endif %}> Uniquement dans Gestion Stagiaires</label>
-            <span role="status" aria-live="polite"></span>
-          </div>
           <a class="card-footer" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>
         </article>
       {% endfor %}
@@ -152,6 +155,7 @@
 <dialog class="session-dialog" id="sessionModal" aria-labelledby="creation-title">
   <form method="post" action="{{ url_for('create_session') }}" class="dialog-form">
     <header><span class="eyebrow">Sessions de formation</span><h2 id="creation-title">Nouvelle session</h2><button type="button" class="dismiss" aria-label="Fermer">{{ icon('close') }}</button></header>
+    {{ distribution({}, help_id='creation-diffusion-info') }}
     <label><span id="new-formation-label">Formation</span><select name="formation" id="sessionFormation" aria-labelledby="new-formation-label" required>
       <option value="">Choisir une formation</option>
       <option value="APS">APS</option><option value="A3P">A3P</option><option value="SSIAP">SSIAP</option><option value="DIRIGEANT">DESP · Dirigeant</option><option value="AFC_APS_SSIAP">AFC France Travail APS + SSIAP</option><option value="GENERAL">Général</option>

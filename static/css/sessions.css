@@ -50,7 +50,9 @@ h1 { margin:5px 0 4px; font-size:clamp(31px,3.3vw,47px); font-weight:680; line-h
 .primary, .secondary { justify-content:center; min-height:44px; border-radius:9px; padding:9px 15px; font-size:var(--catalogue-text); font-weight:720 }
 .primary { background:var(--gold); color:#202b31 }
 .primary:hover { background:#ffda8b }
-.hero .primary { margin-top:16px }
+.hero-actions { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; margin-top:16px }
+.distribution-shortcut { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:8px 13px; border:1px solid #afbfc7; border-radius:9px; background:#203744; color:white; font-weight:650 }
+.distribution-shortcut:hover { background:#334f5e }
 .secondary { background:white; border:1px solid var(--line) }
 .secondary:hover { background:var(--paper) }
 .notice { border-radius:10px; padding:12px; background:white; border:1px solid var(--line); margin-top:12px }
@@ -129,7 +131,7 @@ td b { color:#95522c }
 .card-name h3 { font-size:18px; line-height:1.23; letter-spacing:-.035em; overflow-wrap:anywhere }
 .card-name small { display:block; font-size:11px; color:var(--muted); margin-top:3px }
 .session-link::after { content:""; position:absolute; inset:0; border-radius:15px }
-.edit, .card-footer, .tag[title], .session-distribution label { position:relative; z-index:1 }
+.edit, .card-footer, .tag[title] { position:relative; z-index:1 }
 .session-link:hover { text-decoration:underline }
 .edit, .dismiss { display:grid; place-items:center; flex:none; border-radius:7px; height:30px; width:30px; background:transparent; color:#5a6875 }
 .edit:hover, .dismiss:hover { background:#edf1f3; color:var(--ink) }
@@ -194,7 +196,7 @@ dialog::backdrop { background:#14273586 }
   .hero-copy { max-width:100% }
   .hero-art { display:none }
   .hero { padding:19px; border-radius:13px }
-  .hero .primary { margin-top:12px }
+  .hero-actions { margin-top:12px }
   .filters { display:block }
   .chips { margin-top:7px }
   .chip { padding-inline:10px }
@@ -212,9 +214,3 @@ dialog::backdrop { background:#14273586 }
   .metric-heading { flex-direction:column; align-items:flex-start; gap:5px }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important } }
-
-.session-distribution { margin: .7rem 1rem; }
-.session-distribution label, .catalogue-scope-check { display: flex; align-items: center; gap: .55rem; }
-.session-distribution input, .catalogue-scope-check input[type="checkbox"] { width: 1rem; height: 1rem; flex: none; accent-color: #176779; }
-.session-distribution label { font-size: .88rem; cursor: pointer; }
-.session-distribution [role="status"] { display: block; color: #475569; font-size: .8rem; }

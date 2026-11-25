@@ -1,0 +1,52 @@
+.session-distribution {
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #bacdc8;
+  border-radius: 10px;
+  background: #f2f7f5;
+  color: #1b3e37;
+  text-align: left;
+}
+.session-distribution:has(input[type="checkbox"]:checked) {
+  border-color: #43806d;
+  background: #e3f2ea;
+}
+.session-distribution .distribution-choice {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  margin: 0;
+  color: inherit;
+  font: 650 1rem/1.35 system-ui, sans-serif;
+  cursor: pointer;
+}
+.session-distribution .distribution-choice input[type="checkbox"] {
+  appearance: auto;
+  position: static;
+  flex: 0 0 21px;
+  width: 21px;
+  height: 21px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 1;
+  accent-color: #21634f;
+  cursor: pointer;
+}
+.session-distribution .distribution-choice input:focus-visible {
+  outline: 3px solid #36749c;
+  outline-offset: 3px;
+}
+.session-distribution .distribution-help, .session-distribution [role="status"] {
+  display: block;
+  margin: 3px 0 0 31px;
+  font: 400 .85rem/1.45 system-ui, sans-serif;
+  color: #3f5952;
+}
+.session-distribution [role="status"]:empty { margin: 0; }
+.session-card > .session-distribution { margin: 12px 15px 0; }
+.sheet-banner > .session-distribution { max-width: 580px; margin-top: 14px; }
+.dialog-form > .session-distribution, .date-editor .session-distribution { margin: 0 0 14px; }

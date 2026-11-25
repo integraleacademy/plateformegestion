@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Modifier la session · {{ s.display_name or s.formation }}</title>
   <link rel="icon" href="{{ url_for('static',filename='img/favicongsessions.png') }}">
-  {% for file in ['session-location','session-visuals','session-sheet','session-dialogs'] %}
+  {% for file in ['session-location','session-visuals','session-sheet','session-dialogs','session-distribution'] %}
     <link rel="stylesheet" href="{{ url_for('static',filename='css/' ~ file ~ '.css') }}">
   {% endfor %}
 </head>

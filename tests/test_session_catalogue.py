@@ -152,3 +152,33 @@ def test_renommer_une_ancienne_fiche_conserve_le_centre_et_le_niveau(monkeypatch
     paris, ssiap=cat.rows(host,data["sessions"])
     assert (paris["centre"],ssiap["slug"])==("paris","ssiap-3")
     assert paris["name"]==ssiap["name"]=="Promotion Atlas"
+
+
+def test_diffusion_accessible_depuis_l_accueil_et_la_fiche(monkeypatch):
+    group = dict(id="groupe-test", formation="GENERAL", display_name="Session de test",
+                 date_debut="2098-03-03", date_fin="2098-04-04", steps=[], jurys=[],
+                 catalogue_gestion_only=True)
+    data = {"sessions": [group], "jurys": []}
+    monkeypatch.setattr(host, "load_sessions", lambda: deepcopy(data))
+    monkeypatch.setattr(host, "save_sessions", lambda snapshot: data.update(snapshot))
+    client = host.app.test_client()
+    with client.session_transaction() as auth:
+        auth.update(admin_logged=True, admin_session_version=host.ADMIN_SESSION_VERSION)
+
+    home = client.get("/sessions").get_data(as_text=True)
+    assert 'href="/sessions?statut=toutes#catalogue"' in home
+    creation = home.split('id="sessionModal"', 1)[1].split("</dialog>", 1)[0]
+    assert creation.index('name="catalogue_gestion_only"') < creation.index('name="formation"')
+
+    url = "/sessions/groupe-test"
+    control = 'data-gestion-only="' + url + '/gestion-stagiaires-only"'
+    listing = client.get("/sessions?statut=toutes").get_data(as_text=True)
+    card = listing.split('data-session-id="groupe-test"', 1)[1].split("</article>", 1)[0]
+    assert card.index(control) < card.index('class="milestones"')
+    detail = client.get(url).get_data(as_text=True)
+    heading = detail.split('class="sheet-banner"', 1)[1].split('<nav class="sheet-tabs"', 1)[0]
+    assert control in heading and " checked" in heading
+    for page in (detail, client.get(url + "/edit").get_data(as_text=True)):
+        editor = page.split('class="date-editor"', 1)[1].split("</form>", 1)[0]
+        assert editor.count('name="catalogue_scope_form"') == 1
+        assert 'name="catalogue_gestion_only" value="1" checked' in editor

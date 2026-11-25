@@ -110,8 +110,8 @@
               <span class="state">{{ states[item.state] if not s.archived else 'Archivée' }}</span>
             </div>
             <div class="card-heading">
-              <div class="card-name"><h3><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ s.display_name or label }}</a></h3></div>
-              {% if item.state != 'terminees' %}<button class="edit" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ s.display_name or label }}" title="Renommer la session">{{ icon('pencil') }}</button>{% endif %}
+              <div class="card-name"><h3><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ catalogue_name(s) }}</a></h3></div>
+              {% if item.state != 'terminees' %}<button class="edit" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ catalogue_name(s) }}" title="Renommer la session">{{ icon('pencil') }}</button>{% endif %}
             </div>
             <div class="course-period" aria-label="Période de formation">{{ icon('calendar') }} <span>{{ session_calendar_span(s.date_debut, s.date_fin) }}</span>
               {% if s.dirigeant_location_label %}<span class="course-site">{{ s.dirigeant_location_label }}</span>{% endif %}
@@ -133,6 +133,10 @@
             {% endif %}
           </div>
           {% endif %}
+          <div class="session-distribution">
+            <label><input type="checkbox" data-gestion-only="{{ url_for('set_session_gestion_only', sid=s.id) }}" data-csrf="{{ session_location_csrf() }}" {% if s.get('catalogue_gestion_only') %}checked{% endif %}> Uniquement dans Gestion Stagiaires</label>
+            <span role="status" aria-live="polite"></span>
+          </div>
           <a class="card-footer" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>
         </article>
       {% endfor %}

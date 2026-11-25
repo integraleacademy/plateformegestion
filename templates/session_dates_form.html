@@ -13,6 +13,8 @@
     {% if s.formation != 'GENERAL' %}
       {% if s.formation == 'DIRIGEANT' %}<label>Centre DESP<select name="dirigeant_location" required><option value="">Choisir le centre</option>{% for code, label in [('PARIS','Paris'), ('PUGET','Puget-sur-Argens')] %}<option value="{{ code }}" {% if catalogue_centre(s) == code|lower %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% endif %}
       {% include "session_catalogue_fields.html" %}
+    {% else %}
+      <label><input type="hidden" name="catalogue_scope_form" value="1"><input type="checkbox" name="catalogue_gestion_only" value="1" {% if s.get('catalogue_gestion_only') %}checked{% endif %}> Uniquement dans Gestion Stagiaires</label>
     {% endif %}
   </fieldset>
   <div class="date-actions">

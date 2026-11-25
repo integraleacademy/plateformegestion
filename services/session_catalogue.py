@@ -1,5 +1,5 @@
 """The planning fields exchanged with Gestion Stagiaires. Operational files stay private."""
-from datetime import datetime
+from datetime import date, datetime
 import re
 from zoneinfo import ZoneInfo
 
@@ -25,17 +25,45 @@ def centre(session):
     return ""
 
 
+def name(services, session):
+    code = session.get("formation", "")
+    return session.get("display_name") or services.SESSION_FORMATION_FILTERS.get(code, code)
+
+
+def set_gestion_only(session, enabled):
+    session["catalogue_gestion_only"] = enabled
+    session["catalogue_touched"] = True
+    if enabled and session.get("formation") == "GENERAL":
+        session["catalogue_general_linked"] = True
+
+
 def identity(services, session):
     kind = session.get("formation")
     slug = "ssiap-" + level(session) if kind == "SSIAP" else SLUGS.get(kind)
+    if kind == "GENERAL" and session.get("catalogue_general_linked"):
+        slug = "general"
     return dict(slug=slug, centre=centre(session), start=services.session_input_date(session.get("date_debut")),
                 end=services.session_input_date(session.get("date_fin")), exam=services.session_input_date(session.get("date_exam")),
                 standard_start=session.get("catalogue_standard_start", "") if slug == "ssiap-1" else "")
 
 
-def edit_fields(services, session, form):
+def edit_fields(services, session, form, previous=None):
+    previous_start = services.session_input_date((previous or {}).get("date_debut"))
+    new_start = services.session_input_date(session.get("date_debut"))
+    rescheduled = bool(previous_start and new_start and previous_start != new_start)
+    if "session_name" in form:
+        chosen = form["session_name"].strip()
+        if len(chosen) > 80:
+            raise ValueError("Le nom de la session est limité à 80 caractères.")
+        if chosen or previous is not None:
+            session["display_name"] = chosen
+    if session.get("date_debut") and session.get("date_fin") and session["date_fin"] < session["date_debut"]:
+        raise ValueError("La fin de la session doit suivre son début.")
+    if "catalogue_scope_form" in form:
+        set_gestion_only(session, form.get("catalogue_gestion_only") == "1")
     if session.get("formation") == "GENERAL":
         return
+    session["catalogue_touched"] = True
     if "catalogue_capacity" in form:
         try:
             capacity = int(form["catalogue_capacity"])
@@ -46,7 +74,7 @@ def edit_fields(services, session, form):
         session["catalogue_capacity"] = capacity
     if "catalogue_visibility" in form:
         value = form["catalogue_visibility"]
-        if value not in ("public", "internal"):
+        if value not in ("public", "internal", "match"):
             raise ValueError("Choisissez le mode de publication.")
         session["catalogue_visibility"] = value
     if session.get("formation") == "SSIAP" and "ssiap_level" in form:
@@ -57,13 +85,19 @@ def edit_fields(services, session, form):
         session.update(ssiap_level=form["ssiap_level"], training_code="SSIAP" + form["ssiap_level"])
     if session.get("formation") == "SSIAP" and "catalogue_standard_start" in form:
         value = form["catalogue_standard_start"].strip() if level(session) == "1" else ""
-        if value and (services.session_input_date(value) != value or not session["date_debut"] < value <= session["date_fin"]):
+        if rescheduled and value and value == previous.get("catalogue_standard_start"):
+            value = shifted(value, previous_start, new_start)
+        if not new_start or not session.get("date_fin"):
+            value = ""
+        if value and (services.session_input_date(value) != value or not new_start < value <= session["date_fin"]):
             raise ValueError("Le début sans SST doit se situer après le début avec SST et dans la période de la session.")
         session["catalogue_standard_start"] = value
     if session.get("formation") == "DIRIGEANT" and "dirigeant_location" in form:
         location = form["dirigeant_location"].upper()
         if location not in services.DIRIGEANT_LOCATIONS:
             raise ValueError("Choisissez le centre du DESP.")
+        if previous and previous.get("dirigeant_location") != location:
+            session.pop("catalogue_venue", None)
         session.update(dirigeant_location=location, dirigeant_location_label=services.DIRIGEANT_LOCATIONS[location])
     if session.get("formation") == "AFC_APS_SSIAP":
         session["catalogue_visibility"] = "internal"
@@ -73,40 +107,84 @@ def edit_fields(services, session, form):
             raise ValueError("L’identifiant Gestion Stagiaires est invalide.")
         session["catalogue_target_id"] = target
     if session.get("formation") in ("APS", "A3P", "DIRIGEANT"):
+        cleared = set(session.get("catalogue_cleared_periods", []))
         for field in PERIODS:
             if field in form:
                 value = form[field].strip()
                 if value and (not services.session_input_date(value) or services.session_input_date(value) != value):
                     raise ValueError("Vérifiez les dates des périodes de formation.")
+                if value:
+                    cleared.discard(field)
+                elif previous and previous.get(field):
+                    cleared.add(field)
                 session[field] = value
+        if cleared or "catalogue_cleared_periods" in session:
+            session["catalogue_cleared_periods"] = sorted(cleared)
         for start, end in (("remote_start", "remote_end"), ("onsite_start", "onsite_end")):
+            if rescheduled and previous.get(start) and previous.get(end) and all(
+                    session.get(k) == previous.get(k) for k in (start, end)):
+                session[start] = shifted(services.session_input_date(previous[start]), previous_start, new_start)
+                session[end] = shifted(services.session_input_date(previous[end]), previous_start, new_start)
+
+            if not new_start or not session.get("date_fin"):
+                session[start] = session[end] = ""
+                continue
             lo, hi = session.get(start), session.get(end)
             if bool(lo) != bool(hi) or (lo and (hi < lo or lo < session["date_debut"] or hi > session["date_fin"])):
                 raise ValueError("Renseignez les deux dates de chaque période dans les limites de la session.")
 
 
-def rows(services, sessions):
+def shifted(value, old_start, new_start):
+    try:
+        return (date.fromisoformat(value) + (date.fromisoformat(new_start) - date.fromisoformat(old_start))).isoformat()
+    except (ValueError, TypeError):
+        raise ValueError("Vérifiez les dates du report de la session.") from None
+
+
+def rows(services, sessions, *, include_past=False):
     today = datetime.now(ZoneInfo("Europe/Paris")).date().isoformat()
     result = []
     for session in sessions:
         key = identity(services, session)
-        if not key["slug"] or not key["start"] or not key["end"] or key["end"] < today or not session.get("id"):
+        if not key["slug"] or not session.get("id"):
+            continue
+        undated = not key["start"] or not key["end"]
+        if (undated or key["end"] < today) and not (include_past or session.get("catalogue_touched")):
             continue
         visibility = session.get("catalogue_visibility", "match")
-        if session.get("archived") or key["end"] < key["start"]:
+        if session.get("archived") or (not undated and key["end"] < key["start"]):
             visibility = "closed"
         elif key["slug"] == "afc" or not key["centre"]:
             visibility = "internal"
-        item = {**key, "id": session["id"], "capacity": session.get("catalogue_capacity", 12),
+        withdrawn = key["slug"] == "general" and not session.get("catalogue_gestion_only")
+        if withdrawn:
+            visibility = "closed"
+        only = bool(session.get("catalogue_gestion_only"))
+        item = {**key, "id": session["id"], "name": name(services, session),
+                "custom_name": bool(session.get("display_name")), "gestion_only": only,
+                "venue": session.get("catalogue_venue", ""), "deleted": withdrawn, "unscheduled": undated,
+                "edited": bool(session.get("catalogue_touched")), "capacity": session.get("catalogue_capacity", 12),
                 "visibility": visibility, "target": session.get("catalogue_target_id", ""),
                 "aliases": session.get("catalogue_aliases", [])}
         for prefix, modality in (("remote", "elearning"), ("onsite", "presentiel")):
             period = services.session_modality_date_range(session, modality) or {}
+            limits = [services.session_input_date(period.get(k)) for k in ("start", "end")]
+            if not all(limits) or not key["start"] <= limits[0] <= limits[1] <= key["end"]:
+                period = {}
             for boundary in ("start", "end"):
                 field = prefix + "_" + boundary
-                item[field] = session.get(field) or services.session_input_date(period.get(boundary))
+                item[field] = "" if field in session.get("catalogue_cleared_periods", ()) else (
+                    session.get(field) or services.session_input_date(period.get(boundary)))
         if key["slug"] == "afc":
             exams = jury_exams.exam_dates(services, session)
             item.update(exam=exams["aps"], ssiap_exam=exams["ssiap1"])
         result.append(item)
     return sorted(result, key=lambda row: row["id"])
+
+def remember_deletion(services, data, session):
+    emitted = rows(services, [session], include_past=True)
+    if emitted:
+        row = emitted[0]
+        data.setdefault("catalogue_deletions", {})[row["id"]] = {
+            **row, "visibility": "closed", "deleted": True, "name": "", "custom_name": False, "venue": "",
+        }

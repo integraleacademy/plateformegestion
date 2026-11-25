@@ -7660,14 +7660,19 @@ def planning_session_catalogue():
     token = os.environ.get("SESSION_CATALOG_TOKEN", "")
     if not token or not hmac.compare_digest(request.headers.get("Authorization", "").encode(), ("Bearer " + token).encode()):
         abort(401)
-    rows = session_catalogue.rows(sys.modules[__name__], load_sessions()["sessions"])
-    response = jsonify(version=1, sessions=rows)
+    data = load_sessions()
+    present = sorted(row["id"] for row in data["sessions"] if row.get("id"))
+    rows = session_catalogue.rows(sys.modules[__name__], data["sessions"])
+    removed = data.get("catalogue_deletions", {})
+    rows.extend(removed[sid] for sid in sorted(removed.keys() - set(present)))
+    response = jsonify(version=1, sessions=rows, present_ids=present)
     response.add_etag()
     response.headers["Cache-Control"] = "private, no-cache"
     return response.make_conditional(request)
 
 
-app.jinja_env.globals.update(catalogue_ssiap_level=session_catalogue.level, catalogue_centre=session_catalogue.centre)
+app.jinja_env.globals.update(catalogue_ssiap_level=session_catalogue.level, catalogue_centre=session_catalogue.centre,
+                             catalogue_name=lambda row: session_catalogue.name(sys.modules[__name__], row))
 
 
 @app.route("/sessions/create", methods=["POST"])
@@ -8234,6 +8239,8 @@ def update_session_location(sid):
         return redirect(url_for("session_detail", sid=sid) + "#location-section")
     if changed:
         session_data["trainingLocationUpdatedAt"] = append_planning_history(session_data, "lieu de formation modifié — cours et horaires conservés")
+        session_data["catalogue_venue"] = training_location(session_data)
+        session_data["catalogue_touched"] = True
         save_sessions(data)
     flash("Lieu de formation enregistré. Les cours, les dates et les horaires sont conservés.", "ok")
     return redirect(url_for("session_detail", sid=sid) + "#location-section")
@@ -8246,12 +8253,13 @@ def edit_session(sid):
     if not session:
         abort(404)
     if request.method == "POST":
+        before = session.copy()
         previous = session_catalogue.identity(sys.modules[__name__], session)
         session["date_debut"] = request.form.get("date_debut","").strip()
         session["date_fin"] = request.form.get("date_fin","").strip()
         session["date_exam"] = request.form.get("date_exam","").strip()
         try:
-            session_catalogue.edit_fields(sys.modules[__name__], session, request.form)
+            session_catalogue.edit_fields(sys.modules[__name__], session, request.form, before)
         except ValueError as error:
             flash(str(error), "error")
             return redirect(url_for("edit_session", sid=sid))
@@ -8320,14 +8328,43 @@ def rename_session(sid):
     if len(name) > 80:
         return {"ok": False, "error": "Le nom est trop long (80 caractères max)."}, 400
 
+    if session.get("formation") == "SSIAP" and not session.get("ssiap_level"):
+        session["ssiap_level"] = session_catalogue.level(session)
+    if session.get("formation") == "DIRIGEANT" and not session.get("dirigeant_location"):
+        location = session_catalogue.centre(session).upper()
+        if location in DIRIGEANT_LOCATIONS:
+            session.update(dirigeant_location=location, dirigeant_location_label=DIRIGEANT_LOCATIONS[location])
     session["display_name"] = name
+    session["catalogue_touched"] = True
     save_sessions(data)
     return {"ok": True, "name": name}
+
+
+@app.post("/sessions/<sid>/gestion-stagiaires-only")
+def set_session_gestion_only(sid):
+    payload = request.get_json(silent=True) or {}
+    expected = session.get("session_location_csrf", "")
+    token = request.headers.get("X-CSRF-Token", "")
+    if not expected or not hmac.compare_digest(token.encode(), expected.encode()):
+        abort(403)
+    if not isinstance(payload, dict) or type(payload.get("enabled")) is not bool:
+        abort(400)
+    data = load_sessions()
+    training = find_session(data, sid)
+    if training is None:
+        abort(404)
+    if bool(training.get("catalogue_gestion_only")) != payload["enabled"]:
+        session_catalogue.set_gestion_only(training, payload["enabled"])
+        save_sessions(data)
+    return jsonify(ok=True, enabled=payload["enabled"])
 
 
 @app.route("/sessions/<sid>/delete", methods=["POST"])
 def delete_session(sid):
     data = load_sessions()
+    training = find_session(data, sid)
+    if training:
+        session_catalogue.remember_deletion(sys.modules[__name__], data, training)
     data["sessions"] = [s for s in data["sessions"] if s["id"]!=sid]
     save_sessions(data)
     flash("Session supprimée.","ok")

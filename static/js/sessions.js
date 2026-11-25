@@ -76,3 +76,25 @@ renameForm.addEventListener('submit', async event => {
     submit.disabled = false;
   }
 });
+
+document.querySelectorAll('input[data-gestion-only]').forEach(input => {
+  const status = input.closest('.session-distribution').querySelector('[role="status"]');
+  input.addEventListener('change', async () => {
+    const enabled = input.checked;
+    input.disabled = true;
+    status.textContent = 'Enregistrement…';
+    try {
+      const response = await fetch(input.dataset.gestionOnly, {
+        method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRF-Token': input.dataset.csrf},
+        body: JSON.stringify({enabled})
+      });
+      if (!response.ok || (await response.json()).enabled !== enabled) throw new Error();
+      status.textContent = 'Diffusion enregistrée.';
+    } catch {
+      input.checked = !enabled;
+      status.textContent = 'Enregistrement impossible. Rechargez la page et réessayez.';
+    } finally {
+      input.disabled = false;
+    }
+  });
+});

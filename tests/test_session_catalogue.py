@@ -57,3 +57,18 @@ def test_import_uses_published_capacity_variants_and_respects_existing_records()
     rows=cat.rows(host,current["sessions"])
     assert len([r for r in rows if r["standard_start"]])==4
     assert [r["capacity"] for r in rows if r["slug"]=="ssiap-3"] == [10,10]
+
+
+def test_save_both_dates_before_rescheduling_ssiap(monkeypatch):
+    current = dict(id="groupe", formation="SSIAP", ssiap_level="1", date_debut="2098-02-05", date_fin="2098-03-12",
+                   catalogue_standard_start="2098-02-09", date_exam="")
+    data = {"sessions":[current]}
+    monkeypatch.setattr(host,"load_sessions",lambda:deepcopy(data))
+    monkeypatch.setattr(host,"save_sessions",lambda snapshot:data.update(snapshot))
+    client = host.app.test_client()
+    with client.session_transaction() as session:
+        session.update(admin_logged=True, admin_session_version=host.ADMIN_SESSION_VERSION)
+    reply=client.post("/sessions/groupe/edit",data={"date_debut":"2098-02-06","date_fin":"2098-03-12","date_exam":"","catalogue_standard_start":"2098-02-10"})
+    assert reply.status_code==302
+    row,=cat.rows(host,data["sessions"])
+    assert row["standard_start"]=="2098-02-10" and row["aliases"][0]["standard_start"]=="2098-02-09"

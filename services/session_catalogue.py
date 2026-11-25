@@ -29,7 +29,8 @@ def identity(services, session):
     kind = session.get("formation")
     slug = "ssiap-" + level(session) if kind == "SSIAP" else SLUGS.get(kind)
     return dict(slug=slug, centre=centre(session), start=services.session_input_date(session.get("date_debut")),
-                end=services.session_input_date(session.get("date_fin")), exam=services.session_input_date(session.get("date_exam")))
+                end=services.session_input_date(session.get("date_fin")), exam=services.session_input_date(session.get("date_exam")),
+                standard_start=session.get("catalogue_standard_start", "") if slug == "ssiap-1" else "")
 
 
 def edit_fields(services, session, form):
@@ -98,8 +99,7 @@ def rows(services, sessions):
             visibility = "internal"
         item = {**key, "id": session["id"], "capacity": session.get("catalogue_capacity", 12),
                 "visibility": visibility, "target": session.get("catalogue_target_id", ""),
-                "aliases": session.get("catalogue_aliases", []),
-                "standard_start": session.get("catalogue_standard_start", "") if key["slug"] == "ssiap-1" else ""}
+                "aliases": session.get("catalogue_aliases", [])}
         for prefix, modality in (("remote", "elearning"), ("onsite", "presentiel")):
             period = services.session_modality_date_range(session, modality) or {}
             for boundary in ("start", "end"):

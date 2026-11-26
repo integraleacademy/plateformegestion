@@ -72,6 +72,26 @@ def views(services, training, include_unassigned=False):
     ]
 
 
+def card_rosters(services, sessions):
+    """Export the two assigned AFC rosters, without contacts or reply tokens."""
+    result = {}
+    for training in sessions:
+        if not services.is_afc_aps_ssiap_session(training):
+            continue
+        exams = {}
+        for view in views(services, training):
+            members = []
+            for person in view['jurys']:
+                status = person.get('status')
+                if status not in ('present', 'absent'):
+                    status = 'waiting' if person.get('notified_at') else 'to_invite'
+                name = ' '.join(str(person.get(field) or '').strip() for field in ('prenom', 'nom')).strip()
+                members.append({'id': str(person['id']), 'name': name, 'status': status})
+            exams[view['jury_exam_key']] = {'date': view['date_exam'], 'members': members}
+        result[training['id']] = exams
+    return result
+
+
 def select(services, training, key, include_unassigned=False):
     return next((v for v in views(services, training, include_unassigned)
                  if v.get('jury_exam_key', '') == (key or '')), None)

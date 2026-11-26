@@ -449,3 +449,40 @@ def test_same_contact_can_be_added_to_both_afc_juries(afc):
     assert groups['aps'][0]['token'] != groups['ssiap1'][0]['token']
     email.assert_not_called()
     sms.assert_not_called()
+
+
+def test_private_catalogue_tracks_current_afc_assignments_and_answers(afc, monkeypatch):
+    client, email, sms, api = afc
+    monkeypatch.setenv('SESSION_CATALOG_TOKEN', 'calendar-only')
+    data = app.load_sessions()
+    row = data['sessions'][0]
+    row['afc_exam_jurys'] = {
+        'aps': [{**CONTACT, 'status': 'present'}, {**CONTACT, 'id': 'j2', 'notified_at': NOW.isoformat()}],
+        'ssiap1': [{**CONTACT, 'status': 'pending', 'token': 'reply-secret'}],
+        'unassigned': [{**CONTACT, 'id': 'unassigned'}],
+    }
+    app.save_sessions(data)
+    url = '/api/integrations/session-catalogue'
+    calendar = {'Authorization': 'Bearer calendar-only'}
+    private = {**calendar, 'X-Jury-Sync-Token': 'fixture-key'}
+    assert 'afc_juries' not in client.get(url, headers=calendar).json
+    assert 'afc_juries' not in client.get(url, headers={**calendar, 'X-Jury-Sync-Token': 'wrong'}).json
+    reply = client.get(url, headers=private)
+    exams = reply.json['afc_juries']['S']
+    assert exams['aps']['date'] != exams['ssiap1']['date']
+    assert [m['status'] for m in exams['aps']['members']] == ['present', 'waiting']
+    assert exams['ssiap1']['members'] == [{'id': 'j1', 'name': 'Camille EXEMPLE', 'status': 'to_invite'}]
+    assert set(exams) == {'aps', 'ssiap1'}
+    assert CONTACT['email'] not in reply.get_data(as_text=True) and 'reply-secret' not in reply.get_data(as_text=True)
+    conditional = {**private, 'If-None-Match': reply.headers['ETag']}
+    assert client.get(url, headers=conditional).status_code == 304
+    row['afc_exam_jurys']['aps'].clear()
+    row['afc_exam_jurys']['ssiap1'][0]['status'] = 'absent'
+    app.save_sessions(data)
+    updated = client.get(url, headers=conditional)
+    assert updated.status_code == 200
+    assert updated.json['afc_juries']['S']['aps']['members'] == []
+    assert updated.json['afc_juries']['S']['ssiap1']['members'][0]['status'] == 'absent'
+    email.assert_not_called()
+    sms.assert_not_called()
+    api.assert_not_called()

@@ -6,6 +6,55 @@ import app
 from services import session_catalogue
 
 
+def test_card_counts_use_registered_trainees_and_never_invent_zero(monkeypatch):
+    calls = []
+    rows = [
+        dict(id='platform-aps', sold=13, capacity=12),
+        dict(id='gestion-linked', sold=0), dict(id='platform-closed', sold=2, visibility='closed'),
+        dict(id='platform-mask', sold=0, visibility='closed'),
+        dict(id='platform-duplicate', sold=2), dict(id='platform-duplicate', sold=3),
+        dict(id='platform-removed', sold=1, deleted=True),
+        dict(id='platform-ssiap-recyclage', sold=6, slug='recyclage-ssiap-1'),
+        dict(id='platform-missing', capacity=12),
+    ]
+
+    class Reply:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return dict(version=1, sessions=rows)
+
+    def fetch(url, **options):
+        calls.append(url)
+        assert options['headers'] == {'Authorization': 'Bearer test-catalogue'}
+        return Reply()
+
+    monkeypatch.setenv('SESSION_CATALOG_TOKEN', 'test-catalogue')
+    monkeypatch.setattr(session_catalogue, '_next_counts_read', 0)
+    monkeypatch.setattr(session_catalogue, '_counts_cache', None)
+    monkeypatch.setattr(session_catalogue.requests, 'get', fetch)
+    client = app.app.test_client()
+    endpoint = '/sessions/effectifs.json'
+    assert client.get(endpoint).status_code == 302
+    assert not calls
+    with client.session_transaction() as auth:
+        auth.update(admin_logged=True, admin_session_version=app.ADMIN_SESSION_VERSION)
+    for _ in range(2):
+        assert client.get(endpoint).get_json() == {
+            'counts': {'platform-aps': 13, 'gestion-linked': 0, 'platform-closed': 2}}
+    assert calls == [session_catalogue.AVAILABILITY_URL]
+    monkeypatch.setattr(session_catalogue, '_next_counts_read', 0)
+
+    def offline(*args, **kwargs):
+        raise session_catalogue.requests.Timeout()
+
+    monkeypatch.setattr(session_catalogue.requests, 'get', offline)
+    response = client.get(endpoint)
+    assert response.status_code == 503
+    assert response.get_json() == {'counts': {}}
+
+
 @pytest.mark.parametrize(('start', 'end', 'expected'), [
     ('2027-01-04', '2027-01-13', '4 – 13 janv. 2027'),
     ('14/01/2027', '08/02/2027', '14 janv. – 8 févr. 2027'),

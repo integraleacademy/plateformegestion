@@ -1,12 +1,56 @@
 """The planning fields exchanged with Gestion Stagiaires. Operational files stay private."""
 from datetime import date, datetime
+import os
 import re
+from threading import Lock
+from time import monotonic
 from zoneinfo import ZoneInfo
+
+import requests
 
 from services import jury_exams
 
 PERIODS = ("remote_start", "remote_end", "onsite_start", "onsite_end")
 SLUGS = {"APS": "aps", "A3P": "a3p-apr", "DIRIGEANT": "desp-dssp", "AFC_APS_SSIAP": "afc"}
+AVAILABILITY_URL = "https://gestionstagiaires-r5no.onrender.com/api/integrations/session-availability"
+_counts_lock = Lock()
+_counts_cache = None
+_next_counts_read = 0
+
+
+def registered_counts():
+    """Read the same registered-trainee totals used by Gestion Stagiaires, in one batch."""
+    global _counts_cache, _next_counts_read
+    token = os.environ.get("SESSION_CATALOG_TOKEN")
+    if not token:
+        return None
+    with _counts_lock:
+        if monotonic() < _next_counts_read:
+            return _counts_cache
+        try:
+            reply = requests.get(AVAILABILITY_URL, headers={"Authorization": f"Bearer {token}"},
+                                 timeout=(3, 6), allow_redirects=False)
+            reply.raise_for_status()
+            payload = reply.json()
+            if not isinstance(payload, dict) or payload.get("version") != 1 or not isinstance(payload.get("sessions"), list):
+                raise ValueError("Invalid session availability")
+            counts = {}
+            for row in payload["sessions"]:
+                if not isinstance(row, dict) or row.get("deleted"):
+                    continue
+                key, count = row.get("id"), row.get("sold")
+                if not isinstance(key, str) or type(count) is not int or count < 0:
+                    continue
+                # SSIAP variants share a roster. Closed zero-count entries can be
+                # catalogue masks for unresolved links, rather than an empty roster.
+                if row.get("slug") in ("recyclage-ssiap-1", "remise-a-niveau-ssiap-1") or (row.get("visibility") == "closed" and count == 0):
+                    continue
+                counts[key] = None if key in counts else count
+            _counts_cache = {key: count for key, count in counts.items() if count is not None}
+        except (requests.RequestException, ValueError):
+            _counts_cache = None
+        _next_counts_read = monotonic() + 60
+        return _counts_cache
 
 
 def level(session):

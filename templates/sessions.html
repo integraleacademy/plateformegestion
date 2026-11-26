@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Intégrale Academy</title>
   <link rel="icon" href="{{ url_for('static', filename='img/favicongsessions.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css', v='diffusion-2') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/session-visuals.css', v='cartes-20261126') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-dialogs.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/session-distribution.css') }}">
-  <script defer src="{{ url_for('static', filename='js/sessions.js', v='diffusion-2') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sessions.css', v='cartes-20261126') }}">
+  <script defer src="{{ url_for('static', filename='js/sessions.js', v='cartes-20261126') }}"></script>
   <script defer src="{{ url_for('static', filename='js/session-distribution.js') }}"></script>
 </head>
 <body>
@@ -106,41 +106,47 @@
       {% if formation or status != 'toutes' %}<a class="reset" href="{{ dashboard_url('', 'toutes') }}">{{ icon('close') }} Effacer les filtres</a>{% endif %}
     </div>
     {% if sessions %}
-      <div class="cards">
+      <div class="cards" data-counts-url="{{ url_for('session_trainee_counts') }}">
       {% for item in sessions %}
         {% set s = item.session %}{% set code = s.formation %}{% set label = formations.get(code,code) %}
         <article class="session-card" data-code="{{ code }}" data-state="{{ item.state }}" data-session-id="{{ s.id }}">
-          <header class="card-cover">
-            <div class="card-kicker">
-              <span class="program">{{ icon('shield') }} {{ label }}</span>
-              <span class="state">{{ states[item.state] if not s.archived else 'Archivée' }}</span>
+          <header class="session-card__header">
+            <div class="session-card__identity">
+              <h3 class="session-card__title"><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ catalogue_name(s) }}</a></h3>
+              {% set venue = s.catalogue_venue or s.dirigeant_location_label or s.salle or s.room %}
+              {% if venue %}<p class="session-venue">{{ venue }}</p>{% endif %}
+              <div class="session-tags" aria-label="Type et statut de session">
+                <span class="pill pill-training">{{ 'SSIAP ' ~ catalogue_ssiap_level(s) if code == 'SSIAP' else label }}</span>
+                <span class="pill pill-status">{{ 'Archivée' if s.archived else states[item.state] }}</span>
+                {% if item.state == 'a-venir' %}<span class="session-countdown" title="Dans {{ item.days_to_start }} jours">{{ 'Prochaine · ' if s.id == next_id }}J−{{ item.days_to_start }}</span>{% elif item.days_to_start == 0 %}<span class="session-countdown">Aujourd’hui</span>{% endif %}
+              </div>
             </div>
-            <div class="card-heading">
-              <div class="card-name"><h3><a href="{{ url_for('session_detail', sid=s.id) }}" class="session-link">{{ catalogue_name(s) }}</a></h3></div>
-              {% if item.state != 'terminees' %}<button class="edit" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ catalogue_name(s) }}" title="Renommer la session">{{ icon('pencil') }}</button>{% endif %}
-            </div>
-            <div class="course-period" aria-label="Période de formation">{{ icon('calendar') }} <span>{{ session_calendar_span(s.date_debut, s.date_fin) }}</span>
-              {% if s.dirigeant_location_label %}<span class="course-site">{{ s.dirigeant_location_label }}</span>{% endif %}
-              {% if item.state == 'a-venir' %}<small title="Dans {{ item.days_to_start }} jours">{{ 'Prochaine · ' if s.id == next_id }}J−{{ item.days_to_start }}</small>{% elif item.days_to_start == 0 %}<small>Aujourd’hui</small>{% endif %}
+            <div class="session-kpi" title="Effectif indisponible" {% if s.catalogue_target_id %}data-gestion-id="{{ s.catalogue_target_id }}"{% endif %}>
+              <strong class="session-kpi__value" aria-label="Effectif indisponible">—</strong>
+              <span class="session-kpi__label">Stagiaires</span>
             </div>
           </header>
           {{ distribution(s, immediate=true) }}
-          {{ milestones(s) }}
+          {{ milestones(s, show_period=true) }}
           {% set contracts = session_trainer_contract_summary(s) %}
           {% if contracts or item.state != 'terminees' %}
-          <div class="follow-up">
-            {% if contracts %}
-              {% if contracts.action_required and item.state != 'terminees' %}<span title="{{ contracts.details }}">{{ attention(contracts.label) }}</span>
-              {% else %}<span class="tag tag-{{ contracts.tone }}" title="{{ contracts.details }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
-            {% endif %}
+          <section class="follow-up" aria-label="Organisation de la session">
             {% if item.state != 'terminees' %}
-              <div class="jury-statuses">
-                {{ jury_summary(s) }}
+              <h4>Organisation et jury</h4>
+              <div class="jury-statuses">{{ jury_summary(s) }}</div>
+            {% endif %}
+            {% if contracts %}
+              <div class="contract-status" title="{{ contracts.details }}">
+                {% if contracts.action_required and item.state != 'terminees' %}{{ attention(contracts.label) }}
+                {% else %}<span class="tag tag-{{ contracts.tone }}">{{ icon('contract') }}{{ contracts.label }}</span>{% endif %}
               </div>
             {% endif %}
-          </div>
+          </section>
           {% endif %}
-          <a class="card-footer" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>
+          <footer class="session-actions">
+            <a class="session-action session-action--primary" href="{{ url_for('session_detail', sid=s.id) }}">Ouvrir la session {{ icon('arrow') }}</a>
+            {% if item.state != 'terminees' %}<button class="session-action" type="button" data-rename-url="{{ url_for('rename_session', sid=s.id) }}" aria-label="Renommer la session {{ catalogue_name(s) }}">{{ icon('pencil') }} Renommer</button>{% endif %}
+          </footer>
         </article>
       {% endfor %}
       </div>

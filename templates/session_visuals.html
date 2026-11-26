@@ -36,11 +36,12 @@
   {% endfor %}
 {%- endmacro %}
 
-{% macro milestones(s) -%}
+{% macro milestones(s, show_period=false) -%}
   {% set remote = session_modality_date_range(s, 'elearning') %}
   {% set onsite = session_modality_date_range(s, 'presentiel') %}
   {% set desp = s.formation in ('DIRIGEANT', 'DESP') %}
   <div class="milestones" aria-label="Calendrier de la session">
+    {% if show_period %}<div class="milestone">{{ icon('calendar') }}<span><small>Formation</small><b>{{ session_calendar_span(s.date_debut, s.date_fin) }}</b></span></div>{% endif %}
     {% if remote or desp %}<div class="milestone remote">{{ icon('screen') }}<span><small>Distanciel</small><b>{{ session_calendar_span(remote.start, remote.end) if remote else 'À renseigner' }}</b></span></div>{% endif %}
     {% if onsite or desp %}<div class="milestone onsite">{{ icon('pin') }}<span><small>Présentiel</small><b>{{ session_calendar_span(onsite.start, onsite.end) if onsite else 'À renseigner' }}</b></span></div>{% endif %}
     {% for exam in jury_exam_views(s) %}

@@ -2,6 +2,30 @@ const creation = document.getElementById('sessionModal');
 const form = creation.querySelector('form');
 const fields = form.elements;
 
+async function showTraineeCounts(grid) {
+  try {
+    const response = await fetch(grid.dataset.countsUrl);
+    if (!response.ok) return;
+    const {counts} = await response.json();
+    for (const card of grid.querySelectorAll('[data-session-id]')) {
+      const badge = card.querySelector('.session-kpi');
+      const count = counts['platform-' + card.dataset.sessionId]
+        ?? (badge.dataset.gestionId ? counts['gestion-' + badge.dataset.gestionId] : null);
+      if (!Number.isInteger(count)) continue;
+      const value = badge.querySelector('.session-kpi__value');
+      value.textContent = count;
+      value.removeAttribute('aria-label');
+      badge.querySelector('.session-kpi__label').textContent = count === 1 ? 'Stagiaire' : 'Stagiaires';
+      badge.title = 'Effectif inscrit dans Gestion Stagiaires';
+    }
+  } catch {
+    // The unavailable marker stays visible if the enrolment service is offline.
+  }
+}
+
+const sessionGrid = document.querySelector('[data-counts-url]');
+if (sessionGrid) showTraineeCounts(sessionGrid);
+
 function updateFields() {
   const dirigeant = fields.formation.value === 'DIRIGEANT';
   const afc = fields.formation.value === 'AFC_APS_SSIAP';

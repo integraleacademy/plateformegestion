@@ -7688,6 +7688,16 @@ def sessions_home():
     )
 
 
+@app.get("/sessions/effectifs.json")
+def session_trainee_counts():
+    counts = session_catalogue.registered_counts()
+    response = jsonify(counts=counts or {})
+    response.headers["Cache-Control"] = "private, no-store"
+    if counts is None:
+        response.status_code = 503
+    return response
+
+
 @app.get("/api/integrations/session-catalogue")
 def planning_session_catalogue():
     token = os.environ.get("SESSION_CATALOG_TOKEN", "")

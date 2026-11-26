@@ -7708,7 +7708,12 @@ def planning_session_catalogue():
     rows = session_catalogue.rows(sys.modules[__name__], data["sessions"])
     removed = data.get("catalogue_deletions", {})
     rows.extend(removed[sid] for sid in sorted(removed.keys() - set(present)))
-    response = jsonify(version=1, sessions=rows, present_ids=present)
+    payload = dict(version=1, sessions=rows, present_ids=present)
+    jury_key = jury_workflow.integration_key()
+    if jury_key and hmac.compare_digest(request.headers.get("X-Jury-Sync-Token", "").encode(), jury_key.encode()):
+        payload["afc_juries"] = jury_exams.card_rosters(sys.modules[__name__], data["sessions"])
+    response = jsonify(payload)
+    response.vary.update(("Authorization", "X-Jury-Sync-Token"))
     response.add_etag()
     response.headers["Cache-Control"] = "private, no-cache"
     return response.make_conditional(request)
